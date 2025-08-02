@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.service.impl</a> &gt; <span class="el_source">UserServiceImpl.java</span></div><h1>UserServiceImpl.java</h1><pre class="source lang-java linenums">package com.usyd.catams.service.impl;
+
+import com.usyd.catams.dto.request.AuthenticationRequest;
+import com.usyd.catams.dto.request.UserCreateRequest;
+import com.usyd.catams.dto.response.AuthResult;
+import com.usyd.catams.dto.response.UserResponse;
+import com.usyd.catams.entity.User;
+import com.usyd.catams.exception.AuthenticationException;
+import com.usyd.catams.exception.BusinessException;
+import com.usyd.catams.exception.ErrorCodes;
+import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.security.JwtTokenProvider;
+import com.usyd.catams.service.UserService;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
+
+/**
+ * User service implementation
+ * 
+ * Implements user-related business logic including authentication functionality
+ * 
+ * @author Development Team
+ * @since 1.0
+ */
+@Service
+public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
+
+    public UserServiceImpl(UserRepository userRepository, 
+                          PasswordEncoder passwordEncoder,
+<span class="fc" id="L35">                          JwtTokenProvider jwtTokenProvider) {</span>
+<span class="fc" id="L36">        this.userRepository = userRepository;</span>
+<span class="fc" id="L37">        this.passwordEncoder = passwordEncoder;</span>
+<span class="fc" id="L38">        this.jwtTokenProvider = jwtTokenProvider;</span>
+<span class="fc" id="L39">    }</span>
+
+    /**
+     * Authenticate user login credentials
+     * 
+     * Validates user email and password against database, generates JWT token on success
+     * 
+     * @param credentials Authentication request containing email and password
+     * @return Authentication result with success status, JWT token and user info
+     * @throws IllegalArgumentException when credentials are null or invalid format
+     * @throws AuthenticationException when authentication fails
+     */
+    @Override
+    public AuthResult authenticate(AuthenticationRequest credentials) {
+        // Fail-fast validation - throw immediately on invalid input
+<span class="fc" id="L54">        Assert.notNull(credentials, &quot;Authentication credentials cannot be null&quot;);</span>
+<span class="fc" id="L55">        Assert.hasText(credentials.getEmail(), &quot;Email cannot be empty&quot;);</span>
+<span class="fc" id="L56">        Assert.hasText(credentials.getPassword(), &quot;Password cannot be empty&quot;);</span>
+
+        // Find user by email and active status
+<span class="fc" id="L59">        User user = userRepository.findByEmailAndIsActive(credentials.getEmail(), true)</span>
+<span class="pc" id="L60">            .orElseThrow(() -&gt; new AuthenticationException(&quot;Invalid email or password&quot;));</span>
+
+        // Verify password
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (!passwordEncoder.matches(credentials.getPassword(), user.getHashedPassword())) {</span>
+<span class="fc" id="L64">            throw new AuthenticationException(&quot;Invalid email or password&quot;);</span>
+        }
+
+        // Update last login timestamp
+<span class="fc" id="L68">        user.updateLastLogin();</span>
+<span class="fc" id="L69">        userRepository.save(user);</span>
+
+        // Create user response DTO
+<span class="fc" id="L72">        UserResponse userResponse = new UserResponse(</span>
+<span class="fc" id="L73">            user.getId(),</span>
+<span class="fc" id="L74">            user.getEmail(),</span>
+<span class="fc" id="L75">            user.getName(),</span>
+<span class="fc" id="L76">            user.getRole().name()</span>
+        );
+
+        // Generate JWT token
+<span class="fc" id="L80">        String token = jwtTokenProvider.generateToken(</span>
+<span class="fc" id="L81">            user.getId(),</span>
+<span class="fc" id="L82">            user.getEmail(),</span>
+<span class="fc" id="L83">            user.getRole().name()</span>
+        );
+
+<span class="fc" id="L86">        return new AuthResult(true, token, userResponse, null);</span>
+    }
+
+    /**
+     * Create a new user account
+     * 
+     * Validates the request, checks for duplicate email, hashes the password,
+     * and saves the new user to the database
+     * 
+     * @param request User creation request containing email, name, password, and role
+     * @return User response DTO containing the created user's information
+     * @throws IllegalArgumentException when request is null or invalid format
+     * @throws BusinessException when email already exists
+     */
+    @Override
+    public UserResponse createUser(UserCreateRequest request) {
+        // Fail-fast validation - throw immediately on invalid input
+<span class="fc" id="L103">        Assert.notNull(request, &quot;User creation request cannot be null&quot;);</span>
+<span class="fc" id="L104">        Assert.hasText(request.getEmail(), &quot;Email cannot be empty&quot;);</span>
+<span class="fc" id="L105">        Assert.hasText(request.getName(), &quot;Name cannot be empty&quot;);</span>
+<span class="fc" id="L106">        Assert.hasText(request.getPassword(), &quot;Password cannot be empty&quot;);</span>
+<span class="fc" id="L107">        Assert.notNull(request.getRole(), &quot;User role cannot be null&quot;);</span>
+
+        // Check if email already exists
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">        if (userRepository.existsByEmail(request.getEmail())) {</span>
+<span class="nc" id="L111">            throw new BusinessException(ErrorCodes.EMAIL_EXISTS, &quot;Email already exists&quot;);</span>
+        }
+
+        // Hash the password
+<span class="fc" id="L115">        String hashedPassword = passwordEncoder.encode(request.getPassword());</span>
+
+        // Create new user entity
+<span class="fc" id="L118">        User user = new User(</span>
+<span class="fc" id="L119">            request.getEmail(),</span>
+<span class="fc" id="L120">            request.getName(),</span>
+            hashedPassword,
+<span class="fc" id="L122">            request.getRole()</span>
+        );
+
+        // Save user to database
+<span class="fc" id="L126">        User savedUser = userRepository.save(user);</span>
+
+        // Create and return user response DTO
+<span class="fc" id="L129">        return new UserResponse(</span>
+<span class="fc" id="L130">            savedUser.getId(),</span>
+<span class="fc" id="L131">            savedUser.getEmail(),</span>
+<span class="fc" id="L132">            savedUser.getName(),</span>
+<span class="fc" id="L133">            savedUser.getRole().name()</span>
+        );
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

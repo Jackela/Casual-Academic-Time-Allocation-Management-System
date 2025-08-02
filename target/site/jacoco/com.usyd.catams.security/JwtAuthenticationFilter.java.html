@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtAuthenticationFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.security</a> &gt; <span class="el_source">JwtAuthenticationFilter.java</span></div><h1>JwtAuthenticationFilter.java</h1><pre class="source lang-java linenums">package com.usyd.catams.security;
+
+import com.usyd.catams.entity.User;
+import com.usyd.catams.repository.UserRepository;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Optional;
+
+/**
+ * JWT Authentication Filter
+ * 
+ * Processes incoming HTTP requests to extract and validate JWT tokens,
+ * setting up the security context for authenticated users
+ * 
+ * @author Development Team
+ * @since 1.0
+ */
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    
+<span class="fc" id="L34">    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);</span>
+    private static final String AUTHORIZATION_HEADER = &quot;Authorization&quot;;
+    
+    private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
+    
+<span class="fc" id="L40">    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, UserRepository userRepository) {</span>
+<span class="fc" id="L41">        this.jwtTokenProvider = jwtTokenProvider;</span>
+<span class="fc" id="L42">        this.userRepository = userRepository;</span>
+<span class="fc" id="L43">    }</span>
+    
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, 
+                                   HttpServletResponse response, 
+                                   FilterChain filterChain) throws ServletException, IOException {
+        
+        try {
+<span class="fc" id="L51">            String authHeader = request.getHeader(AUTHORIZATION_HEADER);</span>
+<span class="fc" id="L52">            String token = jwtTokenProvider.extractTokenFromHeader(authHeader);</span>
+            
+<span class="pc bpc" id="L54" title="1 of 4 branches missed.">            if (token != null &amp;&amp; jwtTokenProvider.validateToken(token)) {</span>
+<span class="fc" id="L55">                authenticateUser(token, request);</span>
+            }
+<span class="nc" id="L57">        } catch (Exception e) {</span>
+<span class="nc" id="L58">            logger.warn(&quot;JWT authentication failed: {}&quot;, e.getMessage());</span>
+            // Clear security context on any authentication error
+<span class="nc" id="L60">            SecurityContextHolder.clearContext();</span>
+<span class="fc" id="L61">        }</span>
+        
+<span class="fc" id="L63">        filterChain.doFilter(request, response);</span>
+<span class="fc" id="L64">    }</span>
+    
+    /**
+     * Authenticate user based on valid JWT token
+     * 
+     * @param token Valid JWT token
+     * @param request HTTP request for authentication details
+     */
+    private void authenticateUser(String token, HttpServletRequest request) {
+<span class="fc" id="L73">        String userEmail = jwtTokenProvider.getUserEmailFromToken(token);</span>
+<span class="fc" id="L74">        Long userId = jwtTokenProvider.getUserIdFromToken(token);</span>
+<span class="fc" id="L75">        String role = jwtTokenProvider.getUserRoleFromToken(token);</span>
+        
+<span class="pc bpc" id="L77" title="3 of 6 branches missed.">        if (userEmail != null &amp;&amp; userId != null &amp;&amp; role != null &amp;&amp; </span>
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">            SecurityContextHolder.getContext().getAuthentication() == null) {</span>
+            
+            // Verify user still exists and is active
+<span class="fc" id="L81">            Optional&lt;User&gt; userOpt = userRepository.findByEmailAndIsActive(userEmail, true);</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">            if (userOpt.isPresent()) {</span>
+<span class="fc" id="L83">                User user = userOpt.get();</span>
+                
+                // Verify token claims match database record
+<span class="pc bpc" id="L86" title="1 of 4 branches missed.">                if (user.getId().equals(userId) &amp;&amp; user.getRole().name().equals(role)) {</span>
+                    
+                    // Create authentication with user details and role
+<span class="fc" id="L89">                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority(&quot;ROLE_&quot; + role);</span>
+<span class="fc" id="L90">                    UsernamePasswordAuthenticationToken authentication = </span>
+                        new UsernamePasswordAuthenticationToken(
+                            user, 
+                            null, 
+<span class="fc" id="L94">                            Collections.singletonList(authority)</span>
+                        );
+                    
+<span class="fc" id="L97">                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));</span>
+<span class="fc" id="L98">                    SecurityContextHolder.getContext().setAuthentication(authentication);</span>
+                    
+<span class="fc" id="L100">                    logger.debug(&quot;JWT authentication successful for user: {} with role: {}&quot;, userEmail, role);</span>
+<span class="fc" id="L101">                } else {</span>
+<span class="fc" id="L102">                    logger.warn(&quot;JWT token claims mismatch with database record for user: {}&quot;, userEmail);</span>
+                }
+<span class="fc" id="L104">            } else {</span>
+<span class="fc" id="L105">                logger.warn(&quot;User not found or inactive for JWT token: {}&quot;, userEmail);</span>
+            }
+        }
+<span class="fc" id="L108">    }</span>
+    
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+<span class="fc" id="L112">        String path = request.getRequestURI();</span>
+        
+        // Skip JWT filter for public endpoints
+<span class="fc bfc" id="L115" title="All 2 branches covered.">        return path.equals(&quot;/auth/login&quot;) || </span>
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">               path.equals(&quot;/actuator/health&quot;) ||</span>
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">               path.startsWith(&quot;/actuator/health/&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

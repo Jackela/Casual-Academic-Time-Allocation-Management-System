@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TimesheetResponse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.dto.response</a> &gt; <span class="el_source">TimesheetResponse.java</span></div><h1>TimesheetResponse.java</h1><pre class="source lang-java linenums">package com.usyd.catams.dto.response;
+
+import com.usyd.catams.enums.ApprovalStatus;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+/**
+ * Response DTO for timesheet data.
+ * 
+ * This DTO represents the structure returned by the API for timesheet queries
+ * according to the OpenAPI specification.
+ */
+public class TimesheetResponse {
+
+    @JsonProperty(&quot;id&quot;)
+    private Long id;
+
+    @JsonProperty(&quot;tutorId&quot;)
+    private Long tutorId;
+
+    @JsonProperty(&quot;courseId&quot;)
+    private Long courseId;
+
+    @JsonProperty(&quot;weekStartDate&quot;)
+    @JsonFormat(pattern = &quot;yyyy-MM-dd&quot;)
+    private LocalDate weekStartDate;
+
+    @JsonProperty(&quot;hours&quot;)
+    private BigDecimal hours;
+
+    @JsonProperty(&quot;hourlyRate&quot;)
+    private BigDecimal hourlyRate;
+
+    @JsonProperty(&quot;totalPay&quot;)
+    private BigDecimal totalPay;
+
+    @JsonProperty(&quot;description&quot;)
+    private String description;
+
+    @JsonProperty(&quot;status&quot;)
+    private ApprovalStatus status;
+
+    @JsonProperty(&quot;createdAt&quot;)
+    @JsonFormat(pattern = &quot;yyyy-MM-dd'T'HH:mm:ss&quot;)
+    private LocalDateTime createdAt;
+
+    @JsonProperty(&quot;updatedAt&quot;)
+    @JsonFormat(pattern = &quot;yyyy-MM-dd'T'HH:mm:ss&quot;)
+    private LocalDateTime updatedAt;
+
+    @JsonProperty(&quot;createdBy&quot;)
+    private Long createdBy;
+
+    // Additional computed fields for API response
+    @JsonProperty(&quot;isEditable&quot;)
+    private Boolean isEditable;
+
+    @JsonProperty(&quot;canBeApproved&quot;)
+    private Boolean canBeApproved;
+
+    // Default constructor
+<span class="nc" id="L66">    public TimesheetResponse() {</span>
+<span class="nc" id="L67">    }</span>
+
+    // Full constructor
+    public TimesheetResponse(Long id, Long tutorId, Long courseId, LocalDate weekStartDate,
+                           BigDecimal hours, BigDecimal hourlyRate, String description,
+                           ApprovalStatus status, LocalDateTime createdAt, LocalDateTime updatedAt,
+<span class="fc" id="L73">                           Long createdBy) {</span>
+<span class="fc" id="L74">        this.id = id;</span>
+<span class="fc" id="L75">        this.tutorId = tutorId;</span>
+<span class="fc" id="L76">        this.courseId = courseId;</span>
+<span class="fc" id="L77">        this.weekStartDate = weekStartDate;</span>
+<span class="fc" id="L78">        this.hours = hours;</span>
+<span class="fc" id="L79">        this.hourlyRate = hourlyRate;</span>
+<span class="fc" id="L80">        this.description = description;</span>
+<span class="fc" id="L81">        this.status = status;</span>
+<span class="fc" id="L82">        this.createdAt = createdAt;</span>
+<span class="fc" id="L83">        this.updatedAt = updatedAt;</span>
+<span class="fc" id="L84">        this.createdBy = createdBy;</span>
+        
+        // Calculate computed fields
+<span class="fc" id="L87">        this.totalPay = calculateTotalPay();</span>
+<span class="fc" id="L88">        this.isEditable = calculateIsEditable();</span>
+<span class="fc" id="L89">        this.canBeApproved = calculateCanBeApproved();</span>
+<span class="fc" id="L90">    }</span>
+
+    // Getters and Setters
+    public Long getId() {
+<span class="fc" id="L94">        return id;</span>
+    }
+
+    public void setId(Long id) {
+<span class="nc" id="L98">        this.id = id;</span>
+<span class="nc" id="L99">    }</span>
+
+    public Long getTutorId() {
+<span class="fc" id="L102">        return tutorId;</span>
+    }
+
+    public void setTutorId(Long tutorId) {
+<span class="nc" id="L106">        this.tutorId = tutorId;</span>
+<span class="nc" id="L107">    }</span>
+
+    public Long getCourseId() {
+<span class="fc" id="L110">        return courseId;</span>
+    }
+
+    public void setCourseId(Long courseId) {
+<span class="nc" id="L114">        this.courseId = courseId;</span>
+<span class="nc" id="L115">    }</span>
+
+    public LocalDate getWeekStartDate() {
+<span class="fc" id="L118">        return weekStartDate;</span>
+    }
+
+    public void setWeekStartDate(LocalDate weekStartDate) {
+<span class="nc" id="L122">        this.weekStartDate = weekStartDate;</span>
+<span class="nc" id="L123">    }</span>
+
+    public BigDecimal getHours() {
+<span class="fc" id="L126">        return hours;</span>
+    }
+
+    public void setHours(BigDecimal hours) {
+<span class="nc" id="L130">        this.hours = hours;</span>
+<span class="nc" id="L131">        this.totalPay = calculateTotalPay(); // Recalculate when hours change</span>
+<span class="nc" id="L132">    }</span>
+
+    public BigDecimal getHourlyRate() {
+<span class="fc" id="L135">        return hourlyRate;</span>
+    }
+
+    public void setHourlyRate(BigDecimal hourlyRate) {
+<span class="nc" id="L139">        this.hourlyRate = hourlyRate;</span>
+<span class="nc" id="L140">        this.totalPay = calculateTotalPay(); // Recalculate when rate changes</span>
+<span class="nc" id="L141">    }</span>
+
+    public BigDecimal getTotalPay() {
+<span class="fc" id="L144">        return totalPay;</span>
+    }
+
+    public void setTotalPay(BigDecimal totalPay) {
+<span class="nc" id="L148">        this.totalPay = totalPay;</span>
+<span class="nc" id="L149">    }</span>
+
+    public String getDescription() {
+<span class="fc" id="L152">        return description;</span>
+    }
+
+    public void setDescription(String description) {
+<span class="nc" id="L156">        this.description = description;</span>
+<span class="nc" id="L157">    }</span>
+
+    public ApprovalStatus getStatus() {
+<span class="fc" id="L160">        return status;</span>
+    }
+
+    public void setStatus(ApprovalStatus status) {
+<span class="nc" id="L164">        this.status = status;</span>
+<span class="nc" id="L165">        this.isEditable = calculateIsEditable(); // Recalculate when status changes</span>
+<span class="nc" id="L166">        this.canBeApproved = calculateCanBeApproved();</span>
+<span class="nc" id="L167">    }</span>
+
+    public LocalDateTime getCreatedAt() {
+<span class="fc" id="L170">        return createdAt;</span>
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+<span class="nc" id="L174">        this.createdAt = createdAt;</span>
+<span class="nc" id="L175">    }</span>
+
+    public LocalDateTime getUpdatedAt() {
+<span class="fc" id="L178">        return updatedAt;</span>
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+<span class="nc" id="L182">        this.updatedAt = updatedAt;</span>
+<span class="nc" id="L183">    }</span>
+
+    public Long getCreatedBy() {
+<span class="fc" id="L186">        return createdBy;</span>
+    }
+
+    public void setCreatedBy(Long createdBy) {
+<span class="nc" id="L190">        this.createdBy = createdBy;</span>
+<span class="nc" id="L191">    }</span>
+
+    public Boolean getIsEditable() {
+<span class="fc" id="L194">        return isEditable;</span>
+    }
+
+    public void setIsEditable(Boolean isEditable) {
+<span class="nc" id="L198">        this.isEditable = isEditable;</span>
+<span class="nc" id="L199">    }</span>
+
+    public Boolean getCanBeApproved() {
+<span class="fc" id="L202">        return canBeApproved;</span>
+    }
+
+    public void setCanBeApproved(Boolean canBeApproved) {
+<span class="nc" id="L206">        this.canBeApproved = canBeApproved;</span>
+<span class="nc" id="L207">    }</span>
+
+    // Business logic methods
+    private BigDecimal calculateTotalPay() {
+<span class="pc bpc" id="L211" title="2 of 4 branches missed.">        if (hours == null || hourlyRate == null) {</span>
+<span class="nc" id="L212">            return BigDecimal.ZERO;</span>
+        }
+<span class="fc" id="L214">        return hours.multiply(hourlyRate);</span>
+    }
+
+    private Boolean calculateIsEditable() {
+<span class="pc bpc" id="L218" title="1 of 2 branches missed.">        if (status == null) {</span>
+<span class="nc" id="L219">            return false;</span>
+        }
+<span class="fc" id="L221">        return status.isEditable();</span>
+    }
+
+    private Boolean calculateCanBeApproved() {
+<span class="pc bpc" id="L225" title="1 of 2 branches missed.">        if (status == null) {</span>
+<span class="nc" id="L226">            return false;</span>
+        }
+<span class="fc" id="L228">        return status.isPending();</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L233">        return &quot;TimesheetResponse{&quot; +</span>
+                &quot;id=&quot; + id +
+                &quot;, tutorId=&quot; + tutorId +
+                &quot;, courseId=&quot; + courseId +
+                &quot;, weekStartDate=&quot; + weekStartDate +
+                &quot;, hours=&quot; + hours +
+                &quot;, hourlyRate=&quot; + hourlyRate +
+                &quot;, totalPay=&quot; + totalPay +
+                &quot;, description='&quot; + description + '\'' +
+                &quot;, status=&quot; + status +
+                &quot;, createdAt=&quot; + createdAt +
+                &quot;, updatedAt=&quot; + updatedAt +
+                &quot;, createdBy=&quot; + createdBy +
+                &quot;, isEditable=&quot; + isEditable +
+                &quot;, canBeApproved=&quot; + canBeApproved +
+                '}';
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

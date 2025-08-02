@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>User.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.entity</a> &gt; <span class="el_source">User.java</span></div><h1>User.java</h1><pre class="source lang-java linenums">package com.usyd.catams.entity;
+
+import com.usyd.catams.enums.UserRole;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.time.LocalDateTime;
+import java.util.Objects;
+
+/**
+ * User entity representing users in the CATAMS system
+ * 
+ * Contains user authentication and profile information including
+ * email, password, role, and account status
+ * 
+ * @author Development Team
+ * @since 1.0
+ */
+@Entity
+@Table(name = &quot;users&quot;, indexes = {
+    @Index(name = &quot;idx_user_email&quot;, columnList = &quot;email&quot;, unique = true),
+    @Index(name = &quot;idx_user_role&quot;, columnList = &quot;role&quot;),
+    @Index(name = &quot;idx_user_active&quot;, columnList = &quot;is_active&quot;)
+})
+public class User {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(name = &quot;email&quot;, nullable = false, unique = true, length = 255)
+    @Email(message = &quot;Email format is invalid&quot;)
+    @NotBlank(message = &quot;Email cannot be empty&quot;)
+    @Size(max = 255, message = &quot;Email length cannot exceed 255 characters&quot;)
+    private String email;
+    
+    @Column(name = &quot;name&quot;, nullable = false, length = 100)
+    @NotBlank(message = &quot;Name cannot be empty&quot;)
+    @Size(max = 100, message = &quot;Name length cannot exceed 100 characters&quot;)
+    private String name;
+    
+    @Column(name = &quot;hashed_password&quot;, nullable = false, length = 255)
+    @NotBlank(message = &quot;Password cannot be empty&quot;)
+    @Size(max = 255, message = &quot;Hashed password length cannot exceed 255 characters&quot;)
+    private String hashedPassword;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = &quot;role&quot;, nullable = false, length = 20)
+    @NotNull(message = &quot;User role cannot be null&quot;)
+    private UserRole role;
+    
+    @Column(name = &quot;is_active&quot;, nullable = false)
+    @NotNull(message = &quot;Active status cannot be null&quot;)
+    private Boolean isActive;
+    
+    @Column(name = &quot;created_at&quot;, nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    @Column(name = &quot;updated_at&quot;, nullable = false)
+    private LocalDateTime updatedAt;
+    
+    @Column(name = &quot;last_login_at&quot;)
+    private LocalDateTime lastLoginAt;
+    
+    /**
+     * Default constructor for JPA
+     */
+<span class="fc" id="L71">    public User() {</span>
+<span class="fc" id="L72">    }</span>
+    
+    /**
+     * Constructor for creating a new user
+     * 
+     * @param email User email address
+     * @param name User full name
+     * @param hashedPassword BCrypt hashed password
+     * @param role User role in the system
+     */
+<span class="fc" id="L82">    public User(String email, String name, String hashedPassword, UserRole role) {</span>
+<span class="fc" id="L83">        this.email = email;</span>
+<span class="fc" id="L84">        this.name = name;</span>
+<span class="fc" id="L85">        this.hashedPassword = hashedPassword;</span>
+<span class="fc" id="L86">        this.role = role;</span>
+<span class="fc" id="L87">        this.isActive = true;</span>
+<span class="fc" id="L88">        this.createdAt = LocalDateTime.now();</span>
+<span class="fc" id="L89">        this.updatedAt = LocalDateTime.now();</span>
+<span class="fc" id="L90">    }</span>
+    
+    /**
+     * Pre-persist callback to set creation timestamp
+     */
+    @PrePersist
+    protected void onCreate() {
+<span class="fc" id="L97">        LocalDateTime now = LocalDateTime.now();</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        if (createdAt == null) {</span>
+<span class="fc" id="L99">            createdAt = now;</span>
+        }
+<span class="fc" id="L101">        updatedAt = now;</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">        if (isActive == null) {</span>
+<span class="fc" id="L103">            isActive = true;</span>
+        }
+<span class="fc" id="L105">    }</span>
+    
+    /**
+     * Pre-update callback to update modification timestamp
+     */
+    @PreUpdate
+    protected void onUpdate() {
+<span class="nc" id="L112">        updatedAt = LocalDateTime.now();</span>
+<span class="nc" id="L113">    }</span>
+    
+    /**
+     * Update last login timestamp
+     */
+    public void updateLastLogin() {
+<span class="fc" id="L119">        this.lastLoginAt = LocalDateTime.now();</span>
+<span class="fc" id="L120">        this.updatedAt = LocalDateTime.now();</span>
+<span class="fc" id="L121">    }</span>
+    
+    /**
+     * Check if user account is active
+     * 
+     * @return true if user is active, false otherwise
+     */
+    public boolean isAccountActive() {
+<span class="fc" id="L129">        return Boolean.TRUE.equals(isActive);</span>
+    }
+    
+    /**
+     * Deactivate user account
+     */
+    public void deactivate() {
+<span class="nc" id="L136">        this.isActive = false;</span>
+<span class="nc" id="L137">        this.updatedAt = LocalDateTime.now();</span>
+<span class="nc" id="L138">    }</span>
+    
+    /**
+     * Activate user account
+     */
+    public void activate() {
+<span class="nc" id="L144">        this.isActive = true;</span>
+<span class="nc" id="L145">        this.updatedAt = LocalDateTime.now();</span>
+<span class="nc" id="L146">    }</span>
+    
+    // Getters and setters
+    public Long getId() {
+<span class="fc" id="L150">        return id;</span>
+    }
+    
+    public void setId(Long id) {
+<span class="fc" id="L154">        this.id = id;</span>
+<span class="fc" id="L155">    }</span>
+    
+    public String getEmail() {
+<span class="fc" id="L158">        return email;</span>
+    }
+    
+    public void setEmail(String email) {
+<span class="fc" id="L162">        this.email = email;</span>
+<span class="fc" id="L163">    }</span>
+    
+    public String getName() {
+<span class="fc" id="L166">        return name;</span>
+    }
+    
+    public void setName(String name) {
+<span class="fc" id="L170">        this.name = name;</span>
+<span class="fc" id="L171">    }</span>
+    
+    public String getHashedPassword() {
+<span class="fc" id="L174">        return hashedPassword;</span>
+    }
+    
+    public void setHashedPassword(String hashedPassword) {
+<span class="fc" id="L178">        this.hashedPassword = hashedPassword;</span>
+<span class="fc" id="L179">    }</span>
+    
+    public UserRole getRole() {
+<span class="fc" id="L182">        return role;</span>
+    }
+    
+    public void setRole(UserRole role) {
+<span class="fc" id="L186">        this.role = role;</span>
+<span class="fc" id="L187">    }</span>
+    
+    public Boolean getIsActive() {
+<span class="nc" id="L190">        return isActive;</span>
+    }
+    
+    public void setIsActive(Boolean isActive) {
+<span class="nc" id="L194">        this.isActive = isActive;</span>
+<span class="nc" id="L195">    }</span>
+    
+    public LocalDateTime getCreatedAt() {
+<span class="nc" id="L198">        return createdAt;</span>
+    }
+    
+    public void setCreatedAt(LocalDateTime createdAt) {
+<span class="nc" id="L202">        this.createdAt = createdAt;</span>
+<span class="nc" id="L203">    }</span>
+    
+    public LocalDateTime getUpdatedAt() {
+<span class="nc" id="L206">        return updatedAt;</span>
+    }
+    
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+<span class="nc" id="L210">        this.updatedAt = updatedAt;</span>
+<span class="nc" id="L211">    }</span>
+    
+    public LocalDateTime getLastLoginAt() {
+<span class="nc" id="L214">        return lastLoginAt;</span>
+    }
+    
+    public void setLastLoginAt(LocalDateTime lastLoginAt) {
+<span class="nc" id="L218">        this.lastLoginAt = lastLoginAt;</span>
+<span class="nc" id="L219">    }</span>
+    
+    @Override
+    public boolean equals(Object o) {
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        if (this == o) return true;</span>
+<span class="nc bnc" id="L224" title="All 4 branches missed.">        if (o == null || getClass() != o.getClass()) return false;</span>
+<span class="nc" id="L225">        User user = (User) o;</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">        return Objects.equals(id, user.id) &amp;&amp; </span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">               Objects.equals(email, user.email);</span>
+    }
+    
+    @Override
+    public int hashCode() {
+<span class="nc" id="L232">        return Objects.hash(id, email);</span>
+    }
+    
+    @Override
+    public String toString() {
+<span class="fc" id="L237">        return &quot;User{&quot; +</span>
+                &quot;id=&quot; + id +
+                &quot;, email='&quot; + email + '\'' +
+                &quot;, name='&quot; + name + '\'' +
+                &quot;, role=&quot; + role +
+                &quot;, isActive=&quot; + isActive +
+                &quot;, createdAt=&quot; + createdAt +
+                &quot;, updatedAt=&quot; + updatedAt +
+                '}';
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ApprovalAction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.enums</a> &gt; <span class="el_source">ApprovalAction.java</span></div><h1>ApprovalAction.java</h1><pre class="source lang-java linenums">package com.usyd.catams.enums;
+
+/**
+ * Approval action enumeration for timesheet approval workflow.
+ * 
+ * This enum defines the possible actions that can be performed on a timesheet
+ * during the approval process, supporting the complete workflow from submission
+ * to final approval or rejection.
+ * 
+ * Based on OpenAPI specification for approval actions.
+ */
+<span class="fc" id="L12">public enum ApprovalAction {</span>
+    
+    /**
+     * Submit a DRAFT timesheet for approval.
+     * Transitions timesheet from DRAFT to PENDING_LECTURER_APPROVAL.
+     */
+<span class="fc" id="L18">    SUBMIT_FOR_APPROVAL(&quot;SUBMIT_FOR_APPROVAL&quot;),</span>
+    
+    /**
+     * Approve the timesheet at current stage.
+     * Transitions status based on current approval level:
+     * - PENDING_LECTURER_APPROVAL → TUTOR_APPROVED
+     * - PENDING_HR_REVIEW → FINAL_APPROVED
+     */
+<span class="fc" id="L26">    APPROVE(&quot;APPROVE&quot;),</span>
+    
+    /**
+     * Reject the timesheet.
+     * Transitions status to REJECTED from any pending state.
+     */
+<span class="fc" id="L32">    REJECT(&quot;REJECT&quot;),</span>
+    
+    /**
+     * Request modifications to the timesheet.
+     * Transitions status to MODIFICATION_REQUESTED from any pending state.
+     */
+<span class="fc" id="L38">    REQUEST_MODIFICATION(&quot;REQUEST_MODIFICATION&quot;);</span>
+    
+    private final String value;
+    
+<span class="fc" id="L42">    ApprovalAction(String value) {</span>
+<span class="fc" id="L43">        this.value = value;</span>
+<span class="fc" id="L44">    }</span>
+    
+    /**
+     * Get the string value representation of the approval action.
+     * 
+     * @return the string value
+     */
+    public String getValue() {
+<span class="nc" id="L52">        return value;</span>
+    }
+    
+    /**
+     * Parse approval action from string value.
+     * 
+     * @param value the string value to parse
+     * @return the corresponding ApprovalAction
+     * @throws IllegalArgumentException if value is not recognized
+     */
+    public static ApprovalAction fromValue(String value) {
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (value == null) {</span>
+<span class="nc" id="L64">            throw new IllegalArgumentException(&quot;Approval action value cannot be null&quot;);</span>
+        }
+        
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        for (ApprovalAction action : ApprovalAction.values()) {</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">            if (action.value.equals(value)) {</span>
+<span class="nc" id="L69">                return action;</span>
+            }
+        }
+        
+<span class="nc" id="L73">        throw new IllegalArgumentException(&quot;Unknown approval action value: &quot; + value);</span>
+    }
+    
+    /**
+     * Check if this action can be performed by a LECTURER.
+     * 
+     * @return true if LECTURER can perform this action
+     */
+    public boolean canBePerformedByLecturer() {
+<span class="pc bpc" id="L82" title="3 of 6 branches missed.">        return this == APPROVE || this == REJECT || this == REQUEST_MODIFICATION;</span>
+    }
+    
+    /**
+     * Check if this action can be performed by a TUTOR.
+     * 
+     * @return true if TUTOR can perform this action
+     */
+    public boolean canBePerformedByTutor() {
+<span class="pc bpc" id="L91" title="1 of 2 branches missed.">        return this == SUBMIT_FOR_APPROVAL;</span>
+    }
+    
+    /**
+     * Check if this action can be performed by an ADMIN/HR.
+     * 
+     * @return true if ADMIN can perform this action
+     */
+    public boolean canBePerformedByAdmin() {
+<span class="fc" id="L100">        return true; // ADMIN can perform any action</span>
+    }
+    
+    /**
+     * Get the target status for this action given the current status.
+     * 
+     * @param currentStatus the current approval status
+     * @return the target status after performing this action
+     * @throws IllegalArgumentException if action is not valid for current status
+     */
+    public ApprovalStatus getTargetStatus(ApprovalStatus currentStatus) {
+<span class="pc bpc" id="L111" title="3 of 5 branches missed.">        switch (this) {</span>
+            case SUBMIT_FOR_APPROVAL:
+<span class="nc bnc" id="L113" title="All 2 branches missed.">                if (currentStatus == ApprovalStatus.DRAFT) {</span>
+<span class="nc" id="L114">                    return ApprovalStatus.PENDING_LECTURER_APPROVAL;</span>
+                }
+                break;
+                
+            case APPROVE:
+<span class="fc bfc" id="L119" title="All 2 branches covered.">                if (currentStatus == ApprovalStatus.PENDING_LECTURER_APPROVAL) {</span>
+<span class="fc" id="L120">                    return ApprovalStatus.APPROVED;</span>
+<span class="pc bpc" id="L121" title="1 of 2 branches missed.">                } else if (currentStatus == ApprovalStatus.PENDING_TUTOR_REVIEW) {</span>
+<span class="nc" id="L122">                    return ApprovalStatus.TUTOR_APPROVED;</span>
+<span class="pc bpc" id="L123" title="1 of 2 branches missed.">                } else if (currentStatus == ApprovalStatus.PENDING_HR_REVIEW) {</span>
+<span class="nc" id="L124">                    return ApprovalStatus.FINAL_APPROVED;</span>
+                }
+                break;
+                
+            case REJECT:
+<span class="fc bfc" id="L129" title="All 2 branches covered.">                if (currentStatus.isPending()) {</span>
+<span class="fc" id="L130">                    return ApprovalStatus.REJECTED;</span>
+                }
+                break;
+                
+            case REQUEST_MODIFICATION:
+<span class="nc bnc" id="L135" title="All 2 branches missed.">                if (currentStatus.isPending()) {</span>
+<span class="nc" id="L136">                    return ApprovalStatus.MODIFICATION_REQUESTED;</span>
+                }
+                break;
+        }
+        
+<span class="fc" id="L141">        throw new IllegalArgumentException(&quot;Cannot perform action &quot; + this + &quot; on timesheet with status &quot; + currentStatus);</span>
+    }
+    
+    @Override
+    public String toString() {
+<span class="fc" id="L146">        return value;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

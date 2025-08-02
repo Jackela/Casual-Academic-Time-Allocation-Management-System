@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ApprovalStatus.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.enums</a> &gt; <span class="el_source">ApprovalStatus.java</span></div><h1>ApprovalStatus.java</h1><pre class="source lang-java linenums">package com.usyd.catams.enums;
+
+/**
+ * Approval status enumeration for timesheet workflow management.
+ * 
+ * This enum defines the possible states of a timesheet through its approval lifecycle,
+ * supporting the complete workflow from initial creation to final approval or rejection.
+ * 
+ * Based on architecture specification in docs/architecture-v0.2.md#4.3
+ */
+<span class="fc" id="L11">public enum ApprovalStatus {</span>
+    
+    /**
+     * Initial state when timesheet is created but not yet submitted for approval.
+     * Timesheet can be edited by the creator (LECTURER).
+     */
+<span class="fc" id="L17">    DRAFT(&quot;draft&quot;),</span>
+    
+    /**
+     * Timesheet has been submitted and is waiting for lecturer approval.
+     * Lecturer can approve, reject, or request modifications.
+     */
+<span class="fc" id="L23">    PENDING_LECTURER_APPROVAL(&quot;pending_lecturer_approval&quot;),</span>
+    
+    /**
+     * Timesheet has been submitted and is waiting for tutor review/confirmation.
+     * Tutor can approve or request modifications.
+     */
+<span class="fc" id="L29">    PENDING_TUTOR_REVIEW(&quot;pending_tutor_review&quot;),</span>
+    
+    /**
+     * Lecturer has approved the timesheet.
+     * This is an intermediate state that automatically transitions to PENDING_HR_REVIEW.
+     */
+<span class="fc" id="L35">    APPROVED(&quot;approved&quot;),</span>
+    
+    /**
+     * Tutor has approved the timesheet and it's ready for HR review.
+     * No further tutor action required.
+     */
+<span class="fc" id="L41">    TUTOR_APPROVED(&quot;tutor_approved&quot;),</span>
+    
+    /**
+     * Tutor has requested modifications to the timesheet.
+     * Timesheet returns to editable state for LECTURER.
+     */
+<span class="fc" id="L47">    MODIFICATION_REQUESTED(&quot;modification_requested&quot;),</span>
+    
+    /**
+     * Timesheet is approved by tutor and waiting for final HR approval.
+     * HR can give final approval or reject.
+     */
+<span class="fc" id="L53">    PENDING_HR_REVIEW(&quot;pending_hr_review&quot;),</span>
+    
+    /**
+     * Final state - timesheet has been approved by all parties.
+     * No further changes allowed, ready for payroll processing.
+     */
+<span class="fc" id="L59">    FINAL_APPROVED(&quot;final_approved&quot;),</span>
+    
+    /**
+     * Timesheet has been rejected during the approval process.
+     * Timesheet can be edited and resubmitted.
+     */
+<span class="fc" id="L65">    REJECTED(&quot;rejected&quot;);</span>
+    
+    private final String value;
+    
+<span class="fc" id="L69">    ApprovalStatus(String value) {</span>
+<span class="fc" id="L70">        this.value = value;</span>
+<span class="fc" id="L71">    }</span>
+    
+    /**
+     * Get the string value representation of the approval status.
+     * 
+     * @return the string value
+     */
+    public String getValue() {
+<span class="nc" id="L79">        return value;</span>
+    }
+    
+    /**
+     * Parse approval status from string value.
+     * 
+     * @param value the string value to parse
+     * @return the corresponding ApprovalStatus
+     * @throws IllegalArgumentException if value is not recognized
+     */
+    public static ApprovalStatus fromValue(String value) {
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        if (value == null) {</span>
+<span class="fc" id="L91">            throw new IllegalArgumentException(&quot;Approval status value cannot be null&quot;);</span>
+        }
+        
+<span class="fc bfc" id="L94" title="All 2 branches covered.">        for (ApprovalStatus status : ApprovalStatus.values()) {</span>
+<span class="fc bfc" id="L95" title="All 2 branches covered.">            if (status.value.equals(value)) {</span>
+<span class="fc" id="L96">                return status;</span>
+            }
+        }
+        
+<span class="fc" id="L100">        throw new IllegalArgumentException(&quot;Unknown approval status value: &quot; + value);</span>
+    }
+    
+    /**
+     * Check if the status allows editing of the timesheet.
+     * 
+     * @return true if timesheet can be edited in this status
+     */
+    public boolean isEditable() {
+<span class="pc bpc" id="L109" title="2 of 6 branches missed.">        return this == DRAFT || this == MODIFICATION_REQUESTED || this == REJECTED;</span>
+    }
+    
+    /**
+     * Check if the status is a pending state requiring action.
+     * 
+     * @return true if status is pending some action
+     */
+    public boolean isPending() {
+<span class="pc bpc" id="L118" title="2 of 6 branches missed.">        return this == PENDING_LECTURER_APPROVAL || this == PENDING_TUTOR_REVIEW || this == PENDING_HR_REVIEW;</span>
+    }
+    
+    /**
+     * Check if the status represents a final state (no further workflow).
+     * 
+     * @return true if status is final
+     */
+    public boolean isFinal() {
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">        return this == FINAL_APPROVED;</span>
+    }
+    
+    /**
+     * Get the next possible statuses from the current status.
+     * 
+     * @return array of possible next statuses
+     */
+    public ApprovalStatus[] getNextPossibleStatuses() {
+<span class="pc bpc" id="L136" title="7 of 9 branches missed.">        switch (this) {</span>
+            case DRAFT:
+<span class="nc" id="L138">                return new ApprovalStatus[]{PENDING_LECTURER_APPROVAL};</span>
+            case PENDING_LECTURER_APPROVAL:
+<span class="fc" id="L140">                return new ApprovalStatus[]{APPROVED, REJECTED, MODIFICATION_REQUESTED};</span>
+            case APPROVED:
+<span class="fc" id="L142">                return new ApprovalStatus[]{PENDING_HR_REVIEW};</span>
+            case PENDING_TUTOR_REVIEW:
+<span class="nc" id="L144">                return new ApprovalStatus[]{TUTOR_APPROVED, MODIFICATION_REQUESTED, REJECTED};</span>
+            case TUTOR_APPROVED:
+<span class="nc" id="L146">                return new ApprovalStatus[]{PENDING_HR_REVIEW};</span>
+            case MODIFICATION_REQUESTED:
+<span class="nc" id="L148">                return new ApprovalStatus[]{DRAFT, PENDING_LECTURER_APPROVAL};</span>
+            case PENDING_HR_REVIEW:
+<span class="nc" id="L150">                return new ApprovalStatus[]{FINAL_APPROVED, REJECTED, MODIFICATION_REQUESTED};</span>
+            case FINAL_APPROVED:
+            case REJECTED:
+<span class="nc" id="L153">                return new ApprovalStatus[]{}; // Final states</span>
+            default:
+<span class="nc" id="L155">                return new ApprovalStatus[]{};</span>
+        }
+    }
+    
+    /**
+     * Check if transition from current status to target status is valid.
+     * 
+     * @param targetStatus the target status to transition to
+     * @return true if transition is valid
+     */
+    public boolean canTransitionTo(ApprovalStatus targetStatus) {
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">        if (targetStatus == null) {</span>
+<span class="nc" id="L167">            return false;</span>
+        }
+        
+<span class="fc" id="L170">        ApprovalStatus[] possibleStatuses = getNextPossibleStatuses();</span>
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">        for (ApprovalStatus status : possibleStatuses) {</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">            if (status == targetStatus) {</span>
+<span class="fc" id="L173">                return true;</span>
+            }
+        }
+<span class="nc" id="L176">        return false;</span>
+    }
+    
+    @Override
+    public String toString() {
+<span class="fc" id="L181">        return value;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

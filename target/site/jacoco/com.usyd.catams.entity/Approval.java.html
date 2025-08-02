@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Approval.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.entity</a> &gt; <span class="el_source">Approval.java</span></div><h1>Approval.java</h1><pre class="source lang-java linenums">package com.usyd.catams.entity;
+
+import com.usyd.catams.enums.ApprovalAction;
+import com.usyd.catams.enums.ApprovalStatus;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import java.time.LocalDateTime;
+
+/**
+ * Approval entity representing approval actions performed on timesheets.
+ * 
+ * This entity tracks the complete audit trail of all approval actions
+ * performed on timesheets, including submissions, approvals, rejections,
+ * and modification requests.
+ * 
+ * Each record represents a single approval action at a point in time,
+ * providing complete traceability of the approval workflow.
+ */
+@Entity
+@Table(name = &quot;approvals&quot;, 
+    indexes = {
+        @Index(name = &quot;idx_approval_timesheet&quot;, columnList = &quot;timesheetId&quot;),
+        @Index(name = &quot;idx_approval_approver&quot;, columnList = &quot;approverId&quot;),
+        @Index(name = &quot;idx_approval_action&quot;, columnList = &quot;action&quot;),
+        @Index(name = &quot;idx_approval_timestamp&quot;, columnList = &quot;timestamp&quot;),
+        @Index(name = &quot;idx_approval_timesheet_timestamp&quot;, columnList = &quot;timesheetId, timestamp&quot;)
+    }
+)
+public class Approval {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    /**
+     * The timesheet this approval action applies to.
+     */
+    @NotNull
+    @Column(nullable = false, name = &quot;timesheet_id&quot;)
+    private Long timesheetId;
+    
+    /**
+     * The user who performed this approval action.
+     */
+    @NotNull
+    @Column(nullable = false, name = &quot;approver_id&quot;)
+    private Long approverId;
+    
+    /**
+     * The type of approval action performed.
+     */
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private ApprovalAction action;
+    
+    /**
+     * The status before this action was performed.
+     */
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, name = &quot;previous_status&quot;, length = 50)
+    private ApprovalStatus previousStatus;
+    
+    /**
+     * The status after this action was performed.
+     */
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, name = &quot;new_status&quot;, length = 50)
+    private ApprovalStatus newStatus;
+    
+    /**
+     * Optional comment explaining the approval action.
+     */
+    @Size(max = 500)
+    @Column(length = 500)
+    private String comment;
+    
+    /**
+     * Timestamp when the approval action was performed.
+     */
+    @NotNull
+    @Column(nullable = false)
+    private LocalDateTime timestamp;
+    
+    /**
+     * Whether this approval action is still active/current.
+     * Used for auditing and tracking superseded actions.
+     */
+<span class="fc" id="L91">    @NotNull</span>
+    @Column(nullable = false, name = &quot;is_active&quot;)
+<span class="fc" id="L93">    private Boolean isActive = true;</span>
+    
+    // Default constructor
+<span class="fc" id="L96">    public Approval() {</span>
+<span class="fc" id="L97">    }</span>
+    
+    /**
+     * Constructor for creating a new approval action.
+     * 
+     * @param timesheetId ID of the timesheet
+     * @param approverId ID of the user performing the action
+     * @param action the approval action being performed
+     * @param previousStatus the status before the action
+     * @param newStatus the status after the action
+     * @param comment optional comment explaining the action
+     */
+    public Approval(Long timesheetId, Long approverId, ApprovalAction action, 
+<span class="fc" id="L110">                   ApprovalStatus previousStatus, ApprovalStatus newStatus, String comment) {</span>
+<span class="fc" id="L111">        this.timesheetId = timesheetId;</span>
+<span class="fc" id="L112">        this.approverId = approverId;</span>
+<span class="fc" id="L113">        this.action = action;</span>
+<span class="fc" id="L114">        this.previousStatus = previousStatus;</span>
+<span class="fc" id="L115">        this.newStatus = newStatus;</span>
+<span class="fc" id="L116">        this.comment = comment;</span>
+<span class="fc" id="L117">        this.isActive = true;</span>
+<span class="fc" id="L118">    }</span>
+    
+    @PrePersist
+    protected void onCreate() {
+<span class="fc" id="L122">        this.timestamp = LocalDateTime.now();</span>
+<span class="pc bpc" id="L123" title="1 of 2 branches missed.">        if (this.isActive == null) {</span>
+<span class="nc" id="L124">            this.isActive = true;</span>
+        }
+<span class="fc" id="L126">    }</span>
+    
+    // Getters and Setters
+    public Long getId() {
+<span class="nc" id="L130">        return id;</span>
+    }
+    
+    public void setId(Long id) {
+<span class="nc" id="L134">        this.id = id;</span>
+<span class="nc" id="L135">    }</span>
+    
+    public Long getTimesheetId() {
+<span class="fc" id="L138">        return timesheetId;</span>
+    }
+    
+    public void setTimesheetId(Long timesheetId) {
+<span class="nc" id="L142">        this.timesheetId = timesheetId;</span>
+<span class="nc" id="L143">    }</span>
+    
+    public Long getApproverId() {
+<span class="fc" id="L146">        return approverId;</span>
+    }
+    
+    public void setApproverId(Long approverId) {
+<span class="nc" id="L150">        this.approverId = approverId;</span>
+<span class="nc" id="L151">    }</span>
+    
+    public ApprovalAction getAction() {
+<span class="fc" id="L154">        return action;</span>
+    }
+    
+    public void setAction(ApprovalAction action) {
+<span class="nc" id="L158">        this.action = action;</span>
+<span class="nc" id="L159">    }</span>
+    
+    public ApprovalStatus getPreviousStatus() {
+<span class="nc" id="L162">        return previousStatus;</span>
+    }
+    
+    public void setPreviousStatus(ApprovalStatus previousStatus) {
+<span class="nc" id="L166">        this.previousStatus = previousStatus;</span>
+<span class="nc" id="L167">    }</span>
+    
+    public ApprovalStatus getNewStatus() {
+<span class="fc" id="L170">        return newStatus;</span>
+    }
+    
+    public void setNewStatus(ApprovalStatus newStatus) {
+<span class="nc" id="L174">        this.newStatus = newStatus;</span>
+<span class="nc" id="L175">    }</span>
+    
+    public String getComment() {
+<span class="fc" id="L178">        return comment;</span>
+    }
+    
+    public void setComment(String comment) {
+<span class="nc" id="L182">        this.comment = comment;</span>
+<span class="nc" id="L183">    }</span>
+    
+    public LocalDateTime getTimestamp() {
+<span class="fc" id="L186">        return timestamp;</span>
+    }
+    
+    public void setTimestamp(LocalDateTime timestamp) {
+<span class="nc" id="L190">        this.timestamp = timestamp;</span>
+<span class="nc" id="L191">    }</span>
+    
+    public Boolean getIsActive() {
+<span class="nc" id="L194">        return isActive;</span>
+    }
+    
+    public void setIsActive(Boolean isActive) {
+<span class="nc" id="L198">        this.isActive = isActive;</span>
+<span class="nc" id="L199">    }</span>
+    
+    // Business methods
+    
+    /**
+     * Check if this approval represents a submission action.
+     * 
+     * @return true if this is a submission
+     */
+    public boolean isSubmission() {
+<span class="nc bnc" id="L209" title="All 2 branches missed.">        return action == ApprovalAction.SUBMIT_FOR_APPROVAL;</span>
+    }
+    
+    /**
+     * Check if this approval represents an approval action.
+     * 
+     * @return true if this is an approval
+     */
+    public boolean isApproval() {
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        return action == ApprovalAction.APPROVE;</span>
+    }
+    
+    /**
+     * Check if this approval represents a rejection action.
+     * 
+     * @return true if this is a rejection
+     */
+    public boolean isRejection() {
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        return action == ApprovalAction.REJECT;</span>
+    }
+    
+    /**
+     * Check if this approval represents a modification request.
+     * 
+     * @return true if this is a modification request
+     */
+    public boolean isModificationRequest() {
+<span class="nc bnc" id="L236" title="All 2 branches missed.">        return action == ApprovalAction.REQUEST_MODIFICATION;</span>
+    }
+    
+    /**
+     * Validate business rules for the approval action.
+     * 
+     * @throws IllegalArgumentException if validation fails
+     */
+    public void validateBusinessRules() {
+<span class="pc bpc" id="L245" title="1 of 2 branches missed.">        if (timesheetId == null) {</span>
+<span class="nc" id="L246">            throw new IllegalArgumentException(&quot;Timesheet ID cannot be null&quot;);</span>
+        }
+        
+<span class="pc bpc" id="L249" title="1 of 2 branches missed.">        if (approverId == null) {</span>
+<span class="nc" id="L250">            throw new IllegalArgumentException(&quot;Approver ID cannot be null&quot;);</span>
+        }
+        
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">        if (action == null) {</span>
+<span class="nc" id="L254">            throw new IllegalArgumentException(&quot;Approval action cannot be null&quot;);</span>
+        }
+        
+<span class="pc bpc" id="L257" title="1 of 2 branches missed.">        if (previousStatus == null) {</span>
+<span class="nc" id="L258">            throw new IllegalArgumentException(&quot;Previous status cannot be null&quot;);</span>
+        }
+        
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">        if (newStatus == null) {</span>
+<span class="nc" id="L262">            throw new IllegalArgumentException(&quot;New status cannot be null&quot;);</span>
+        }
+        
+        // Validate that the status transition is valid
+<span class="pc bpc" id="L266" title="1 of 2 branches missed.">        if (!previousStatus.canTransitionTo(newStatus)) {</span>
+<span class="nc" id="L267">            throw new IllegalArgumentException(&quot;Invalid status transition from &quot; + previousStatus + &quot; to &quot; + newStatus);</span>
+        }
+        
+        // Validate comment length
+<span class="pc bpc" id="L271" title="2 of 4 branches missed.">        if (comment != null &amp;&amp; comment.length() &gt; 500) {</span>
+<span class="nc" id="L272">            throw new IllegalArgumentException(&quot;Comment cannot exceed 500 characters&quot;);</span>
+        }
+<span class="fc" id="L274">    }</span>
+    
+    @Override
+    public String toString() {
+<span class="nc" id="L278">        return &quot;Approval{&quot; +</span>
+                &quot;id=&quot; + id +
+                &quot;, timesheetId=&quot; + timesheetId +
+                &quot;, approverId=&quot; + approverId +
+                &quot;, action=&quot; + action +
+                &quot;, previousStatus=&quot; + previousStatus +
+                &quot;, newStatus=&quot; + newStatus +
+                &quot;, comment='&quot; + comment + '\'' +
+                &quot;, timestamp=&quot; + timestamp +
+                &quot;, isActive=&quot; + isActive +
+                '}';
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

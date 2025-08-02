@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ErrorResponse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.dto.response</a> &gt; <span class="el_source">ErrorResponse.java</span></div><h1>ErrorResponse.java</h1><pre class="source lang-java linenums">package com.usyd.catams.dto.response;
+
+/**
+ * 标准错误响应DTO
+ * 
+ * 所有API错误响应都必须使用此格式
+ * 
+ * @author Development Team
+ * @since 1.0
+ */
+public class ErrorResponse {
+    
+    private String timestamp;
+    private int status;
+    private String error;
+    private String message;
+    private String path;
+    
+<span class="nc" id="L19">    public ErrorResponse() {</span>
+<span class="nc" id="L20">    }</span>
+    
+<span class="fc" id="L22">    public ErrorResponse(String timestamp, int status, String error, String message, String path) {</span>
+<span class="fc" id="L23">        this.timestamp = timestamp;</span>
+<span class="fc" id="L24">        this.status = status;</span>
+<span class="fc" id="L25">        this.error = error;</span>
+<span class="fc" id="L26">        this.message = message;</span>
+<span class="fc" id="L27">        this.path = path;</span>
+<span class="fc" id="L28">    }</span>
+    
+    /**
+     * Builder模式创建器
+     */
+    public static ErrorResponseBuilder builder() {
+<span class="fc" id="L34">        return new ErrorResponseBuilder();</span>
+    }
+    
+<span class="fc" id="L37">    public static class ErrorResponseBuilder {</span>
+        private String timestamp;
+        private int status;
+        private String error;
+        private String message;
+        private String path;
+        
+        public ErrorResponseBuilder timestamp(String timestamp) {
+<span class="fc" id="L45">            this.timestamp = timestamp;</span>
+<span class="fc" id="L46">            return this;</span>
+        }
+        
+        public ErrorResponseBuilder status(int status) {
+<span class="fc" id="L50">            this.status = status;</span>
+<span class="fc" id="L51">            return this;</span>
+        }
+        
+        public ErrorResponseBuilder error(String error) {
+<span class="fc" id="L55">            this.error = error;</span>
+<span class="fc" id="L56">            return this;</span>
+        }
+        
+        public ErrorResponseBuilder message(String message) {
+<span class="fc" id="L60">            this.message = message;</span>
+<span class="fc" id="L61">            return this;</span>
+        }
+        
+        public ErrorResponseBuilder path(String path) {
+<span class="fc" id="L65">            this.path = path;</span>
+<span class="fc" id="L66">            return this;</span>
+        }
+        
+        public ErrorResponse build() {
+<span class="fc" id="L70">            return new ErrorResponse(timestamp, status, error, message, path);</span>
+        }
+    }
+    
+    // Getters and setters
+    public String getTimestamp() {
+<span class="fc" id="L76">        return timestamp;</span>
+    }
+    
+    public void setTimestamp(String timestamp) {
+<span class="nc" id="L80">        this.timestamp = timestamp;</span>
+<span class="nc" id="L81">    }</span>
+    
+    public int getStatus() {
+<span class="fc" id="L84">        return status;</span>
+    }
+    
+    public void setStatus(int status) {
+<span class="nc" id="L88">        this.status = status;</span>
+<span class="nc" id="L89">    }</span>
+    
+    public String getError() {
+<span class="fc" id="L92">        return error;</span>
+    }
+    
+    public void setError(String error) {
+<span class="nc" id="L96">        this.error = error;</span>
+<span class="nc" id="L97">    }</span>
+    
+    public String getMessage() {
+<span class="fc" id="L100">        return message;</span>
+    }
+    
+    public void setMessage(String message) {
+<span class="nc" id="L104">        this.message = message;</span>
+<span class="nc" id="L105">    }</span>
+    
+    public String getPath() {
+<span class="fc" id="L108">        return path;</span>
+    }
+    
+    public void setPath(String path) {
+<span class="nc" id="L112">        this.path = path;</span>
+<span class="nc" id="L113">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

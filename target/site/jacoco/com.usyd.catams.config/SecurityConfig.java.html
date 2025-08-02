@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.config</a> &gt; <span class="el_source">SecurityConfig.java</span></div><h1>SecurityConfig.java</h1><pre class="source lang-java linenums">package com.usyd.catams.config;
+
+import com.usyd.catams.security.JwtAuthenticationFilter;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+/**
+ * Spring Security configuration
+ * 
+ * Configures JWT authentication, CSRF disabling, stateless session management,
+ * and method-level security for role-based access control
+ * 
+ * @author Development Team
+ * @since 1.0
+ */
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
+public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    
+<span class="fc" id="L31">    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {</span>
+<span class="fc" id="L32">        this.jwtAuthenticationFilter = jwtAuthenticationFilter;</span>
+<span class="fc" id="L33">    }</span>
+
+    /**
+     * Configure security filter chain
+     * 
+     * @param http HTTP security configuration object
+     * @return Configured security filter chain
+     * @throws Exception Configuration exception
+     */
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+<span class="fc" id="L44">        http</span>
+<span class="fc" id="L45">            .csrf(csrf -&gt; csrf.disable())</span>
+<span class="fc" id="L46">            .sessionManagement(session -&gt; session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))</span>
+<span class="fc" id="L47">            .authorizeHttpRequests(auth -&gt; auth</span>
+<span class="fc" id="L48">                .requestMatchers(&quot;/auth/login&quot;).permitAll()</span>
+<span class="fc" id="L49">                .requestMatchers(&quot;/actuator/health&quot;).permitAll()</span>
+<span class="fc" id="L50">                .anyRequest().authenticated()</span>
+            )
+<span class="fc" id="L52">            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);</span>
+        
+<span class="fc" id="L54">        return http.build();</span>
+    }
+
+    /**
+     * BCrypt password encoder bean
+     * 
+     * @return BCrypt password encoder instance
+     */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+<span class="fc" id="L64">        return new BCryptPasswordEncoder();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

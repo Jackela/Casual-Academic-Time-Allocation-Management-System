@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Timesheet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.entity</a> &gt; <span class="el_source">Timesheet.java</span></div><h1>Timesheet.java</h1><pre class="source lang-java linenums">package com.usyd.catams.entity;
+
+import com.usyd.catams.enums.ApprovalStatus;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = &quot;timesheets&quot;, 
+    indexes = {
+        @Index(name = &quot;idx_timesheet_tutor&quot;, columnList = &quot;tutorId&quot;),
+        @Index(name = &quot;idx_timesheet_course&quot;, columnList = &quot;courseId&quot;),
+        @Index(name = &quot;idx_timesheet_week_start&quot;, columnList = &quot;weekStartDate&quot;),
+        @Index(name = &quot;idx_timesheet_status&quot;, columnList = &quot;status&quot;),
+        @Index(name = &quot;idx_timesheet_created_by&quot;, columnList = &quot;createdBy&quot;)
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(name = &quot;uk_timesheet_tutor_course_week&quot;, 
+                         columnNames = {&quot;tutorId&quot;, &quot;courseId&quot;, &quot;weekStartDate&quot;})
+    }
+)
+public class Timesheet {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @NotNull
+    @Column(nullable = false, name = &quot;tutor_id&quot;)
+    private Long tutorId;
+    
+    @NotNull
+    @Column(nullable = false, name = &quot;course_id&quot;)
+    private Long courseId;
+    
+    @NotNull
+    @Column(nullable = false, name = &quot;week_start_date&quot;)
+    private LocalDate weekStartDate;
+    
+    @NotNull
+    @DecimalMin(value = &quot;0.1&quot;, inclusive = true)
+    @DecimalMax(value = &quot;40.0&quot;, inclusive = true)
+    @Digits(integer = 2, fraction = 1)
+    @Column(nullable = false, precision = 3, scale = 1)
+    private BigDecimal hours;
+    
+    @NotNull
+    @DecimalMin(value = &quot;10.00&quot;, inclusive = true)
+    @DecimalMax(value = &quot;200.00&quot;, inclusive = true)
+    @Digits(integer = 3, fraction = 2)
+    @Column(nullable = false, precision = 5, scale = 2, name = &quot;hourly_rate&quot;)
+    private BigDecimal hourlyRate;
+    
+    @NotBlank
+    @Size(max = 1000)
+    @Column(nullable = false, length = 1000)
+    private String description;
+    
+<span class="fc" id="L61">    @NotNull</span>
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private ApprovalStatus status = ApprovalStatus.DRAFT;
+    
+    @Column(name = &quot;created_at&quot;, nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    @Column(name = &quot;updated_at&quot;)
+    private LocalDateTime updatedAt;
+    
+    @NotNull
+    @Column(nullable = false, name = &quot;created_by&quot;)
+    private Long createdBy;
+    
+    // Default constructor
+<span class="fc" id="L77">    public Timesheet() {</span>
+<span class="fc" id="L78">    }</span>
+    
+    // Constructor for creation
+    public Timesheet(Long tutorId, Long courseId, LocalDate weekStartDate, 
+<span class="fc" id="L82">                    BigDecimal hours, BigDecimal hourlyRate, String description, Long createdBy) {</span>
+<span class="fc" id="L83">        this.tutorId = tutorId;</span>
+<span class="fc" id="L84">        this.courseId = courseId;</span>
+<span class="fc" id="L85">        this.weekStartDate = weekStartDate;</span>
+<span class="fc" id="L86">        this.hours = hours;</span>
+<span class="fc" id="L87">        this.hourlyRate = hourlyRate;</span>
+<span class="fc" id="L88">        this.description = description;</span>
+<span class="fc" id="L89">        this.createdBy = createdBy;</span>
+<span class="fc" id="L90">        this.status = ApprovalStatus.DRAFT;</span>
+<span class="fc" id="L91">    }</span>
+    
+    @PrePersist
+    protected void onCreate() {
+<span class="fc" id="L95">        LocalDateTime now = LocalDateTime.now();</span>
+<span class="fc" id="L96">        this.createdAt = now;</span>
+<span class="fc" id="L97">        this.updatedAt = now;</span>
+        
+        // Validate weekStartDate is Monday
+<span class="pc bpc" id="L100" title="1 of 4 branches missed.">        if (weekStartDate != null &amp;&amp; weekStartDate.getDayOfWeek().getValue() != 1) {</span>
+<span class="fc" id="L101">            throw new IllegalArgumentException(&quot;Week start date must be a Monday&quot;);</span>
+        }
+<span class="fc" id="L103">    }</span>
+    
+    @PreUpdate
+    protected void onUpdate() {
+<span class="nc" id="L107">        this.updatedAt = LocalDateTime.now();</span>
+        
+        // Validate weekStartDate is Monday on update too
+<span class="nc bnc" id="L110" title="All 4 branches missed.">        if (weekStartDate != null &amp;&amp; weekStartDate.getDayOfWeek().getValue() != 1) {</span>
+<span class="nc" id="L111">            throw new IllegalArgumentException(&quot;Week start date must be a Monday&quot;);</span>
+        }
+<span class="nc" id="L113">    }</span>
+    
+    // Getters and Setters
+    public Long getId() {
+<span class="fc" id="L117">        return id;</span>
+    }
+    
+    public void setId(Long id) {
+<span class="fc" id="L121">        this.id = id;</span>
+<span class="fc" id="L122">    }</span>
+    
+    public Long getTutorId() {
+<span class="fc" id="L125">        return tutorId;</span>
+    }
+    
+    public void setTutorId(Long tutorId) {
+<span class="fc" id="L129">        this.tutorId = tutorId;</span>
+<span class="fc" id="L130">    }</span>
+    
+    public Long getCourseId() {
+<span class="fc" id="L133">        return courseId;</span>
+    }
+    
+    public void setCourseId(Long courseId) {
+<span class="fc" id="L137">        this.courseId = courseId;</span>
+<span class="fc" id="L138">    }</span>
+    
+    public LocalDate getWeekStartDate() {
+<span class="fc" id="L141">        return weekStartDate;</span>
+    }
+    
+    public void setWeekStartDate(LocalDate weekStartDate) {
+<span class="fc" id="L145">        this.weekStartDate = weekStartDate;</span>
+<span class="fc" id="L146">    }</span>
+    
+    public BigDecimal getHours() {
+<span class="fc" id="L149">        return hours;</span>
+    }
+    
+    public void setHours(BigDecimal hours) {
+<span class="fc" id="L153">        this.hours = hours;</span>
+<span class="fc" id="L154">    }</span>
+    
+    public BigDecimal getHourlyRate() {
+<span class="fc" id="L157">        return hourlyRate;</span>
+    }
+    
+    public void setHourlyRate(BigDecimal hourlyRate) {
+<span class="fc" id="L161">        this.hourlyRate = hourlyRate;</span>
+<span class="fc" id="L162">    }</span>
+    
+    public String getDescription() {
+<span class="fc" id="L165">        return description;</span>
+    }
+    
+    public void setDescription(String description) {
+<span class="fc" id="L169">        this.description = description;</span>
+<span class="fc" id="L170">    }</span>
+    
+    public ApprovalStatus getStatus() {
+<span class="fc" id="L173">        return status;</span>
+    }
+    
+    public void setStatus(ApprovalStatus status) {
+<span class="fc" id="L177">        this.status = status;</span>
+<span class="fc" id="L178">    }</span>
+    
+    public LocalDateTime getCreatedAt() {
+<span class="fc" id="L181">        return createdAt;</span>
+    }
+    
+    public void setCreatedAt(LocalDateTime createdAt) {
+<span class="nc" id="L185">        this.createdAt = createdAt;</span>
+<span class="nc" id="L186">    }</span>
+    
+    public LocalDateTime getUpdatedAt() {
+<span class="fc" id="L189">        return updatedAt;</span>
+    }
+    
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+<span class="nc" id="L193">        this.updatedAt = updatedAt;</span>
+<span class="nc" id="L194">    }</span>
+    
+    public Long getCreatedBy() {
+<span class="fc" id="L197">        return createdBy;</span>
+    }
+    
+    public void setCreatedBy(Long createdBy) {
+<span class="fc" id="L201">        this.createdBy = createdBy;</span>
+<span class="fc" id="L202">    }</span>
+    
+    // Business methods
+    public BigDecimal calculateTotalPay() {
+<span class="fc" id="L206">        return hours.multiply(hourlyRate);</span>
+    }
+    
+    public boolean isEditable() {
+<span class="pc bpc" id="L210" title="1 of 4 branches missed.">        return status == ApprovalStatus.DRAFT || status == ApprovalStatus.MODIFICATION_REQUESTED;</span>
+    }
+    
+    public boolean canBeApproved() {
+<span class="pc bpc" id="L214" title="1 of 4 branches missed.">        return status == ApprovalStatus.PENDING_TUTOR_REVIEW || </span>
+               status == ApprovalStatus.PENDING_HR_REVIEW;
+    }
+    
+    public void validateBusinessRules() {
+<span class="nc bnc" id="L219" title="All 4 branches missed.">        if (weekStartDate != null &amp;&amp; weekStartDate.getDayOfWeek().getValue() != 1) {</span>
+<span class="nc" id="L220">            throw new IllegalArgumentException(&quot;Week start date must be a Monday&quot;);</span>
+        }
+        
+<span class="nc bnc" id="L223" title="All 4 branches missed.">        if (hours != null &amp;&amp; (hours.compareTo(BigDecimal.valueOf(0.1)) &lt; 0 || </span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">                             hours.compareTo(BigDecimal.valueOf(40.0)) &gt; 0)) {</span>
+<span class="nc" id="L225">            throw new IllegalArgumentException(&quot;Hours must be between 0.1 and 40.0&quot;);</span>
+        }
+        
+<span class="nc bnc" id="L228" title="All 4 branches missed.">        if (hourlyRate != null &amp;&amp; (hourlyRate.compareTo(BigDecimal.valueOf(10.00)) &lt; 0 || </span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">                                  hourlyRate.compareTo(BigDecimal.valueOf(200.00)) &gt; 0)) {</span>
+<span class="nc" id="L230">            throw new IllegalArgumentException(&quot;Hourly rate must be between 10.00 and 200.00&quot;);</span>
+        }
+<span class="nc" id="L232">    }</span>
+    
+    @Override
+    public String toString() {
+<span class="nc" id="L236">        return &quot;Timesheet{&quot; +</span>
+                &quot;id=&quot; + id +
+                &quot;, tutorId=&quot; + tutorId +
+                &quot;, courseId=&quot; + courseId +
+                &quot;, weekStartDate=&quot; + weekStartDate +
+                &quot;, hours=&quot; + hours +
+                &quot;, hourlyRate=&quot; + hourlyRate +
+                &quot;, description='&quot; + description + '\'' +
+                &quot;, status=&quot; + status +
+                &quot;, createdBy=&quot; + createdBy +
+                '}';
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

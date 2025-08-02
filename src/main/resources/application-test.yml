@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    
+  flyway:
+    enabled: false
+    
+  security:
+    jwt:
+      secret: dGVzdC1zZWNyZXQta2V5LWZvci11bml0LXRlc3RzLW9ubHk=
+      expiration: 3600000 # 1 hour for tests
+
+server:
+  servlet:
+    context-path: /api
+
+logging:
+  level:
+    com.usyd.catams: DEBUG
+    org.springframework.security: DEBUG

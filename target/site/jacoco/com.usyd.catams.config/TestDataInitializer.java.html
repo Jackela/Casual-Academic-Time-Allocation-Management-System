@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TestDataInitializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.config</a> &gt; <span class="el_source">TestDataInitializer.java</span></div><h1>TestDataInitializer.java</h1><pre class="source lang-java linenums">package com.usyd.catams.config;
+
+import com.usyd.catams.entity.User;
+import com.usyd.catams.enums.UserRole;
+import com.usyd.catams.repository.UserRepository;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+/**
+ * Test data initializer for development and testing environments
+ * 
+ * Creates initial test users in the database when running in test or dev profiles
+ * 
+ * @author Development Team
+ * @since 1.0
+ */
+@Configuration
+@Profile({&quot;test&quot;, &quot;dev&quot;})
+<span class="fc" id="L22">public class TestDataInitializer {</span>
+    
+    /**
+     * Initialize test data on application startup
+     * 
+     * @param userRepository User repository for database operations
+     * @param passwordEncoder Password encoder for hashing passwords
+     * @return CommandLineRunner that executes data initialization
+     */
+    @Bean
+    public CommandLineRunner initTestData(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+<span class="fc" id="L33">        return args -&gt; {</span>
+            // Only initialize if database is empty
+<span class="pc bpc" id="L35" title="1 of 2 branches missed.">            if (userRepository.count() == 0) {</span>
+                
+                // Create test tutor user
+<span class="fc" id="L38">                User testTutor = new User(</span>
+                    &quot;test@example.com&quot;,
+                    &quot;Test User&quot;,
+<span class="fc" id="L41">                    passwordEncoder.encode(&quot;Password123!&quot;),</span>
+                    UserRole.TUTOR
+                );
+<span class="fc" id="L44">                userRepository.save(testTutor);</span>
+                
+                // Create test lecturer user
+<span class="fc" id="L47">                User testLecturer = new User(</span>
+                    &quot;lecturer@example.com&quot;,
+                    &quot;Test Lecturer&quot;,
+<span class="fc" id="L50">                    passwordEncoder.encode(&quot;Password123!&quot;),</span>
+                    UserRole.LECTURER
+                );
+<span class="fc" id="L53">                userRepository.save(testLecturer);</span>
+                
+                // Create test admin user
+<span class="fc" id="L56">                User testAdmin = new User(</span>
+                    &quot;admin@example.com&quot;,
+                    &quot;Test Admin&quot;,
+<span class="fc" id="L59">                    passwordEncoder.encode(&quot;Password123!&quot;),</span>
+                    UserRole.ADMIN
+                );
+<span class="fc" id="L62">                userRepository.save(testAdmin);</span>
+                
+<span class="fc" id="L64">                System.out.println(&quot;Test data initialized: 3 users created&quot;);</span>
+            }
+<span class="fc" id="L66">        };</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

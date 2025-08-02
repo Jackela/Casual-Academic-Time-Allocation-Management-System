@@ -1,0 +1,1907 @@
+openapi: 3.0.3
+info:
+  title: CATAMS API
+  description: |
+    Casual Academic Time Allocation Management System (CATAMS) API specification.
+    
+    This API provides endpoints for managing academic staff time allocation, including:
+    - User authentication and management
+    - Timesheet creation and management
+    - Approval workflow management
+    
+    The system supports three main roles:
+    - **LECTURER**: Can create and approve timesheets for tutors
+    - **TUTOR**: Can view their timesheets and request modifications
+    - **ADMIN**: Has full system access including HR functions
+  version: 1.0.0
+  contact:
+    name: CATAMS Development Team
+    email: dev@catams.edu.au
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api
+    description: Development server
+  - url: https://api.catams.edu.au
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization operations
+  - name: Users
+    description: User management operations
+  - name: Timesheets
+    description: Timesheet creation and management operations
+  - name: Approvals
+    description: Approval workflow operations
+  - name: Dashboard
+    description: Dashboard and reporting operations
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: |
+        Authenticate user credentials and return JWT token for subsequent requests.
+        
+        **Supported roles**: ALL
+        
+        **Business rules**:
+        - Email must be a valid format
+        - Password must meet security requirements
+        - User account must be active
+        - Failed attempts are logged for security
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthenticationRequest'
+            examples:
+              lecturer_login:
+                summary: Lecturer login example
+                value:
+                  email: "lecturer@university.edu.au"
+                  password: "SecurePass123!"
+              tutor_login:
+                summary: Tutor login example
+                value:
+                  email: "tutor@university.edu.au"
+                  password: "MyPassword456!"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResult'
+              examples:
+                successful_login:
+                  summary: Successful login response
+                  value:
+                    success: true
+                    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    user:
+                      id: 1
+                      email: "lecturer@university.edu.au"
+                      name: "Dr. John Smith"
+                      role: "LECTURER"
+                    errorMessage: null
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_credentials:
+                  summary: Invalid credentials
+                  value:
+                    timestamp: "2025-08-01T10:15:30.123Z"
+                    status: 401
+                    error: "AUTH_FAILED"
+                    message: "Authentication failed"
+                    path: "/api/auth/login"
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_error:
+                  summary: Validation error
+                  value:
+                    timestamp: "2025-08-01T10:15:30.123Z"
+                    status: 400
+                    error: "VALIDATION_FAILED"
+                    message: "Validation failed: email: Email format is invalid"
+                    path: "/api/auth/login"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users:
+    post:
+      tags:
+        - Users
+      summary: Create new user
+      description: |
+        Create a new user account in the system.
+        
+        **Required role**: ADMIN
+        
+        **Business rules**:
+        - Email must be unique in the system
+        - Password must meet security requirements (8+ chars, mixed case, numbers, special chars)
+        - Only ADMIN users can create new accounts
+        - Default user status is active
+      operationId: createUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+            examples:
+              create_lecturer:
+                summary: Create lecturer account
+                value:
+                  email: "new.lecturer@university.edu.au"
+                  name: "Dr. Jane Doe"
+                  password: "SecurePass123!"
+                  role: "LECTURER"
+              create_tutor:
+                summary: Create tutor account
+                value:
+                  email: "new.tutor@university.edu.au"
+                  name: "Alice Johnson"
+                  password: "MyPassword456!"
+                  role: "TUTOR"
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+              examples:
+                created_user:
+                  summary: Successfully created user
+                  value:
+                    id: 123
+                    email: "new.lecturer@university.edu.au"
+                    name: "Dr. Jane Doe"
+                    role: "LECTURER"
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                email_exists:
+                  summary: Email already exists
+                  value:
+                    timestamp: "2025-08-01T10:15:30.123Z"
+                    status: 400
+                    error: "EMAIL_EXISTS"
+                    message: "Email already exists"
+                    path: "/api/users"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /timesheets:
+    get:
+      tags:
+        - Timesheets
+      summary: Get timesheets
+      description: |
+        Retrieve timesheets based on filters and user permissions.
+        
+        **Access rules**:
+        - **LECTURER**: Can view all timesheets for their courses
+        - **TUTOR**: Can view only their own timesheets
+        - **ADMIN**: Can view all timesheets in the system
+        
+        **Filtering**: Results can be filtered by date range, course, tutor, and approval status.
+      operationId: getTimesheets
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tutorId
+          in: query
+          description: Filter by tutor ID (LECTURER and ADMIN only)
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: courseId
+          in: query
+          description: Filter by course ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: startDate
+          in: query
+          description: Filter by start date (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter by end date (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: status
+          in: query
+          description: Filter by approval status
+          required: false
+          schema:
+            $ref: '#/components/schemas/ApprovalStatus'
+        - name: page
+          in: query
+          description: Page number (0-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          description: Page size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Timesheets retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimesheetPageResponse'
+              examples:
+                timesheet_list:
+                  summary: List of timesheets
+                  value:
+                    content:
+                      - id: 1
+                        tutorId: 123
+                        tutorName: "Alice Johnson"
+                        courseId: 456
+                        courseName: "COMP1001 - Introduction to Programming"
+                        weekStartDate: "2025-07-28"
+                        hours: 10.5
+                        hourlyRate: 45.00
+                        totalPay: 472.50
+                        description: "Tutorial sessions and assignment marking"
+                        status: "PENDING_LECTURER_APPROVAL"
+                        createdAt: "2025-07-28T09:00:00Z"
+                        updatedAt: "2025-07-28T09:00:00Z"
+                    pageable:
+                      pageNumber: 0
+                      pageSize: 20
+                      sort:
+                        sorted: true
+                        orderBy: "weekStartDate"
+                        direction: "DESC"
+                    totalElements: 45
+                    totalPages: 3
+                    first: true
+                    last: false
+                    numberOfElements: 20
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Timesheets
+      summary: Create new timesheet
+      description: |
+        Create a new timesheet entry.
+        
+        **Required role**: LECTURER, ADMIN
+        
+        **Business rules**:
+        - LECTURER can only create timesheets for tutors in their courses
+        - ADMIN can create timesheets for any tutor
+        - Week start date must be a Monday
+        - Hours must be positive and reasonable (≤ 60 hours per week)
+        - Hourly rate must be within configured limits
+        - Duplicate timesheets for same tutor/course/week are not allowed
+      operationId: createTimesheet
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimesheetCreateRequest'
+            examples:
+              create_timesheet:
+                summary: Create timesheet example
+                value:
+                  tutorId: 123
+                  courseId: 456
+                  weekStartDate: "2025-07-28"
+                  hours: 10.5
+                  hourlyRate: 45.00
+                  description: "Tutorial sessions and assignment marking"
+      responses:
+        '201':
+          description: Timesheet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimesheetResponse'
+              examples:
+                created_timesheet:
+                  summary: Successfully created timesheet
+                  value:
+                    id: 789
+                    tutorId: 123
+                    tutorName: "Alice Johnson"
+                    courseId: 456
+                    courseName: "COMP1001 - Introduction to Programming"
+                    weekStartDate: "2025-07-28"
+                    hours: 10.5
+                    hourlyRate: 45.00
+                    totalPay: 472.50
+                    description: "Tutorial sessions and assignment marking"
+                    status: "DRAFT"
+                    createdAt: "2025-08-01T14:30:00Z"
+                    updatedAt: "2025-08-01T14:30:00Z"
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                duplicate_timesheet:
+                  summary: Duplicate timesheet error
+                  value:
+                    timestamp: "2025-08-01T10:15:30.123Z"
+                    status: 400
+                    error: "DUPLICATE_TIMESHEET"
+                    message: "Timesheet already exists for this tutor/course/week"
+                    path: "/api/timesheets"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Tutor or course not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /timesheets/{id}:
+    get:
+      tags:
+        - Timesheets
+      summary: Get specific timesheet
+      description: |
+        Retrieve a specific timesheet by ID.
+        
+        **Access rules**:
+        - **LECTURER**: Can view timesheets for their courses
+        - **TUTOR**: Can view only their own timesheets
+        - **ADMIN**: Can view any timesheet
+      operationId: getTimesheetById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Timesheet ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Timesheet retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimesheetDetailResponse'
+              examples:
+                timesheet_detail:
+                  summary: Detailed timesheet information
+                  value:
+                    id: 789
+                    tutorId: 123
+                    tutorName: "Alice Johnson"
+                    tutorEmail: "alice.johnson@university.edu.au"
+                    courseId: 456
+                    courseName: "COMP1001 - Introduction to Programming"
+                    courseCode: "COMP1001"
+                    lecturerId: 999
+                    lecturerName: "Dr. John Smith"
+                    weekStartDate: "2025-07-28"
+                    hours: 10.5
+                    hourlyRate: 45.00
+                    totalPay: 472.50
+                    description: "Tutorial sessions and assignment marking"
+                    status: "PENDING_LECTURER_APPROVAL"
+                    createdAt: "2025-07-28T09:00:00Z"
+                    updatedAt: "2025-07-28T09:00:00Z"
+                    approvalHistory:
+                      - id: 1
+                        approverId: 999
+                        approverName: "Dr. John Smith"
+                        action: "SUBMIT_FOR_APPROVAL"
+                        comment: "Initial submission"
+                        timestamp: "2025-07-28T09:00:00Z"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Timesheet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Timesheets
+      summary: Update timesheet
+      description: |
+        Update an existing timesheet.
+        
+        **Access rules**:
+        - **LECTURER**: Can update timesheets for their courses (if not yet approved)
+        - **ADMIN**: Can update any timesheet (with appropriate workflow constraints)
+        - **TUTOR**: Cannot directly update timesheets (must request modifications)
+        
+        **Business rules**:
+        - Cannot update timesheets that are already approved
+        - Updates reset approval status to DRAFT
+        - All validation rules from creation apply
+      operationId: updateTimesheet
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Timesheet ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimesheetUpdateRequest'
+            examples:
+              update_timesheet:
+                summary: Update timesheet example
+                value:
+                  hours: 12.0
+                  hourlyRate: 45.00
+                  description: "Tutorial sessions, assignment marking, and consultation hours"
+      responses:
+        '200':
+          description: Timesheet updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimesheetResponse'
+              examples:
+                updated_timesheet:
+                  summary: Successfully updated timesheet
+                  value:
+                    id: 789
+                    tutorId: 123
+                    tutorName: "Alice Johnson"
+                    courseId: 456
+                    courseName: "COMP1001 - Introduction to Programming"
+                    weekStartDate: "2025-07-28"
+                    hours: 12.0
+                    hourlyRate: 45.00
+                    totalPay: 540.00
+                    description: "Tutorial sessions, assignment marking, and consultation hours"
+                    status: "DRAFT"
+                    createdAt: "2025-07-28T09:00:00Z"
+                    updatedAt: "2025-08-01T15:45:00Z"
+        '400':
+          description: Invalid request data or business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                already_approved:
+                  summary: Cannot update approved timesheet
+                  value:
+                    timestamp: "2025-08-01T10:15:30.123Z"
+                    status: 400
+                    error: "INVALID_STATE_TRANSITION"
+                    message: "Cannot update timesheet that has been approved"
+                    path: "/api/timesheets/789"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Timesheet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Timesheets
+      summary: Delete timesheet
+      description: |
+        Delete an existing timesheet.
+        
+        **Access rules**:
+        - **LECTURER**: Can delete timesheets for their courses (if not yet approved)
+        - **ADMIN**: Can delete any timesheet (with appropriate workflow constraints)
+        - **TUTOR**: Cannot directly delete timesheets
+        
+        **Business rules**:
+        - Cannot delete timesheets that are already approved
+        - Cannot delete timesheets that have been submitted to HR
+        - Deletion creates audit log entry
+        - Related approval history is preserved for audit purposes
+      operationId: deleteTimesheet
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Timesheet ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Timesheet deleted successfully
+        '400':
+          description: Cannot delete timesheet due to business rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                cannot_delete_approved:
+                  summary: Cannot delete approved timesheet
+                  value:
+                    timestamp: "2025-08-01T10:15:30.123Z"
+                    status: 400
+                    error: "INVALID_STATE_TRANSITION"
+                    message: "Cannot delete timesheet that has been approved"
+                    path: "/api/timesheets/789"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Timesheet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /timesheets/pending-approval:
+    get:
+      tags:
+        - Timesheets
+      summary: Get timesheets pending for lecturer approval
+      description: |
+        Returns a paginated list of timesheets with the status `PENDING_LECTURER_APPROVAL` that belong to the courses managed by the currently authenticated LECTURER. ADMINs can also use this endpoint to view all pending timesheets.
+        
+        **Access rules**:
+        - **LECTURER**: Can view timesheets pending approval for their courses only
+        - **ADMIN**: Can view all timesheets pending approval system-wide
+        - **TUTOR**: Cannot access this endpoint (403 Forbidden)
+        
+        **Business rules**:
+        - Only returns timesheets with status `PENDING_LECTURER_APPROVAL`
+        - Results are filtered by lecturer's assigned courses (unless ADMIN)
+        - Supports pagination and sorting
+        - Default sort is by submission date (oldest first for priority)
+      operationId: getPendingApprovalTimesheets
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (0-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          description: Page size (max 100)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sort
+          in: query
+          description: Sort criteria (e.g., "createdAt,asc" or "weekStartDate,desc")
+          required: false
+          schema:
+            type: string
+            default: "createdAt,asc"
+        - name: courseId
+          in: query
+          description: Filter by specific course ID (ADMIN only, ignored for LECTURER)
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Pending approval timesheets retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimesheetPageResponse'
+              examples:
+                pending_timesheets:
+                  summary: List of timesheets pending lecturer approval
+                  value:
+                    content:
+                      - id: 789
+                        tutorId: 123
+                        tutorName: "Alice Johnson"
+                        tutorEmail: "alice.johnson@university.edu.au"
+                        courseId: 456
+                        courseName: "COMP1001 - Introduction to Programming"
+                        courseCode: "COMP1001"
+                        lecturerId: 999
+                        lecturerName: "Dr. John Smith"
+                        weekStartDate: "2025-07-28"
+                        hours: 10.5
+                        hourlyRate: 45.00
+                        totalPay: 472.50
+                        description: "Tutorial sessions and assignment marking"
+                        status: "PENDING_LECTURER_APPROVAL"
+                        createdAt: "2025-07-28T09:00:00Z"
+                        updatedAt: "2025-07-28T09:00:00Z"
+                        submittedAt: "2025-07-28T09:00:00Z"
+                      - id: 790
+                        tutorId: 124
+                        tutorName: "Bob Smith"
+                        tutorEmail: "bob.smith@university.edu.au"
+                        courseId: 456
+                        courseName: "COMP1001 - Introduction to Programming"
+                        courseCode: "COMP1001"
+                        lecturerId: 999
+                        lecturerName: "Dr. John Smith"
+                        weekStartDate: "2025-07-21"
+                        hours: 8.0
+                        hourlyRate: 45.00
+                        totalPay: 360.00
+                        description: "Lab supervision and student assistance"
+                        status: "PENDING_LECTURER_APPROVAL"
+                        createdAt: "2025-07-25T14:30:00Z"
+                        updatedAt: "2025-07-25T14:30:00Z"
+                        submittedAt: "2025-07-25T14:30:00Z"
+                    pageable:
+                      pageNumber: 0
+                      pageSize: 20
+                      sort:
+                        sorted: true
+                        orderBy: "createdAt"
+                        direction: "ASC"
+                    totalElements: 5
+                    totalPages: 1
+                    first: true
+                    last: true
+                    numberOfElements: 2
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: Authentication required
+                  value:
+                    timestamp: "2025-08-01T10:15:30.123Z"
+                    status: 401
+                    error: "AUTH_FAILED"
+                    message: "Authentication required"
+                    path: "/api/timesheets/pending-approval"
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                forbidden_tutor:
+                  summary: TUTOR role forbidden
+                  value:
+                    timestamp: "2025-08-01T10:15:30.123Z"
+                    status: 403
+                    error: "ACCESS_DENIED"
+                    message: "Only LECTURER and ADMIN roles can view pending approval timesheets"
+                    path: "/api/timesheets/pending-approval"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /approvals:
+    post:
+      tags:
+        - Approvals
+      summary: Perform approval action
+      description: |
+        Perform an approval action on a timesheet (approve, reject, or request modification).
+        
+        **Access rules**:
+        - **LECTURER**: Can approve/reject timesheets for their courses
+        - **TUTOR**: Can request modifications to their own timesheets
+        - **ADMIN**: Can perform any approval action
+        
+        **Workflow states**:
+        - DRAFT → PENDING_LECTURER_APPROVAL (submit for approval)
+        - PENDING_LECTURER_APPROVAL → APPROVED or REJECTED or MODIFICATION_REQUESTED
+        - MODIFICATION_REQUESTED → PENDING_LECTURER_APPROVAL (after tutor addresses)
+        - APPROVED → PENDING_HR_REVIEW (auto-transition)
+        - PENDING_HR_REVIEW → FINAL_APPROVED or REJECTED (ADMIN/HR only)
+      operationId: performApprovalAction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalActionRequest'
+            examples:
+              approve_timesheet:
+                summary: Approve timesheet
+                value:
+                  timesheetId: 789
+                  action: "APPROVE"
+                  comment: "Approved - hours and description look correct"
+              reject_timesheet:
+                summary: Reject timesheet
+                value:
+                  timesheetId: 789
+                  action: "REJECT"
+                  comment: "Rejected - hours seem excessive for the described work"
+              request_modification:
+                summary: Request modification
+                value:
+                  timesheetId: 789
+                  action: "REQUEST_MODIFICATION"
+                  comment: "Please provide more detailed description of the tutorial work"
+      responses:
+        '200':
+          description: Approval action completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalActionResponse'
+              examples:
+                approval_success:
+                  summary: Successful approval action
+                  value:
+                    timesheetId: 789
+                    action: "APPROVE"
+                    newStatus: "APPROVED"
+                    approverId: 999
+                    approverName: "Dr. John Smith"
+                    comment: "Approved - hours and description look correct"
+                    timestamp: "2025-08-01T16:30:00Z"
+                    nextSteps:
+                      - "Timesheet automatically submitted to HR for final review"
+        '400':
+          description: Invalid approval action or business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_transition:
+                  summary: Invalid state transition
+                  value:
+                    timestamp: "2025-08-01T10:15:30.123Z"
+                    status: 400
+                    error: "INVALID_STATE_TRANSITION"
+                    message: "Cannot approve timesheet in current state: DRAFT"
+                    path: "/api/approvals"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_authorized:
+                  summary: Not authorized for this timesheet
+                  value:
+                    timestamp: "2025-08-01T10:15:30.123Z"
+                    status: 403
+                    error: "ACCESS_DENIED"
+                    message: "You are not authorized to approve this timesheet"
+                    path: "/api/approvals"
+        '404':
+          description: Timesheet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /dashboard/summary:
+    get:
+      tags:
+        - Dashboard
+      summary: Get dashboard summary
+      description: |
+        Retrieve dashboard summary with key metrics and recent activities.
+        
+        **Access rules**:
+        - **LECTURER**: See summary for their courses and tutors
+        - **TUTOR**: See summary for their own timesheets
+        - **ADMIN**: See system-wide summary
+        
+        **Data includes**:
+        - Total timesheets and pending approvals
+        - Total hours worked and pay amounts
+        - Recent activities and notifications
+        - Budget usage information (for LECTURER/ADMIN)
+        - Workload analysis and trends
+      operationId: getDashboardSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: courseId
+          in: query
+          description: Filter summary by specific course (LECTURER/ADMIN only)
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: semester
+          in: query
+          description: Filter by semester (YYYY-S format, e.g., "2025-1")
+          required: false
+          schema:
+            type: string
+            pattern: '^\d{4}-[12]$'
+            example: "2025-1"
+        - name: startDate
+          in: query
+          description: Start date for metrics calculation (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: End date for metrics calculation (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Dashboard summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummaryResponse'
+              examples:
+                lecturer_dashboard:
+                  summary: Dashboard summary for lecturer
+                  value:
+                    totalTimesheets: 25
+                    pendingApprovals: 3
+                    totalHours: 145.5
+                    totalPay: 6547.50
+                    budgetUsage:
+                      totalBudget: 10000.00
+                      usedBudget: 6547.50
+                      remainingBudget: 3452.50
+                      utilizationPercentage: 65.48
+                    recentActivities:
+                      - id: 1
+                        type: "TIMESHEET_SUBMITTED"
+                        description: "Alice Johnson submitted timesheet for COMP1001"
+                        timestamp: "2025-08-01T14:30:00Z"
+                        timesheetId: 789
+                        userId: 123
+                        userName: "Alice Johnson"
+                      - id: 2
+                        type: "MODIFICATION_REQUESTED"
+                        description: "Bob Smith requested modification for timesheet #788"
+                        timestamp: "2025-08-01T10:15:00Z"
+                        timesheetId: 788
+                        userId: 124
+                        userName: "Bob Smith"
+                    pendingItems:
+                      - id: 789
+                        type: "TIMESHEET_APPROVAL"
+                        title: "Review timesheet for Alice Johnson"
+                        description: "COMP1001 - Week of July 28, 2025"
+                        priority: "MEDIUM"
+                        dueDate: "2025-08-03T23:59:59Z"
+                        timesheetId: 789
+                    workloadAnalysis:
+                      currentWeekHours: 42.5
+                      previousWeekHours: 38.0
+                      averageWeeklyHours: 40.2
+                      peakWeekHours: 48.5
+                      totalTutors: 5
+                      activeTutors: 4
+                tutor_dashboard:
+                  summary: Dashboard summary for tutor
+                  value:
+                    totalTimesheets: 8
+                    pendingApprovals: 1
+                    totalHours: 64.0
+                    totalPay: 2880.00
+                    budgetUsage: null
+                    recentActivities:
+                      - id: 3
+                        type: "TIMESHEET_APPROVED"
+                        description: "Your timesheet for COMP1001 was approved"
+                        timestamp: "2025-08-01T16:45:00Z"
+                        timesheetId: 785
+                        userId: 999
+                        userName: "Dr. John Smith"
+                      - id: 4
+                        type: "MODIFICATION_REQUESTED"
+                        description: "Dr. Smith requested changes to timesheet #784"
+                        timestamp: "2025-07-31T11:30:00Z"
+                        timesheetId: 784
+                        userId: 999
+                        userName: "Dr. John Smith"
+                    pendingItems:
+                      - id: 784
+                        type: "MODIFICATION_RESPONSE"
+                        title: "Address requested changes"
+                        description: "Dr. Smith requested more details for tutorial work"
+                        priority: "HIGH"
+                        dueDate: "2025-08-02T23:59:59Z"
+                        timesheetId: 784
+                    workloadAnalysis:
+                      currentWeekHours: 8.0
+                      previousWeekHours: 12.0
+                      averageWeeklyHours: 8.5
+                      peakWeekHours: 14.0
+                      totalTutors: null
+                      activeTutors: null
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login endpoint
+
+  schemas:
+    # Authentication Schemas
+    AuthenticationRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: "lecturer@university.edu.au"
+          maxLength: 255
+        password:
+          type: string
+          format: password
+          description: User password
+          example: "SecurePass123!"
+          minLength: 8
+          maxLength: 255
+
+    AuthResult:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          description: Whether authentication was successful
+          example: true
+        token:
+          type: string
+          description: JWT token for subsequent requests (only present if success=true)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        errorMessage:
+          type: string
+          description: Error message (only present if success=false)
+          example: null
+
+    # User Management Schemas
+    UserCreateRequest:
+      type: object
+      required:
+        - email
+        - name
+        - password
+        - role
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address (must be unique)
+          example: "new.lecturer@university.edu.au"
+          maxLength: 255
+        name:
+          type: string
+          description: Full name of the user
+          example: "Dr. Jane Doe"
+          maxLength: 100
+        password:
+          type: string
+          format: password
+          description: Initial password for the user
+          example: "SecurePass123!"
+          minLength: 8
+          maxLength: 255
+        role:
+          $ref: '#/components/schemas/UserRole'
+
+    UserResponse:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - role
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique user identifier
+          example: 123
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: "lecturer@university.edu.au"
+        name:
+          type: string
+          description: Full name of the user
+          example: "Dr. John Smith"
+        role:
+          $ref: '#/components/schemas/UserRole'
+
+    UserRole:
+      type: string
+      enum:
+        - ADMIN
+        - LECTURER
+        - TUTOR
+      description: |
+        User role in the system:
+        - **ADMIN**: Full system access, HR functions
+        - **LECTURER**: Can manage timesheets for their courses
+        - **TUTOR**: Can view their own timesheets and request modifications
+      example: "LECTURER"
+
+    # Timesheet Management Schemas
+    TimesheetCreateRequest:
+      type: object
+      required:
+        - tutorId
+        - courseId
+        - weekStartDate
+        - hours
+        - hourlyRate
+        - description
+      properties:
+        tutorId:
+          type: integer
+          format: int64
+          description: ID of the tutor this timesheet is for
+          example: 123
+        courseId:
+          type: integer
+          format: int64
+          description: ID of the course this work relates to
+          example: 456
+        weekStartDate:
+          type: string
+          format: date
+          description: Start date of the work week (must be a Monday)
+          example: "2025-07-28"
+        hours:
+          type: number
+          format: decimal
+          minimum: 0.1
+          maximum: 60.0
+          description: Number of hours worked
+          example: 10.5
+        hourlyRate:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 200.00
+          description: Hourly rate in AUD
+          example: 45.00
+        description:
+          type: string
+          description: Description of work performed
+          example: "Tutorial sessions and assignment marking"
+          maxLength: 1000
+
+    TimesheetUpdateRequest:
+      type: object
+      properties:
+        hours:
+          type: number
+          format: decimal
+          minimum: 0.1
+          maximum: 60.0
+          description: Number of hours worked
+          example: 12.0
+        hourlyRate:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 200.00
+          description: Hourly rate in AUD
+          example: 45.00
+        description:
+          type: string
+          description: Description of work performed
+          example: "Tutorial sessions, assignment marking, and consultation hours"
+          maxLength: 1000
+
+    TimesheetResponse:
+      type: object
+      required:
+        - id
+        - tutorId
+        - tutorName
+        - courseId
+        - courseName
+        - weekStartDate
+        - hours
+        - hourlyRate
+        - totalPay
+        - description
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique timesheet identifier
+          example: 789
+        tutorId:
+          type: integer
+          format: int64
+          description: ID of the tutor
+          example: 123
+        tutorName:
+          type: string
+          description: Full name of the tutor
+          example: "Alice Johnson"
+        courseId:
+          type: integer
+          format: int64
+          description: ID of the course
+          example: 456
+        courseName:
+          type: string
+          description: Full name of the course
+          example: "COMP1001 - Introduction to Programming"
+        weekStartDate:
+          type: string
+          format: date
+          description: Start date of the work week
+          example: "2025-07-28"
+        hours:
+          type: number
+          format: decimal
+          description: Number of hours worked
+          example: 10.5
+        hourlyRate:
+          type: number
+          format: decimal
+          description: Hourly rate in AUD
+          example: 45.00
+        totalPay:
+          type: number
+          format: decimal
+          description: Calculated total pay (hours × hourlyRate)
+          example: 472.50
+        description:
+          type: string
+          description: Description of work performed
+          example: "Tutorial sessions and assignment marking"
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        createdAt:
+          type: string
+          format: date-time
+          description: When the timesheet was created
+          example: "2025-07-28T09:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the timesheet was last updated
+          example: "2025-07-28T09:00:00Z"
+
+    TimesheetDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/TimesheetResponse'
+        - type: object
+          properties:
+            tutorEmail:
+              type: string
+              format: email
+              description: Email of the tutor
+              example: "alice.johnson@university.edu.au"
+            courseCode:
+              type: string
+              description: Course code
+              example: "COMP1001"
+            lecturerId:
+              type: integer
+              format: int64
+              description: ID of the course lecturer
+              example: 999
+            lecturerName:
+              type: string
+              description: Name of the course lecturer
+              example: "Dr. John Smith"
+            approvalHistory:
+              type: array
+              description: History of approval actions on this timesheet
+              items:
+                $ref: '#/components/schemas/ApprovalHistoryEntry'
+
+    TimesheetPageResponse:
+      type: object
+      required:
+        - content
+        - pageable
+        - totalElements
+        - totalPages
+        - first
+        - last
+        - numberOfElements
+      properties:
+        content:
+          type: array
+          description: List of timesheets on this page
+          items:
+            $ref: '#/components/schemas/TimesheetResponse'
+        pageable:
+          $ref: '#/components/schemas/Pageable'
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of timesheets matching the query
+          example: 45
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 3
+        first:
+          type: boolean
+          description: Whether this is the first page
+          example: true
+        last:
+          type: boolean
+          description: Whether this is the last page
+          example: false
+        numberOfElements:
+          type: integer
+          description: Number of elements on this page
+          example: 20
+
+    Pageable:
+      type: object
+      required:
+        - pageNumber
+        - pageSize
+      properties:
+        pageNumber:
+          type: integer
+          description: Current page number (0-based)
+          example: 0
+        pageSize:
+          type: integer
+          description: Page size
+          example: 20
+        sort:
+          $ref: '#/components/schemas/Sort'
+
+    Sort:
+      type: object
+      required:
+        - sorted
+      properties:
+        sorted:
+          type: boolean
+          description: Whether the results are sorted
+          example: true
+        orderBy:
+          type: string
+          description: Field used for sorting
+          example: "weekStartDate"
+        direction:
+          type: string
+          enum:
+            - ASC
+            - DESC
+          description: Sort direction
+          example: "DESC"
+
+    # Approval Workflow Schemas
+    ApprovalStatus:
+      type: string
+      enum:
+        - DRAFT
+        - PENDING_LECTURER_APPROVAL
+        - APPROVED
+        - REJECTED
+        - MODIFICATION_REQUESTED
+        - PENDING_HR_REVIEW
+        - FINAL_APPROVED
+      description: |
+        Approval status of a timesheet:
+        - **DRAFT**: Initial state, being prepared
+        - **PENDING_LECTURER_APPROVAL**: Submitted for lecturer review
+        - **APPROVED**: Approved by lecturer, ready for HR
+        - **REJECTED**: Rejected by lecturer or HR
+        - **MODIFICATION_REQUESTED**: Lecturer requested changes
+        - **PENDING_HR_REVIEW**: Awaiting final HR approval
+        - **FINAL_APPROVED**: Final approval by HR, ready for payment
+      example: "PENDING_LECTURER_APPROVAL"
+
+    ApprovalActionRequest:
+      type: object
+      required:
+        - timesheetId
+        - action
+      properties:
+        timesheetId:
+          type: integer
+          format: int64
+          description: ID of the timesheet to act upon
+          example: 789
+        action:
+          $ref: '#/components/schemas/ApprovalAction'
+        comment:
+          type: string
+          description: Optional comment explaining the action
+          example: "Approved - hours and description look correct"
+          maxLength: 500
+
+    ApprovalAction:
+      type: string
+      enum:
+        - SUBMIT_FOR_APPROVAL
+        - APPROVE
+        - REJECT
+        - REQUEST_MODIFICATION
+      description: |
+        Type of approval action:
+        - **SUBMIT_FOR_APPROVAL**: Submit draft timesheet for approval
+        - **APPROVE**: Approve the timesheet
+        - **REJECT**: Reject the timesheet
+        - **REQUEST_MODIFICATION**: Request changes to the timesheet
+      example: "APPROVE"
+
+    ApprovalActionResponse:
+      type: object
+      required:
+        - timesheetId
+        - action
+        - newStatus
+        - approverId
+        - approverName
+        - timestamp
+      properties:
+        timesheetId:
+          type: integer
+          format: int64
+          description: ID of the timesheet that was acted upon
+          example: 789
+        action:
+          $ref: '#/components/schemas/ApprovalAction'
+        newStatus:
+          $ref: '#/components/schemas/ApprovalStatus'
+        approverId:
+          type: integer
+          format: int64
+          description: ID of the user who performed the action
+          example: 999
+        approverName:
+          type: string
+          description: Name of the user who performed the action
+          example: "Dr. John Smith"
+        comment:
+          type: string
+          description: Comment provided with the action
+          example: "Approved - hours and description look correct"
+        timestamp:
+          type: string
+          format: date-time
+          description: When the action was performed
+          example: "2025-08-01T16:30:00Z"
+        nextSteps:
+          type: array
+          description: Information about what happens next in the workflow
+          items:
+            type: string
+          example:
+            - "Timesheet automatically submitted to HR for final review"
+
+    ApprovalHistoryEntry:
+      type: object
+      required:
+        - id
+        - approverId
+        - approverName
+        - action
+        - timestamp
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for this history entry
+          example: 1
+        approverId:
+          type: integer
+          format: int64
+          description: ID of the user who performed the action
+          example: 999
+        approverName:
+          type: string
+          description: Name of the user who performed the action
+          example: "Dr. John Smith"
+        action:
+          $ref: '#/components/schemas/ApprovalAction'
+        comment:
+          type: string
+          description: Comment provided with the action
+          example: "Initial submission"
+        timestamp:
+          type: string
+          format: date-time
+          description: When the action was performed
+          example: "2025-07-28T09:00:00Z"
+
+    # Dashboard Schemas
+    DashboardSummaryResponse:
+      type: object
+      required:
+        - totalTimesheets
+        - pendingApprovals
+        - totalHours
+        - totalPay
+        - recentActivities
+        - pendingItems
+        - workloadAnalysis
+      properties:
+        totalTimesheets:
+          type: integer
+          description: Total number of timesheets for the user's scope
+          example: 25
+        pendingApprovals:
+          type: integer
+          description: Number of timesheets pending approval
+          example: 3
+        totalHours:
+          type: number
+          format: decimal
+          description: Total hours worked in the selected period
+          example: 145.5
+        totalPay:
+          type: number
+          format: decimal
+          description: Total pay amount in AUD
+          example: 6547.50
+        budgetUsage:
+          $ref: '#/components/schemas/BudgetUsage'
+        recentActivities:
+          type: array
+          description: List of recent activities and notifications
+          items:
+            $ref: '#/components/schemas/RecentActivity'
+        pendingItems:
+          type: array
+          description: List of items requiring attention
+          items:
+            $ref: '#/components/schemas/PendingItem'
+        workloadAnalysis:
+          $ref: '#/components/schemas/WorkloadAnalysis'
+
+    BudgetUsage:
+      type: object
+      required:
+        - totalBudget
+        - usedBudget
+        - remainingBudget
+        - utilizationPercentage
+      properties:
+        totalBudget:
+          type: number
+          format: decimal
+          description: Total allocated budget in AUD
+          example: 10000.00
+        usedBudget:
+          type: number
+          format: decimal
+          description: Amount of budget used in AUD
+          example: 6547.50
+        remainingBudget:
+          type: number
+          format: decimal
+          description: Remaining budget in AUD
+          example: 3452.50
+        utilizationPercentage:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          description: Budget utilization as a percentage
+          example: 65.48
+
+    RecentActivity:
+      type: object
+      required:
+        - id
+        - type
+        - description
+        - timestamp
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the activity
+          example: 1
+        type:
+          $ref: '#/components/schemas/ActivityType'
+        description:
+          type: string
+          description: Human-readable description of the activity
+          example: "Alice Johnson submitted timesheet for COMP1001"
+        timestamp:
+          type: string
+          format: date-time
+          description: When the activity occurred
+          example: "2025-08-01T14:30:00Z"
+        timesheetId:
+          type: integer
+          format: int64
+          description: Related timesheet ID (if applicable)
+          example: 789
+        userId:
+          type: integer
+          format: int64
+          description: ID of the user who performed the activity
+          example: 123
+        userName:
+          type: string
+          description: Name of the user who performed the activity
+          example: "Alice Johnson"
+
+    ActivityType:
+      type: string
+      enum:
+        - TIMESHEET_CREATED
+        - TIMESHEET_SUBMITTED
+        - TIMESHEET_APPROVED
+        - TIMESHEET_REJECTED
+        - MODIFICATION_REQUESTED
+        - MODIFICATION_COMPLETED
+        - HR_REVIEW_STARTED
+        - FINAL_APPROVAL
+        - PAYMENT_PROCESSED
+      description: |
+        Type of activity:
+        - **TIMESHEET_CREATED**: New timesheet was created
+        - **TIMESHEET_SUBMITTED**: Timesheet submitted for approval
+        - **TIMESHEET_APPROVED**: Timesheet was approved
+        - **TIMESHEET_REJECTED**: Timesheet was rejected
+        - **MODIFICATION_REQUESTED**: Changes were requested
+        - **MODIFICATION_COMPLETED**: Requested changes were addressed
+        - **HR_REVIEW_STARTED**: HR began final review
+        - **FINAL_APPROVAL**: Final approval by HR
+        - **PAYMENT_PROCESSED**: Payment was processed
+      example: "TIMESHEET_SUBMITTED"
+
+    PendingItem:
+      type: object
+      required:
+        - id
+        - type
+        - title
+        - description
+        - priority
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the pending item
+          example: 789
+        type:
+          $ref: '#/components/schemas/PendingItemType'
+        title:
+          type: string
+          description: Title of the pending item
+          example: "Review timesheet for Alice Johnson"
+        description:
+          type: string
+          description: Detailed description of what needs to be done
+          example: "COMP1001 - Week of July 28, 2025"
+        priority:
+          $ref: '#/components/schemas/Priority'
+        dueDate:
+          type: string
+          format: date-time
+          description: When this item is due (optional)
+          example: "2025-08-03T23:59:59Z"
+        timesheetId:
+          type: integer
+          format: int64
+          description: Related timesheet ID (if applicable)
+          example: 789
+
+    PendingItemType:
+      type: string
+      enum:
+        - TIMESHEET_APPROVAL
+        - MODIFICATION_RESPONSE
+        - HR_REVIEW
+        - BUDGET_REVIEW
+        - SYSTEM_NOTIFICATION
+      description: |
+        Type of pending item:
+        - **TIMESHEET_APPROVAL**: Timesheet needs approval
+        - **MODIFICATION_RESPONSE**: Need to respond to modification request
+        - **HR_REVIEW**: HR review required
+        - **BUDGET_REVIEW**: Budget limit reached, review needed
+        - **SYSTEM_NOTIFICATION**: General system notification
+      example: "TIMESHEET_APPROVAL"
+
+    Priority:
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+        - URGENT
+      description: Priority level of the item
+      example: "MEDIUM"
+
+    WorkloadAnalysis:
+      type: object
+      required:
+        - currentWeekHours
+        - averageWeeklyHours
+      properties:
+        currentWeekHours:
+          type: number
+          format: decimal
+          description: Hours worked in the current week
+          example: 42.5
+        previousWeekHours:
+          type: number
+          format: decimal
+          description: Hours worked in the previous week
+          example: 38.0
+        averageWeeklyHours:
+          type: number
+          format: decimal
+          description: Average weekly hours over the selected period
+          example: 40.2
+        peakWeekHours:
+          type: number
+          format: decimal
+          description: Highest weekly hours in the selected period
+          example: 48.5
+        totalTutors:
+          type: integer
+          description: Total number of tutors (LECTURER/ADMIN view only)
+          example: 5
+        activeTutors:
+          type: integer
+          description: Number of active tutors (LECTURER/ADMIN view only)
+          example: 4
+
+    # Error Handling Schema
+    ErrorResponse:
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+          example: "2025-08-01T10:15:30.123Z"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: Error code for programmatic handling
+          example: "VALIDATION_FAILED"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Validation failed: email: Email format is invalid"
+        path:
+          type: string
+          description: Request path that caused the error
+          example: "/api/auth/login"
+
+# Security configuration
+security:
+  - bearerAuth: []

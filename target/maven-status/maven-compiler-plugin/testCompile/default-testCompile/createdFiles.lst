@@ -1,0 +1,10 @@
+com\usyd\catams\integration\TimesheetIntegrationTest.class
+com\usyd\catams\integration\TimesheetControllerIntegrationTest.class
+com\usyd\catams\enums\ApprovalActionTest.class
+com\usyd\catams\service\TimesheetServiceTest.class
+com\usyd\catams\integration\LecturerApprovalWorkflowIntegrationTest.class
+com\usyd\catams\integration\ApprovalSubmissionIntegrationTest.class
+com\usyd\catams\integration\AuthIntegrationTest.class
+com\usyd\catams\integration\UserManagementIntegrationTest.class
+com\usyd\catams\enums\ApprovalStatusTest.class
+com\usyd\catams\integration\TimesheetUpdateDeleteIntegrationTest.class

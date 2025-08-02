@@ -1,0 +1,491 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TimesheetServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.service.impl</a> &gt; <span class="el_source">TimesheetServiceImpl.java</span></div><h1>TimesheetServiceImpl.java</h1><pre class="source lang-java linenums">package com.usyd.catams.service.impl;
+
+import com.usyd.catams.entity.Course;
+import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.entity.User;
+import com.usyd.catams.enums.ApprovalStatus;
+import com.usyd.catams.enums.UserRole;
+import com.usyd.catams.repository.CourseRepository;
+import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.service.TimesheetService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Implementation of TimesheetService with comprehensive business rule validation.
+ * 
+ * This service enforces all CATAMS business rules for timesheet management
+ * including role-based access control, data validation, and workflow management.
+ */
+@Service
+@Transactional
+public class TimesheetServiceImpl implements TimesheetService {
+
+    private final TimesheetRepository timesheetRepository;
+    private final UserRepository userRepository;
+    private final CourseRepository courseRepository;
+
+    @Autowired
+    public TimesheetServiceImpl(TimesheetRepository timesheetRepository,
+                               UserRepository userRepository,
+<span class="fc" id="L41">                               CourseRepository courseRepository) {</span>
+<span class="fc" id="L42">        this.timesheetRepository = timesheetRepository;</span>
+<span class="fc" id="L43">        this.userRepository = userRepository;</span>
+<span class="fc" id="L44">        this.courseRepository = courseRepository;</span>
+<span class="fc" id="L45">    }</span>
+
+    @Override
+    public Timesheet createTimesheet(Long tutorId, Long courseId, LocalDate weekStartDate,
+                                   BigDecimal hours, BigDecimal hourlyRate, String description,
+                                   Long creatorId) {
+        
+        // Perform comprehensive validation
+<span class="fc" id="L53">        validateTimesheetCreation(tutorId, courseId, weekStartDate, hours, hourlyRate, description, creatorId);</span>
+        
+        // Create and save the timesheet
+<span class="fc" id="L56">        Timesheet timesheet = new Timesheet(tutorId, courseId, weekStartDate, hours, hourlyRate, description, creatorId);</span>
+        
+<span class="fc" id="L58">        return timesheetRepository.save(timesheet);</span>
+    }
+
+    @Override
+    public void validateTimesheetCreation(Long tutorId, Long courseId, LocalDate weekStartDate,
+                                        BigDecimal hours, BigDecimal hourlyRate, String description,
+                                        Long creatorId) {
+        
+        // 1. Validate creator exists and has LECTURER role
+<span class="fc" id="L67">        User creator = userRepository.findById(creatorId)</span>
+<span class="fc" id="L68">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Creator user not found with ID: &quot; + creatorId));</span>
+        
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        if (creator.getRole() != UserRole.LECTURER) {</span>
+<span class="fc" id="L71">            throw new SecurityException(&quot;Only LECTURER users can create timesheets. User role: &quot; + creator.getRole());</span>
+        }
+
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">        if (!creator.isAccountActive()) {</span>
+<span class="nc" id="L75">            throw new IllegalArgumentException(&quot;Creator account is not active&quot;);</span>
+        }
+
+        // 2. Validate tutor exists and has TUTOR role
+<span class="fc" id="L79">        User tutor = userRepository.findById(tutorId)</span>
+<span class="fc" id="L80">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Tutor user not found with ID: &quot; + tutorId));</span>
+        
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (tutor.getRole() != UserRole.TUTOR) {</span>
+<span class="fc" id="L83">            throw new IllegalArgumentException(&quot;Target user must have TUTOR role. User role: &quot; + tutor.getRole());</span>
+        }
+
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (!tutor.isAccountActive()) {</span>
+<span class="nc" id="L87">            throw new IllegalArgumentException(&quot;Tutor account is not active&quot;);</span>
+        }
+
+        // 3. Validate course exists and is active
+<span class="fc" id="L91">        Course course = courseRepository.findById(courseId)</span>
+<span class="fc" id="L92">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Course not found with ID: &quot; + courseId));</span>
+        
+<span class="pc bpc" id="L94" title="1 of 2 branches missed.">        if (!course.getIsActive()) {</span>
+<span class="nc" id="L95">            throw new IllegalArgumentException(&quot;Course is not active&quot;);</span>
+        }
+
+        // 4. Validate creator is assigned to the course
+<span class="fc bfc" id="L99" title="All 2 branches covered.">        if (!creator.getId().equals(course.getLecturerId())) {</span>
+<span class="fc" id="L100">            throw new SecurityException(&quot;LECTURER is not assigned to this course. Expected lecturer ID: &quot; </span>
+<span class="fc" id="L101">                + course.getLecturerId() + &quot;, but got: &quot; + creator.getId());</span>
+        }
+
+        // 5. Validate weekStartDate is Monday
+<span class="fc bfc" id="L105" title="All 2 branches covered.">        if (weekStartDate.getDayOfWeek() != DayOfWeek.MONDAY) {</span>
+<span class="fc" id="L106">            throw new IllegalArgumentException(&quot;Week start date must be a Monday. Provided date is: &quot; </span>
+<span class="fc" id="L107">                + weekStartDate.getDayOfWeek());</span>
+        }
+
+        // 6. Validate no duplicate timesheet exists
+<span class="fc bfc" id="L111" title="All 2 branches covered.">        if (timesheetRepository.existsByTutorIdAndCourseIdAndWeekStartDate(tutorId, courseId, weekStartDate)) {</span>
+<span class="fc" id="L112">            throw new IllegalArgumentException(&quot;Timesheet already exists for this tutor, course, and week. &quot; +</span>
+                &quot;Tutor ID: &quot; + tutorId + &quot;, Course ID: &quot; + courseId + &quot;, Week: &quot; + weekStartDate);
+        }
+
+        // 7. Validate hours range (0.1 - 40.0)
+<span class="pc bpc" id="L117" title="3 of 6 branches missed.">        if (hours == null || hours.compareTo(BigDecimal.valueOf(0.1)) &lt; 0 || hours.compareTo(BigDecimal.valueOf(40.0)) &gt; 0) {</span>
+<span class="nc" id="L118">            throw new IllegalArgumentException(&quot;Hours must be between 0.1 and 40.0. Provided: &quot; + hours);</span>
+        }
+
+        // 8. Validate hourly rate range (10.00 - 200.00)
+<span class="pc bpc" id="L122" title="2 of 4 branches missed.">        if (hourlyRate == null || hourlyRate.compareTo(BigDecimal.valueOf(10.00)) &lt; 0 || </span>
+<span class="pc bpc" id="L123" title="1 of 2 branches missed.">            hourlyRate.compareTo(BigDecimal.valueOf(200.00)) &gt; 0) {</span>
+<span class="nc" id="L124">            throw new IllegalArgumentException(&quot;Hourly rate must be between 10.00 and 200.00. Provided: &quot; + hourlyRate);</span>
+        }
+
+        // 9. Validate description
+<span class="pc bpc" id="L128" title="2 of 4 branches missed.">        if (description == null || description.trim().isEmpty()) {</span>
+<span class="nc" id="L129">            throw new IllegalArgumentException(&quot;Description cannot be empty&quot;);</span>
+        }
+        
+<span class="pc bpc" id="L132" title="1 of 2 branches missed.">        if (description.length() &gt; 1000) {</span>
+<span class="nc" id="L133">            throw new IllegalArgumentException(&quot;Description cannot exceed 1000 characters. Provided length: &quot; + description.length());</span>
+        }
+
+        // 10. Validate budget availability (optional business rule)
+<span class="fc" id="L137">        BigDecimal totalCost = hours.multiply(hourlyRate);</span>
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">        if (!course.hasSufficientBudget(totalCost)) {</span>
+            // Note: This is a warning, not a blocking error, as per common business practices
+            // But we could make it blocking if required
+            // throw new IllegalArgumentException(&quot;Insufficient course budget. Required: &quot; + totalCost + &quot;, Available: &quot; + course.getBudgetRemaining());
+        }
+<span class="fc" id="L143">    }</span>
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page&lt;Timesheet&gt; getTimesheets(Long tutorId, Long courseId, ApprovalStatus status,
+                                       Long requesterId, Pageable pageable) {
+        
+        // Get requester user for access control
+<span class="nc" id="L151">        User requester = userRepository.findById(requesterId)</span>
+<span class="nc" id="L152">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Requester user not found with ID: &quot; + requesterId));</span>
+
+        // Apply access control based on user role
+<span class="nc bnc" id="L155" title="All 4 branches missed.">        switch (requester.getRole()) {</span>
+            case ADMIN:
+                // ADMIN can view all timesheets with any filters
+<span class="nc" id="L158">                return timesheetRepository.findWithFilters(tutorId, courseId, status, pageable);</span>
+                
+            case LECTURER:
+                // LECTURER can view timesheets for courses they teach
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                if (courseId != null) {</span>
+<span class="nc" id="L163">                    Course course = courseRepository.findById(courseId)</span>
+<span class="nc" id="L164">                        .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Course not found with ID: &quot; + courseId));</span>
+                    
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                    if (!requester.getId().equals(course.getLecturerId())) {</span>
+<span class="nc" id="L167">                        throw new SecurityException(&quot;LECTURER can only view timesheets for courses they teach&quot;);</span>
+                    }
+                }
+<span class="nc" id="L170">                return timesheetRepository.findWithFilters(tutorId, courseId, status, pageable);</span>
+                
+            case TUTOR:
+                // TUTOR can only view their own timesheets
+<span class="nc bnc" id="L174" title="All 4 branches missed.">                if (tutorId != null &amp;&amp; !tutorId.equals(requester.getId())) {</span>
+<span class="nc" id="L175">                    throw new SecurityException(&quot;TUTOR can only view their own timesheets&quot;);</span>
+                }
+<span class="nc" id="L177">                return timesheetRepository.findWithFilters(requester.getId(), courseId, status, pageable);</span>
+                
+            default:
+<span class="nc" id="L180">                throw new SecurityException(&quot;Unknown user role: &quot; + requester.getRole());</span>
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional&lt;Timesheet&gt; getTimesheetById(Long timesheetId, Long requesterId) {
+        
+<span class="nc" id="L188">        User requester = userRepository.findById(requesterId)</span>
+<span class="nc" id="L189">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Requester user not found with ID: &quot; + requesterId));</span>
+
+<span class="nc" id="L191">        Optional&lt;Timesheet&gt; timesheetOpt = timesheetRepository.findById(timesheetId);</span>
+        
+<span class="nc bnc" id="L193" title="All 2 branches missed.">        if (timesheetOpt.isEmpty()) {</span>
+<span class="nc" id="L194">            return timesheetOpt;</span>
+        }
+
+<span class="nc" id="L197">        Timesheet timesheet = timesheetOpt.get();</span>
+
+        // Apply access control
+<span class="nc bnc" id="L200" title="All 4 branches missed.">        switch (requester.getRole()) {</span>
+            case ADMIN:
+<span class="nc" id="L202">                return timesheetOpt; // ADMIN can view all</span>
+                
+            case LECTURER:
+                // LECTURER can view timesheets for courses they teach
+<span class="nc" id="L206">                Course course = courseRepository.findById(timesheet.getCourseId())</span>
+<span class="nc" id="L207">                    .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Course not found&quot;));</span>
+                
+<span class="nc bnc" id="L209" title="All 2 branches missed.">                if (!requester.getId().equals(course.getLecturerId())) {</span>
+<span class="nc" id="L210">                    throw new SecurityException(&quot;LECTURER can only view timesheets for courses they teach&quot;);</span>
+                }
+<span class="nc" id="L212">                return timesheetOpt;</span>
+                
+            case TUTOR:
+                // TUTOR can only view their own timesheets
+<span class="nc bnc" id="L216" title="All 2 branches missed.">                if (!timesheet.getTutorId().equals(requester.getId())) {</span>
+<span class="nc" id="L217">                    throw new SecurityException(&quot;TUTOR can only view their own timesheets&quot;);</span>
+                }
+<span class="nc" id="L219">                return timesheetOpt;</span>
+                
+            default:
+<span class="nc" id="L222">                throw new SecurityException(&quot;Unknown user role: &quot; + requester.getRole());</span>
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List&lt;Timesheet&gt; getTimesheetsByTutorAndDateRange(Long tutorId, LocalDate startDate,
+                                                          LocalDate endDate, Long requesterId) {
+        
+<span class="nc" id="L231">        User requester = userRepository.findById(requesterId)</span>
+<span class="nc" id="L232">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Requester user not found with ID: &quot; + requesterId));</span>
+
+        // Apply access control
+<span class="nc bnc" id="L235" title="All 4 branches missed.">        switch (requester.getRole()) {</span>
+            case ADMIN:
+                // ADMIN can view any tutor's timesheets
+<span class="nc" id="L238">                break;</span>
+                
+            case LECTURER:
+                // LECTURER can view timesheets for tutors in courses they teach
+                // This requires checking if any courses are taught by this lecturer for this tutor
+                // For simplicity, we'll allow lecturers to view any tutor's timesheets
+                // In a more complex system, we'd check course relationships
+<span class="nc" id="L245">                break;</span>
+                
+            case TUTOR:
+                // TUTOR can only view their own timesheets
+<span class="nc bnc" id="L249" title="All 2 branches missed.">                if (!tutorId.equals(requester.getId())) {</span>
+<span class="nc" id="L250">                    throw new SecurityException(&quot;TUTOR can only view their own timesheets&quot;);</span>
+                }
+                break;
+                
+            default:
+<span class="nc" id="L255">                throw new SecurityException(&quot;Unknown user role: &quot; + requester.getRole());</span>
+        }
+
+<span class="nc" id="L258">        return timesheetRepository.findByTutorIdAndWeekStartDateBetween(tutorId, startDate, endDate);</span>
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean timesheetExists(Long tutorId, Long courseId, LocalDate weekStartDate) {
+<span class="nc" id="L264">        return timesheetRepository.existsByTutorIdAndCourseIdAndWeekStartDate(tutorId, courseId, weekStartDate);</span>
+    }
+
+    @Override
+    public BigDecimal calculateTotalPay(Timesheet timesheet) {
+<span class="nc" id="L269">        return timesheet.calculateTotalPay();</span>
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List&lt;Timesheet&gt; getPendingTimesheetsForApprover(Long approverId) {
+<span class="nc" id="L275">        User approver = userRepository.findById(approverId)</span>
+<span class="nc" id="L276">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Approver user not found with ID: &quot; + approverId));</span>
+
+<span class="nc bnc" id="L278" title="All 2 branches missed.">        boolean isHR = approver.getRole() == UserRole.ADMIN; // Treating ADMIN as HR for this context</span>
+        
+<span class="nc" id="L280">        return timesheetRepository.findPendingTimesheetsForApprover(approverId, isHR);</span>
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalHoursByTutorAndCourse(Long tutorId, Long courseId, Long requesterId) {
+        
+<span class="nc" id="L287">        User requester = userRepository.findById(requesterId)</span>
+<span class="nc" id="L288">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Requester user not found with ID: &quot; + requesterId));</span>
+
+        // Apply access control similar to getTimesheets
+<span class="nc bnc" id="L291" title="All 4 branches missed.">        switch (requester.getRole()) {</span>
+            case ADMIN:
+<span class="nc" id="L293">                break; // ADMIN can view all</span>
+                
+            case LECTURER:
+<span class="nc" id="L296">                Course course = courseRepository.findById(courseId)</span>
+<span class="nc" id="L297">                    .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Course not found with ID: &quot; + courseId));</span>
+                
+<span class="nc bnc" id="L299" title="All 2 branches missed.">                if (!requester.getId().equals(course.getLecturerId())) {</span>
+<span class="nc" id="L300">                    throw new SecurityException(&quot;LECTURER can only view data for courses they teach&quot;);</span>
+                }
+                break;
+                
+            case TUTOR:
+<span class="nc bnc" id="L305" title="All 2 branches missed.">                if (!tutorId.equals(requester.getId())) {</span>
+<span class="nc" id="L306">                    throw new SecurityException(&quot;TUTOR can only view their own data&quot;);</span>
+                }
+                break;
+                
+            default:
+<span class="nc" id="L311">                throw new SecurityException(&quot;Unknown user role: &quot; + requester.getRole());</span>
+        }
+
+<span class="nc" id="L314">        return timesheetRepository.getTotalHoursByTutorAndCourse(tutorId, courseId);</span>
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalApprovedBudgetUsedByCourse(Long courseId, Long requesterId) {
+        
+<span class="nc" id="L321">        User requester = userRepository.findById(requesterId)</span>
+<span class="nc" id="L322">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Requester user not found with ID: &quot; + requesterId));</span>
+
+        // Apply access control
+<span class="nc bnc" id="L325" title="All 4 branches missed.">        switch (requester.getRole()) {</span>
+            case ADMIN:
+<span class="nc" id="L327">                break; // ADMIN can view all</span>
+                
+            case LECTURER:
+<span class="nc" id="L330">                Course course = courseRepository.findById(courseId)</span>
+<span class="nc" id="L331">                    .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Course not found with ID: &quot; + courseId));</span>
+                
+<span class="nc bnc" id="L333" title="All 2 branches missed.">                if (!requester.getId().equals(course.getLecturerId())) {</span>
+<span class="nc" id="L334">                    throw new SecurityException(&quot;LECTURER can only view budget data for courses they teach&quot;);</span>
+                }
+                break;
+                
+            case TUTOR:
+<span class="nc" id="L339">                throw new SecurityException(&quot;TUTOR users cannot view course budget information&quot;);</span>
+                
+            default:
+<span class="nc" id="L342">                throw new SecurityException(&quot;Unknown user role: &quot; + requester.getRole());</span>
+        }
+
+<span class="nc" id="L345">        return timesheetRepository.getTotalApprovedBudgetUsedByCourse(courseId);</span>
+    }
+
+    @Override
+    public Timesheet updateTimesheet(Long timesheetId, BigDecimal hours, BigDecimal hourlyRate, 
+                                   String description, Long requesterId) {
+        
+        // 1. Validate timesheet exists
+<span class="nc" id="L353">        Timesheet timesheet = timesheetRepository.findById(timesheetId)</span>
+<span class="nc" id="L354">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Timesheet not found with ID: &quot; + timesheetId));</span>
+
+        // 2. Check user permission to modify this timesheet
+<span class="nc bnc" id="L357" title="All 2 branches missed.">        if (!canUserModifyTimesheet(timesheet, requesterId)) {</span>
+<span class="nc" id="L358">            throw new SecurityException(&quot;User does not have permission to modify this timesheet&quot;);</span>
+        }
+
+        // 3. Validate timesheet is in editable state (DRAFT only for this story)
+<span class="nc bnc" id="L362" title="All 2 branches missed.">        if (timesheet.getStatus() != ApprovalStatus.DRAFT) {</span>
+<span class="nc" id="L363">            throw new IllegalArgumentException(&quot;Cannot update timesheet with status: &quot; + timesheet.getStatus() + </span>
+                &quot;. Only DRAFT timesheets can be updated.&quot;);
+        }
+
+        // 4. Validate update data (similar to creation validation)
+<span class="nc" id="L368">        validateUpdateData(hours, hourlyRate, description);</span>
+
+        // 5. Update the timesheet fields
+<span class="nc" id="L371">        timesheet.setHours(hours);</span>
+<span class="nc" id="L372">        timesheet.setHourlyRate(hourlyRate);</span>
+<span class="nc" id="L373">        timesheet.setDescription(description);</span>
+        
+        // The @PreUpdate will automatically set updatedAt timestamp
+        // Status remains DRAFT as per business rules
+
+        // 6. Save and return updated timesheet
+<span class="nc" id="L379">        return timesheetRepository.save(timesheet);</span>
+    }
+
+    @Override
+    public void deleteTimesheet(Long timesheetId, Long requesterId) {
+        
+        // 1. Validate timesheet exists
+<span class="nc" id="L386">        Timesheet timesheet = timesheetRepository.findById(timesheetId)</span>
+<span class="nc" id="L387">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Timesheet not found with ID: &quot; + timesheetId));</span>
+
+        // 2. Check user permission to modify this timesheet
+<span class="nc bnc" id="L390" title="All 2 branches missed.">        if (!canUserModifyTimesheet(timesheet, requesterId)) {</span>
+<span class="nc" id="L391">            throw new SecurityException(&quot;User does not have permission to delete this timesheet&quot;);</span>
+        }
+
+        // 3. Validate timesheet is in deletable state (DRAFT only for this story)
+<span class="nc bnc" id="L395" title="All 2 branches missed.">        if (timesheet.getStatus() != ApprovalStatus.DRAFT) {</span>
+<span class="nc" id="L396">            throw new IllegalArgumentException(&quot;Cannot delete timesheet with status: &quot; + timesheet.getStatus() + </span>
+                &quot;. Only DRAFT timesheets can be deleted.&quot;);
+        }
+
+        // 4. Perform physical deletion
+        // Note: In a production system, we might want to create an audit log entry here
+        // before deletion, but for this story we're focusing on core functionality
+<span class="nc" id="L403">        timesheetRepository.delete(timesheet);</span>
+<span class="nc" id="L404">    }</span>
+
+    @Override
+    public boolean canUserModifyTimesheet(Timesheet timesheet, Long requesterId) {
+        
+<span class="nc" id="L409">        User requester = userRepository.findById(requesterId)</span>
+<span class="nc" id="L410">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Requester user not found with ID: &quot; + requesterId));</span>
+
+<span class="nc bnc" id="L412" title="All 4 branches missed.">        switch (requester.getRole()) {</span>
+            case ADMIN:
+                // ADMIN can modify any timesheet
+<span class="nc" id="L415">                return true;</span>
+                
+            case LECTURER:
+                // LECTURER can modify timesheets for courses they teach
+<span class="nc" id="L419">                Course course = courseRepository.findById(timesheet.getCourseId())</span>
+<span class="nc" id="L420">                    .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Course not found for timesheet&quot;));</span>
+                
+<span class="nc" id="L422">                return requester.getId().equals(course.getLecturerId());</span>
+                
+            case TUTOR:
+                // TUTOR cannot directly modify timesheets
+<span class="nc" id="L426">                return false;</span>
+                
+            default:
+<span class="nc" id="L429">                return false;</span>
+        }
+    }
+
+    /**
+     * Validate data for timesheet updates.
+     * 
+     * @param hours the hours value to validate
+     * @param hourlyRate the hourly rate to validate
+     * @param description the description to validate
+     */
+    private void validateUpdateData(BigDecimal hours, BigDecimal hourlyRate, String description) {
+        
+        // Validate hours range (0.1 - 40.0)
+<span class="nc bnc" id="L443" title="All 6 branches missed.">        if (hours == null || hours.compareTo(BigDecimal.valueOf(0.1)) &lt; 0 || hours.compareTo(BigDecimal.valueOf(40.0)) &gt; 0) {</span>
+<span class="nc" id="L444">            throw new IllegalArgumentException(&quot;Hours must be between 0.1 and 40.0. Provided: &quot; + hours);</span>
+        }
+
+        // Validate hourly rate range (10.00 - 200.00)
+<span class="nc bnc" id="L448" title="All 4 branches missed.">        if (hourlyRate == null || hourlyRate.compareTo(BigDecimal.valueOf(10.00)) &lt; 0 || </span>
+<span class="nc bnc" id="L449" title="All 2 branches missed.">            hourlyRate.compareTo(BigDecimal.valueOf(200.00)) &gt; 0) {</span>
+<span class="nc" id="L450">            throw new IllegalArgumentException(&quot;Hourly rate must be between 10.00 and 200.00. Provided: &quot; + hourlyRate);</span>
+        }
+
+        // Validate description
+<span class="nc bnc" id="L454" title="All 4 branches missed.">        if (description == null || description.trim().isEmpty()) {</span>
+<span class="nc" id="L455">            throw new IllegalArgumentException(&quot;Description cannot be empty&quot;);</span>
+        }
+        
+<span class="nc bnc" id="L458" title="All 2 branches missed.">        if (description.length() &gt; 1000) {</span>
+<span class="nc" id="L459">            throw new IllegalArgumentException(&quot;Description cannot exceed 1000 characters. Provided length: &quot; + description.length());</span>
+        }
+<span class="nc" id="L461">    }</span>
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page&lt;Timesheet&gt; getPendingApprovalTimesheets(Long requesterId, Pageable pageable) {
+        
+        // 1. Validate user exists and get user details
+<span class="fc" id="L468">        User requester = userRepository.findById(requesterId)</span>
+<span class="pc" id="L469">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;User not found with ID: &quot; + requesterId));</span>
+
+        // 2. Check role-based access control
+<span class="pc bpc" id="L472" title="2 of 4 branches missed.">        switch (requester.getRole()) {</span>
+            case TUTOR:
+                // TUTOR cannot access this endpoint
+<span class="nc" id="L475">                throw new SecurityException(&quot;TUTOR users cannot view pending approval timesheets&quot;);</span>
+                
+            case LECTURER:
+                // LECTURER can view timesheets pending approval for their courses only
+<span class="fc" id="L479">                return timesheetRepository.findPendingLecturerApprovalByCourses(requesterId, pageable);</span>
+                
+            case ADMIN:
+                // ADMIN can view all pending approval timesheets
+<span class="fc" id="L483">                return timesheetRepository.findByStatusOrderByCreatedAtAsc(</span>
+                    ApprovalStatus.PENDING_LECTURER_APPROVAL, pageable);
+                
+            default:
+<span class="nc" id="L487">                throw new SecurityException(&quot;Unknown user role: &quot; + requester.getRole());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

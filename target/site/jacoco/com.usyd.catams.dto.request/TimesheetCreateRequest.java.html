@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TimesheetCreateRequest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.dto.request</a> &gt; <span class="el_source">TimesheetCreateRequest.java</span></div><h1>TimesheetCreateRequest.java</h1><pre class="source lang-java linenums">package com.usyd.catams.dto.request;
+
+import jakarta.validation.constraints.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+/**
+ * Request DTO for creating a new timesheet.
+ * 
+ * This DTO enforces all validation rules defined in the OpenAPI specification
+ * and business requirements for timesheet creation.
+ * 
+ * Validation rules:
+ * - tutorId: Required, positive integer
+ * - courseId: Required, positive integer
+ * - weekStartDate: Required, must be a Monday
+ * - hours: Required, between 0.1 and 40.0
+ * - hourlyRate: Required, between 10.00 and 200.00
+ * - description: Required, 1-1000 characters
+ */
+public class TimesheetCreateRequest {
+
+    @NotNull(message = &quot;Tutor ID is required&quot;)
+    @Positive(message = &quot;Tutor ID must be a positive number&quot;)
+    private Long tutorId;
+
+    @NotNull(message = &quot;Course ID is required&quot;)
+    @Positive(message = &quot;Course ID must be a positive number&quot;)
+    private Long courseId;
+
+    @NotNull(message = &quot;Week start date is required&quot;)
+    private LocalDate weekStartDate;
+
+    @NotNull(message = &quot;Hours is required&quot;)
+    @DecimalMin(value = &quot;0.1&quot;, inclusive = true, message = &quot;Hours must be at least 0.1&quot;)
+    @DecimalMax(value = &quot;40.0&quot;, inclusive = true, message = &quot;Hours cannot exceed 40.0&quot;)
+    @Digits(integer = 2, fraction = 1, message = &quot;Hours must have at most 2 integer digits and 1 decimal place&quot;)
+    private BigDecimal hours;
+
+    @NotNull(message = &quot;Hourly rate is required&quot;)
+    @DecimalMin(value = &quot;10.00&quot;, inclusive = true, message = &quot;Hourly rate must be at least 10.00&quot;)
+    @DecimalMax(value = &quot;200.00&quot;, inclusive = true, message = &quot;Hourly rate cannot exceed 200.00&quot;)
+    @Digits(integer = 3, fraction = 2, message = &quot;Hourly rate must have at most 3 integer digits and 2 decimal places&quot;)
+    private BigDecimal hourlyRate;
+
+    @NotBlank(message = &quot;Description is required&quot;)
+    @Size(min = 1, max = 1000, message = &quot;Description must be between 1 and 1000 characters&quot;)
+    private String description;
+
+    // Default constructor
+<span class="fc" id="L51">    public TimesheetCreateRequest() {</span>
+<span class="fc" id="L52">    }</span>
+
+    // Constructor for testing
+    public TimesheetCreateRequest(Long tutorId, Long courseId, LocalDate weekStartDate,
+<span class="fc" id="L56">                                BigDecimal hours, BigDecimal hourlyRate, String description) {</span>
+<span class="fc" id="L57">        this.tutorId = tutorId;</span>
+<span class="fc" id="L58">        this.courseId = courseId;</span>
+<span class="fc" id="L59">        this.weekStartDate = weekStartDate;</span>
+<span class="fc" id="L60">        this.hours = hours;</span>
+<span class="fc" id="L61">        this.hourlyRate = hourlyRate;</span>
+<span class="fc" id="L62">        this.description = description;</span>
+<span class="fc" id="L63">    }</span>
+
+    // Getters and Setters
+    public Long getTutorId() {
+<span class="fc" id="L67">        return tutorId;</span>
+    }
+
+    public void setTutorId(Long tutorId) {
+<span class="fc" id="L71">        this.tutorId = tutorId;</span>
+<span class="fc" id="L72">    }</span>
+
+    public Long getCourseId() {
+<span class="fc" id="L75">        return courseId;</span>
+    }
+
+    public void setCourseId(Long courseId) {
+<span class="fc" id="L79">        this.courseId = courseId;</span>
+<span class="fc" id="L80">    }</span>
+
+    public LocalDate getWeekStartDate() {
+<span class="fc" id="L83">        return weekStartDate;</span>
+    }
+
+    public void setWeekStartDate(LocalDate weekStartDate) {
+<span class="fc" id="L87">        this.weekStartDate = weekStartDate;</span>
+<span class="fc" id="L88">    }</span>
+
+    public BigDecimal getHours() {
+<span class="fc" id="L91">        return hours;</span>
+    }
+
+    public void setHours(BigDecimal hours) {
+<span class="fc" id="L95">        this.hours = hours;</span>
+<span class="fc" id="L96">    }</span>
+
+    public BigDecimal getHourlyRate() {
+<span class="fc" id="L99">        return hourlyRate;</span>
+    }
+
+    public void setHourlyRate(BigDecimal hourlyRate) {
+<span class="fc" id="L103">        this.hourlyRate = hourlyRate;</span>
+<span class="fc" id="L104">    }</span>
+
+    public String getDescription() {
+<span class="fc" id="L107">        return description;</span>
+    }
+
+    public void setDescription(String description) {
+<span class="fc" id="L111">        this.description = description;</span>
+<span class="fc" id="L112">    }</span>
+
+    /**
+     * Validate that weekStartDate is a Monday.
+     * This method can be called for additional business validation.
+     * 
+     * @return true if date is Monday, false otherwise
+     */
+    public boolean isWeekStartDateMonday() {
+<span class="pc bpc" id="L121" title="1 of 2 branches missed.">        if (weekStartDate == null) {</span>
+<span class="nc" id="L122">            return false;</span>
+        }
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">        return weekStartDate.getDayOfWeek().getValue() == 1; // Monday = 1</span>
+    }
+
+    /**
+     * Calculate total pay for this timesheet request.
+     * 
+     * @return total pay amount
+     */
+    public BigDecimal calculateTotalPay() {
+<span class="nc bnc" id="L133" title="All 4 branches missed.">        if (hours == null || hourlyRate == null) {</span>
+<span class="nc" id="L134">            return BigDecimal.ZERO;</span>
+        }
+<span class="nc" id="L136">        return hours.multiply(hourlyRate);</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L141">        return &quot;TimesheetCreateRequest{&quot; +</span>
+                &quot;tutorId=&quot; + tutorId +
+                &quot;, courseId=&quot; + courseId +
+                &quot;, weekStartDate=&quot; + weekStartDate +
+                &quot;, hours=&quot; + hours +
+                &quot;, hourlyRate=&quot; + hourlyRate +
+                &quot;, description='&quot; + description + '\'' +
+                '}';
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>
