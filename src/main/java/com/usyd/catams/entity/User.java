@@ -1,8 +1,8 @@
 package com.usyd.catams.entity;
 
+import com.usyd.catams.common.domain.model.Email;
 import com.usyd.catams.enums.UserRole;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -21,7 +21,7 @@ import java.util.Objects;
  */
 @Entity
 @Table(name = "users", indexes = {
-    @Index(name = "idx_user_email", columnList = "email", unique = true),
+    @Index(name = "idx_user_email", columnList = "email_value", unique = true),
     @Index(name = "idx_user_role", columnList = "role"),
     @Index(name = "idx_user_active", columnList = "is_active")
 })
@@ -31,11 +31,10 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "email", nullable = false, unique = true, length = 255)
-    @Email(message = "Email format is invalid")
-    @NotBlank(message = "Email cannot be empty")
-    @Size(max = 255, message = "Email length cannot exceed 255 characters")
-    private String email;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "email_value", nullable = false, unique = true, length = 254))
+    @NotNull(message = "Email cannot be null")
+    private Email email;
     
     @Column(name = "name", nullable = false, length = 100)
     @NotBlank(message = "Name cannot be empty")
@@ -79,7 +78,7 @@ public class User {
      * @param hashedPassword BCrypt hashed password
      * @param role User role in the system
      */
-    public User(String email, String name, String hashedPassword, UserRole role) {
+    public User(Email email, String name, String hashedPassword, UserRole role) {
         this.email = email;
         this.name = name;
         this.hashedPassword = hashedPassword;
@@ -87,6 +86,18 @@ public class User {
         this.isActive = true;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+    }
+    
+    /**
+     * Constructor for creating a new user with string email (for backwards compatibility)
+     * 
+     * @param emailString User email address as string
+     * @param name User full name
+     * @param hashedPassword BCrypt hashed password
+     * @param role User role in the system
+     */
+    public User(String emailString, String name, String hashedPassword, UserRole role) {
+        this(new Email(emailString), name, hashedPassword, role);
     }
     
     /**
@@ -163,12 +174,27 @@ public class User {
         this.id = id;
     }
     
-    public String getEmail() {
+    public Email getEmailObject() {
         return email;
     }
     
-    public void setEmail(String email) {
+    /**
+     * Get email as string (for backward compatibility)
+     */
+    public String getEmail() {
+        return email != null ? email.getValue() : null;
+    }
+    
+    public void setEmail(Email email) {
         this.email = email;
+    }
+    
+    public void setEmail(String emailString) {
+        this.email = new Email(emailString);
+    }
+    
+    public String getEmailValue() {
+        return email != null ? email.getValue() : null;
     }
     
     public String getName() {

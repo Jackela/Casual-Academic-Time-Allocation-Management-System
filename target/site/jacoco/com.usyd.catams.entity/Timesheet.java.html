@@ -1,11 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Timesheet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.entity</a> &gt; <span class="el_source">Timesheet.java</span></div><h1>Timesheet.java</h1><pre class="source lang-java linenums">package com.usyd.catams.entity;
 
+import com.usyd.catams.common.domain.model.Money;
+import com.usyd.catams.common.domain.model.WeekPeriod;
+import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = &quot;timesheets&quot;, 
@@ -36,8 +44,9 @@ public class Timesheet {
     private Long courseId;
     
     @NotNull
-    @Column(nullable = false, name = &quot;week_start_date&quot;)
-    private LocalDate weekStartDate;
+    @Embedded
+    @AttributeOverride(name = &quot;weekStartDate&quot;, column = @Column(name = &quot;week_start_date&quot;))
+    private WeekPeriod weekPeriod;
     
     @NotNull
     @DecimalMin(value = &quot;0.1&quot;, inclusive = true)
@@ -47,21 +56,21 @@ public class Timesheet {
     private BigDecimal hours;
     
     @NotNull
-    @DecimalMin(value = &quot;10.00&quot;, inclusive = true)
-    @DecimalMax(value = &quot;200.00&quot;, inclusive = true)
-    @Digits(integer = 3, fraction = 2)
-    @Column(nullable = false, precision = 5, scale = 2, name = &quot;hourly_rate&quot;)
-    private BigDecimal hourlyRate;
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = &quot;amount&quot;, column = @Column(name = &quot;hourly_rate&quot;, precision = 5, scale = 2)),
+        @AttributeOverride(name = &quot;currencyCode&quot;, column = @Column(name = &quot;hourly_rate_currency&quot;))
+    })
+    private Money hourlyRate;
     
     @NotBlank
     @Size(max = 1000)
     @Column(nullable = false, length = 1000)
     private String description;
     
-<span class="fc" id="L61">    @NotNull</span>
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private ApprovalStatus status = ApprovalStatus.DRAFT;
+    private ApprovalStatus status;
     
     @Column(name = &quot;created_at&quot;, nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -73,171 +82,363 @@ public class Timesheet {
     @Column(nullable = false, name = &quot;created_by&quot;)
     private Long createdBy;
     
+    /**
+     * Approval history for this timesheet - managed as part of the aggregate
+     */
+<span class="fc" id="L88">    @OneToMany(mappedBy = &quot;timesheetId&quot;, cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)</span>
+    @OrderBy(&quot;timestamp ASC&quot;)
+    private List&lt;Approval&gt; approvals = new ArrayList&lt;&gt;();
+    
     // Default constructor
-<span class="fc" id="L77">    public Timesheet() {</span>
-<span class="fc" id="L78">    }</span>
+<span class="fc" id="L93">    public Timesheet() {</span>
+<span class="fc" id="L94">    }</span>
     
     // Constructor for creation
+    public Timesheet(Long tutorId, Long courseId, WeekPeriod weekPeriod, 
+<span class="fc" id="L98">                    BigDecimal hours, Money hourlyRate, String description, Long createdBy) {</span>
+<span class="fc" id="L99">        this.tutorId = tutorId;</span>
+<span class="fc" id="L100">        this.courseId = courseId;</span>
+<span class="fc" id="L101">        this.weekPeriod = weekPeriod;</span>
+<span class="fc" id="L102">        this.hours = hours;</span>
+<span class="fc" id="L103">        this.hourlyRate = hourlyRate;</span>
+<span class="fc" id="L104">        this.description = description;</span>
+<span class="fc" id="L105">        this.createdBy = createdBy;</span>
+<span class="fc" id="L106">        this.status = ApprovalStatus.DRAFT;</span>
+<span class="fc" id="L107">    }</span>
+    
+    // Constructor with primitives for backwards compatibility
     public Timesheet(Long tutorId, Long courseId, LocalDate weekStartDate, 
-<span class="fc" id="L82">                    BigDecimal hours, BigDecimal hourlyRate, String description, Long createdBy) {</span>
-<span class="fc" id="L83">        this.tutorId = tutorId;</span>
-<span class="fc" id="L84">        this.courseId = courseId;</span>
-<span class="fc" id="L85">        this.weekStartDate = weekStartDate;</span>
-<span class="fc" id="L86">        this.hours = hours;</span>
-<span class="fc" id="L87">        this.hourlyRate = hourlyRate;</span>
-<span class="fc" id="L88">        this.description = description;</span>
-<span class="fc" id="L89">        this.createdBy = createdBy;</span>
-<span class="fc" id="L90">        this.status = ApprovalStatus.DRAFT;</span>
-<span class="fc" id="L91">    }</span>
+                    BigDecimal hours, BigDecimal hourlyRate, String description, Long createdBy) {
+<span class="fc" id="L112">        this(tutorId, courseId, new WeekPeriod(weekStartDate), hours, new Money(hourlyRate), description, createdBy);</span>
+<span class="fc" id="L113">    }</span>
     
     @PrePersist
     protected void onCreate() {
-<span class="fc" id="L95">        LocalDateTime now = LocalDateTime.now();</span>
-<span class="fc" id="L96">        this.createdAt = now;</span>
-<span class="fc" id="L97">        this.updatedAt = now;</span>
+<span class="fc" id="L117">        LocalDateTime now = LocalDateTime.now();</span>
+<span class="fc" id="L118">        this.createdAt = now;</span>
+<span class="fc" id="L119">        this.updatedAt = now;</span>
         
-        // Validate weekStartDate is Monday
-<span class="pc bpc" id="L100" title="1 of 4 branches missed.">        if (weekStartDate != null &amp;&amp; weekStartDate.getDayOfWeek().getValue() != 1) {</span>
-<span class="fc" id="L101">            throw new IllegalArgumentException(&quot;Week start date must be a Monday&quot;);</span>
-        }
-<span class="fc" id="L103">    }</span>
+        // WeekPeriod automatically ensures start date is Monday, so no validation needed
+<span class="fc" id="L122">    }</span>
     
     @PreUpdate
     protected void onUpdate() {
-<span class="fc" id="L107">        this.updatedAt = LocalDateTime.now();</span>
+<span class="fc" id="L126">        this.updatedAt = LocalDateTime.now();</span>
         
-        // Validate weekStartDate is Monday on update too
-<span class="pc bpc" id="L110" title="2 of 4 branches missed.">        if (weekStartDate != null &amp;&amp; weekStartDate.getDayOfWeek().getValue() != 1) {</span>
-<span class="nc" id="L111">            throw new IllegalArgumentException(&quot;Week start date must be a Monday&quot;);</span>
-        }
-<span class="fc" id="L113">    }</span>
+        // WeekPeriod automatically ensures start date is Monday, so no validation needed
+<span class="fc" id="L129">    }</span>
     
     // Getters and Setters
     public Long getId() {
-<span class="fc" id="L117">        return id;</span>
+<span class="fc" id="L133">        return id;</span>
     }
     
     public void setId(Long id) {
-<span class="fc" id="L121">        this.id = id;</span>
-<span class="fc" id="L122">    }</span>
+<span class="fc" id="L137">        this.id = id;</span>
+<span class="fc" id="L138">    }</span>
     
     public Long getTutorId() {
-<span class="fc" id="L125">        return tutorId;</span>
+<span class="fc" id="L141">        return tutorId;</span>
     }
     
     public void setTutorId(Long tutorId) {
-<span class="fc" id="L129">        this.tutorId = tutorId;</span>
-<span class="fc" id="L130">    }</span>
+<span class="fc" id="L145">        this.tutorId = tutorId;</span>
+<span class="fc" id="L146">    }</span>
     
     public Long getCourseId() {
-<span class="fc" id="L133">        return courseId;</span>
+<span class="fc" id="L149">        return courseId;</span>
     }
     
     public void setCourseId(Long courseId) {
-<span class="fc" id="L137">        this.courseId = courseId;</span>
-<span class="fc" id="L138">    }</span>
+<span class="fc" id="L153">        this.courseId = courseId;</span>
+<span class="fc" id="L154">    }</span>
+    
+    public WeekPeriod getWeekPeriod() {
+<span class="fc" id="L157">        return weekPeriod;</span>
+    }
+    
+    public void setWeekPeriod(WeekPeriod weekPeriod) {
+<span class="fc" id="L161">        this.weekPeriod = weekPeriod;</span>
+<span class="fc" id="L162">    }</span>
     
     public LocalDate getWeekStartDate() {
-<span class="fc" id="L141">        return weekStartDate;</span>
+<span class="fc bfc" id="L165" title="All 2 branches covered.">        return weekPeriod != null ? weekPeriod.getStartDate() : null;</span>
     }
     
     public void setWeekStartDate(LocalDate weekStartDate) {
-<span class="fc" id="L145">        this.weekStartDate = weekStartDate;</span>
-<span class="fc" id="L146">    }</span>
+<span class="fc" id="L169">        this.weekPeriod = new WeekPeriod(weekStartDate);</span>
+<span class="fc" id="L170">    }</span>
     
     public BigDecimal getHours() {
-<span class="fc" id="L149">        return hours;</span>
+<span class="fc" id="L173">        return hours;</span>
     }
     
     public void setHours(BigDecimal hours) {
-<span class="fc" id="L153">        this.hours = hours;</span>
-<span class="fc" id="L154">    }</span>
+<span class="fc" id="L177">        this.hours = hours;</span>
+<span class="fc" id="L178">    }</span>
     
-    public BigDecimal getHourlyRate() {
-<span class="fc" id="L157">        return hourlyRate;</span>
+    public Money getHourlyRateMoney() {
+<span class="fc" id="L181">        return hourlyRate;</span>
     }
     
+    public void setHourlyRate(Money hourlyRate) {
+<span class="fc" id="L185">        this.hourlyRate = hourlyRate;</span>
+<span class="fc" id="L186">    }</span>
+    
     public void setHourlyRate(BigDecimal hourlyRate) {
-<span class="fc" id="L161">        this.hourlyRate = hourlyRate;</span>
-<span class="fc" id="L162">    }</span>
+<span class="fc" id="L189">        this.hourlyRate = new Money(hourlyRate);</span>
+<span class="fc" id="L190">    }</span>
+    
+    /**
+     * Get hourly rate as BigDecimal (for backward compatibility)
+     */
+    public BigDecimal getHourlyRate() {
+<span class="fc bfc" id="L196" title="All 2 branches covered.">        return hourlyRate != null ? hourlyRate.getAmount() : null;</span>
+    }
     
     public String getDescription() {
-<span class="fc" id="L165">        return description;</span>
+<span class="fc" id="L200">        return description;</span>
     }
     
     public void setDescription(String description) {
-<span class="fc" id="L169">        this.description = description;</span>
-<span class="fc" id="L170">    }</span>
+<span class="fc" id="L204">        this.description = description;</span>
+<span class="fc" id="L205">    }</span>
     
     public ApprovalStatus getStatus() {
-<span class="fc" id="L173">        return status;</span>
+<span class="fc" id="L208">        return status;</span>
     }
     
     public void setStatus(ApprovalStatus status) {
-<span class="fc" id="L177">        this.status = status;</span>
-<span class="fc" id="L178">    }</span>
+<span class="fc" id="L212">        this.status = status;</span>
+<span class="fc" id="L213">    }</span>
     
     public LocalDateTime getCreatedAt() {
-<span class="fc" id="L181">        return createdAt;</span>
+<span class="fc" id="L216">        return createdAt;</span>
     }
     
     public void setCreatedAt(LocalDateTime createdAt) {
-<span class="nc" id="L185">        this.createdAt = createdAt;</span>
-<span class="nc" id="L186">    }</span>
+<span class="fc" id="L220">        this.createdAt = createdAt;</span>
+<span class="fc" id="L221">    }</span>
     
     public LocalDateTime getUpdatedAt() {
-<span class="fc" id="L189">        return updatedAt;</span>
+<span class="fc" id="L224">        return updatedAt;</span>
     }
     
     public void setUpdatedAt(LocalDateTime updatedAt) {
-<span class="nc" id="L193">        this.updatedAt = updatedAt;</span>
-<span class="nc" id="L194">    }</span>
+<span class="fc" id="L228">        this.updatedAt = updatedAt;</span>
+<span class="fc" id="L229">    }</span>
     
     public Long getCreatedBy() {
-<span class="fc" id="L197">        return createdBy;</span>
+<span class="fc" id="L232">        return createdBy;</span>
     }
     
     public void setCreatedBy(Long createdBy) {
-<span class="fc" id="L201">        this.createdBy = createdBy;</span>
-<span class="fc" id="L202">    }</span>
+<span class="fc" id="L236">        this.createdBy = createdBy;</span>
+<span class="fc" id="L237">    }</span>
     
     // Business methods
-    public BigDecimal calculateTotalPay() {
-<span class="fc" id="L206">        return hours.multiply(hourlyRate);</span>
+    public Money calculateTotalPay() {
+<span class="fc" id="L241">        return hourlyRate.multiply(hours);</span>
+    }
+    
+    public BigDecimal calculateTotalPayAmount() {
+<span class="fc" id="L245">        return calculateTotalPay().getAmount();</span>
     }
     
     public boolean isEditable() {
-<span class="pc bpc" id="L210" title="1 of 4 branches missed.">        return status == ApprovalStatus.DRAFT || status == ApprovalStatus.MODIFICATION_REQUESTED;</span>
+<span class="fc bfc" id="L249" title="All 4 branches covered.">        return status == ApprovalStatus.DRAFT || status == ApprovalStatus.MODIFICATION_REQUESTED;</span>
     }
     
     public boolean canBeApproved() {
-<span class="pc bpc" id="L214" title="1 of 4 branches missed.">        return status == ApprovalStatus.PENDING_TUTOR_REVIEW || </span>
+<span class="fc bfc" id="L253" title="All 4 branches covered.">        return status == ApprovalStatus.PENDING_TUTOR_REVIEW || </span>
                status == ApprovalStatus.PENDING_HR_REVIEW;
     }
     
     public void validateBusinessRules() {
-<span class="nc bnc" id="L219" title="All 4 branches missed.">        if (weekStartDate != null &amp;&amp; weekStartDate.getDayOfWeek().getValue() != 1) {</span>
-<span class="nc" id="L220">            throw new IllegalArgumentException(&quot;Week start date must be a Monday&quot;);</span>
+        // WeekPeriod automatically ensures start date is Monday
+        
+<span class="pc bpc" id="L260" title="1 of 4 branches missed.">        if (hours != null &amp;&amp; (hours.compareTo(BigDecimal.valueOf(0.1)) &lt; 0 || </span>
+<span class="fc bfc" id="L261" title="All 2 branches covered.">                             hours.compareTo(BigDecimal.valueOf(40.0)) &gt; 0)) {</span>
+<span class="fc" id="L262">            throw new IllegalArgumentException(&quot;Hours must be between 0.1 and 40.0&quot;);</span>
         }
         
-<span class="nc bnc" id="L223" title="All 4 branches missed.">        if (hours != null &amp;&amp; (hours.compareTo(BigDecimal.valueOf(0.1)) &lt; 0 || </span>
-<span class="nc bnc" id="L224" title="All 2 branches missed.">                             hours.compareTo(BigDecimal.valueOf(40.0)) &gt; 0)) {</span>
-<span class="nc" id="L225">            throw new IllegalArgumentException(&quot;Hours must be between 0.1 and 40.0&quot;);</span>
+<span class="pc bpc" id="L265" title="1 of 2 branches missed.">        if (hourlyRate != null) {</span>
+<span class="fc" id="L266">            BigDecimal rate = hourlyRate.getAmount();</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">            if (rate.compareTo(BigDecimal.valueOf(10.00)) &lt; 0 || </span>
+<span class="fc bfc" id="L268" title="All 2 branches covered.">                rate.compareTo(BigDecimal.valueOf(200.00)) &gt; 0) {</span>
+<span class="fc" id="L269">                throw new IllegalArgumentException(&quot;Hourly rate must be between 10.00 and 200.00&quot;);</span>
+            }
+        }
+<span class="fc" id="L272">    }</span>
+    
+    // Aggregate Root methods for managing Approvals
+    
+    /**
+     * Get all approvals for this timesheet (read-only view)
+     * 
+     * @return immutable list of approvals
+     */
+    public List&lt;Approval&gt; getApprovals() {
+<span class="fc" id="L282">        return Collections.unmodifiableList(approvals);</span>
+    }
+    
+    /**
+     * Add a new approval action to this timesheet
+     * 
+     * @param approverId ID of the user performing the action
+     * @param action the approval action being performed
+     * @param previousStatus the status before the action
+     * @param newStatus the status after the action  
+     * @param comment optional comment explaining the action
+     * @return the created approval
+     */
+    public Approval addApproval(Long approverId, ApprovalAction action, 
+                               ApprovalStatus previousStatus, ApprovalStatus newStatus, String comment) {
+<span class="fc" id="L297">        Approval approval = new Approval(this.id, approverId, action, previousStatus, newStatus, comment);</span>
+        
+        // Allow validation with null timesheet ID for unpersisted entities
+<span class="fc bfc" id="L300" title="All 2 branches covered.">        approval.validateBusinessRules(this.id != null);</span>
+        
+        // Update timesheet status
+<span class="fc" id="L303">        this.status = newStatus;</span>
+<span class="fc" id="L304">        this.updatedAt = LocalDateTime.now();</span>
+        
+        // Add to the approval list
+<span class="fc" id="L307">        approvals.add(approval);</span>
+        
+<span class="fc" id="L309">        return approval;</span>
+    }
+    
+    /**
+     * Submit timesheet for approval
+     * 
+     * @param submitterId ID of the user submitting
+     * @return the created approval record
+     */
+    public Approval submitForApproval(Long submitterId) {
+<span class="fc bfc" id="L319" title="All 2 branches covered.">        if (!isEditable()) {</span>
+<span class="fc" id="L320">            throw new IllegalStateException(&quot;Cannot submit timesheet that is not in editable state&quot;);</span>
         }
         
-<span class="nc bnc" id="L228" title="All 4 branches missed.">        if (hourlyRate != null &amp;&amp; (hourlyRate.compareTo(BigDecimal.valueOf(10.00)) &lt; 0 || </span>
-<span class="nc bnc" id="L229" title="All 2 branches missed.">                                  hourlyRate.compareTo(BigDecimal.valueOf(200.00)) &gt; 0)) {</span>
-<span class="nc" id="L230">            throw new IllegalArgumentException(&quot;Hourly rate must be between 10.00 and 200.00&quot;);</span>
+<span class="fc" id="L323">        return addApproval(submitterId, ApprovalAction.SUBMIT_FOR_APPROVAL, </span>
+                          this.status, ApprovalStatus.PENDING_TUTOR_REVIEW, null);
+    }
+    
+    /**
+     * Approve timesheet
+     * 
+     * @param approverId ID of the approver
+     * @param comment optional approval comment
+     * @return the created approval record
+     */
+    public Approval approve(Long approverId, String comment) {
+<span class="fc bfc" id="L335" title="All 2 branches covered.">        if (!canBeApproved()) {</span>
+<span class="fc" id="L336">            throw new IllegalStateException(&quot;Timesheet cannot be approved in current state: &quot; + this.status.name());</span>
         }
-<span class="nc" id="L232">    }</span>
+        
+<span class="fc bfc" id="L339" title="All 2 branches covered.">        ApprovalStatus newStatus = (this.status == ApprovalStatus.PENDING_TUTOR_REVIEW) </span>
+<span class="fc" id="L340">            ? ApprovalStatus.PENDING_HR_REVIEW </span>
+<span class="fc" id="L341">            : ApprovalStatus.APPROVED;</span>
+            
+<span class="fc" id="L343">        return addApproval(approverId, ApprovalAction.APPROVE, this.status, newStatus, comment);</span>
+    }
+    
+    /**
+     * Reject timesheet
+     * 
+     * @param approverId ID of the approver
+     * @param comment rejection comment (required)
+     * @return the created approval record
+     */
+    public Approval reject(Long approverId, String comment) {
+<span class="fc bfc" id="L354" title="All 2 branches covered.">        if (!canBeApproved()) {</span>
+<span class="fc" id="L355">            throw new IllegalStateException(&quot;Timesheet cannot be rejected in current state: &quot; + this.status);</span>
+        }
+        
+<span class="fc bfc" id="L358" title="All 4 branches covered.">        if (comment == null || comment.trim().isEmpty()) {</span>
+<span class="fc" id="L359">            throw new IllegalArgumentException(&quot;Rejection comment is required&quot;);</span>
+        }
+        
+<span class="fc" id="L362">        return addApproval(approverId, ApprovalAction.REJECT, this.status, ApprovalStatus.REJECTED, comment);</span>
+    }
+    
+    /**
+     * Request modification to timesheet
+     * 
+     * @param approverId ID of the approver
+     * @param comment modification request comment (required)
+     * @return the created approval record
+     */
+    public Approval requestModification(Long approverId, String comment) {  
+<span class="fc bfc" id="L373" title="All 2 branches covered.">        if (!canBeApproved()) {</span>
+<span class="fc" id="L374">            throw new IllegalStateException(&quot;Cannot request modification for timesheet in current state: &quot; + this.status);</span>
+        }
+        
+<span class="pc bpc" id="L377" title="1 of 4 branches missed.">        if (comment == null || comment.trim().isEmpty()) {</span>
+<span class="fc" id="L378">            throw new IllegalArgumentException(&quot;Modification request comment is required&quot;);</span>
+        }
+        
+<span class="fc" id="L381">        return addApproval(approverId, ApprovalAction.REQUEST_MODIFICATION, </span>
+                          this.status, ApprovalStatus.MODIFICATION_REQUESTED, comment);
+    }
+    
+    /**
+     * Get the most recent approval action
+     * 
+     * @return the most recent approval, if any
+     */
+    public Optional&lt;Approval&gt; getMostRecentApproval() {
+<span class="fc" id="L391">        return approvals.stream()</span>
+<span class="fc" id="L392">                .reduce((first, second) -&gt; second); // Get the last one due to ordering</span>
+    }
+    
+    /**
+     * Get approval history with approver names (requires approver details to be fetched separately)
+     * 
+     * @return list of approvals ordered by timestamp
+     */
+    public List&lt;Approval&gt; getApprovalHistory() {
+<span class="fc" id="L401">        return approvals.stream()</span>
+<span class="fc" id="L402">                .collect(Collectors.toList());</span>
+    }
+    
+    /**
+     * Check if timesheet has any approval of a specific action type
+     * 
+     * @param action the approval action to check for
+     * @return true if such approval exists
+     */
+    public boolean hasApprovalAction(ApprovalAction action) {
+<span class="fc" id="L412">        return approvals.stream()</span>
+<span class="fc bfc" id="L413" title="All 2 branches covered.">                .anyMatch(approval -&gt; approval.getAction() == action);</span>
+    }
+    
+    /**
+     * Get approvals of a specific action type
+     * 
+     * @param action the approval action type
+     * @return list of matching approvals
+     */
+    public List&lt;Approval&gt; getApprovalsByAction(ApprovalAction action) {
+<span class="fc" id="L423">        return approvals.stream()</span>
+<span class="fc bfc" id="L424" title="All 2 branches covered.">                .filter(approval -&gt; approval.getAction() == action)</span>
+<span class="fc" id="L425">                .collect(Collectors.toList());</span>
+    }
+    
+    /**
+     * Clear all approvals (used for testing or special scenarios)
+     */
+    protected void clearApprovals() {
+<span class="fc" id="L432">        approvals.clear();</span>
+<span class="fc" id="L433">    }</span>
     
     @Override
     public String toString() {
-<span class="nc" id="L236">        return &quot;Timesheet{&quot; +</span>
+<span class="fc" id="L437">        return &quot;Timesheet{&quot; +</span>
                 &quot;id=&quot; + id +
                 &quot;, tutorId=&quot; + tutorId +
                 &quot;, courseId=&quot; + courseId +
-                &quot;, weekStartDate=&quot; + weekStartDate +
+                &quot;, weekPeriod=&quot; + weekPeriod +
                 &quot;, hours=&quot; + hours +
                 &quot;, hourlyRate=&quot; + hourlyRate +
                 &quot;, description='&quot; + description + '\'' +

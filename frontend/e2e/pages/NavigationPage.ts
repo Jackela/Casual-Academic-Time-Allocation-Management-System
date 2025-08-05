@@ -56,8 +56,13 @@ export class NavigationPage {
       // Should not see lecturer navigation
       await expect(this.navTimesheets).not.toBeVisible();
       await expect(this.navApprovals).not.toBeVisible();
+    } else if (role === 'TUTOR') {
+      // TUTOR should only see dashboard, no additional navigation items
+      await expect(this.navTimesheets).not.toBeVisible();
+      await expect(this.navApprovals).not.toBeVisible();
+      await expect(this.navUsers).not.toBeVisible();
+      await expect(this.navReports).not.toBeVisible();
     }
-    // TUTOR role would have different navigation items if implemented
   }
 
   async clickNavigation(item: 'dashboard' | 'timesheets' | 'approvals' | 'users' | 'reports') {

@@ -441,7 +441,7 @@ describe('LoginPage Component Tests', () => {
 
       // Verify default error message is displayed
       await waitFor(() => {
-        expect(screen.getByText(/login failed. please check your credentials./i)).toBeInTheDocument();
+        expect(screen.getByText(/login failed:/i)).toBeInTheDocument();
       });
     });
 

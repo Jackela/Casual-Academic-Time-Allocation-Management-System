@@ -15,14 +15,8 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.*;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -38,17 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 // TODO: Re-enable this test once a Docker environment with Testcontainers is configured for the CI/CD pipeline.
 // This test is disabled as it's a non-critical feature for the MVP and fails in environments without Docker.
 @Disabled("Requires a Docker environment for Testcontainers.")
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
-@ActiveProfiles("test")
-@Transactional
-class DashboardControllerIntegrationTest {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:13")
-            .withDatabaseName("catams_test")
-            .withUsername("test")
-            .withPassword("test");
+@DisplayName("Dashboard Controller Integration Tests")
+class DashboardControllerIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private TestRestTemplate restTemplate;

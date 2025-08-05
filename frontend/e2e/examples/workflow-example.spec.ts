@@ -119,18 +119,18 @@ test.describe('Page Object Model Examples', () => {
     // Test lecturer role
     await loginPage.navigateTo();
     await loginPage.login('lecturer@example.com', 'Lecturer123!');
-    await dashboardPage.expectUserInfo('Test Lecturer', 'Lecturer');
+    await dashboardPage.expectUserInfo('Dr. Jane Smith', 'Lecturer');
     await dashboardPage.expectNavigationForRole('LECTURER');
     await dashboardPage.logout();
     
     // Test tutor role (if available)
     await loginPage.login('tutor@example.com', 'Tutor123!');
-    await dashboardPage.expectUserInfo('Test Tutor', 'Tutor');
+    await dashboardPage.expectUserInfo('John Doe', 'Tutor');
     await dashboardPage.logout();
     
     // Test admin role
     await loginPage.login('admin@example.com', 'Admin123!');
-    await dashboardPage.expectUserInfo('Test Admin', 'Administrator');
+    await dashboardPage.expectUserInfo('Admin User', 'Administrator');
     await dashboardPage.expectNavigationForRole('ADMIN');
     await dashboardPage.logout();
     

@@ -4,9 +4,11 @@ import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.UserRole;
+import com.usyd.catams.exception.BusinessException;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.application.TimesheetApplicationService;
 import com.usyd.catams.service.impl.TimesheetServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,9 @@ public class TimesheetServiceTest {
 
     @Mock
     private CourseRepository courseRepository;
+
+    @Mock
+    private TimesheetApplicationService timesheetApplicationService;
 
     @InjectMocks
     private TimesheetServiceImpl timesheetService;
@@ -73,6 +78,7 @@ public class TimesheetServiceTest {
     void createTimesheet_WhenCreatorIsNotLecturer_ShouldThrowSecurityException() {
         // ARRANGE: Setup for non-lecturer user trying to create timesheet
         when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
+        when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
 
         // ACT & ASSERT: Should throw SecurityException when TUTOR tries to create timesheet
         assertThatThrownBy(() -> 
@@ -96,6 +102,8 @@ public class TimesheetServiceTest {
     void createTimesheet_WhenCreatorIsAdmin_ShouldThrowSecurityException() {
         // ARRANGE: Setup for admin user trying to create timesheet
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
+        when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
 
         // ACT & ASSERT: Should throw SecurityException when ADMIN tries to create timesheet
         assertThatThrownBy(() -> 
@@ -170,6 +178,7 @@ public class TimesheetServiceTest {
 
         when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
         when(userRepository.findById(anotherLecturer.getId())).thenReturn(Optional.of(anotherLecturer));
+        when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
 
         // ACT & ASSERT: Should throw IllegalArgumentException when target user is not TUTOR
         assertThatThrownBy(() -> 
@@ -183,7 +192,7 @@ public class TimesheetServiceTest {
                 lecturer.getId()
             ))
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Target user must have TUTOR role");
+            .hasMessageContaining("User assigned as tutor must have TUTOR role");
 
         // Verify no timesheet was saved
         verify(timesheetRepository, never()).save(any(Timesheet.class));
@@ -239,7 +248,7 @@ public class TimesheetServiceTest {
                 lecturer.getId()
             ))
             .isInstanceOf(SecurityException.class)
-            .hasMessageContaining("LECTURER is not assigned to this course");
+            .hasMessageContaining("LECTURER can only create timesheets for courses they are assigned to");
 
         // Verify no timesheet was saved
         verify(timesheetRepository, never()).save(any(Timesheet.class));
@@ -308,6 +317,10 @@ public class TimesheetServiceTest {
         when(timesheetRepository.existsByTutorIdAndCourseIdAndWeekStartDate(tutor.getId(), course.getId(), mondayDate))
             .thenReturn(false);
         
+        // Mock that there's enough budget available
+        when(timesheetApplicationService.getTotalApprovedBudgetUsedByCourse(course.getId(), lecturer.getId()))
+            .thenReturn(BigDecimal.valueOf(1000.00)); // Course has 10000.00 budget, only 1000.00 used
+        
         Timesheet expectedTimesheet = new Timesheet(tutor.getId(), course.getId(), mondayDate,
             BigDecimal.valueOf(10.0), BigDecimal.valueOf(45.00), "Tutorial work", lecturer.getId());
         expectedTimesheet.setId(1L);
@@ -331,8 +344,8 @@ public class TimesheetServiceTest {
         assertThat(result.getTutorId()).isEqualTo(tutor.getId());
         assertThat(result.getCourseId()).isEqualTo(course.getId());
         assertThat(result.getWeekStartDate()).isEqualTo(mondayDate);
-        assertThat(result.getHours()).isEqualTo(BigDecimal.valueOf(10.0));
-        assertThat(result.getHourlyRate()).isEqualTo(BigDecimal.valueOf(45.00));
+        assertThat(result.getHours()).isEqualByComparingTo(BigDecimal.valueOf(10.0));
+        assertThat(result.getHourlyRate()).isEqualByComparingTo(BigDecimal.valueOf(45.00));
         assertThat(result.getDescription()).isEqualTo("Tutorial work");
         assertThat(result.getCreatedBy()).isEqualTo(lecturer.getId());
 
@@ -340,13 +353,192 @@ public class TimesheetServiceTest {
         verify(timesheetRepository).save(any(Timesheet.class));
     }
 
+    // NEW BUSINESS LOGIC VALIDATION TESTS - Currently failing, need implementation
+
+    @Test
+    void createTimesheet_WhenHoursOutOfValidRange_ShouldThrowIllegalArgumentException() {
+        // ARRANGE: Setup valid scenario but with invalid hours (below minimum)
+        when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
+        when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
+        when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
+
+        // ACT & ASSERT: Should throw IllegalArgumentException for hours below 0.1
+        assertThatThrownBy(() -> 
+            timesheetService.createTimesheet(
+                tutor.getId(),
+                course.getId(),
+                mondayDate,
+                BigDecimal.valueOf(0.05), // Below minimum 0.1
+                BigDecimal.valueOf(45.00),
+                "Tutorial work",
+                lecturer.getId()
+            ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Hours must be between 0.1 and 40.0");
+
+        // ACT & ASSERT: Should throw IllegalArgumentException for hours above 40
+        assertThatThrownBy(() -> 
+            timesheetService.createTimesheet(
+                tutor.getId(),
+                course.getId(),
+                mondayDate,
+                BigDecimal.valueOf(45.0), // Above maximum 40
+                BigDecimal.valueOf(45.00),
+                "Tutorial work",
+                lecturer.getId()
+            ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Hours must be between 0.1 and 40.0");
+
+        // ACT & ASSERT: Should throw IllegalArgumentException for zero hours
+        assertThatThrownBy(() -> 
+            timesheetService.createTimesheet(
+                tutor.getId(),
+                course.getId(),
+                mondayDate,
+                BigDecimal.ZERO, // Zero hours
+                BigDecimal.valueOf(45.00),
+                "Tutorial work",
+                lecturer.getId()
+            ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Hours must be between 0.1 and 40.0");
+
+        // ACT & ASSERT: Should throw IllegalArgumentException for negative hours
+        assertThatThrownBy(() -> 
+            timesheetService.createTimesheet(
+                tutor.getId(),
+                course.getId(),
+                mondayDate,
+                BigDecimal.valueOf(-5.0), // Negative hours
+                BigDecimal.valueOf(45.00),
+                "Tutorial work",
+                lecturer.getId()
+            ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Hours must be between 0.1 and 40.0");
+
+        // Verify no timesheet was saved for any invalid hours
+        verify(timesheetRepository, never()).save(any(Timesheet.class));
+    }
+
+    @Test
+    void createTimesheet_WhenHourlyRateNotPositive_ShouldThrowIllegalArgumentException() {
+        // ARRANGE: Setup valid scenario but with invalid hourly rate
+        when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
+        when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
+        when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
+
+        // ACT & ASSERT: Should throw IllegalArgumentException for zero hourly rate
+        assertThatThrownBy(() -> 
+            timesheetService.createTimesheet(
+                tutor.getId(),
+                course.getId(),
+                mondayDate,
+                BigDecimal.valueOf(10.0),
+                BigDecimal.ZERO, // Zero hourly rate
+                "Tutorial work",
+                lecturer.getId()
+            ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Hourly rate must be positive");
+
+        // ACT & ASSERT: Should throw IllegalArgumentException for negative hourly rate
+        assertThatThrownBy(() -> 
+            timesheetService.createTimesheet(
+                tutor.getId(),
+                course.getId(),
+                mondayDate,
+                BigDecimal.valueOf(10.0),
+                BigDecimal.valueOf(-25.00), // Negative hourly rate
+                "Tutorial work",
+                lecturer.getId()
+            ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Hourly rate must be positive");
+
+        // Verify no timesheet was saved for any invalid hourly rate
+        verify(timesheetRepository, never()).save(any(Timesheet.class));
+    }
+
+    @Test
+    void createTimesheet_WhenWeekStartDateInFuture_ShouldThrowIllegalArgumentException() {
+        // ARRANGE: Setup valid scenario but with future date
+        LocalDate tempDate = LocalDate.now().plusWeeks(2);
+        // Ensure it's a Monday
+        while (tempDate.getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
+            tempDate = tempDate.plusDays(1);
+        }
+        final LocalDate futureMonday = tempDate;
+
+        when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
+        when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
+        when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
+
+        // ACT & ASSERT: Should throw IllegalArgumentException for future date
+        assertThatThrownBy(() -> 
+            timesheetService.createTimesheet(
+                tutor.getId(),
+                course.getId(),
+                futureMonday, // Future Monday date
+                BigDecimal.valueOf(10.0),
+                BigDecimal.valueOf(45.00),
+                "Tutorial work",
+                lecturer.getId()
+            ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Week start date cannot be in the future");
+
+        // Verify no timesheet was saved
+        verify(timesheetRepository, never()).save(any(Timesheet.class));
+    }
+
+    @Test
+    void createTimesheet_WhenBudgetExceeded_ShouldThrowBusinessException() {
+        // ARRANGE: Setup scenario where creating timesheet would exceed course budget
+        when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
+        when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
+        when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
+        when(timesheetRepository.existsByTutorIdAndCourseIdAndWeekStartDate(tutor.getId(), course.getId(), mondayDate))
+            .thenReturn(false);
+
+        // Mock that course already has 9950.00 approved budget used (out of 10000.00 total)
+        when(timesheetApplicationService.getTotalApprovedBudgetUsedByCourse(course.getId(), lecturer.getId()))
+            .thenReturn(BigDecimal.valueOf(9950.00));
+
+        // ACT & ASSERT: Should throw BusinessException when new timesheet would exceed budget
+        // New timesheet cost: 10.0 hours * 45.00 rate = 450.00
+        // Total would be: 9950.00 + 450.00 = 10400.00 > 10000.00 budget
+        assertThatThrownBy(() -> 
+            timesheetService.createTimesheet(
+                tutor.getId(),
+                course.getId(),
+                mondayDate,
+                BigDecimal.valueOf(10.0), // 10 hours
+                BigDecimal.valueOf(45.00), // $45/hour = $450 total
+                "Tutorial work",
+                lecturer.getId()
+            ))
+            .isInstanceOf(BusinessException.class)
+            .hasMessageContaining("Creating this timesheet would exceed the course budget");
+
+        // Verify no timesheet was saved
+        verify(timesheetRepository, never()).save(any(Timesheet.class));
+    }
+
     // Helper method
     private LocalDate getNextMonday() {
         LocalDate today = LocalDate.now();
-        int daysUntilMonday = DayOfWeek.MONDAY.getValue() - today.getDayOfWeek().getValue();
-        if (daysUntilMonday <= 0) {
-            daysUntilMonday += 7;
+        int daysSinceMonday = today.getDayOfWeek().getValue() - DayOfWeek.MONDAY.getValue();
+        if (daysSinceMonday == 0) {
+            // Today is Monday, use it
+            return today;
+        } else if (daysSinceMonday > 0) {
+            // We're past Monday, use the previous Monday
+            return today.minusDays(daysSinceMonday);
+        } else {
+            // We're before Monday (shouldn't happen), use last week's Monday
+            return today.minusDays(daysSinceMonday + 7);
         }
-        return today.plusDays(daysUntilMonday);
     }
 }

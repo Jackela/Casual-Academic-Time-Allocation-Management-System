@@ -23,13 +23,18 @@
     /**
      * Tutor role for teaching assistants who work on specific courses
      */
-<span class="fc" id="L26">    TUTOR(&quot;Tutor&quot;);</span>
+<span class="fc" id="L26">    TUTOR(&quot;Tutor&quot;),</span>
+    
+    /**
+     * HR role for human resources staff who manage user accounts and approvals
+     */
+<span class="fc" id="L31">    HR(&quot;Human Resources&quot;);</span>
     
     private final String displayName;
     
-<span class="fc" id="L30">    UserRole(String displayName) {</span>
-<span class="fc" id="L31">        this.displayName = displayName;</span>
-<span class="fc" id="L32">    }</span>
+<span class="fc" id="L35">    UserRole(String displayName) {</span>
+<span class="fc" id="L36">        this.displayName = displayName;</span>
+<span class="fc" id="L37">    }</span>
     
     /**
      * Get the display name of the role
@@ -37,7 +42,7 @@
      * @return User-friendly display name
      */
     public String getDisplayName() {
-<span class="nc" id="L40">        return displayName;</span>
+<span class="nc" id="L45">        return displayName;</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

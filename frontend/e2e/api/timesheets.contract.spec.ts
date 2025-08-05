@@ -291,7 +291,7 @@ function validateTimesheetStructure(timesheet: Timesheet): void {
   expect(typeof timesheet.status).toBe('string');
   
   // Validate status is one of expected values
-  expect(['DRAFT', 'PENDING', 'APPROVED', 'REJECTED']).toContain(timesheet.status);
+  expect(['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'PENDING_LECTURER_APPROVAL']).toContain(timesheet.status);
   
   // Optional fields
   if (timesheet.tutorName !== undefined) {

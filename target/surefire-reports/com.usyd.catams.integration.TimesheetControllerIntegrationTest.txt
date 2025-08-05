@@ -1,4 +1,40 @@
 -------------------------------------------------------------------------------
 Test set: com.usyd.catams.integration.TimesheetControllerIntegrationTest
 -------------------------------------------------------------------------------
-Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.899 s -- in com.usyd.catams.integration.TimesheetControllerIntegrationTest
+Tests run: 10, Failures: 3, Errors: 0, Skipped: 0, Time elapsed: 2.776 s <<< FAILURE! -- in com.usyd.catams.integration.TimesheetControllerIntegrationTest
+com.usyd.catams.integration.TimesheetControllerIntegrationTest.testPaginationAndSorting -- Time elapsed: 0.470 s <<< FAILURE!
+java.lang.AssertionError: Status expected:<200> but was:<500>
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.usyd.catams.integration.TimesheetControllerIntegrationTest.testPaginationAndSorting(TimesheetControllerIntegrationTest.java:377)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.usyd.catams.integration.TimesheetControllerIntegrationTest.testAC2_TutorCanViewOwnTimesheets -- Time elapsed: 0.236 s <<< FAILURE!
+java.lang.AssertionError: No value at JSON path "$.page.number"
+	at org.springframework.test.util.JsonPathExpectationsHelper.evaluateJsonPath(JsonPathExpectationsHelper.java:302)
+	at org.springframework.test.util.JsonPathExpectationsHelper.assertValue(JsonPathExpectationsHelper.java:99)
+	at org.springframework.test.web.servlet.result.JsonPathResultMatchers.lambda$value$2(JsonPathResultMatchers.java:111)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.usyd.catams.integration.TimesheetControllerIntegrationTest.testAC2_TutorCanViewOwnTimesheets(TimesheetControllerIntegrationTest.java:237)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+Caused by: com.jayway.jsonpath.PathNotFoundException: No results for path: $['page']['number']
+
+com.usyd.catams.integration.TimesheetControllerIntegrationTest.testAC5_SchemaValidationCompliance -- Time elapsed: 0.238 s <<< FAILURE!
+java.lang.AssertionError: No value at JSON path "$.page.number"
+	at org.springframework.test.util.JsonPathExpectationsHelper.evaluateJsonPath(JsonPathExpectationsHelper.java:302)
+	at org.springframework.test.util.JsonPathExpectationsHelper.assertExistsAndReturn(JsonPathExpectationsHelper.java:326)
+	at org.springframework.test.util.JsonPathExpectationsHelper.assertValueIsNumber(JsonPathExpectationsHelper.java:155)
+	at org.springframework.test.web.servlet.result.JsonPathResultMatchers.lambda$isNumber$11(JsonPathResultMatchers.java:218)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.usyd.catams.integration.TimesheetControllerIntegrationTest.testAC5_SchemaValidationCompliance(TimesheetControllerIntegrationTest.java:322)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+Caused by: com.jayway.jsonpath.PathNotFoundException: No results for path: $['page']['number']
+

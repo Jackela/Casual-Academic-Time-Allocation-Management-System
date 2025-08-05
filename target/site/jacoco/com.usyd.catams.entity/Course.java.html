@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Course.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.entity</a> &gt; <span class="el_source">Course.java</span></div><h1>Course.java</h1><pre class="source lang-java linenums">package com.usyd.catams.entity;
 
+import com.usyd.catams.common.domain.model.CourseCode;
+import com.usyd.catams.common.domain.model.Money;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
@@ -7,7 +9,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = &quot;courses&quot;, indexes = {
-    @Index(name = &quot;idx_course_code&quot;, columnList = &quot;code&quot;),
+    @Index(name = &quot;idx_course_code&quot;, columnList = &quot;code_value&quot;),
     @Index(name = &quot;idx_course_lecturer&quot;, columnList = &quot;lecturerId&quot;),
     @Index(name = &quot;idx_course_semester&quot;, columnList = &quot;semester&quot;)
 })
@@ -17,10 +19,10 @@ public class Course {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @NotBlank
-    @Size(max = 20)
-    @Column(nullable = false, unique = true, length = 20)
-    private String code;
+    @NotNull
+    @Embedded
+    @AttributeOverride(name = &quot;value&quot;, column = @Column(name = &quot;code_value&quot;, nullable = false, unique = true, length = 20))
+    private CourseCode code;
     
     @NotBlank
     @Size(max = 200)
@@ -37,20 +39,24 @@ public class Course {
     private Long lecturerId;
     
     @NotNull
-    @DecimalMin(value = &quot;0.00&quot;, inclusive = true)
-    @Digits(integer = 10, fraction = 2)
-    @Column(nullable = false, precision = 12, scale = 2, name = &quot;budget_allocated&quot;)
-    private BigDecimal budgetAllocated;
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = &quot;amount&quot;, column = @Column(name = &quot;budget_allocated&quot;, precision = 12, scale = 2)),
+        @AttributeOverride(name = &quot;currencyCode&quot;, column = @Column(name = &quot;budget_allocated_currency&quot;))
+    })
+    private Money budgetAllocated;
     
-<span class="fc" id="L45">    @NotNull</span>
-    @DecimalMin(value = &quot;0.00&quot;, inclusive = true)
-    @Digits(integer = 10, fraction = 2)
-    @Column(nullable = false, precision = 12, scale = 2, name = &quot;budget_used&quot;)
-    private BigDecimal budgetUsed = BigDecimal.ZERO;
+<span class="fc" id="L49">    @NotNull</span>
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = &quot;amount&quot;, column = @Column(name = &quot;budget_used&quot;, precision = 12, scale = 2)),
+        @AttributeOverride(name = &quot;currencyCode&quot;, column = @Column(name = &quot;budget_used_currency&quot;))
+    })
+<span class="fc" id="L55">    private Money budgetUsed = Money.zero();</span>
     
-<span class="fc" id="L51">    @NotNull</span>
+    @NotNull
     @Column(nullable = false, name = &quot;is_active&quot;)
-<span class="fc" id="L53">    private Boolean isActive = true;</span>
+    private Boolean isActive;
     
     @Column(name = &quot;created_at&quot;, nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -59,143 +65,201 @@ public class Course {
     private LocalDateTime updatedAt;
     
     // Default constructor
-<span class="fc" id="L62">    public Course() {</span>
-<span class="fc" id="L63">    }</span>
+<span class="fc" id="L68">    public Course() {</span>
+<span class="fc" id="L69">    }</span>
     
     // Constructor for creation
-<span class="fc" id="L66">    public Course(String code, String name, String semester, Long lecturerId, BigDecimal budgetAllocated) {</span>
-<span class="fc" id="L67">        this.code = code;</span>
-<span class="fc" id="L68">        this.name = name;</span>
-<span class="fc" id="L69">        this.semester = semester;</span>
-<span class="fc" id="L70">        this.lecturerId = lecturerId;</span>
-<span class="fc" id="L71">        this.budgetAllocated = budgetAllocated;</span>
-<span class="fc" id="L72">        this.budgetUsed = BigDecimal.ZERO;</span>
-<span class="fc" id="L73">        this.isActive = true;</span>
-<span class="fc" id="L74">    }</span>
+<span class="fc" id="L72">    public Course(CourseCode code, String name, String semester, Long lecturerId, Money budgetAllocated) {</span>
+<span class="fc" id="L73">        this.code = code;</span>
+<span class="fc" id="L74">        this.name = name;</span>
+<span class="fc" id="L75">        this.semester = semester;</span>
+<span class="fc" id="L76">        this.lecturerId = lecturerId;</span>
+<span class="fc" id="L77">        this.budgetAllocated = budgetAllocated;</span>
+<span class="fc" id="L78">        this.budgetUsed = Money.zero();</span>
+<span class="fc" id="L79">        this.isActive = true;</span>
+<span class="fc" id="L80">    }</span>
+    
+    // Constructor with string code for backwards compatibility
+    public Course(String codeString, String name, String semester, Long lecturerId, BigDecimal budgetAllocated) {
+<span class="fc" id="L84">        this(new CourseCode(codeString), name, semester, lecturerId, new Money(budgetAllocated));</span>
+<span class="fc" id="L85">    }</span>
     
     @PrePersist
     protected void onCreate() {
-<span class="fc" id="L78">        LocalDateTime now = LocalDateTime.now();</span>
-<span class="fc" id="L79">        this.createdAt = now;</span>
-<span class="fc" id="L80">        this.updatedAt = now;</span>
-<span class="fc" id="L81">    }</span>
+<span class="fc" id="L89">        LocalDateTime now = LocalDateTime.now();</span>
+<span class="fc" id="L90">        this.createdAt = now;</span>
+<span class="fc" id="L91">        this.updatedAt = now;</span>
+<span class="fc" id="L92">    }</span>
     
     @PreUpdate
     protected void onUpdate() {
-<span class="nc" id="L85">        this.updatedAt = LocalDateTime.now();</span>
-<span class="nc" id="L86">    }</span>
+<span class="fc" id="L96">        this.updatedAt = LocalDateTime.now();</span>
+<span class="fc" id="L97">    }</span>
     
     // Getters and Setters
     public Long getId() {
-<span class="fc" id="L90">        return id;</span>
+<span class="fc" id="L101">        return id;</span>
     }
     
     public void setId(Long id) {
-<span class="fc" id="L94">        this.id = id;</span>
-<span class="fc" id="L95">    }</span>
+<span class="fc" id="L105">        this.id = id;</span>
+<span class="fc" id="L106">    }</span>
     
-    public String getCode() {
-<span class="nc" id="L98">        return code;</span>
+    public CourseCode getCourseCodeObject() {
+<span class="fc" id="L109">        return code;</span>
     }
     
-    public void setCode(String code) {
-<span class="fc" id="L102">        this.code = code;</span>
-<span class="fc" id="L103">    }</span>
+    /**
+     * Get course code as string (for backward compatibility)
+     */
+    public String getCode() {
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        return code != null ? code.getValue() : null;</span>
+    }
+    
+    public void setCode(CourseCode code) {
+<span class="fc" id="L120">        this.code = code;</span>
+<span class="fc" id="L121">    }</span>
+    
+    public void setCode(String codeString) {
+<span class="fc" id="L124">        this.code = new CourseCode(codeString);</span>
+<span class="fc" id="L125">    }</span>
+    
+    public String getCodeValue() {
+<span class="fc bfc" id="L128" title="All 2 branches covered.">        return code != null ? code.getValue() : null;</span>
+    }
     
     public String getName() {
-<span class="nc" id="L106">        return name;</span>
+<span class="fc" id="L132">        return name;</span>
     }
     
     public void setName(String name) {
-<span class="fc" id="L110">        this.name = name;</span>
-<span class="fc" id="L111">    }</span>
+<span class="fc" id="L136">        this.name = name;</span>
+<span class="fc" id="L137">    }</span>
     
     public String getSemester() {
-<span class="nc" id="L114">        return semester;</span>
+<span class="fc" id="L140">        return semester;</span>
     }
     
     public void setSemester(String semester) {
-<span class="fc" id="L118">        this.semester = semester;</span>
-<span class="fc" id="L119">    }</span>
+<span class="fc" id="L144">        this.semester = semester;</span>
+<span class="fc" id="L145">    }</span>
     
     public Long getLecturerId() {
-<span class="fc" id="L122">        return lecturerId;</span>
+<span class="fc" id="L148">        return lecturerId;</span>
     }
     
     public void setLecturerId(Long lecturerId) {
-<span class="fc" id="L126">        this.lecturerId = lecturerId;</span>
-<span class="fc" id="L127">    }</span>
+<span class="fc" id="L152">        this.lecturerId = lecturerId;</span>
+<span class="fc" id="L153">    }</span>
     
-    public BigDecimal getBudgetAllocated() {
-<span class="nc" id="L130">        return budgetAllocated;</span>
+    public Money getBudgetAllocatedMoney() {
+<span class="fc" id="L156">        return budgetAllocated;</span>
     }
+    
+    public void setBudgetAllocated(Money budgetAllocated) {
+<span class="fc" id="L160">        this.budgetAllocated = budgetAllocated;</span>
+<span class="fc" id="L161">    }</span>
     
     public void setBudgetAllocated(BigDecimal budgetAllocated) {
-<span class="fc" id="L134">        this.budgetAllocated = budgetAllocated;</span>
-<span class="fc" id="L135">    }</span>
+<span class="fc" id="L164">        this.budgetAllocated = new Money(budgetAllocated);</span>
+<span class="fc" id="L165">    }</span>
     
-    public BigDecimal getBudgetUsed() {
-<span class="nc" id="L138">        return budgetUsed;</span>
+    public Money getBudgetUsedMoney() {
+<span class="fc" id="L168">        return budgetUsed;</span>
     }
     
+    public void setBudgetUsed(Money budgetUsed) {
+<span class="fc" id="L172">        this.budgetUsed = budgetUsed;</span>
+<span class="fc" id="L173">    }</span>
+    
     public void setBudgetUsed(BigDecimal budgetUsed) {
-<span class="fc" id="L142">        this.budgetUsed = budgetUsed;</span>
-<span class="fc" id="L143">    }</span>
+<span class="fc" id="L176">        this.budgetUsed = new Money(budgetUsed);</span>
+<span class="fc" id="L177">    }</span>
+    
+    /**
+     * Get budget allocated as BigDecimal (for backward compatibility)
+     */
+    public BigDecimal getBudgetAllocated() {
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        return budgetAllocated != null ? budgetAllocated.getAmount() : null;</span>
+    }
+    
+    /**
+     * Get budget used as BigDecimal (for backward compatibility)
+     */
+    public BigDecimal getBudgetUsed() {
+<span class="fc bfc" id="L190" title="All 2 branches covered.">        return budgetUsed != null ? budgetUsed.getAmount() : null;</span>
+    }
     
     public Boolean getIsActive() {
-<span class="fc" id="L146">        return isActive;</span>
+<span class="fc" id="L194">        return isActive;</span>
     }
     
     public void setIsActive(Boolean isActive) {
-<span class="fc" id="L150">        this.isActive = isActive;</span>
-<span class="fc" id="L151">    }</span>
+<span class="fc" id="L198">        this.isActive = isActive;</span>
+<span class="fc" id="L199">    }</span>
     
     public LocalDateTime getCreatedAt() {
-<span class="nc" id="L154">        return createdAt;</span>
+<span class="fc" id="L202">        return createdAt;</span>
     }
     
     public void setCreatedAt(LocalDateTime createdAt) {
-<span class="nc" id="L158">        this.createdAt = createdAt;</span>
-<span class="nc" id="L159">    }</span>
+<span class="fc" id="L206">        this.createdAt = createdAt;</span>
+<span class="fc" id="L207">    }</span>
     
     public LocalDateTime getUpdatedAt() {
-<span class="nc" id="L162">        return updatedAt;</span>
+<span class="fc" id="L210">        return updatedAt;</span>
     }
     
     public void setUpdatedAt(LocalDateTime updatedAt) {
-<span class="nc" id="L166">        this.updatedAt = updatedAt;</span>
-<span class="nc" id="L167">    }</span>
+<span class="fc" id="L214">        this.updatedAt = updatedAt;</span>
+<span class="fc" id="L215">    }</span>
     
     // Business methods
-    public BigDecimal getBudgetRemaining() {
-<span class="fc" id="L171">        return budgetAllocated.subtract(budgetUsed);</span>
+    public Money getBudgetRemaining() {
+<span class="fc" id="L219">        return budgetAllocated.subtractAllowingNegative(budgetUsed);</span>
+    }
+    
+    public BigDecimal getBudgetRemainingAmount() {
+<span class="fc" id="L223">        return getBudgetRemaining().getAmount();</span>
+    }
+    
+    public boolean hasSufficientBudget(Money amount) {
+        // Special case: zero amount is always allowed regardless of budget status
+<span class="fc bfc" id="L228" title="All 2 branches covered.">        if (amount.isZero()) {</span>
+<span class="fc" id="L229">            return true;</span>
+        }
+<span class="fc" id="L231">        return getBudgetRemaining().isGreaterThanOrEqual(amount);</span>
     }
     
     public boolean hasSufficientBudget(BigDecimal amount) {
-<span class="pc bpc" id="L175" title="1 of 2 branches missed.">        return getBudgetRemaining().compareTo(amount) &gt;= 0;</span>
+<span class="fc" id="L235">        return hasSufficientBudget(new Money(amount));</span>
     }
     
-    public void addToBudgetUsed(BigDecimal amount) {
-<span class="nc bnc" id="L179" title="All 4 branches missed.">        if (amount == null || amount.compareTo(BigDecimal.ZERO) &lt; 0) {</span>
-<span class="nc" id="L180">            throw new IllegalArgumentException(&quot;Amount must be positive&quot;);</span>
+    public void addToBudgetUsed(Money amount) {
+<span class="fc bfc" id="L239" title="All 2 branches covered.">        if (amount == null) {</span>
+<span class="fc" id="L240">            throw new IllegalArgumentException(&quot;Amount cannot be null&quot;);</span>
         }
-<span class="nc" id="L182">        this.budgetUsed = this.budgetUsed.add(amount);</span>
-<span class="nc" id="L183">    }</span>
+<span class="fc" id="L242">        this.budgetUsed = this.budgetUsed.add(amount);</span>
+<span class="fc" id="L243">    }</span>
+    
+    public void addToBudgetUsed(BigDecimal amount) {
+<span class="fc" id="L246">        addToBudgetUsed(new Money(amount));</span>
+<span class="fc" id="L247">    }</span>
+    
+    public void subtractFromBudgetUsed(Money amount) {
+<span class="fc bfc" id="L250" title="All 2 branches covered.">        if (amount == null) {</span>
+<span class="fc" id="L251">            throw new IllegalArgumentException(&quot;Amount cannot be null&quot;);</span>
+        }
+<span class="fc" id="L253">        this.budgetUsed = this.budgetUsed.subtractAllowingNegative(amount);</span>
+<span class="fc" id="L254">    }</span>
     
     public void subtractFromBudgetUsed(BigDecimal amount) {
-<span class="nc bnc" id="L186" title="All 4 branches missed.">        if (amount == null || amount.compareTo(BigDecimal.ZERO) &lt; 0) {</span>
-<span class="nc" id="L187">            throw new IllegalArgumentException(&quot;Amount must be positive&quot;);</span>
-        }
-<span class="nc" id="L189">        BigDecimal newBudgetUsed = this.budgetUsed.subtract(amount);</span>
-<span class="nc bnc" id="L190" title="All 2 branches missed.">        if (newBudgetUsed.compareTo(BigDecimal.ZERO) &lt; 0) {</span>
-<span class="nc" id="L191">            throw new IllegalArgumentException(&quot;Cannot reduce budget used below zero&quot;);</span>
-        }
-<span class="nc" id="L193">        this.budgetUsed = newBudgetUsed;</span>
-<span class="nc" id="L194">    }</span>
+<span class="fc" id="L257">        subtractFromBudgetUsed(new Money(amount));</span>
+<span class="fc" id="L258">    }</span>
     
     @Override
     public String toString() {
-<span class="nc" id="L198">        return &quot;Course{&quot; +</span>
+<span class="fc" id="L262">        return &quot;Course{&quot; +</span>
                 &quot;id=&quot; + id +
                 &quot;, code='&quot; + code + '\'' +
                 &quot;, name='&quot; + name + '\'' +

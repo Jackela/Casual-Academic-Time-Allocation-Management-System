@@ -61,6 +61,7 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     setError('');
 
+
     try {
       // Make API call to backend login endpoint
       const response = await axios.post<LoginResponse>(
@@ -76,6 +77,7 @@ const LoginPage: React.FC = () => {
         }
       );
 
+
       // Handle successful login
       const { token, user } = response.data;
       
@@ -83,7 +85,6 @@ const LoginPage: React.FC = () => {
       login(token, user);
       
       setSuccess(true);
-      console.log('Login successful:', { user, token: token.substring(0, 20) + '...' });
       
       // Reset form
       setFormData({ email: '', password: '' });
@@ -95,11 +96,10 @@ const LoginPage: React.FC = () => {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const errorData = err.response?.data as LoginError;
-        setError(errorData?.message || 'Login failed. Please check your credentials.');
+        setError(errorData?.message || `Login failed: ${err.message}`);
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
-      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }

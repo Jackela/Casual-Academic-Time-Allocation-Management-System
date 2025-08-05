@@ -135,19 +135,19 @@ public enum ApprovalStatus {
     public ApprovalStatus[] getNextPossibleStatuses() {
         switch (this) {
             case DRAFT:
-                return new ApprovalStatus[]{PENDING_LECTURER_APPROVAL};
+                return new ApprovalStatus[]{PENDING_LECTURER_APPROVAL, PENDING_TUTOR_REVIEW};
             case PENDING_LECTURER_APPROVAL:
                 return new ApprovalStatus[]{APPROVED, REJECTED, MODIFICATION_REQUESTED};
             case APPROVED:
-                return new ApprovalStatus[]{PENDING_HR_REVIEW};
+                return new ApprovalStatus[]{PENDING_HR_REVIEW, FINAL_APPROVED};
             case PENDING_TUTOR_REVIEW:
-                return new ApprovalStatus[]{TUTOR_APPROVED, MODIFICATION_REQUESTED, REJECTED};
+                return new ApprovalStatus[]{TUTOR_APPROVED, PENDING_HR_REVIEW, MODIFICATION_REQUESTED, REJECTED};
             case TUTOR_APPROVED:
                 return new ApprovalStatus[]{PENDING_HR_REVIEW};
             case MODIFICATION_REQUESTED:
-                return new ApprovalStatus[]{DRAFT, PENDING_LECTURER_APPROVAL};
+                return new ApprovalStatus[]{DRAFT, PENDING_LECTURER_APPROVAL, PENDING_TUTOR_REVIEW};
             case PENDING_HR_REVIEW:
-                return new ApprovalStatus[]{FINAL_APPROVED, REJECTED, MODIFICATION_REQUESTED};
+                return new ApprovalStatus[]{FINAL_APPROVED, APPROVED, REJECTED, MODIFICATION_REQUESTED};
             case FINAL_APPROVED:
             case REJECTED:
                 return new ApprovalStatus[]{}; // Final states

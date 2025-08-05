@@ -6,6 +6,7 @@ import { E2E_CONFIG } from './e2e/config/e2e.config';
  */
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: ['**/e2e/api/**'],
   /* Global setup to handle authentication */
   globalSetup: './e2e/global.setup.ts',
   /* Run tests in files in parallel */

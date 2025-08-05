@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ApprovalController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.controller</a> &gt; <span class="el_source">ApprovalController.java</span></div><h1>ApprovalController.java</h1><pre class="source lang-java linenums">package com.usyd.catams.controller;
 
+import com.usyd.catams.application.ApprovalApplicationService;
 import com.usyd.catams.dto.request.ApprovalActionRequest;
 import com.usyd.catams.dto.response.ApprovalActionResponse;
-import com.usyd.catams.entity.Approval;
-import com.usyd.catams.entity.User;
-import com.usyd.catams.repository.UserRepository;
-import com.usyd.catams.service.ApprovalService;
+import com.usyd.catams.security.AuthenticationUtils;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -26,14 +24,15 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping(&quot;/api/approvals&quot;)
 public class ApprovalController {
 
-    private final ApprovalService approvalService;
-    private final UserRepository userRepository;
+    private final ApprovalApplicationService approvalApplicationService;
+    private final AuthenticationUtils authenticationUtils;
 
     @Autowired
-<span class="fc" id="L33">    public ApprovalController(ApprovalService approvalService, UserRepository userRepository) {</span>
-<span class="fc" id="L34">        this.approvalService = approvalService;</span>
-<span class="fc" id="L35">        this.userRepository = userRepository;</span>
-<span class="fc" id="L36">    }</span>
+    public ApprovalController(ApprovalApplicationService approvalApplicationService, 
+<span class="fc" id="L32">                            AuthenticationUtils authenticationUtils) {</span>
+<span class="fc" id="L33">        this.approvalApplicationService = approvalApplicationService;</span>
+<span class="fc" id="L34">        this.authenticationUtils = authenticationUtils;</span>
+<span class="fc" id="L35">    }</span>
 
     /**
      * Perform an approval action on a timesheet.
@@ -53,20 +52,17 @@ public class ApprovalController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-<span class="fc" id="L56">        Long requesterId = getCurrentUserId(authentication);</span>
+<span class="fc" id="L55">        Long requesterId = authenticationUtils.getCurrentUserId(authentication);</span>
 
-        // Perform the approval action using service layer
-<span class="fc" id="L59">        Approval approval = approvalService.performApprovalAction(</span>
-<span class="fc" id="L60">            request.getTimesheetId(),</span>
-<span class="fc" id="L61">            request.getAction(),</span>
-<span class="fc" id="L62">            request.getComment(),</span>
+        // Perform the approval action using application service (returns DTO directly)
+<span class="fc" id="L58">        ApprovalActionResponse response = approvalApplicationService.performApprovalActionAndReturnDto(</span>
+<span class="fc" id="L59">            request.getTimesheetId(),</span>
+<span class="fc" id="L60">            request.getAction(),</span>
+<span class="fc" id="L61">            request.getComment(),</span>
             requesterId
         );
 
-        // Build response DTO
-<span class="fc" id="L67">        ApprovalActionResponse response = buildApprovalActionResponse(approval);</span>
-
-<span class="fc" id="L69">        return ResponseEntity.ok(response);</span>
+<span class="fc" id="L65">        return ResponseEntity.ok(response);</span>
     }
 
     /**
@@ -81,17 +77,12 @@ public class ApprovalController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-<span class="fc" id="L84">        Long requesterId = getCurrentUserId(authentication);</span>
+<span class="fc" id="L80">        Long requesterId = authenticationUtils.getCurrentUserId(authentication);</span>
 
-        // Get approval history using service layer
-<span class="fc" id="L87">        java.util.List&lt;Approval&gt; approvals = approvalService.getApprovalHistory(timesheetId, requesterId);</span>
+        // Get approval history using application service (returns DTOs directly)
+<span class="fc" id="L83">        java.util.List&lt;ApprovalActionResponse&gt; responses = approvalApplicationService.getApprovalHistoryAsDto(timesheetId, requesterId);</span>
 
-        // Convert to response DTOs
-<span class="fc" id="L90">        java.util.List&lt;ApprovalActionResponse&gt; responses = approvals.stream()</span>
-<span class="fc" id="L91">            .map(this::buildApprovalActionResponse)</span>
-<span class="fc" id="L92">            .collect(java.util.stream.Collectors.toList());</span>
-
-<span class="fc" id="L94">        return ResponseEntity.ok(responses);</span>
+<span class="fc" id="L85">        return ResponseEntity.ok(responses);</span>
     }
 
     /**
@@ -105,81 +96,13 @@ public class ApprovalController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-<span class="nc" id="L108">        Long requesterId = getCurrentUserId(authentication);</span>
+<span class="nc" id="L99">        Long requesterId = authenticationUtils.getCurrentUserId(authentication);</span>
 
-        // Get pending approvals using service layer
-<span class="nc" id="L111">        java.util.List&lt;com.usyd.catams.entity.Timesheet&gt; pendingTimesheets = </span>
-<span class="nc" id="L112">            approvalService.getPendingApprovalsForUser(requesterId);</span>
-
-        // Convert to response DTOs (you'll need to inject TimesheetMapper if this is used)
-        // For now, returning a simplified response
-        // In a complete implementation, you'd convert these to TimesheetResponse DTOs
+        // Get pending approvals using application service
+        // Note: This endpoint needs proper implementation with DTO conversion
+        // For now, returning empty list as this is not critical for MVP
         
-<span class="nc" id="L118">        return ResponseEntity.ok(java.util.List.of()); // Placeholder - implement as needed</span>
-    }
-
-    // Helper methods
-
-    /**
-     * Extract user ID from authentication context.
-     * 
-     * @param authentication the authentication object
-     * @return the user ID
-     */
-    private Long getCurrentUserId(Authentication authentication) {
-<span class="pc bpc" id="L130" title="2 of 4 branches missed.">        if (authentication == null || authentication.getPrincipal() == null) {</span>
-<span class="nc" id="L131">            throw new SecurityException(&quot;Authentication required&quot;);</span>
-        }
-
-        // Extract user ID from authentication principal
-<span class="fc" id="L135">        Object principal = authentication.getPrincipal();</span>
-        
-<span class="pc bpc" id="L137" title="1 of 2 branches missed.">        if (principal instanceof com.usyd.catams.entity.User) {</span>
-<span class="fc" id="L138">            return ((com.usyd.catams.entity.User) principal).getId();</span>
-<span class="nc bnc" id="L139" title="All 2 branches missed.">        } else if (principal instanceof Long) {</span>
-<span class="nc" id="L140">            return (Long) principal;</span>
-<span class="nc bnc" id="L141" title="All 2 branches missed.">        } else if (principal instanceof String) {</span>
-            try {
-<span class="nc" id="L143">                return Long.parseLong((String) principal);</span>
-<span class="nc" id="L144">            } catch (NumberFormatException e) {</span>
-<span class="nc" id="L145">                throw new SecurityException(&quot;Invalid user ID in authentication context&quot;);</span>
-            }
-        } else {
-<span class="nc" id="L148">            throw new SecurityException(&quot;Invalid authentication principal type: &quot; + principal.getClass().getName());</span>
-        }
-    }
-
-    /**
-     * Build ApprovalActionResponse DTO from Approval entity.
-     * 
-     * @param approval the approval entity
-     * @return the response DTO
-     */
-    private ApprovalActionResponse buildApprovalActionResponse(Approval approval) {
-        
-        // Get approver information
-<span class="fc" id="L161">        User approver = userRepository.findById(approval.getApproverId())</span>
-<span class="fc" id="L162">            .orElse(null);</span>
-        
-<span class="pc bpc" id="L164" title="1 of 2 branches missed.">        String approverName = approver != null ? </span>
-<span class="fc" id="L165">            approver.getName() : </span>
-<span class="pc" id="L166">            &quot;Unknown User&quot;;</span>
-
-        // Create response
-<span class="fc" id="L169">        ApprovalActionResponse response = new ApprovalActionResponse(</span>
-<span class="fc" id="L170">            approval.getTimesheetId(),</span>
-<span class="fc" id="L171">            approval.getAction(),</span>
-<span class="fc" id="L172">            approval.getNewStatus(),</span>
-<span class="fc" id="L173">            approval.getApproverId(),</span>
-            approverName,
-<span class="fc" id="L175">            approval.getComment(),</span>
-<span class="fc" id="L176">            approval.getTimestamp()</span>
-        );
-
-        // Add workflow guidance
-<span class="fc" id="L180">        response.setNextSteps(ApprovalActionResponse.generateNextStepsForStatus(approval.getNewStatus()));</span>
-
-<span class="fc" id="L182">        return response;</span>
+<span class="nc" id="L105">        return ResponseEntity.ok(java.util.List.of()); // TODO: Implement proper DTO conversion</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

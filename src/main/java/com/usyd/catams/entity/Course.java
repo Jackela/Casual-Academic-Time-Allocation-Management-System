@@ -1,5 +1,7 @@
 package com.usyd.catams.entity;
 
+import com.usyd.catams.common.domain.model.CourseCode;
+import com.usyd.catams.common.domain.model.Money;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
@@ -7,7 +9,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "courses", indexes = {
-    @Index(name = "idx_course_code", columnList = "code"),
+    @Index(name = "idx_course_code", columnList = "code_value"),
     @Index(name = "idx_course_lecturer", columnList = "lecturerId"),
     @Index(name = "idx_course_semester", columnList = "semester")
 })
@@ -17,10 +19,10 @@ public class Course {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @NotBlank
-    @Size(max = 20)
-    @Column(nullable = false, unique = true, length = 20)
-    private String code;
+    @NotNull
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "code_value", nullable = false, unique = true, length = 20))
+    private CourseCode code;
     
     @NotBlank
     @Size(max = 200)
@@ -37,20 +39,24 @@ public class Course {
     private Long lecturerId;
     
     @NotNull
-    @DecimalMin(value = "0.00", inclusive = true)
-    @Digits(integer = 10, fraction = 2)
-    @Column(nullable = false, precision = 12, scale = 2, name = "budget_allocated")
-    private BigDecimal budgetAllocated;
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "amount", column = @Column(name = "budget_allocated", precision = 12, scale = 2)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "budget_allocated_currency"))
+    })
+    private Money budgetAllocated;
     
     @NotNull
-    @DecimalMin(value = "0.00", inclusive = true)
-    @Digits(integer = 10, fraction = 2)
-    @Column(nullable = false, precision = 12, scale = 2, name = "budget_used")
-    private BigDecimal budgetUsed = BigDecimal.ZERO;
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "amount", column = @Column(name = "budget_used", precision = 12, scale = 2)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "budget_used_currency"))
+    })
+    private Money budgetUsed = Money.zero();
     
     @NotNull
     @Column(nullable = false, name = "is_active")
-    private Boolean isActive = true;
+    private Boolean isActive;
     
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -63,14 +69,19 @@ public class Course {
     }
     
     // Constructor for creation
-    public Course(String code, String name, String semester, Long lecturerId, BigDecimal budgetAllocated) {
+    public Course(CourseCode code, String name, String semester, Long lecturerId, Money budgetAllocated) {
         this.code = code;
         this.name = name;
         this.semester = semester;
         this.lecturerId = lecturerId;
         this.budgetAllocated = budgetAllocated;
-        this.budgetUsed = BigDecimal.ZERO;
+        this.budgetUsed = Money.zero();
         this.isActive = true;
+    }
+    
+    // Constructor with string code for backwards compatibility
+    public Course(String codeString, String name, String semester, Long lecturerId, BigDecimal budgetAllocated) {
+        this(new CourseCode(codeString), name, semester, lecturerId, new Money(budgetAllocated));
     }
     
     @PrePersist
@@ -94,12 +105,27 @@ public class Course {
         this.id = id;
     }
     
-    public String getCode() {
+    public CourseCode getCourseCodeObject() {
         return code;
     }
     
-    public void setCode(String code) {
+    /**
+     * Get course code as string (for backward compatibility)
+     */
+    public String getCode() {
+        return code != null ? code.getValue() : null;
+    }
+    
+    public void setCode(CourseCode code) {
         this.code = code;
+    }
+    
+    public void setCode(String codeString) {
+        this.code = new CourseCode(codeString);
+    }
+    
+    public String getCodeValue() {
+        return code != null ? code.getValue() : null;
     }
     
     public String getName() {
@@ -126,20 +152,42 @@ public class Course {
         this.lecturerId = lecturerId;
     }
     
-    public BigDecimal getBudgetAllocated() {
+    public Money getBudgetAllocatedMoney() {
         return budgetAllocated;
     }
     
-    public void setBudgetAllocated(BigDecimal budgetAllocated) {
+    public void setBudgetAllocated(Money budgetAllocated) {
         this.budgetAllocated = budgetAllocated;
     }
     
-    public BigDecimal getBudgetUsed() {
+    public void setBudgetAllocated(BigDecimal budgetAllocated) {
+        this.budgetAllocated = new Money(budgetAllocated);
+    }
+    
+    public Money getBudgetUsedMoney() {
         return budgetUsed;
     }
     
-    public void setBudgetUsed(BigDecimal budgetUsed) {
+    public void setBudgetUsed(Money budgetUsed) {
         this.budgetUsed = budgetUsed;
+    }
+    
+    public void setBudgetUsed(BigDecimal budgetUsed) {
+        this.budgetUsed = new Money(budgetUsed);
+    }
+    
+    /**
+     * Get budget allocated as BigDecimal (for backward compatibility)
+     */
+    public BigDecimal getBudgetAllocated() {
+        return budgetAllocated != null ? budgetAllocated.getAmount() : null;
+    }
+    
+    /**
+     * Get budget used as BigDecimal (for backward compatibility)
+     */
+    public BigDecimal getBudgetUsed() {
+        return budgetUsed != null ? budgetUsed.getAmount() : null;
     }
     
     public Boolean getIsActive() {
@@ -167,30 +215,46 @@ public class Course {
     }
     
     // Business methods
-    public BigDecimal getBudgetRemaining() {
-        return budgetAllocated.subtract(budgetUsed);
+    public Money getBudgetRemaining() {
+        return budgetAllocated.subtractAllowingNegative(budgetUsed);
+    }
+    
+    public BigDecimal getBudgetRemainingAmount() {
+        return getBudgetRemaining().getAmount();
+    }
+    
+    public boolean hasSufficientBudget(Money amount) {
+        // Special case: zero amount is always allowed regardless of budget status
+        if (amount.isZero()) {
+            return true;
+        }
+        return getBudgetRemaining().isGreaterThanOrEqual(amount);
     }
     
     public boolean hasSufficientBudget(BigDecimal amount) {
-        return getBudgetRemaining().compareTo(amount) >= 0;
+        return hasSufficientBudget(new Money(amount));
     }
     
-    public void addToBudgetUsed(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Amount must be positive");
+    public void addToBudgetUsed(Money amount) {
+        if (amount == null) {
+            throw new IllegalArgumentException("Amount cannot be null");
         }
         this.budgetUsed = this.budgetUsed.add(amount);
     }
     
+    public void addToBudgetUsed(BigDecimal amount) {
+        addToBudgetUsed(new Money(amount));
+    }
+    
+    public void subtractFromBudgetUsed(Money amount) {
+        if (amount == null) {
+            throw new IllegalArgumentException("Amount cannot be null");
+        }
+        this.budgetUsed = this.budgetUsed.subtractAllowingNegative(amount);
+    }
+    
     public void subtractFromBudgetUsed(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Amount must be positive");
-        }
-        BigDecimal newBudgetUsed = this.budgetUsed.subtract(amount);
-        if (newBudgetUsed.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Cannot reduce budget used below zero");
-        }
-        this.budgetUsed = newBudgetUsed;
+        subtractFromBudgetUsed(new Money(amount));
     }
     
     @Override

@@ -77,8 +77,17 @@ export class TimesheetPage {
       approveButton.click()
     ]);
     
-    // Wait for refresh
+    // Wait for refresh AND UI update
     await this.page.waitForResponse('**/api/timesheets/pending-approval');
+    // Wait for the specific timesheet row to disappear or table to update
+    await this.page.waitForFunction(
+      (timesheetId) => {
+        const row = document.querySelector(`[data-testid="timesheet-row-${timesheetId}"]`);
+        return !row || row.getAttribute('data-status') !== 'PENDING_LECTURER_APPROVAL';
+      },
+      id,
+      { timeout: 10000 }
+    );
     
     return response;
   }
@@ -91,8 +100,17 @@ export class TimesheetPage {
       rejectButton.click()
     ]);
     
-    // Wait for refresh
+    // Wait for refresh AND UI update
     await this.page.waitForResponse('**/api/timesheets/pending-approval');
+    // Wait for the specific timesheet row to disappear or table to update
+    await this.page.waitForFunction(
+      (timesheetId) => {
+        const row = document.querySelector(`[data-testid="timesheet-row-${timesheetId}"]`);
+        return !row || row.getAttribute('data-status') !== 'PENDING_LECTURER_APPROVAL';
+      },
+      id,
+      { timeout: 10000 }
+    );
     
     return response;
   }
@@ -151,10 +169,21 @@ export class TimesheetPage {
 
   async hasTimesheetData(): Promise<boolean> {
     try {
-      await this.timesheetsTable.waitFor({ timeout: 3000 });
-      return true;
+      // First wait for the API response to complete
+      await this.page.waitForResponse('**/api/timesheets/pending-approval', { timeout: 10000 });
+      // Then check if the table is visible with data
+      await this.timesheetsTable.waitFor({ timeout: 5000 });
+      const rows = await this.getTimesheetRows();
+      const rowCount = await rows.count();
+      return rowCount > 0;
     } catch {
-      return false;
+      // If table not found or no rows, check for empty state
+      try {
+        await this.emptyState.waitFor({ timeout: 2000 });
+        return false;
+      } catch {
+        return false;
+      }
     }
   }
 

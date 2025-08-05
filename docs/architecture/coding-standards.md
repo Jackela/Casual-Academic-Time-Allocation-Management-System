@@ -437,17 +437,34 @@ class AuthControllerIntegrationTest {
 }
 ```
 
-## 8. Exception Handling Strategy
+## 8. Test Runner Constitution
+
+To ensure a clean, fast, and reliable test suite, this project enforces a strict separation of concerns between its testing frameworks. This constitution is the absolute source of truth.
+
+### **Article I: The Domain of Vitest**
+- `vitest` is to be used **exclusively** for all non-browser tests.
+- This includes:
+    - **Unit Tests** (e.g., `src/**/*.test.ts`): For testing individual functions and utilities in isolation.
+    - **API Contract Tests** (e.g., `e2e/api/**/*.spec.ts`): For testing the backend API contract directly using the `ApiClient`, without a browser.
+
+### **Article II: The Domain of Playwright**
+- `@playwright/test` is to be used **exclusively** for true End-to-End (E2E) tests that simulate real user interactions in a browser.
+- Its scope is limited to the `e2e/modules/**/*.spec.ts` files.
+
+### **Article III: The Uncrossable Boundary**
+- Under **no circumstances** should `import` statements from `vitest` and `@playwright/test` appear in the same test file. They are mutually exclusive.
+
+## 9. Exception Handling Strategy
 
 The CATAMS project adopts a unified exception handling strategy to ensure consistency and maintainability of error handling. This strategy is based on four core principles:
 
-### 8.1 Principle 1: Fail-Fast
+### 9.1 Principle 1: Fail-Fast
 
 **Core Concept: Validate all external input at the earliest possible stage**
 
 All external data (API requests, user input, external system calls) must be validated before entering business logic. Once invalid data is detected, immediately throw exceptions to prevent error data from propagating through the system.
 
-#### 8.1.1 Controller Layer Validation
+#### 9.1.1 Controller Layer Validation
 ```java
 @RestController
 @RequestMapping("/api/users")
@@ -462,7 +479,7 @@ public class UserController {
 }
 ```
 
-#### 8.1.2 Service Layer Pre-condition Checks
+#### 9.1.2 Service Layer Pre-condition Checks
 ```java
 @Service
 public class UserServiceImpl implements UserService {
@@ -485,7 +502,7 @@ public class UserServiceImpl implements UserService {
 }
 ```
 
-#### 8.1.3 DTO Validation Annotations
+#### 9.1.3 DTO Validation Annotations
 ```java
 public class UserCreateRequest {
     
@@ -506,13 +523,13 @@ public class UserCreateRequest {
 }
 ```
 
-### 8.2 Principle 2: Centralized Exception Handling
+### 9.2 Principle 2: Centralized Exception Handling
 
 **Core Concept: Business logic layers do not catch exceptions, let exceptions "bubble up" to global handlers**
 
 Service and Repository layers focus on business logic implementation and are not responsible for exception handling. All exceptions are passed to the Controller layer through the "exception bubbling" mechanism, where they are handled uniformly by the global exception handler.
 
-#### 8.2.1 Service Layer Does Not Catch Exceptions
+#### 9.2.1 Service Layer Does Not Catch Exceptions
 ```java
 @Service
 public class UserServiceImpl implements UserService {
@@ -533,7 +550,7 @@ public class UserServiceImpl implements UserService {
 }
 ```
 
-#### 8.2.2 Global Exception Handler
+#### 9.2.2 Global Exception Handler
 ```java
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -596,11 +613,11 @@ public class GlobalExceptionHandler {
 }
 ```
 
-### 8.3 Principle 3: Differentiated Exception Types
+### 9.3 Principle 3: Differentiated Exception Types
 
 **Core Concept: Distinguish between predictable business exceptions and unpredictable system exceptions**
 
-#### 8.3.1 BusinessException - Predictable Business Exceptions
+#### 9.3.1 BusinessException - Predictable Business Exceptions
 Used to handle predictable business rule violations, returns 4xx status codes, logs WARN level messages.
 
 ```java
@@ -650,7 +667,7 @@ public class ValidationException extends BusinessException {
 }
 ```
 
-#### 8.3.2 Usage Scenario Examples
+#### 9.3.2 Usage Scenario Examples
 ```java
 @Service
 public class UserServiceImpl implements UserService {
@@ -677,17 +694,17 @@ public class UserServiceImpl implements UserService {
 }
 ```
 
-#### 8.3.3 System Exception Handling
+#### 9.3.3 System Exception Handling
 For unpredictable system exceptions (such as NullPointerException, database connection exceptions, etc.), the global handler will:
 - Return generic 500 status code
 - Log complete exception stack at ERROR level
 - Return generic error messages to clients (avoid exposing system details)
 
-### 8.4 Principle 4: Standardized Error Response Body
+### 9.4 Principle 4: Standardized Error Response Body
 
 **Core Concept: All API error responses must follow a unified JSON structure**
 
-#### 8.4.1 Standard Error Response Format
+#### 9.4.1 Standard Error Response Format
 ```json
 {
   "timestamp": "2025-08-01T10:15:30.123Z",
@@ -698,7 +715,7 @@ For unpredictable system exceptions (such as NullPointerException, database conn
 }
 ```
 
-#### 8.4.2 ErrorResponse Class Implementation
+#### 9.4.2 ErrorResponse Class Implementation
 ```java
 /**
  * 标准错误响应DTO
@@ -771,7 +788,7 @@ public class ErrorResponse {
 }
 ```
 
-#### 8.4.3 Error Code Standards
+#### 9.4.3 Error Code Standards
 ```java
 /**
  * Error code constants definition
@@ -798,7 +815,7 @@ public class ErrorCodes {
 }
 ```
 
-#### 8.4.4 Complete Error Handling Example
+#### 9.4.4 Complete Error Handling Example
 ```java
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -831,9 +848,9 @@ public class GlobalExceptionHandler {
 }
 ```
 
-### 8.5 Exception Handling Best Practices
+### 9.5 Exception Handling Best Practices
 
-#### 8.5.1 Logging Strategy
+#### 9.5.1 Logging Strategy
 ```java
 // ✅ Correct: Log business exceptions at WARN level
 logger.warn("User login failed: email={}, reason={}", email, "Password incorrect");
@@ -845,7 +862,7 @@ logger.error("Database connection exception: {}", e.getMessage(), e);
 logger.error("User does not exist: {}", email); // This should be WARN level
 ```
 
-#### 8.5.2 Exception Message Internationalization
+#### 9.5.2 Exception Message Internationalization
 ```java
 @Component
 public class MessageSourceUtil {
@@ -863,7 +880,7 @@ throw new BusinessException("EMAIL_EXISTS",
     messageSourceUtil.getMessage("error.email.exists", request.getEmail()));
 ```
 
-#### 8.5.3 Security Considerations
+#### 9.5.3 Security Considerations
 ```java
 // ✅ Correct: Do not expose internal system information
 throw new AuthenticationException("Username or password incorrect");
@@ -882,9 +899,9 @@ return ErrorResponse.builder()
     .build();
 ```
 
-## 9. Code Format and Structure
+## 10. Code Format and Structure
 
-### 9.1 Import Order
+### 10.1 Import Order
 ```java
 // 1. Java standard library
 import java.time.LocalDateTime;
@@ -899,7 +916,7 @@ import com.usyd.catams.dto.AuthResult;
 import com.usyd.catams.entity.User;
 ```
 
-### 9.2 Class Structure Order
+### 10.2 Class Structure Order
 ```java
 public class UserServiceImpl implements UserService {
     

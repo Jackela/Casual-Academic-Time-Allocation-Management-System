@@ -46,14 +46,30 @@ public abstract class IntegrationTestBase {
             .withDatabaseName("catams_test")
             .withUsername("test_user")
             .withPassword("test_password")
-            .withReuse(true); // Reuse container across test classes for performance
+            .withReuse(true) // Reuse container across test classes for performance
+            .withExposedPorts(5432)
+            .withStartupTimeoutSeconds(60);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
+        // Ensure container is started
+        if (!postgres.isRunning()) {
+            postgres.start();
+        }
+        
+        // Database connection properties
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+        
+        // Connection pool configuration for test stability
+        registry.add("spring.datasource.hikari.maximum-pool-size", () -> "5");
+        registry.add("spring.datasource.hikari.minimum-idle", () -> "1");
+        registry.add("spring.datasource.hikari.connection-timeout", () -> "20000");
+        registry.add("spring.datasource.hikari.idle-timeout", () -> "300000");
+        registry.add("spring.datasource.hikari.max-lifetime", () -> "900000");
+        registry.add("spring.datasource.hikari.leak-detection-threshold", () -> "60000");
         
         // JPA Configuration for integration tests
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
@@ -65,6 +81,7 @@ public abstract class IntegrationTestBase {
         registry.add("logging.level.org.springframework.security", () -> "WARN");
         registry.add("logging.level.org.hibernate", () -> "WARN");
         registry.add("logging.level.com.zaxxer.hikari", () -> "WARN");
+        registry.add("logging.level.org.testcontainers", () -> "INFO");
     }
 
     @Autowired

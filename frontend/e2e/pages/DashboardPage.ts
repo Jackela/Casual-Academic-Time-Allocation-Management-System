@@ -23,7 +23,14 @@ export class DashboardPage {
   }
 
   async waitForTimesheetData() {
+    // Wait for API response and then for UI to be ready
     await this.page.waitForResponse('**/api/timesheets/pending-approval');
+    // Wait for either table to appear with data or empty state to show
+    await Promise.race([
+      this.timesheetPage.timesheetsTable.waitFor({ timeout: 5000 }),
+      this.timesheetPage.emptyState.waitFor({ timeout: 5000 }),
+      this.timesheetPage.errorMessage.waitFor({ timeout: 5000 })
+    ]);
   }
 
   async expectToBeLoaded() {

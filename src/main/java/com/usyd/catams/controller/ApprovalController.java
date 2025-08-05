@@ -1,11 +1,9 @@
 package com.usyd.catams.controller;
 
+import com.usyd.catams.application.ApprovalApplicationService;
 import com.usyd.catams.dto.request.ApprovalActionRequest;
 import com.usyd.catams.dto.response.ApprovalActionResponse;
-import com.usyd.catams.entity.Approval;
-import com.usyd.catams.entity.User;
-import com.usyd.catams.repository.UserRepository;
-import com.usyd.catams.service.ApprovalService;
+import com.usyd.catams.security.AuthenticationUtils;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -26,13 +24,14 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/approvals")
 public class ApprovalController {
 
-    private final ApprovalService approvalService;
-    private final UserRepository userRepository;
+    private final ApprovalApplicationService approvalApplicationService;
+    private final AuthenticationUtils authenticationUtils;
 
     @Autowired
-    public ApprovalController(ApprovalService approvalService, UserRepository userRepository) {
-        this.approvalService = approvalService;
-        this.userRepository = userRepository;
+    public ApprovalController(ApprovalApplicationService approvalApplicationService, 
+                            AuthenticationUtils authenticationUtils) {
+        this.approvalApplicationService = approvalApplicationService;
+        this.authenticationUtils = authenticationUtils;
     }
 
     /**
@@ -53,18 +52,15 @@ public class ApprovalController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-        Long requesterId = getCurrentUserId(authentication);
+        Long requesterId = authenticationUtils.getCurrentUserId(authentication);
 
-        // Perform the approval action using service layer
-        Approval approval = approvalService.performApprovalAction(
+        // Perform the approval action using application service (returns DTO directly)
+        ApprovalActionResponse response = approvalApplicationService.performApprovalActionAndReturnDto(
             request.getTimesheetId(),
             request.getAction(),
             request.getComment(),
             requesterId
         );
-
-        // Build response DTO
-        ApprovalActionResponse response = buildApprovalActionResponse(approval);
 
         return ResponseEntity.ok(response);
     }
@@ -81,15 +77,10 @@ public class ApprovalController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-        Long requesterId = getCurrentUserId(authentication);
+        Long requesterId = authenticationUtils.getCurrentUserId(authentication);
 
-        // Get approval history using service layer
-        java.util.List<Approval> approvals = approvalService.getApprovalHistory(timesheetId, requesterId);
-
-        // Convert to response DTOs
-        java.util.List<ApprovalActionResponse> responses = approvals.stream()
-            .map(this::buildApprovalActionResponse)
-            .collect(java.util.stream.Collectors.toList());
+        // Get approval history using application service (returns DTOs directly)
+        java.util.List<ApprovalActionResponse> responses = approvalApplicationService.getApprovalHistoryAsDto(timesheetId, requesterId);
 
         return ResponseEntity.ok(responses);
     }
@@ -105,80 +96,12 @@ public class ApprovalController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-        Long requesterId = getCurrentUserId(authentication);
+        Long requesterId = authenticationUtils.getCurrentUserId(authentication);
 
-        // Get pending approvals using service layer
-        java.util.List<com.usyd.catams.entity.Timesheet> pendingTimesheets = 
-            approvalService.getPendingApprovalsForUser(requesterId);
-
-        // Convert to response DTOs (you'll need to inject TimesheetMapper if this is used)
-        // For now, returning a simplified response
-        // In a complete implementation, you'd convert these to TimesheetResponse DTOs
+        // Get pending approvals using application service
+        // Note: This endpoint needs proper implementation with DTO conversion
+        // For now, returning empty list as this is not critical for MVP
         
-        return ResponseEntity.ok(java.util.List.of()); // Placeholder - implement as needed
-    }
-
-    // Helper methods
-
-    /**
-     * Extract user ID from authentication context.
-     * 
-     * @param authentication the authentication object
-     * @return the user ID
-     */
-    private Long getCurrentUserId(Authentication authentication) {
-        if (authentication == null || authentication.getPrincipal() == null) {
-            throw new SecurityException("Authentication required");
-        }
-
-        // Extract user ID from authentication principal
-        Object principal = authentication.getPrincipal();
-        
-        if (principal instanceof com.usyd.catams.entity.User) {
-            return ((com.usyd.catams.entity.User) principal).getId();
-        } else if (principal instanceof Long) {
-            return (Long) principal;
-        } else if (principal instanceof String) {
-            try {
-                return Long.parseLong((String) principal);
-            } catch (NumberFormatException e) {
-                throw new SecurityException("Invalid user ID in authentication context");
-            }
-        } else {
-            throw new SecurityException("Invalid authentication principal type: " + principal.getClass().getName());
-        }
-    }
-
-    /**
-     * Build ApprovalActionResponse DTO from Approval entity.
-     * 
-     * @param approval the approval entity
-     * @return the response DTO
-     */
-    private ApprovalActionResponse buildApprovalActionResponse(Approval approval) {
-        
-        // Get approver information
-        User approver = userRepository.findById(approval.getApproverId())
-            .orElse(null);
-        
-        String approverName = approver != null ? 
-            approver.getName() : 
-            "Unknown User";
-
-        // Create response
-        ApprovalActionResponse response = new ApprovalActionResponse(
-            approval.getTimesheetId(),
-            approval.getAction(),
-            approval.getNewStatus(),
-            approval.getApproverId(),
-            approverName,
-            approval.getComment(),
-            approval.getTimestamp()
-        );
-
-        // Add workflow guidance
-        response.setNextSteps(ApprovalActionResponse.generateNextStepsForStatus(approval.getNewStatus()));
-
-        return response;
+        return ResponseEntity.ok(java.util.List.of()); // TODO: Implement proper DTO conversion
     }
 }

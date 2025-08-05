@@ -123,7 +123,7 @@ public class TestDataBuilder {
         public Course build() {
             Course course = new Course();
             course.setId(id);
-            course.setCode(code != null ? code : "TEST101");
+            course.setCode(code != null ? code : "TEST3001");
             course.setName(name != null ? name : "Test Course");
             course.setSemester("2024S1");
             course.setLecturerId(lecturer != null ? lecturer.getId() : aLecturer().build().getId());

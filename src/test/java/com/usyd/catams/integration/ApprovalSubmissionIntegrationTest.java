@@ -9,7 +9,6 @@ import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
-import com.usyd.catams.repository.ApprovalRepository;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
@@ -62,8 +61,6 @@ public class ApprovalSubmissionIntegrationTest {
     @Autowired
     private TimesheetRepository timesheetRepository;
 
-    @Autowired
-    private ApprovalRepository approvalRepository;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -84,7 +81,6 @@ public class ApprovalSubmissionIntegrationTest {
     @BeforeEach
     void setUp() {
         // Clean up existing data
-        approvalRepository.deleteAll();
         timesheetRepository.deleteAll();
         courseRepository.deleteAll();
         userRepository.deleteAll();
@@ -182,8 +178,8 @@ public class ApprovalSubmissionIntegrationTest {
         Timesheet updated = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
         assertEquals(ApprovalStatus.PENDING_LECTURER_APPROVAL, updated.getStatus());
 
-        // Verify approval record was created
-        List<Approval> approvals = approvalRepository.findByTimesheetIdOrderByTimestampAsc(draftTimesheet.getId());
+        // Verify approval record was created through aggregate
+        List<Approval> approvals = updated.getApprovalHistory();
         assertEquals(1, approvals.size());
         Approval approval = approvals.get(0);
         assertEquals(ApprovalAction.SUBMIT_FOR_APPROVAL, approval.getAction());

@@ -76,7 +76,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
         // Create test course
         testCourse = TestDataBuilder.aCourse()
-            .code("INTEG101")
+            .code("COMP3999")
             .name("Integration Testing Course")
             .lecturer(testLecturer)
             .build();
@@ -252,7 +252,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         otherLecturer = userRepository.save(otherLecturer);
 
         Course otherCourse = TestDataBuilder.aCourse()
-            .code("OTHER101")
+            .code("MATH2001")
             .name("Other Course")
             .lecturer(otherLecturer)
             .build();

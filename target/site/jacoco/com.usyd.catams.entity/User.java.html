@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>User.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.entity</a> &gt; <span class="el_source">User.java</span></div><h1>User.java</h1><pre class="source lang-java linenums">package com.usyd.catams.entity;
 
+import com.usyd.catams.common.domain.model.Email;
 import com.usyd.catams.enums.UserRole;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -21,7 +21,7 @@ import java.util.Objects;
  */
 @Entity
 @Table(name = &quot;users&quot;, indexes = {
-    @Index(name = &quot;idx_user_email&quot;, columnList = &quot;email&quot;, unique = true),
+    @Index(name = &quot;idx_user_email&quot;, columnList = &quot;email_value&quot;, unique = true),
     @Index(name = &quot;idx_user_role&quot;, columnList = &quot;role&quot;),
     @Index(name = &quot;idx_user_active&quot;, columnList = &quot;is_active&quot;)
 })
@@ -31,11 +31,10 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = &quot;email&quot;, nullable = false, unique = true, length = 255)
-    @Email(message = &quot;Email format is invalid&quot;)
-    @NotBlank(message = &quot;Email cannot be empty&quot;)
-    @Size(max = 255, message = &quot;Email length cannot exceed 255 characters&quot;)
-    private String email;
+    @Embedded
+    @AttributeOverride(name = &quot;value&quot;, column = @Column(name = &quot;email_value&quot;, nullable = false, unique = true, length = 254))
+    @NotNull(message = &quot;Email cannot be null&quot;)
+    private Email email;
     
     @Column(name = &quot;name&quot;, nullable = false, length = 100)
     @NotBlank(message = &quot;Name cannot be empty&quot;)
@@ -68,8 +67,8 @@ public class User {
     /**
      * Default constructor for JPA
      */
-<span class="fc" id="L71">    public User() {</span>
-<span class="fc" id="L72">    }</span>
+<span class="fc" id="L70">    public User() {</span>
+<span class="fc" id="L71">    }</span>
     
     /**
      * Constructor for creating a new user
@@ -79,46 +78,58 @@ public class User {
      * @param hashedPassword BCrypt hashed password
      * @param role User role in the system
      */
-<span class="fc" id="L82">    public User(String email, String name, String hashedPassword, UserRole role) {</span>
-<span class="fc" id="L83">        this.email = email;</span>
-<span class="fc" id="L84">        this.name = name;</span>
-<span class="fc" id="L85">        this.hashedPassword = hashedPassword;</span>
-<span class="fc" id="L86">        this.role = role;</span>
-<span class="fc" id="L87">        this.isActive = true;</span>
-<span class="fc" id="L88">        this.createdAt = LocalDateTime.now();</span>
-<span class="fc" id="L89">        this.updatedAt = LocalDateTime.now();</span>
-<span class="fc" id="L90">    }</span>
+<span class="fc" id="L81">    public User(Email email, String name, String hashedPassword, UserRole role) {</span>
+<span class="fc" id="L82">        this.email = email;</span>
+<span class="fc" id="L83">        this.name = name;</span>
+<span class="fc" id="L84">        this.hashedPassword = hashedPassword;</span>
+<span class="fc" id="L85">        this.role = role;</span>
+<span class="fc" id="L86">        this.isActive = true;</span>
+<span class="fc" id="L87">        this.createdAt = LocalDateTime.now();</span>
+<span class="fc" id="L88">        this.updatedAt = LocalDateTime.now();</span>
+<span class="fc" id="L89">    }</span>
+    
+    /**
+     * Constructor for creating a new user with string email (for backwards compatibility)
+     * 
+     * @param emailString User email address as string
+     * @param name User full name
+     * @param hashedPassword BCrypt hashed password
+     * @param role User role in the system
+     */
+    public User(String emailString, String name, String hashedPassword, UserRole role) {
+<span class="fc" id="L100">        this(new Email(emailString), name, hashedPassword, role);</span>
+<span class="fc" id="L101">    }</span>
     
     /**
      * Pre-persist callback to set creation timestamp
      */
     @PrePersist
     protected void onCreate() {
-<span class="fc" id="L97">        LocalDateTime now = LocalDateTime.now();</span>
-<span class="fc bfc" id="L98" title="All 2 branches covered.">        if (createdAt == null) {</span>
-<span class="fc" id="L99">            createdAt = now;</span>
+<span class="fc" id="L108">        LocalDateTime now = LocalDateTime.now();</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">        if (createdAt == null) {</span>
+<span class="fc" id="L110">            createdAt = now;</span>
         }
-<span class="fc" id="L101">        updatedAt = now;</span>
-<span class="fc bfc" id="L102" title="All 2 branches covered.">        if (isActive == null) {</span>
-<span class="fc" id="L103">            isActive = true;</span>
+<span class="fc" id="L112">        updatedAt = now;</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">        if (isActive == null) {</span>
+<span class="fc" id="L114">            isActive = true;</span>
         }
-<span class="fc" id="L105">    }</span>
+<span class="fc" id="L116">    }</span>
     
     /**
      * Pre-update callback to update modification timestamp
      */
     @PreUpdate
     protected void onUpdate() {
-<span class="nc" id="L112">        updatedAt = LocalDateTime.now();</span>
-<span class="nc" id="L113">    }</span>
+<span class="fc" id="L123">        updatedAt = LocalDateTime.now();</span>
+<span class="fc" id="L124">    }</span>
     
     /**
      * Update last login timestamp
      */
     public void updateLastLogin() {
-<span class="fc" id="L119">        this.lastLoginAt = LocalDateTime.now();</span>
-<span class="fc" id="L120">        this.updatedAt = LocalDateTime.now();</span>
-<span class="fc" id="L121">    }</span>
+<span class="fc" id="L130">        this.lastLoginAt = LocalDateTime.now();</span>
+<span class="fc" id="L131">        this.updatedAt = LocalDateTime.now();</span>
+<span class="fc" id="L132">    }</span>
     
     /**
      * Check if user account is active
@@ -126,7 +137,7 @@ public class User {
      * @return true if user is active, false otherwise
      */
     public boolean isAccountActive() {
-<span class="fc" id="L129">        return Boolean.TRUE.equals(isActive);</span>
+<span class="fc" id="L140">        return Boolean.TRUE.equals(isActive);</span>
     }
     
     /**
@@ -135,73 +146,88 @@ public class User {
      * @return true if user is active, false otherwise
      */
     public boolean isActive() {
-<span class="nc" id="L138">        return Boolean.TRUE.equals(isActive);</span>
+<span class="fc" id="L149">        return Boolean.TRUE.equals(isActive);</span>
     }
     
     /**
      * Deactivate user account
      */
     public void deactivate() {
-<span class="nc" id="L145">        this.isActive = false;</span>
-<span class="nc" id="L146">        this.updatedAt = LocalDateTime.now();</span>
-<span class="nc" id="L147">    }</span>
+<span class="fc" id="L156">        this.isActive = false;</span>
+<span class="fc" id="L157">        this.updatedAt = LocalDateTime.now();</span>
+<span class="fc" id="L158">    }</span>
     
     /**
      * Activate user account
      */
     public void activate() {
-<span class="nc" id="L153">        this.isActive = true;</span>
-<span class="nc" id="L154">        this.updatedAt = LocalDateTime.now();</span>
-<span class="nc" id="L155">    }</span>
+<span class="fc" id="L164">        this.isActive = true;</span>
+<span class="fc" id="L165">        this.updatedAt = LocalDateTime.now();</span>
+<span class="fc" id="L166">    }</span>
     
     // Getters and setters
     public Long getId() {
-<span class="fc" id="L159">        return id;</span>
+<span class="fc" id="L170">        return id;</span>
     }
     
     public void setId(Long id) {
-<span class="fc" id="L163">        this.id = id;</span>
-<span class="fc" id="L164">    }</span>
+<span class="fc" id="L174">        this.id = id;</span>
+<span class="fc" id="L175">    }</span>
     
-    public String getEmail() {
-<span class="fc" id="L167">        return email;</span>
+    public Email getEmailObject() {
+<span class="fc" id="L178">        return email;</span>
     }
     
-    public void setEmail(String email) {
-<span class="fc" id="L171">        this.email = email;</span>
-<span class="fc" id="L172">    }</span>
+    /**
+     * Get email as string (for backward compatibility)
+     */
+    public String getEmail() {
+<span class="fc bfc" id="L185" title="All 2 branches covered.">        return email != null ? email.getValue() : null;</span>
+    }
+    
+    public void setEmail(Email email) {
+<span class="fc" id="L189">        this.email = email;</span>
+<span class="fc" id="L190">    }</span>
+    
+    public void setEmail(String emailString) {
+<span class="fc" id="L193">        this.email = new Email(emailString);</span>
+<span class="fc" id="L194">    }</span>
+    
+    public String getEmailValue() {
+<span class="fc bfc" id="L197" title="All 2 branches covered.">        return email != null ? email.getValue() : null;</span>
+    }
     
     public String getName() {
-<span class="fc" id="L175">        return name;</span>
+<span class="fc" id="L201">        return name;</span>
     }
     
     public void setName(String name) {
-<span class="fc" id="L179">        this.name = name;</span>
-<span class="fc" id="L180">    }</span>
+<span class="fc" id="L205">        this.name = name;</span>
+<span class="fc" id="L206">    }</span>
     
     public String getHashedPassword() {
-<span class="fc" id="L183">        return hashedPassword;</span>
+<span class="fc" id="L209">        return hashedPassword;</span>
     }
     
     public void setHashedPassword(String hashedPassword) {
-<span class="fc" id="L187">        this.hashedPassword = hashedPassword;</span>
-<span class="fc" id="L188">    }</span>
+<span class="fc" id="L213">        this.hashedPassword = hashedPassword;</span>
+<span class="fc" id="L214">    }</span>
     
     public UserRole getRole() {
-<span class="fc" id="L191">        return role;</span>
+<span class="fc" id="L217">        return role;</span>
     }
     
     public void setRole(UserRole role) {
-<span class="fc" id="L195">        this.role = role;</span>
-<span class="fc" id="L196">    }</span>
+<span class="fc" id="L221">        this.role = role;</span>
+<span class="fc" id="L222">    }</span>
     
     public Boolean getIsActive() {
-<span class="nc" id="L199">        return isActive;</span>
+<span class="fc" id="L225">        return isActive;</span>
     }
     
     public void setIsActive(Boolean isActive) {
-<span class="fc" id="L203">        this.isActive = isActive;</span>
-<span class="fc" id="L204">    }</span>
+<span class="fc" id="L229">        this.isActive = isActive;</span>
+<span class="fc" id="L230">    }</span>
     
     /**
      * Set user active status (simplified method name for test compatibility)
@@ -209,50 +235,50 @@ public class User {
      * @param active the active status to set
      */
     public void setActive(Boolean active) {
-<span class="fc" id="L212">        this.isActive = active;</span>
-<span class="fc" id="L213">    }</span>
+<span class="fc" id="L238">        this.isActive = active;</span>
+<span class="fc" id="L239">    }</span>
     
     public LocalDateTime getCreatedAt() {
-<span class="nc" id="L216">        return createdAt;</span>
+<span class="fc" id="L242">        return createdAt;</span>
     }
     
     public void setCreatedAt(LocalDateTime createdAt) {
-<span class="nc" id="L220">        this.createdAt = createdAt;</span>
-<span class="nc" id="L221">    }</span>
+<span class="fc" id="L246">        this.createdAt = createdAt;</span>
+<span class="fc" id="L247">    }</span>
     
     public LocalDateTime getUpdatedAt() {
-<span class="nc" id="L224">        return updatedAt;</span>
+<span class="fc" id="L250">        return updatedAt;</span>
     }
     
     public void setUpdatedAt(LocalDateTime updatedAt) {
-<span class="nc" id="L228">        this.updatedAt = updatedAt;</span>
-<span class="nc" id="L229">    }</span>
+<span class="fc" id="L254">        this.updatedAt = updatedAt;</span>
+<span class="fc" id="L255">    }</span>
     
     public LocalDateTime getLastLoginAt() {
-<span class="nc" id="L232">        return lastLoginAt;</span>
+<span class="fc" id="L258">        return lastLoginAt;</span>
     }
     
     public void setLastLoginAt(LocalDateTime lastLoginAt) {
-<span class="nc" id="L236">        this.lastLoginAt = lastLoginAt;</span>
-<span class="nc" id="L237">    }</span>
+<span class="fc" id="L262">        this.lastLoginAt = lastLoginAt;</span>
+<span class="fc" id="L263">    }</span>
     
     @Override
     public boolean equals(Object o) {
-<span class="nc bnc" id="L241" title="All 2 branches missed.">        if (this == o) return true;</span>
-<span class="nc bnc" id="L242" title="All 4 branches missed.">        if (o == null || getClass() != o.getClass()) return false;</span>
-<span class="nc" id="L243">        User user = (User) o;</span>
-<span class="nc bnc" id="L244" title="All 2 branches missed.">        return Objects.equals(id, user.id) &amp;&amp; </span>
-<span class="nc bnc" id="L245" title="All 2 branches missed.">               Objects.equals(email, user.email);</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">        if (this == o) return true;</span>
+<span class="fc bfc" id="L268" title="All 4 branches covered.">        if (o == null || getClass() != o.getClass()) return false;</span>
+<span class="fc" id="L269">        User user = (User) o;</span>
+<span class="fc bfc" id="L270" title="All 2 branches covered.">        return Objects.equals(id, user.id) &amp;&amp; </span>
+<span class="fc bfc" id="L271" title="All 2 branches covered.">               Objects.equals(email, user.email);</span>
     }
     
     @Override
     public int hashCode() {
-<span class="nc" id="L250">        return Objects.hash(id, email);</span>
+<span class="fc" id="L276">        return Objects.hash(id, email);</span>
     }
     
     @Override
     public String toString() {
-<span class="fc" id="L255">        return &quot;User{&quot; +</span>
+<span class="fc" id="L281">        return &quot;User{&quot; +</span>
                 &quot;id=&quot; + id +
                 &quot;, email='&quot; + email + '\'' +
                 &quot;, name='&quot; + name + '\'' +

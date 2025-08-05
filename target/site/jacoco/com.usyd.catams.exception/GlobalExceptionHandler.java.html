@@ -89,17 +89,17 @@ import java.util.stream.Collectors;
      */
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity&lt;ErrorResponse&gt; handleSecurityException(SecurityException e, HttpServletRequest request) {
-<span class="nc" id="L92">        logger.warn(&quot;Security exception: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L92">        logger.warn(&quot;Security exception: {}&quot;, e.getMessage());</span>
         
-<span class="nc" id="L94">        ErrorResponse error = ErrorResponse.builder()</span>
-<span class="nc" id="L95">            .timestamp(Instant.now().toString())</span>
-<span class="nc" id="L96">            .status(HttpStatus.FORBIDDEN.value())</span>
-<span class="nc" id="L97">            .error(ErrorCodes.ACCESS_DENIED)</span>
-<span class="nc" id="L98">            .message(e.getMessage())</span>
-<span class="nc" id="L99">            .path(request.getRequestURI())</span>
-<span class="nc" id="L100">            .build();</span>
+<span class="fc" id="L94">        ErrorResponse error = ErrorResponse.builder()</span>
+<span class="fc" id="L95">            .timestamp(Instant.now().toString())</span>
+<span class="fc" id="L96">            .status(HttpStatus.FORBIDDEN.value())</span>
+<span class="fc" id="L97">            .error(ErrorCodes.ACCESS_DENIED)</span>
+<span class="fc" id="L98">            .message(e.getMessage())</span>
+<span class="fc" id="L99">            .path(request.getRequestURI())</span>
+<span class="fc" id="L100">            .build();</span>
             
-<span class="nc" id="L102">        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);</span>
+<span class="fc" id="L102">        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);</span>
     }
 
     /**
@@ -107,17 +107,17 @@ import java.util.stream.Collectors;
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity&lt;ErrorResponse&gt; handleIllegalArgumentException(IllegalArgumentException e, HttpServletRequest request) {
-<span class="nc" id="L110">        logger.warn(&quot;Illegal argument exception: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L110">        logger.warn(&quot;Illegal argument exception: {}&quot;, e.getMessage());</span>
         
-<span class="nc" id="L112">        ErrorResponse error = ErrorResponse.builder()</span>
-<span class="nc" id="L113">            .timestamp(Instant.now().toString())</span>
-<span class="nc" id="L114">            .status(HttpStatus.BAD_REQUEST.value())</span>
-<span class="nc" id="L115">            .error(ErrorCodes.VALIDATION_FAILED)</span>
-<span class="nc" id="L116">            .message(e.getMessage())</span>
-<span class="nc" id="L117">            .path(request.getRequestURI())</span>
-<span class="nc" id="L118">            .build();</span>
+<span class="fc" id="L112">        ErrorResponse error = ErrorResponse.builder()</span>
+<span class="fc" id="L113">            .timestamp(Instant.now().toString())</span>
+<span class="fc" id="L114">            .status(HttpStatus.BAD_REQUEST.value())</span>
+<span class="fc" id="L115">            .error(ErrorCodes.VALIDATION_FAILED)</span>
+<span class="fc" id="L116">            .message(e.getMessage())</span>
+<span class="fc" id="L117">            .path(request.getRequestURI())</span>
+<span class="fc" id="L118">            .build();</span>
             
-<span class="nc" id="L120">        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);</span>
+<span class="fc" id="L120">        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);</span>
     }
     
     /**
@@ -213,17 +213,17 @@ import java.util.stream.Collectors;
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity&lt;ErrorResponse&gt; handleGenericException(Exception e, HttpServletRequest request) {
-<span class="nc" id="L216">        logger.error(&quot;System exception: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L216">        logger.error(&quot;System exception: {}&quot;, e.getMessage(), e);</span>
         
-<span class="nc" id="L218">        ErrorResponse error = ErrorResponse.builder()</span>
-<span class="nc" id="L219">            .timestamp(Instant.now().toString())</span>
-<span class="nc" id="L220">            .status(HttpStatus.INTERNAL_SERVER_ERROR.value())</span>
-<span class="nc" id="L221">            .error(ErrorCodes.INTERNAL_ERROR)</span>
-<span class="nc" id="L222">            .message(&quot;Internal server error, please try again later&quot;)</span>
-<span class="nc" id="L223">            .path(request.getRequestURI())</span>
-<span class="nc" id="L224">            .build();</span>
+<span class="fc" id="L218">        ErrorResponse error = ErrorResponse.builder()</span>
+<span class="fc" id="L219">            .timestamp(Instant.now().toString())</span>
+<span class="fc" id="L220">            .status(HttpStatus.INTERNAL_SERVER_ERROR.value())</span>
+<span class="fc" id="L221">            .error(ErrorCodes.INTERNAL_ERROR)</span>
+<span class="fc" id="L222">            .message(&quot;Internal server error, please try again later&quot;)</span>
+<span class="fc" id="L223">            .path(request.getRequestURI())</span>
+<span class="fc" id="L224">            .build();</span>
             
-<span class="nc" id="L226">        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);</span>
+<span class="fc" id="L226">        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

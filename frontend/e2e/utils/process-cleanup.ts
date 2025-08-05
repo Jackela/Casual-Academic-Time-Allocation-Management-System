@@ -1,0 +1,274 @@
+/**
+ * Process Cleanup Utility for E2E Tests
+ * 
+ * This module provides robust cleanup capabilities to ensure that test processes
+ * are properly terminated after test execution, preventing port conflicts and
+ * resource leaks.
+ */
+
+import { exec, spawn, ChildProcess } from 'child_process';
+import { promisify } from 'util';
+import * as path from 'path';
+
+const execAsync = promisify(exec);
+
+// Track running processes
+const trackedProcesses: Set<ChildProcess> = new Set();
+const processCleanupHandlers: Array<() => Promise<void>> = [];
+
+/**
+ * Kill processes using a specific port
+ */
+export async function killProcessOnPort(port: number): Promise<void> {
+  console.log(`🔍 Checking for processes on port ${port}...`);
+  
+  try {
+    if (process.platform === 'win32') {
+      // Windows
+      const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
+      const lines = stdout.split('\n').filter(line => line.trim());
+      
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/);
+        const pid = parts[parts.length - 1];
+        
+        if (pid && /^\d+$/.test(pid)) {
+          console.log(`💀 Killing process ${pid} on port ${port}`);
+          try {
+            await execAsync(`taskkill /F /PID ${pid}`);
+            console.log(`✅ Successfully killed process ${pid}`);
+          } catch (error) {
+            console.warn(`⚠️ Failed to kill process ${pid}:`, error);
+          }
+        }
+      }
+    } else {
+      // Unix-like systems (Linux, macOS)
+      const { stdout } = await execAsync(`lsof -ti:${port}`);
+      const pids = stdout.split('\n').filter(pid => pid.trim());
+      
+      for (const pid of pids) {
+        if (pid.trim()) {
+          console.log(`💀 Killing process ${pid} on port ${port}`);
+          try {
+            await execAsync(`kill -9 ${pid}`);
+            console.log(`✅ Successfully killed process ${pid}`);
+          } catch (error) {
+            console.warn(`⚠️ Failed to kill process ${pid}:`, error);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.log(`ℹ️ No processes found on port ${port} or error occurred:`, error);
+  }
+}
+
+/**
+ * Kill all Node.js processes related to Vite/frontend
+ */
+export async function killViteProcesses(): Promise<void> {
+  console.log('🔍 Searching for Vite processes...');
+  
+  try {
+    if (process.platform === 'win32') {
+      // Windows - find node processes with vite in command line
+      const { stdout } = await execAsync('wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv');
+      const lines = stdout.split('\n').filter(line => line.includes('vite') || line.includes('dev'));
+      
+      for (const line of lines) {
+        const match = line.match(/,(\d+),/);
+        if (match) {
+          const pid = match[1];
+          console.log(`💀 Killing Vite process ${pid}`);
+          try {
+            await execAsync(`taskkill /F /PID ${pid}`);
+            console.log(`✅ Successfully killed Vite process ${pid}`);
+          } catch (error) {
+            console.warn(`⚠️ Failed to kill Vite process ${pid}:`, error);
+          }
+        }
+      }
+    } else {
+      // Unix-like systems
+      const { stdout } = await execAsync(`ps aux | grep -i vite | grep -v grep`);
+      const lines = stdout.split('\n').filter(line => line.trim());
+      
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/);
+        const pid = parts[1];
+        
+        if (pid && /^\d+$/.test(pid)) {
+          console.log(`💀 Killing Vite process ${pid}`);
+          try {
+            await execAsync(`kill -9 ${pid}`);
+            console.log(`✅ Successfully killed Vite process ${pid}`);
+          } catch (error) {
+            console.warn(`⚠️ Failed to kill Vite process ${pid}:`, error);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.log('ℹ️ No Vite processes found or error occurred:', error);
+  }
+}
+
+/**
+ * Register a process for tracking and cleanup
+ */
+export function trackProcess(process: ChildProcess): void {
+  trackedProcesses.add(process);
+  
+  // Clean up when process exits naturally
+  process.on('exit', () => {
+    trackedProcesses.delete(process);
+  });
+}
+
+/**
+ * Kill all tracked processes
+ */
+export async function killTrackedProcesses(): Promise<void> {
+  console.log(`🧹 Cleaning up ${trackedProcesses.size} tracked processes...`);
+  
+  const promises = Array.from(trackedProcesses).map(async (process) => {
+    if (!process.killed) {
+      try {
+        if (process.pid) {
+          if (process.platform === 'win32') {
+            await execAsync(`taskkill /F /PID ${process.pid} /T`);
+          } else {
+            process.kill('SIGTERM');
+            
+            // Force kill if it doesn't exit within 3 seconds
+            setTimeout(() => {
+              if (!process.killed) {
+                process.kill('SIGKILL');
+              }
+            }, 3000);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Error killing tracked process:', error);
+      }
+    }
+  });
+  
+  await Promise.all(promises);
+  trackedProcesses.clear();
+}
+
+/**
+ * Register a cleanup handler
+ */
+export function registerCleanupHandler(handler: () => Promise<void>): void {
+  processCleanupHandlers.push(handler);
+}
+
+/**
+ * Execute all cleanup handlers
+ */
+export async function executeCleanupHandlers(): Promise<void> {
+  console.log(`🧹 Executing ${processCleanupHandlers.length} cleanup handlers...`);
+  
+  for (const handler of processCleanupHandlers) {
+    try {
+      await handler();
+    } catch (error) {
+      console.warn('⚠️ Cleanup handler failed:', error);
+    }
+  }
+  
+  processCleanupHandlers.length = 0;
+}
+
+/**
+ * Comprehensive cleanup of all test-related processes
+ */
+export async function cleanupTestEnvironment(): Promise<void> {
+  console.log('🧹 Starting comprehensive test environment cleanup...');
+  
+  try {
+    // 1. Kill processes on common development ports
+    const commonPorts = [5174, 5173, 3000, 3001, 8080, 8084];
+    await Promise.all(commonPorts.map(port => killProcessOnPort(port)));
+    
+    // 2. Kill Vite-specific processes
+    await killViteProcesses();
+    
+    // 3. Kill tracked processes
+    await killTrackedProcesses();
+    
+    // 4. Execute custom cleanup handlers
+    await executeCleanupHandlers();
+    
+    console.log('✅ Test environment cleanup completed successfully');
+  } catch (error) {
+    console.error('❌ Error during test environment cleanup:', error);
+    throw error;
+  }
+}
+
+/**
+ * Setup process cleanup on exit signals
+ */
+export function setupGlobalCleanup(): void {
+  const cleanup = async () => {
+    console.log('\n🛑 Received exit signal, cleaning up...');
+    await cleanupTestEnvironment();
+    process.exit(0);
+  };
+  
+  // Handle various exit signals
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+  process.on('beforeExit', cleanup);
+  
+  // Handle uncaught exceptions
+  process.on('uncaughtException', async (error) => {
+    console.error('💥 Uncaught Exception:', error);
+    await cleanupTestEnvironment();
+    process.exit(1);
+  });
+  
+  process.on('unhandledRejection', async (reason) => {
+    console.error('💥 Unhandled Rejection:', reason);
+    await cleanupTestEnvironment();
+    process.exit(1);
+  });
+}
+
+/**
+ * Wait for port to be free
+ */
+export async function waitForPortFree(port: number, maxWaitMs: number = 10000): Promise<boolean> {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      if (process.platform === 'win32') {
+        const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
+        if (!stdout.trim()) {
+          console.log(`✅ Port ${port} is now free`);
+          return true;
+        }
+      } else {
+        await execAsync(`lsof -ti:${port}`);
+        // If lsof succeeds, port is still in use
+      }
+    } catch (error) {
+      // If lsof fails, port is free
+      console.log(`✅ Port ${port} is now free`);
+      return true;
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
+  console.warn(`⚠️ Port ${port} is still in use after ${maxWaitMs}ms`);
+  return false;
+}
+
+// Auto-setup cleanup on import
+setupGlobalCleanup();

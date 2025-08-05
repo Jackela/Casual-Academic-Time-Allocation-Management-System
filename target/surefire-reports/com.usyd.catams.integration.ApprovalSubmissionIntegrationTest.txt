@@ -1,4 +1,41 @@
 -------------------------------------------------------------------------------
 Test set: com.usyd.catams.integration.ApprovalSubmissionIntegrationTest
 -------------------------------------------------------------------------------
-Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 18.85 s -- in com.usyd.catams.integration.ApprovalSubmissionIntegrationTest
+Tests run: 11, Failures: 3, Errors: 0, Skipped: 0, Time elapsed: 2.699 s <<< FAILURE! -- in com.usyd.catams.integration.ApprovalSubmissionIntegrationTest
+com.usyd.catams.integration.ApprovalSubmissionIntegrationTest.testApprovalSubmissionResponseSchema -- Time elapsed: 0.222 s <<< FAILURE!
+java.lang.AssertionError: No value at JSON path "$.comment"
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:37)
+	at org.springframework.test.util.AssertionErrors.assertTrue(AssertionErrors.java:70)
+	at org.springframework.test.util.JsonPathExpectationsHelper.assertExistsAndReturn(JsonPathExpectationsHelper.java:328)
+	at org.springframework.test.util.JsonPathExpectationsHelper.exists(JsonPathExpectationsHelper.java:190)
+	at org.springframework.test.web.servlet.result.JsonPathResultMatchers.lambda$exists$3(JsonPathResultMatchers.java:123)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.usyd.catams.integration.ApprovalSubmissionIntegrationTest.testApprovalSubmissionResponseSchema(ApprovalSubmissionIntegrationTest.java:316)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.usyd.catams.integration.ApprovalSubmissionIntegrationTest.testTutorCanSubmitOwnDraftTimesheet -- Time elapsed: 0.219 s <<< FAILURE!
+java.lang.AssertionError: JSON path "$.newStatus" expected:<PENDING_LECTURER_APPROVAL> but was:<PENDING_TUTOR_REVIEW>
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.util.JsonPathExpectationsHelper.assertValue(JsonPathExpectationsHelper.java:123)
+	at org.springframework.test.web.servlet.result.JsonPathResultMatchers.lambda$value$2(JsonPathResultMatchers.java:111)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.usyd.catams.integration.ApprovalSubmissionIntegrationTest.testTutorCanSubmitOwnDraftTimesheet(ApprovalSubmissionIntegrationTest.java:169)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.usyd.catams.integration.ApprovalSubmissionIntegrationTest.testAdminCanSubmitDraftTimesheet -- Time elapsed: 0.224 s <<< FAILURE!
+java.lang.AssertionError: JSON path "$.newStatus" expected:<PENDING_LECTURER_APPROVAL> but was:<PENDING_TUTOR_REVIEW>
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.util.JsonPathExpectationsHelper.assertValue(JsonPathExpectationsHelper.java:123)
+	at org.springframework.test.web.servlet.result.JsonPathResultMatchers.lambda$value$2(JsonPathResultMatchers.java:111)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.usyd.catams.integration.ApprovalSubmissionIntegrationTest.testAdminCanSubmitDraftTimesheet(ApprovalSubmissionIntegrationTest.java:208)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+

@@ -94,7 +94,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
         admin = createUser("admin@test.com", "Admin User", UserRole.ADMIN);
 
         // Create test course
-        course = createCourse("TEST101", "Test Course", lecturer.getId());
+        course = createCourse("TEST3001", "Test Course", lecturer.getId());
 
         // Get next Monday for testing
         mondayDate = getNextMonday();

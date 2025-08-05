@@ -94,4 +94,16 @@ export class LoginPage {
     await expect(this.submitButton).toContainText('Signing in...');
     await this.expectFormDisabled();
   }
+
+  async loginAsTutor() {
+    return await this.login('tutor@example.com', 'Tutor123!');
+  }
+
+  async loginAsLecturer() {
+    return await this.login('lecturer@example.com', 'Lecturer123!');
+  }
+
+  async loginAsAdmin() {
+    return await this.login('admin@example.com', 'Admin123!');
+  }
 }

@@ -11,6 +11,8 @@ export const E2E_CONFIG = {
       HEALTH: '/actuator/health',
       AUTH_LOGIN: '/api/auth/login',
       TIMESHEETS_PENDING: '/api/timesheets/pending-approval',
+      TIMESHEETS_ME: '/api/timesheets/me',
+      TIMESHEETS: '/api/timesheets',
       APPROVALS: '/api/approvals'
     },
     TIMEOUTS: {

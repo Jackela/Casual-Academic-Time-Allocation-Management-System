@@ -1,5 +1,6 @@
 package com.usyd.catams.unit.service;
 
+import com.usyd.catams.application.TimesheetApplicationService;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
@@ -48,6 +49,9 @@ class TimesheetServiceUnitTest {
 
     @Mock
     private CourseRepository courseRepository;
+    
+    @Mock
+    private TimesheetApplicationService timesheetApplicationService;
 
     @InjectMocks
     private TimesheetServiceImpl timesheetService;
@@ -74,11 +78,15 @@ class TimesheetServiceUnitTest {
     @DisplayName("createTimesheet - Lecturer can create timesheet for tutor in their course")
     void createTimesheet_LecturerForOwnCourse_ShouldSucceed() {
         // Arrange
-        when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer)); // Creator lookup
-        when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor)); // Tutor lookup
-        when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course)); // Course lookup
-        when(timesheetRepository.existsByTutorIdAndCourseIdAndWeekStartDate(tutor.getId(), course.getId(), timesheet.getWeekStartDate())).thenReturn(false);
-        when(timesheetRepository.save(any(Timesheet.class))).thenReturn(timesheet);
+        when(timesheetApplicationService.createTimesheet(
+            tutor.getId(),
+            course.getId(),
+            timesheet.getWeekStartDate(),
+            timesheet.getHours(),
+            timesheet.getHourlyRate(),
+            timesheet.getDescription(),
+            lecturer.getId()
+        )).thenReturn(timesheet);
 
         // Act
         Timesheet result = timesheetService.createTimesheet(
@@ -97,10 +105,15 @@ class TimesheetServiceUnitTest {
         assertThat(result.getCourseId()).isEqualTo(course.getId());
         assertThat(result.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
 
-        verify(timesheetRepository).save(any(Timesheet.class));
-        verify(userRepository).findById(lecturer.getId());
-        verify(userRepository).findById(tutor.getId());
-        verify(courseRepository).findById(course.getId());
+        verify(timesheetApplicationService).createTimesheet(
+            tutor.getId(),
+            course.getId(),
+            timesheet.getWeekStartDate(),
+            timesheet.getHours(),
+            timesheet.getHourlyRate(),
+            timesheet.getDescription(),
+            lecturer.getId()
+        );
     }
 
     @Test
@@ -116,9 +129,15 @@ class TimesheetServiceUnitTest {
             .lecturer(otherLecturer)
             .build();
 
-        when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer)); // Creator lookup
-        when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor)); // Tutor lookup
-        when(courseRepository.findById(otherCourse.getId())).thenReturn(Optional.of(otherCourse)); // Course lookup
+        when(timesheetApplicationService.createTimesheet(
+            tutor.getId(),
+            otherCourse.getId(),
+            timesheet.getWeekStartDate(),
+            timesheet.getHours(),
+            timesheet.getHourlyRate(),
+            timesheet.getDescription(),
+            lecturer.getId()
+        )).thenThrow(new SecurityException("LECTURER is not assigned to this course"));
 
         // Act & Assert
         assertThatThrownBy(() -> 
@@ -134,15 +153,21 @@ class TimesheetServiceUnitTest {
         )
         .isInstanceOf(SecurityException.class)
         .hasMessageContaining("LECTURER is not assigned to this course");
-
-        verify(timesheetRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("createTimesheet - Admin cannot create timesheet (only LECTURER allowed)")
     void createTimesheet_Admin_ShouldThrowSecurityException() {
         // Arrange
-        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin)); // Creator lookup
+        when(timesheetApplicationService.createTimesheet(
+            tutor.getId(),
+            course.getId(),
+            timesheet.getWeekStartDate(),
+            timesheet.getHours(),
+            timesheet.getHourlyRate(),
+            timesheet.getDescription(),
+            admin.getId()
+        )).thenThrow(new SecurityException("Only LECTURER users can create timesheets"));
 
         // Act & Assert
         assertThatThrownBy(() -> 
@@ -158,15 +183,21 @@ class TimesheetServiceUnitTest {
         )
         .isInstanceOf(SecurityException.class)
         .hasMessageContaining("Only LECTURER users can create timesheets");
-
-        verify(timesheetRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("createTimesheet - Tutor cannot create timesheet")
     void createTimesheet_Tutor_ShouldThrowSecurityException() {
         // Arrange
-        when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor)); // Creator lookup
+        when(timesheetApplicationService.createTimesheet(
+            tutor.getId(),
+            course.getId(),
+            timesheet.getWeekStartDate(),
+            timesheet.getHours(),
+            timesheet.getHourlyRate(),
+            timesheet.getDescription(),
+            tutor.getId()
+        )).thenThrow(new SecurityException("Only LECTURER users can create timesheets"));
 
         // Act & Assert
         assertThatThrownBy(() -> 
@@ -182,17 +213,14 @@ class TimesheetServiceUnitTest {
         )
         .isInstanceOf(SecurityException.class)
         .hasMessageContaining("Only LECTURER users can create timesheets");
-
-        verify(timesheetRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("getTimesheetById - Should return timesheet when found")
     void getTimesheetById_ExistingTimesheet_ShouldReturnTimesheet() {
         // Arrange
-        when(timesheetRepository.findById(timesheet.getId())).thenReturn(Optional.of(timesheet));
-        when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer)); // Requester lookup
-        when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course)); // Course lookup for access control
+        when(timesheetApplicationService.getTimesheetById(timesheet.getId(), lecturer.getId()))
+            .thenReturn(Optional.of(timesheet));
 
         // Act
         Optional<Timesheet> result = timesheetService.getTimesheetById(timesheet.getId(), lecturer.getId());
@@ -201,7 +229,7 @@ class TimesheetServiceUnitTest {
         assertThat(result).isPresent();
         assertThat(result.get()).isEqualTo(timesheet);
 
-        verify(timesheetRepository).findById(timesheet.getId());
+        verify(timesheetApplicationService).getTimesheetById(timesheet.getId(), lecturer.getId());
     }
 
     @Test
@@ -209,8 +237,8 @@ class TimesheetServiceUnitTest {
     void getTimesheetById_NonExistentTimesheet_ShouldReturnEmpty() {
         // Arrange
         Long nonExistentId = 99999L;
-        when(timesheetRepository.findById(nonExistentId)).thenReturn(Optional.empty());
-        when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer)); // Requester lookup
+        when(timesheetApplicationService.getTimesheetById(nonExistentId, lecturer.getId()))
+            .thenReturn(Optional.empty());
 
         // Act
         Optional<Timesheet> result = timesheetService.getTimesheetById(nonExistentId, lecturer.getId());
@@ -218,33 +246,36 @@ class TimesheetServiceUnitTest {
         // Assert
         assertThat(result).isEmpty();
 
-        verify(timesheetRepository).findById(nonExistentId);
+        verify(timesheetApplicationService).getTimesheetById(nonExistentId, lecturer.getId());
     }
 
     @Test
     @DisplayName("canUserModifyTimesheet - Lecturer can modify timesheet for their course")
     void canUserModifyTimesheet_LecturerOwnCourse_ShouldReturnTrue() {
         // Arrange
-        when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer)); // Requester lookup
-        when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course)); // Course lookup
+        when(timesheetApplicationService.canUserModifyTimesheet(timesheet, lecturer.getId()))
+            .thenReturn(true);
 
         // Act
         boolean result = timesheetService.canUserModifyTimesheet(timesheet, lecturer.getId());
 
         // Assert
         assertThat(result).isTrue();
+        verify(timesheetApplicationService).canUserModifyTimesheet(timesheet, lecturer.getId());
     }
 
     @Test
     @DisplayName("canUserModifyTimesheet - Admin can modify any timesheet")
     void canUserModifyTimesheet_Admin_ShouldReturnTrue() {
         // Arrange
-        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin)); // Requester lookup
+        when(timesheetApplicationService.canUserModifyTimesheet(timesheet, admin.getId()))
+            .thenReturn(true);
 
         // Act
         boolean result = timesheetService.canUserModifyTimesheet(timesheet, admin.getId());
 
         // Assert
         assertThat(result).isTrue();
+        verify(timesheetApplicationService).canUserModifyTimesheet(timesheet, admin.getId());
     }
 }
