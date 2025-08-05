@@ -19,8 +19,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -42,9 +44,10 @@ import static org.hamcrest.Matchers.containsString;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Transactional
-public class TimesheetUpdateDeleteIntegrationTest {
+@ActiveProfiles("integration-test")
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private MockMvc mockMvc;
@@ -137,7 +140,7 @@ public class TimesheetUpdateDeleteIntegrationTest {
         approvedTimesheet.setHours(BigDecimal.valueOf(8.0));
         approvedTimesheet.setHourlyRate(BigDecimal.valueOf(25.00));
         approvedTimesheet.setDescription("Lab sessions");
-        approvedTimesheet.setStatus(ApprovalStatus.FINAL_APPROVED);
+        approvedTimesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
         approvedTimesheet.setCreatedBy(lecturer.getId());
         approvedTimesheet = timesheetRepository.save(approvedTimesheet);
     }
@@ -162,14 +165,14 @@ public class TimesheetUpdateDeleteIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(draftTimesheet.getId()))
                 .andExpect(jsonPath("$.hours").value(12.0))
-                .andExpect(jsonPath("$.hourlyRate").value(30.00))
+                .andExpect(jsonPath("$.hourlyRate").value(30.0))
                 .andExpect(jsonPath("$.description").value("Updated: Tutorial sessions, grading, and consultation hours"))
                 .andExpect(jsonPath("$.status").value("DRAFT"));
 
         // Verify database was updated
         Timesheet updated = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
         assertEquals(BigDecimal.valueOf(12.0), updated.getHours());
-        assertEquals(BigDecimal.valueOf(30.00), updated.getHourlyRate());
+        assertEquals(BigDecimal.valueOf(30.0), updated.getHourlyRate());
         assertEquals("Updated: Tutorial sessions, grading, and consultation hours", updated.getDescription());
         assertEquals(ApprovalStatus.DRAFT, updated.getStatus());
     }

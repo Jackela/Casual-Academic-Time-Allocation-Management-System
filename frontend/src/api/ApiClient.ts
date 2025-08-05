@@ -37,7 +37,7 @@ export interface Timesheet {
   hours: number;
   hourlyRate: number;
   description: string;
-  status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'DRAFT' | 'PENDING_TUTOR_REVIEW' | 'TUTOR_APPROVED' | 'PENDING_HR_REVIEW' | 'HR_APPROVED' | 'FINAL_APPROVED' | 'REJECTED' | 'MODIFICATION_REQUESTED';
   tutorName: string;
   courseName: string;
   courseCode: string;
@@ -401,6 +401,72 @@ export class CatamsAPIClient {
   setTimeout(timeout: number): void {
     this.apiClient.defaults.timeout = timeout;
   }
+
+  // ========================================
+  // Contract Test Compatibility Methods
+  // ========================================
+
+  /**
+   * Login user - alias for authenticate with consistent interface
+   * Required for contract tests expecting login() method
+   * NOTE: This method throws errors for test compatibility, unlike authenticate()
+   */
+  async login(credentials: Credentials): Promise<AuthResponse> {
+    const result = await this.authenticate(credentials);
+    
+    // Contract tests expect this method to throw on failure
+    if (!result.success) {
+      throw new Error(result.errorMessage || 'Authentication failed');
+    }
+    
+    return result;
+  }
+
+  /**
+   * Health check endpoint - alias for getHealthStatus
+   * Required for contract tests expecting checkHealth() method
+   */
+  async checkHealth(): Promise<HealthResponse> {
+    return this.getHealthStatus();
+  }
+
+  /**
+   * Get timesheets with comprehensive filtering and pagination
+   * Supports tutorId, status, page, and size parameters
+   * Required for contract tests expecting getTimesheets() method
+   */
+  async getTimesheets(options: {
+    page?: number;
+    size?: number; 
+    tutorId?: number;
+    status?: string;
+  } = {}): Promise<TimesheetPage> {
+    const params = new URLSearchParams({
+      page: (options.page || 0).toString(),
+      size: (options.size || 20).toString()
+    });
+    
+    if (options.tutorId) {
+      params.append('tutorId', options.tutorId.toString());
+    }
+    if (options.status) {
+      params.append('status', options.status);
+    }
+    
+    const response: AxiosResponse<TimesheetPage> = await this.apiClient.get(
+      `/api/timesheets?${params.toString()}`
+    );
+    return response.data;
+  }
+
+  /**
+   * Get timesheets filtered by status
+   * Convenience method for status-specific queries
+   * Required for contract tests expecting getTimesheetsByStatus() method
+   */
+  async getTimesheetsByStatus(status: string): Promise<TimesheetPage> {
+    return this.getTimesheets({ status });
+  }
 }
 
 // ========================================
@@ -425,5 +491,7 @@ export function createAuthenticatedApiClient(token: string, baseURL?: string): C
 
 /**
  * Default API client instance for the application
+ * NOTE: Disabled in test environment to avoid module initialization conflicts
+ * Production code should create instances as needed: new CatamsAPIClient()
  */
-export const defaultApiClient = new CatamsAPIClient();
+// export const defaultApiClient = new CatamsAPIClient();

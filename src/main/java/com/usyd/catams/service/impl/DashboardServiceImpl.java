@@ -121,9 +121,11 @@ public class DashboardServiceImpl implements DashboardService {
         } else {
             // Get all courses managed by this lecturer
             managedCourses = courseRepository.findByLecturerIdAndIsActive(lecturerId, true);
+            System.out.println("DEBUG: Lecturer " + lecturerId + " has " + managedCourses.size() + " courses");
             List<Long> courseIds = managedCourses.stream()
                 .map(Course::getId)
                 .collect(Collectors.toList());
+            System.out.println("DEBUG: Course IDs: " + courseIds);
             
             if (courseIds.isEmpty()) {
                 // Lecturer has no active courses
@@ -131,6 +133,7 @@ public class DashboardServiceImpl implements DashboardService {
             } else {
                 summaryData = timesheetRepository.findTimesheetSummaryByCourses(
                     courseIds, startDate, endDate);
+                System.out.println("DEBUG: Summary data: " + summaryData.getTotalTimesheets() + " timesheets");
             }
         }
 

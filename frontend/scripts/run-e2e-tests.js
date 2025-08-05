@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import waitOn from 'wait-on';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -46,7 +47,7 @@ function logWarning(message) {
 
 function spawnProcess(command, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const process = spawn(command, args, {
+    const child = spawn(command, args, {
       stdio: 'pipe',
       shell: true,
       ...options
@@ -55,34 +56,46 @@ function spawnProcess(command, args, options = {}) {
     let output = '';
     let errorOutput = '';
 
-    process.stdout?.on('data', (data) => {
+    child.stdout?.on('data', (data) => {
       output += data.toString();
       if (options.showOutput) {
         console.log(data.toString().trim());
       }
     });
 
-    process.stderr?.on('data', (data) => {
+    child.stderr?.on('data', (data) => {
       errorOutput += data.toString();
       if (options.showOutput) {
         console.error(data.toString().trim());
       }
     });
 
-    process.on('close', (code) => {
+    child.on('close', (code) => {
       if (code === 0) {
-        resolve({ code, output, errorOutput, process });
+        resolve({ code, output, errorOutput });
       } else {
-        reject({ code, output, errorOutput, process });
+        reject({ code, output, errorOutput });
       }
     });
 
-    process.on('error', (error) => {
-      reject({ error, output, errorOutput, process });
+    child.on('error', (error) => {
+      reject({ error, output, errorOutput });
     });
 
-    return process;
+    return child;
   });
+}
+
+function loadParams() {
+  const paramsPath = join(__dirname, 'e2e.params.json');
+  const raw = fs.readFileSync(paramsPath, 'utf8');
+  return JSON.parse(raw);
+}
+
+const params = loadParams();
+
+function getGradleCommand() {
+  return process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 }
 
 async function startBackend() {
@@ -90,7 +103,10 @@ async function startBackend() {
   
   try {
     // Start backend process in background (non-blocking)
-    backendProcess = spawn('mvn', ['spring-boot:run', '-Dspring-boot.run.arguments=--spring.profiles.active=e2e'], {
+    const gradleCmd = getGradleCommand();
+    const backendArgs = `--spring.profiles.active=${params.backendProfile} --server.port=${params.backendPort}`;
+    const gradleArgs = ['bootRun', '-x', 'test', `--args=${backendArgs}`];
+    backendProcess = spawn(gradleCmd, gradleArgs, {
       cwd: projectRoot,
       stdio: 'pipe',
       shell: true,
@@ -114,90 +130,48 @@ async function startBackend() {
       }
     });
 
-    backendProcess.on('close', (code) => {
-      if (code !== 0) {
-        logError(`Backend process exited with code ${code}`);
-      }
-    });
-
-    backendProcess.on('error', (error) => {
-      logError(`Backend process error: ${error.message}`);
+    const exitPromise = new Promise((_, reject) => {
+      backendProcess.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(`Backend process exited with code ${code}`));
+        }
+      });
+      backendProcess.on('error', (error) => {
+        reject(new Error(`Backend process error: ${error.message}`));
+      });
     });
 
     // Implement active health checking instead of log parsing
     logStep('STEP 2', 'Performing active health checks...');
     
-    const maxAttempts = 60; // 60 attempts = 60 seconds max
-    let attempts = 0;
-    
-    while (attempts < maxAttempts) {
-      attempts++;
-      
-      try {
-        // Check if TCP port is available
-        await waitOn({
-          resources: ['tcp:localhost:8084'],
-          timeout: 1000,
-          interval: 500
-        });
-        
-        // Check health endpoint
-        const healthResponse = await fetch('http://localhost:8084/actuator/health', {
-          method: 'GET',
-          timeout: 3000
-        });
-        
-        if (healthResponse.ok) {
-          log('  ✅ Backend health check passed', colors.green);
-          
-          // Verify E2E profile with H2 console check
-          try {
-            const h2Response = await fetch('http://localhost:8084/h2-console', {
-              method: 'GET',
-              timeout: 3000
-            });
-            
-            if (h2Response.status === 200) {
-              log('  ✅ E2E profile confirmed (H2 Console accessible)', colors.green);
-            } else {
-              log('  ⚠️  H2 Console not accessible - may not be E2E profile', colors.yellow);
-            }
-          } catch (h2Error) {
-            log('  ⚠️  Could not verify H2 Console - continuing anyway', colors.yellow);
+    const readyPromise = new Promise(async (resolve, reject) => {
+      const maxAttempts = 60; // 60 seconds max
+      for (let attempts = 1; attempts <= maxAttempts; attempts++) {
+        try {
+          await waitOn({ resources: [`tcp:localhost:${params.backendPort}`], timeout: 1000, interval: 500 });
+          const healthResponse = await fetch(`http://localhost:${params.backendPort}${params.backendHealthCheckPath}`, { method: 'GET', timeout: 3000 });
+          if (healthResponse.ok) {
+            log('  ✅ Backend health check passed', colors.green);
+            try {
+              const h2Response = await fetch(`http://localhost:${params.backendPort}/h2-console`, { method: 'GET', timeout: 3000 });
+              if (h2Response.status === 200) log('  ✅ E2E profile confirmed (H2 Console accessible)', colors.green);
+              else log('  ⚠️  H2 Console not accessible - may not be E2E profile', colors.yellow);
+            } catch {}
+            try {
+              const authResponse = await fetch(`http://localhost:${params.backendPort}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'test', password: 'test' }), timeout: 3000 });
+              if (authResponse.status === 401 || authResponse.status === 400) log('  ✅ Auth endpoint accessible', colors.green);
+            } catch {}
+            logSuccess('Backend is fully ready for E2E testing');
+            return resolve(backendProcess);
           }
-          
-          // Additional check: verify auth endpoint is accessible
-          try {
-            const authResponse = await fetch('http://localhost:8084/api/auth/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: 'test', password: 'test' }),
-              timeout: 3000
-            });
-            
-            // We expect 401 or 400, not connection error
-            if (authResponse.status === 401 || authResponse.status === 400) {
-              log('  ✅ Auth endpoint accessible', colors.green);
-            }
-          } catch (authError) {
-            logWarning('Auth endpoint check failed - may cause test issues');
-          }
-          
-          logSuccess('Backend is fully ready for E2E testing');
-          return backendProcess;
-        }
-      } catch (healthError) {
-        // Health check failed, continue waiting
+        } catch {}
+        if (attempts % 10 === 0) log(`  ⏱️  Health check attempt ${attempts}/${maxAttempts}...`, colors.yellow);
+        await new Promise((r) => setTimeout(r, 1000));
       }
-      
-      if (attempts % 10 === 0) {
-        log(`  ⏱️  Health check attempt ${attempts}/${maxAttempts}...`, colors.yellow);
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    
-    throw new Error('Backend failed to become healthy within timeout period');
+      reject(new Error('Backend failed to become healthy within timeout period'));
+    });
+
+    return await Promise.race([readyPromise, exitPromise]);
     
   } catch (error) {
     logError(`Failed to start backend: ${error.message}`);
@@ -205,10 +179,29 @@ async function startBackend() {
   }
 }
 
+async function checkBackendAlreadyRunning() {
+  try {
+    const url = `http://localhost:${params.backendPort}${params.backendHealthCheckPath}`;
+    const res = await fetch(url, { method: 'GET', timeout: 2000 });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function startFrontend() {
   logStep('STEP 3', 'Starting Vite development server...');
   
   try {
+    // Skip if already running (avoid port conflicts)
+    try {
+      const ping = await fetch(params.frontendUrl, { method: 'GET', redirect: 'manual', cache: 'no-store' });
+      if (ping.ok || ping.status === 200 || ping.status === 301 || ping.status === 302) {
+        logSuccess('Detected healthy frontend. Skipping frontend start.');
+        return;
+      }
+    } catch {}
+
     // Use spawn without waiting for completion (frontend needs to stay running)
     frontendProcess = spawn('npm', ['run', 'dev'], {
       cwd: join(projectRoot, 'frontend'),
@@ -233,7 +226,7 @@ async function startFrontend() {
     // Wait for frontend to be ready
     logStep('STEP 4', 'Waiting for frontend to be ready...');
     await waitOn({
-      resources: ['http://localhost:5174'],
+      resources: [params.frontendUrl],
       timeout: 30000, // 30 seconds
       interval: 1000
     });
@@ -250,9 +243,15 @@ async function runPlaywrightTests() {
   logStep('STEP 5', 'Running Playwright E2E tests...');
   
   try {
-    const result = await spawnProcess('npx', ['playwright', 'test', 'e2e/master.spec.ts'], {
+    const resultsPath = join(projectRoot, 'frontend', params.jsonReportPath);
+    try { fs.mkdirSync(join(projectRoot, 'frontend', 'playwright-report'), { recursive: true }); } catch {}
+    // Clear previous report to avoid legacy/preamble contamination
+    try { if (fs.existsSync(resultsPath)) fs.unlinkSync(resultsPath); } catch {}
+
+    // Use reporters as configured in playwright.config.ts (includes JSON output)
+    const result = await spawnProcess('npx', ['playwright', 'test'], {
       cwd: join(projectRoot, 'frontend'),
-      showOutput: true
+      showOutput: false
     });
 
     logSuccess('E2E tests execution completed');
@@ -264,126 +263,26 @@ async function runPlaywrightTests() {
   }
 }
 
-async function analyzeTestResults() {
-  logStep('STEP 6', 'Analyzing test results...');
-  
-  try {
-    const resultsPath = join(projectRoot, 'frontend', 'playwright-report', 'results.json');
-    const fs = await import('fs');
-    
-    if (!fs.existsSync(resultsPath)) {
-      logError('Test results file not found');
-      return null;
-    }
-    
-    const resultsData = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
-    const stats = resultsData.stats;
-    
-    log(`\n${colors.bright}${colors.cyan}
-╔═══════════════════════════════════════════════════════════════╗
-║                    E2E TEST RESULTS ANALYSIS                 ║
-╚═══════════════════════════════════════════════════════════════╝${colors.reset}`);
-    
-    log(`📊 Test Statistics:`, colors.bright);
-    log(`   • Total Tests: ${stats.expected}`, colors.blue);
-    log(`   • ✅ Passed: ${stats.expected - stats.unexpected} (${Math.round(((stats.expected - stats.unexpected) / stats.expected) * 100)}%)`, colors.green);
-    log(`   • ❌ Failed: ${stats.unexpected}`, stats.unexpected > 0 ? colors.red : colors.green);
-    log(`   • ⏭️  Skipped: ${stats.skipped}`, colors.yellow);
-    log(`   • 🔄 Flaky: ${stats.flaky}`, colors.yellow);
-    log(`   • ⏱️  Duration: ${Math.round(stats.duration / 1000)}s`, colors.blue);
-    
-    // Analyze test suites
-    const suites = resultsData.suites || [];
-    const failedSuites = [];
-    const passedSuites = [];
-    
-    function analyzeSuite(suite, parentTitle = '') {
-      const fullTitle = parentTitle ? `${parentTitle} › ${suite.title}` : suite.title;
-      
-      if (suite.specs) {
-        suite.specs.forEach(spec => {
-          const hasFailures = spec.tests.some(test => 
-            test.results.some(result => result.status === 'failed' || result.status === 'timedOut')
-          );
-          
-          if (hasFailures) {
-            failedSuites.push(`${fullTitle} › ${spec.title}`);
-          } else {
-            passedSuites.push(`${fullTitle} › ${spec.title}`);
-          }
-        });
-      }
-      
-      if (suite.suites) {
-        suite.suites.forEach(subSuite => analyzeSuite(subSuite, fullTitle));
-      }
-    }
-    
-    suites.forEach(suite => analyzeSuite(suite));
-    
-    if (failedSuites.length > 0) {
-      log(`\n🔥 Failed Test Suites (${failedSuites.length}):`, colors.red);
-      failedSuites.slice(0, 10).forEach(suite => {
-        log(`   • ${suite}`, colors.red);
-      });
-      
-      if (failedSuites.length > 10) {
-        log(`   ... and ${failedSuites.length - 10} more`, colors.red);
-      }
-    }
-    
-    if (passedSuites.length > 0) {
-      log(`\n✅ Passed Test Suites (${passedSuites.length}):`, colors.green);
-      if (passedSuites.length <= 5) {
-        passedSuites.forEach(suite => {
-          log(`   • ${suite}`, colors.green);
-        });
-      } else {
-        log(`   • First 3 suites: ${passedSuites.slice(0, 3).join(', ')}`, colors.green);
-        log(`   • ... and ${passedSuites.length - 3} more successful suites`, colors.green);
-      }
-    }
-    
-    // Overall assessment
-    const passRate = ((stats.expected - stats.unexpected) / stats.expected) * 100;
-    log(`\n🎯 Overall Assessment:`, colors.bright);
-    
-    if (passRate >= 95) {
-      log(`   🏆 EXCELLENT: ${Math.round(passRate)}% pass rate - E2E tests are highly stable`, colors.green);
-    } else if (passRate >= 80) {
-      log(`   ✅ GOOD: ${Math.round(passRate)}% pass rate - Most functionality working correctly`, colors.green);
-    } else if (passRate >= 50) {
-      log(`   ⚠️  MODERATE: ${Math.round(passRate)}% pass rate - Significant issues need attention`, colors.yellow);
-    } else {
-      log(`   🚨 CRITICAL: ${Math.round(passRate)}% pass rate - Major infrastructure problems`, colors.red);
-    }
-    
-    return {
-      stats,
-      passRate,
-      failedSuites,
-      passedSuites,
-      isSuccess: stats.unexpected === 0
-    };
-    
-  } catch (error) {
-    logError(`Failed to analyze test results: ${error.message}`);
-    return null;
-  }
-}
+// Analysis removed by design; external agent will read the JSON report.
 
 async function cleanup() {
   logStep('CLEANUP', 'Shutting down services...');
   
-  if (frontendProcess && !frontendProcess.killed) {
-    frontendProcess.kill('SIGTERM');
-    log('  🛑 Frontend server stopped');
-  }
-  
-  if (backendProcess && !backendProcess.killed) {
-    backendProcess.kill('SIGTERM');
-    log('  🛑 Backend server stopped');
-  }
+  const killGracefully = (proc, name) => new Promise((resolve) => {
+    if (!proc || proc.killed) return resolve();
+    try { proc.kill('SIGTERM'); } catch {}
+    const timeout = setTimeout(() => {
+      try { proc.kill('SIGKILL'); } catch {}
+      resolve();
+    }, 1500);
+    proc.on('close', () => { clearTimeout(timeout); resolve(); });
+    log(`  🛑 ${name} stopped`);
+  });
+
+  await Promise.all([
+    killGracefully(frontendProcess, 'Frontend server'),
+    killGracefully(backendProcess, 'Backend server')
+  ]);
 }
 
 async function main() {
@@ -394,7 +293,7 @@ async function main() {
 ╚═══════════════════════════════════════════════════════════════╝
 ${colors.reset}`);
 
-  let testResults = null;
+  let playwrightExit = 1;
 
   try {
     // Install dependencies if needed
@@ -408,29 +307,28 @@ ${colors.reset}`);
       logWarning('Failed to install dependencies, continuing anyway...');
     }
 
-    // Start backend with E2E profile (with health checking)
-    await startBackend();
+    // Export E2E credentials from SSOT params (avoid hardcoding)
+    const users = params.testUsers || {};
+    process.env.E2E_TUTOR_EMAIL = users.tutor?.email || 'tutor@example.com';
+    process.env.E2E_TUTOR_PASSWORD = users.tutor?.password || 'Tutor123!';
+    process.env.E2E_LECTURER_EMAIL = users.lecturer?.email || 'lecturer@example.com';
+    process.env.E2E_LECTURER_PASSWORD = users.lecturer?.password || 'Lecturer123!';
+    process.env.E2E_ADMIN_EMAIL = users.admin?.email || 'admin@example.com';
+    process.env.E2E_ADMIN_PASSWORD = users.admin?.password || 'Admin123!';
+
+    // Start backend with E2E profile (with health checking) iff not already running
+    const alreadyUp = await checkBackendAlreadyRunning();
+    if (alreadyUp) {
+      logSuccess('Detected healthy backend. Skipping backend start.');
+    } else {
+      await startBackend();
+    }
     
     // Start frontend
     await startFrontend();
     
-    // Run E2E tests (non-throwing)
-    await runPlaywrightTests();
-    
-    // Analyze test results from JSON (non-blocking)
-    testResults = await analyzeTestResults();
-    
-    if (testResults && testResults.isSuccess) {
-      logSuccess('🎉 All E2E tests passed! The testing pipeline completed successfully.');
-    } else if (testResults) {
-      if (testResults.passRate >= 80) {
-        logSuccess(`✅ E2E testing pipeline completed with ${Math.round(testResults.passRate)}% pass rate.`);
-      } else {
-        logWarning(`⚠️ E2E testing pipeline completed with ${Math.round(testResults.passRate)}% pass rate - issues detected.`);
-      }
-    } else {
-      logError('❌ Could not analyze test results.');
-    }
+    const result = await runPlaywrightTests();
+    playwrightExit = typeof result.code === 'number' ? result.code : 1;
     
   } catch (error) {
     logError('E2E testing pipeline failed during setup/execution');
@@ -443,39 +341,10 @@ ${colors.reset}`);
       console.log(error.errorOutput);
     }
     
-    // Still try to analyze results even if pipeline failed
-    try {
-      testResults = await analyzeTestResults();
-      if (testResults) {
-        log('\n📊 Partial test results analyzed despite pipeline failure:', colors.yellow);
-      }
-    } catch (analysisError) {
-      logError(`Could not analyze test results: ${analysisError.message}`);
-    }
-    
     process.exit(1);
   } finally {
     await cleanup();
-    
-    // Final summary
-    if (testResults) {
-      log(`\n${colors.bright}🎯 FINAL MISSION STATUS:${colors.reset}`);
-      log(`   • Backend Health Check: ✅ PASSED`, colors.green);
-      log(`   • Frontend Startup: ✅ PASSED`, colors.green);
-      log(`   • Test Execution: ✅ COMPLETED`, colors.green);
-      log(`   • Overall Pass Rate: ${Math.round(testResults.passRate)}%`, 
-          testResults.passRate >= 80 ? colors.green : testResults.passRate >= 50 ? colors.yellow : colors.red);
-      
-      if (testResults.isSuccess) {
-        log(`   • Mission Status: 🏆 COMPLETE SUCCESS`, colors.green);
-      } else if (testResults.passRate >= 80) {
-        log(`   • Mission Status: ✅ SUBSTANTIAL SUCCESS`, colors.green);
-      } else if (testResults.passRate >= 50) {
-        log(`   • Mission Status: ⚠️ PARTIAL SUCCESS`, colors.yellow);
-      } else {
-        log(`   • Mission Status: 🚨 REQUIRES ATTENTION`, colors.red);
-      }
-    }
+    process.exit(playwrightExit);
   }
 }
 

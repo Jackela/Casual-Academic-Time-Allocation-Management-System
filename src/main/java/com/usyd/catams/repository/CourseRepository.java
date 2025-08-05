@@ -20,7 +20,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      * @param code the course code
      * @return the course if found
      */
-    Optional<Course> findByCode(String code);
+    @Query("SELECT c FROM Course c WHERE c.code.value = :code")
+    Optional<Course> findByCode(@Param("code") String code);
     
     /**
      * Find a course by code and active status.
@@ -29,7 +30,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      * @param isActive the active status
      * @return the course if found
      */
-    Optional<Course> findByCodeAndIsActive(String code, Boolean isActive);
+    @Query("SELECT c FROM Course c WHERE c.code.value = :code AND c.isActive = :isActive")
+    Optional<Course> findByCodeAndIsActive(@Param("code") String code, @Param("isActive") Boolean isActive);
     
     /**
      * Find all courses taught by a specific lecturer.
@@ -96,7 +98,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      * @param code the course code
      * @return true if course exists
      */
-    boolean existsByCode(String code);
+    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM Course c WHERE c.code.value = :code")
+    boolean existsByCode(@Param("code") String code);
     
     /**
      * Check if an active course exists by code.
@@ -105,7 +108,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      * @param isActive the active status
      * @return true if active course exists
      */
-    boolean existsByCodeAndIsActive(String code, Boolean isActive);
+    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM Course c WHERE c.code.value = :code AND c.isActive = :isActive")
+    boolean existsByCodeAndIsActive(@Param("code") String code, @Param("isActive") Boolean isActive);
     
     /**
      * Get courses with budget usage statistics.
@@ -122,7 +126,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      *
      * @return list of courses with low budget
      */
-    @Query("SELECT c FROM Course c WHERE c.budgetUsed > (c.budgetAllocated * 0.8) AND c.isActive = true")
+    @Query("SELECT c FROM Course c WHERE c.budgetUsed.amount > (c.budgetAllocated.amount * 0.8) AND c.isActive = true")
     List<Course> findCoursesWithLowBudget();
     
     /**
@@ -130,7 +134,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      *
      * @return list of courses over budget
      */
-    @Query("SELECT c FROM Course c WHERE c.budgetUsed > c.budgetAllocated")
+    @Query("SELECT c FROM Course c WHERE c.budgetUsed.amount > c.budgetAllocated.amount")
     List<Course> findCoursesOverBudget();
     
     /**
@@ -139,7 +143,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      * @param lecturerId the lecturer's ID
      * @return total budget allocated
      */
-    @Query("SELECT COALESCE(SUM(c.budgetAllocated), 0) FROM Course c WHERE c.lecturerId = :lecturerId AND c.isActive = true")
+    @Query("SELECT COALESCE(SUM(c.budgetAllocated.amount), 0) FROM Course c WHERE c.lecturerId = :lecturerId AND c.isActive = true")
     Double getTotalBudgetAllocatedByLecturer(@Param("lecturerId") Long lecturerId);
     
     /**
@@ -148,7 +152,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      * @param lecturerId the lecturer's ID
      * @return total budget used
      */
-    @Query("SELECT COALESCE(SUM(c.budgetUsed), 0) FROM Course c WHERE c.lecturerId = :lecturerId AND c.isActive = true")
+    @Query("SELECT COALESCE(SUM(c.budgetUsed.amount), 0) FROM Course c WHERE c.lecturerId = :lecturerId AND c.isActive = true")
     Double getTotalBudgetUsedByLecturer(@Param("lecturerId") Long lecturerId);
     
     /**

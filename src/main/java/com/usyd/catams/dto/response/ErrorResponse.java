@@ -4,8 +4,7 @@ package com.usyd.catams.dto.response;
  * Standard error response DTO
  * 
  * All API error responses must use this format to ensure consistency
- * across the entire CATAMS system. The success field is always false
- * for error responses, following the OpenAPI specification.
+ * across the entire CATAMS system, matching the OpenAPI ErrorResponse schema.
  * 
  * @author Development Team
  * @since 1.0

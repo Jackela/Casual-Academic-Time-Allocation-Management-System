@@ -41,3 +41,8 @@ logging:
     org.springframework.security: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Timesheet business rules configuration
+timesheet:
+  hours:
+    max: 38.0

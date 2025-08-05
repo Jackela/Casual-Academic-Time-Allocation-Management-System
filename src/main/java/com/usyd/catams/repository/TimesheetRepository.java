@@ -99,6 +99,19 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     Page<Timesheet> findByStatus(ApprovalStatus status, Pageable pageable);
     
     /**
+     * Find timesheets by status and tutor with paging ordered by creation time ascending.
+     */
+    Page<Timesheet> findByStatusAndTutorIdOrderByCreatedAtAsc(ApprovalStatus status, Long tutorId, Pageable pageable);
+    
+    /**
+     * Find timesheets by multiple status values.
+     *
+     * @param statuses the approval statuses to match
+     * @return list of timesheets
+     */
+    List<Timesheet> findByStatusIn(List<ApprovalStatus> statuses);
+    
+    /**
      * Find timesheets by tutor and status.
      *
      * @param tutorId the tutor's ID
@@ -123,8 +136,8 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param endDate the end date (inclusive)
      * @return list of timesheets
      */
-    List<Timesheet> findByWeekStartDateBetween(LocalDate startDate, LocalDate endDate);
-    
+    List<Timesheet> findByWeekPeriod_WeekStartDateBetween(LocalDate startDate, LocalDate endDate);
+
     /**
      * Find timesheets for a tutor within a date range.
      *
@@ -133,8 +146,8 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param endDate the end date (inclusive)
      * @return list of timesheets
      */
-    List<Timesheet> findByTutorIdAndWeekStartDateBetween(Long tutorId, LocalDate startDate, LocalDate endDate);
-    
+    List<Timesheet> findByTutorIdAndWeekPeriod_WeekStartDateBetween(Long tutorId, LocalDate startDate, LocalDate endDate);
+
     /**
      * Check if a timesheet exists for the unique combination of tutor, course, and week.
      *
@@ -143,8 +156,8 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param weekStartDate the week start date
      * @return true if timesheet exists
      */
-    boolean existsByTutorIdAndCourseIdAndWeekStartDate(Long tutorId, Long courseId, LocalDate weekStartDate);
-    
+    boolean existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(Long tutorId, Long courseId, LocalDate weekStartDate);
+
     /**
      * Find existing timesheet for the unique combination (used for duplicate checking).
      *
@@ -153,8 +166,8 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param weekStartDate the week start date
      * @return the existing timesheet if found
      */
-    Optional<Timesheet> findByTutorIdAndCourseIdAndWeekStartDate(Long tutorId, Long courseId, LocalDate weekStartDate);
-    
+    Optional<Timesheet> findByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(Long tutorId, Long courseId, LocalDate weekStartDate);
+
     /**
      * Get all timesheets with optional filtering and paging.
      * Used for admin queries with flexible filtering.
@@ -173,7 +186,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
                                    @Param("courseId") Long courseId,
                                    @Param("status") ApprovalStatus status,
                                    Pageable pageable);
-    
+
     /**
      * Get total hours worked by a tutor for a specific course.
      *
@@ -183,7 +196,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      */
     @Query("SELECT COALESCE(SUM(t.hours), 0) FROM Timesheet t WHERE t.tutorId = :tutorId AND t.courseId = :courseId")
     BigDecimal getTotalHoursByTutorAndCourse(@Param("tutorId") Long tutorId, @Param("courseId") Long courseId);
-    
+
     /**
      * Get total pay for approved timesheets by tutor and course.
      *
@@ -191,20 +204,20 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param courseId the course ID
      * @return total pay amount
      */
-    @Query("SELECT COALESCE(SUM(t.hours * t.hourlyRate), 0) FROM Timesheet t WHERE " +
+    @Query("SELECT COALESCE(SUM(t.hours * t.hourlyRate.amount), 0) FROM Timesheet t WHERE " +
            "t.tutorId = :tutorId AND t.courseId = :courseId AND t.status = 'FINAL_APPROVED'")
     BigDecimal getTotalApprovedPayByTutorAndCourse(@Param("tutorId") Long tutorId, @Param("courseId") Long courseId);
-    
+
     /**
      * Get total budget used (approved timesheets) for a course.
      *
      * @param courseId the course ID
      * @return total budget used
      */
-    @Query("SELECT COALESCE(SUM(t.hours * t.hourlyRate), 0) FROM Timesheet t WHERE " +
+    @Query("SELECT COALESCE(SUM(t.hours * t.hourlyRate.amount), 0) FROM Timesheet t WHERE " +
            "t.courseId = :courseId AND t.status = 'FINAL_APPROVED'")
     BigDecimal getTotalApprovedBudgetUsedByCourse(@Param("courseId") Long courseId);
-    
+
     /**
      * Get pending timesheets for a specific approver based on role.
      * For tutors: timesheets in PENDING_TUTOR_REVIEW status for themselves
@@ -215,8 +228,8 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @return list of pending timesheets
      */
     @Query("SELECT t FROM Timesheet t WHERE " +
-           "((:isHR = true AND t.status = 'PENDING_HR_REVIEW') OR " +
-           "(:isHR = false AND t.tutorId = :approverId AND t.status = 'PENDING_TUTOR_REVIEW'))")
+           "(:isHR = true AND t.status = 'APPROVED_BY_LECTURER_AND_TUTOR') OR " +
+           "(:isHR = false AND t.status = 'PENDING_TUTOR_REVIEW' AND t.tutorId = :approverId)")
     List<Timesheet> findPendingTimesheetsForApprover(@Param("approverId") Long approverId, @Param("isHR") boolean isHR);
     
     /**
@@ -237,23 +250,23 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     Page<Timesheet> findByCreatedBy(Long createdBy, Pageable pageable);
     
     /**
-     * Find timesheets with PENDING_LECTURER_APPROVAL status for courses taught by a specific lecturer.
+     * Find timesheets with PENDING_TUTOR_REVIEW status for courses taught by a specific lecturer.
      * Used for the GET /api/timesheets/pending-approval endpoint.
      *
      * @param lecturerId the lecturer's ID
      * @param pageable paging and sorting information
-     * @return page of timesheets pending lecturer approval for the lecturer's courses
+     * @return page of timesheets pending tutor review for the lecturer's courses
      */
-    @Query("SELECT t FROM Timesheet t WHERE t.status = 'PENDING_LECTURER_APPROVAL' AND t.courseId IN " +
+    @Query("SELECT t FROM Timesheet t WHERE t.status = 'PENDING_TUTOR_REVIEW' AND t.courseId IN " +
            "(SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId)")
     Page<Timesheet> findPendingLecturerApprovalByCourses(@Param("lecturerId") Long lecturerId, Pageable pageable);
     
     /**
-     * Find all timesheets with PENDING_LECTURER_APPROVAL status (for ADMIN users).
+     * Find all timesheets with PENDING_TUTOR_REVIEW status (for ADMIN users).
      * Used for the GET /api/timesheets/pending-approval endpoint.
      *
      * @param pageable paging and sorting information
-     * @return page of all timesheets pending lecturer approval
+     * @return page of all timesheets pending tutor review
      */
     Page<Timesheet> findByStatusOrderByCreatedAtAsc(ApprovalStatus status, Pageable pageable);
     
@@ -268,20 +281,56 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param endDate end date for filtering (inclusive)
      * @return aggregated timesheet summary data
      */
-    @Query("""
-        SELECT new com.usyd.catams.dto.TimesheetSummaryData(
-            COUNT(t), 
-            COALESCE(SUM(t.hours), 0), 
-            COALESCE(SUM(t.hours * t.hourlyRate), 0),
-            COUNT(CASE WHEN t.status = 'PENDING_LECTURER_APPROVAL' THEN 1 END)
-        )
-        FROM Timesheet t 
-        WHERE t.tutorId = :tutorId 
-        AND t.weekStartDate BETWEEN :startDate AND :endDate
-        """)
-    TimesheetSummaryData findTimesheetSummaryByTutor(
+    @Query("SELECT new com.usyd.catams.dto.TimesheetSummaryData(" +
+           "COUNT(t), " +
+           "COALESCE(SUM(t.hours), 0), " +
+           "COALESCE(SUM(t.hours * t.hourlyRate.amount), 0), " +
+           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', " +
+           "'MODIFICATION_REQUESTED') THEN 1L ELSE 0L END)) " +
+           "FROM Timesheet t " +
+           "WHERE t.tutorId = :tutorId " +
+           "AND t.weekPeriod.weekStartDate BETWEEN :startDate AND :endDate")
+    TimesheetSummaryData findTimesheetSummaryByTutorNative(
         @Param("tutorId") Long tutorId,
         @Param("startDate") LocalDate startDate, 
+        @Param("endDate") LocalDate endDate
+    );
+    
+    /**
+     * Get timesheet aggregation data for dashboard - TUTOR scope.
+     * Returns summary metrics for efficient dashboard rendering.
+     *
+     * @param tutorId the tutor's ID
+     * @param startDate start date for filtering (inclusive)
+     * @param endDate end date for filtering (inclusive)
+     * @return aggregated timesheet summary data
+     */
+    default TimesheetSummaryData findTimesheetSummaryByTutor(
+        Long tutorId, LocalDate startDate, LocalDate endDate) {
+        return findTimesheetSummaryByTutorNative(tutorId, startDate, endDate);
+    }
+    
+    /**
+     * Get timesheet aggregation data for dashboard - LECTURER scope.
+     * Returns summary metrics for courses managed by a lecturer.
+     *
+_     * @param courseIds list of course IDs managed by the lecturer
+     * @param startDate start date for filtering (inclusive)
+     * @param endDate end date for filtering (inclusive)
+     * @return aggregated timesheet summary data
+     */
+    @Query("SELECT new com.usyd.catams.dto.TimesheetSummaryData(" +
+           "COUNT(t), " +
+           "COALESCE(SUM(t.hours), 0), " +
+           "COALESCE(SUM(t.hours * t.hourlyRate.amount), 0), " +
+           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', " +
+           "'MODIFICATION_REQUESTED') THEN 1L ELSE 0L END)) " +
+           "FROM Timesheet t " +
+           "WHERE t.courseId IN :courseIds " +
+           "AND t.weekPeriod.weekStartDate BETWEEN :startDate AND :endDate")
+    TimesheetSummaryData findTimesheetSummaryByCoursesNative(
+        @Param("courseIds") List<Long> courseIds,
+        @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate
     );
     
@@ -294,19 +343,28 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param endDate end date for filtering (inclusive)
      * @return aggregated timesheet summary data
      */
-    @Query("""
-        SELECT new com.usyd.catams.dto.TimesheetSummaryData(
-            COUNT(t), 
-            COALESCE(SUM(t.hours), 0), 
-            COALESCE(SUM(t.hours * t.hourlyRate), 0),
-            COUNT(CASE WHEN t.status = 'PENDING_LECTURER_APPROVAL' THEN 1 END)
-        )
-        FROM Timesheet t 
-        WHERE t.courseId IN :courseIds
-        AND t.weekStartDate BETWEEN :startDate AND :endDate
-        """)
-    TimesheetSummaryData findTimesheetSummaryByCourses(
-        @Param("courseIds") List<Long> courseIds,
+    default TimesheetSummaryData findTimesheetSummaryByCourses(
+        List<Long> courseIds, LocalDate startDate, LocalDate endDate) {
+        return findTimesheetSummaryByCoursesNative(courseIds, startDate, endDate);
+    }
+    
+    /**
+     * Get timesheet aggregation data for dashboard - ADMIN scope.
+     * Returns system-wide summary metrics.
+     *
+     * @param startDate start date for filtering (inclusive)
+     * @param endDate end date for filtering (inclusive)
+     * @return aggregated timesheet summary data
+     */
+    @Query("SELECT new com.usyd.catams.dto.TimesheetSummaryData(" +
+           "COUNT(t), " +
+           "COALESCE(SUM(t.hours), 0), " +
+           "COALESCE(SUM(t.hours * t.hourlyRate.amount), 0), " +
+           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', " +
+           "'MODIFICATION_REQUESTED') THEN 1L ELSE 0L END)) " +
+           "FROM Timesheet t " +
+           "WHERE t.weekPeriod.weekStartDate BETWEEN :startDate AND :endDate")
+    TimesheetSummaryData findTimesheetSummarySystemWideNative(
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate
     );
@@ -319,17 +377,30 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param endDate end date for filtering (inclusive)
      * @return aggregated timesheet summary data
      */
-    @Query("""
-        SELECT new com.usyd.catams.dto.TimesheetSummaryData(
-            COUNT(t), 
-            COALESCE(SUM(t.hours), 0), 
-            COALESCE(SUM(t.hours * t.hourlyRate), 0),
-            COUNT(CASE WHEN t.status = 'PENDING_LECTURER_APPROVAL' OR t.status = 'PENDING_HR_REVIEW' THEN 1 END)
-        )
-        FROM Timesheet t 
-        WHERE t.weekStartDate BETWEEN :startDate AND :endDate
-        """)
-    TimesheetSummaryData findTimesheetSummarySystemWide(
+    default TimesheetSummaryData findTimesheetSummarySystemWide(
+        LocalDate startDate, LocalDate endDate) {
+        return findTimesheetSummarySystemWideNative(startDate, endDate);
+    }
+    
+    /**
+     * Get timesheet aggregation data for a specific course (ADMIN filter).
+     *
+     * @param courseId the course ID
+     * @param startDate start date for filtering (inclusive)
+     * @param endDate end date for filtering (inclusive)
+     * @return aggregated timesheet summary data
+     */
+    @Query("SELECT new com.usyd.catams.dto.TimesheetSummaryData(" +
+           "COUNT(t), " +
+           "COALESCE(SUM(t.hours), 0), " +
+           "COALESCE(SUM(t.hours * t.hourlyRate.amount), 0), " +
+           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', " +
+           "'MODIFICATION_REQUESTED') THEN 1L ELSE 0L END)) " +
+           "FROM Timesheet t " +
+           "WHERE t.courseId = :courseId " +
+           "AND t.weekPeriod.weekStartDate BETWEEN :startDate AND :endDate")
+    TimesheetSummaryData findTimesheetSummaryByCourseNative(
+        @Param("courseId") Long courseId,
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate
     );
@@ -342,20 +413,10 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param endDate end date for filtering (inclusive)
      * @return aggregated timesheet summary data
      */
-    @Query("""
-        SELECT new com.usyd.catams.dto.TimesheetSummaryData(
-            COUNT(t), 
-            COALESCE(SUM(t.hours), 0), 
-            COALESCE(SUM(t.hours * t.hourlyRate), 0),
-            COUNT(CASE WHEN t.status = 'PENDING_LECTURER_APPROVAL' OR t.status = 'PENDING_HR_REVIEW' THEN 1 END)
-        )
-        FROM Timesheet t 
-        WHERE t.courseId = :courseId
-        AND t.weekStartDate BETWEEN :startDate AND :endDate
-        """)
-    TimesheetSummaryData findTimesheetSummaryByCourse(
-        @Param("courseId") Long courseId,
-        @Param("startDate") LocalDate startDate,
-        @Param("endDate") LocalDate endDate
-    );
+    default TimesheetSummaryData findTimesheetSummaryByCourse(
+        Long courseId, LocalDate startDate, LocalDate endDate) {
+        return findTimesheetSummaryByCourseNative(courseId, startDate, endDate);
+    }
+    
+    
 }

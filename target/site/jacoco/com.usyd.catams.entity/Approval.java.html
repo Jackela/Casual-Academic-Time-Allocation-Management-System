@@ -88,9 +88,9 @@ public class Approval {
      * Whether this approval action is still active/current.
      * Used for auditing and tracking superseded actions.
      */
-<span class="fc" id="L91">    @NotNull</span>
+    @NotNull
     @Column(nullable = false, name = &quot;is_active&quot;)
-<span class="fc" id="L93">    private Boolean isActive = true;</span>
+    private Boolean isActive;
     
     // Default constructor
 <span class="fc" id="L96">    public Approval() {</span>
@@ -106,8 +106,8 @@ public class Approval {
      * @param newStatus the status after the action
      * @param comment optional comment explaining the action
      */
-    public Approval(Long timesheetId, Long approverId, ApprovalAction action, 
-<span class="fc" id="L110">                   ApprovalStatus previousStatus, ApprovalStatus newStatus, String comment) {</span>
+<span class="fc" id="L109">    public Approval(Long timesheetId, Long approverId, ApprovalAction action, </span>
+                   ApprovalStatus previousStatus, ApprovalStatus newStatus, String comment) {
 <span class="fc" id="L111">        this.timesheetId = timesheetId;</span>
 <span class="fc" id="L112">        this.approverId = approverId;</span>
 <span class="fc" id="L113">        this.action = action;</span>
@@ -120,83 +120,83 @@ public class Approval {
     @PrePersist
     protected void onCreate() {
 <span class="fc" id="L122">        this.timestamp = LocalDateTime.now();</span>
-<span class="pc bpc" id="L123" title="1 of 2 branches missed.">        if (this.isActive == null) {</span>
-<span class="nc" id="L124">            this.isActive = true;</span>
+<span class="fc bfc" id="L123" title="All 2 branches covered.">        if (this.isActive == null) {</span>
+<span class="fc" id="L124">            this.isActive = true;</span>
         }
 <span class="fc" id="L126">    }</span>
     
     // Getters and Setters
     public Long getId() {
-<span class="nc" id="L130">        return id;</span>
+<span class="fc" id="L130">        return id;</span>
     }
     
     public void setId(Long id) {
-<span class="nc" id="L134">        this.id = id;</span>
-<span class="nc" id="L135">    }</span>
+<span class="fc" id="L134">        this.id = id;</span>
+<span class="fc" id="L135">    }</span>
     
     public Long getTimesheetId() {
 <span class="fc" id="L138">        return timesheetId;</span>
     }
     
     public void setTimesheetId(Long timesheetId) {
-<span class="nc" id="L142">        this.timesheetId = timesheetId;</span>
-<span class="nc" id="L143">    }</span>
+<span class="fc" id="L142">        this.timesheetId = timesheetId;</span>
+<span class="fc" id="L143">    }</span>
     
     public Long getApproverId() {
 <span class="fc" id="L146">        return approverId;</span>
     }
     
     public void setApproverId(Long approverId) {
-<span class="nc" id="L150">        this.approverId = approverId;</span>
-<span class="nc" id="L151">    }</span>
+<span class="fc" id="L150">        this.approverId = approverId;</span>
+<span class="fc" id="L151">    }</span>
     
     public ApprovalAction getAction() {
 <span class="fc" id="L154">        return action;</span>
     }
     
     public void setAction(ApprovalAction action) {
-<span class="nc" id="L158">        this.action = action;</span>
-<span class="nc" id="L159">    }</span>
+<span class="fc" id="L158">        this.action = action;</span>
+<span class="fc" id="L159">    }</span>
     
     public ApprovalStatus getPreviousStatus() {
 <span class="fc" id="L162">        return previousStatus;</span>
     }
     
     public void setPreviousStatus(ApprovalStatus previousStatus) {
-<span class="nc" id="L166">        this.previousStatus = previousStatus;</span>
-<span class="nc" id="L167">    }</span>
+<span class="fc" id="L166">        this.previousStatus = previousStatus;</span>
+<span class="fc" id="L167">    }</span>
     
     public ApprovalStatus getNewStatus() {
 <span class="fc" id="L170">        return newStatus;</span>
     }
     
     public void setNewStatus(ApprovalStatus newStatus) {
-<span class="nc" id="L174">        this.newStatus = newStatus;</span>
-<span class="nc" id="L175">    }</span>
+<span class="fc" id="L174">        this.newStatus = newStatus;</span>
+<span class="fc" id="L175">    }</span>
     
     public String getComment() {
 <span class="fc" id="L178">        return comment;</span>
     }
     
     public void setComment(String comment) {
-<span class="nc" id="L182">        this.comment = comment;</span>
-<span class="nc" id="L183">    }</span>
+<span class="fc" id="L182">        this.comment = comment;</span>
+<span class="fc" id="L183">    }</span>
     
     public LocalDateTime getTimestamp() {
 <span class="fc" id="L186">        return timestamp;</span>
     }
     
     public void setTimestamp(LocalDateTime timestamp) {
-<span class="nc" id="L190">        this.timestamp = timestamp;</span>
-<span class="nc" id="L191">    }</span>
+<span class="fc" id="L190">        this.timestamp = timestamp;</span>
+<span class="fc" id="L191">    }</span>
     
     public Boolean getIsActive() {
-<span class="nc" id="L194">        return isActive;</span>
+<span class="fc" id="L194">        return isActive;</span>
     }
     
     public void setIsActive(Boolean isActive) {
-<span class="nc" id="L198">        this.isActive = isActive;</span>
-<span class="nc" id="L199">    }</span>
+<span class="fc" id="L198">        this.isActive = isActive;</span>
+<span class="fc" id="L199">    }</span>
     
     // Business methods
     
@@ -206,7 +206,7 @@ public class Approval {
      * @return true if this is a submission
      */
     public boolean isSubmission() {
-<span class="nc bnc" id="L209" title="All 2 branches missed.">        return action == ApprovalAction.SUBMIT_FOR_APPROVAL;</span>
+<span class="fc bfc" id="L209" title="All 2 branches covered.">        return action == ApprovalAction.SUBMIT_FOR_APPROVAL;</span>
     }
     
     /**
@@ -215,7 +215,7 @@ public class Approval {
      * @return true if this is an approval
      */
     public boolean isApproval() {
-<span class="nc bnc" id="L218" title="All 2 branches missed.">        return action == ApprovalAction.APPROVE;</span>
+<span class="fc bfc" id="L218" title="All 2 branches covered.">        return action == ApprovalAction.APPROVE;</span>
     }
     
     /**
@@ -224,7 +224,7 @@ public class Approval {
      * @return true if this is a rejection
      */
     public boolean isRejection() {
-<span class="nc bnc" id="L227" title="All 2 branches missed.">        return action == ApprovalAction.REJECT;</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">        return action == ApprovalAction.REJECT;</span>
     }
     
     /**
@@ -233,7 +233,7 @@ public class Approval {
      * @return true if this is a modification request
      */
     public boolean isModificationRequest() {
-<span class="nc bnc" id="L236" title="All 2 branches missed.">        return action == ApprovalAction.REQUEST_MODIFICATION;</span>
+<span class="fc bfc" id="L236" title="All 2 branches covered.">        return action == ApprovalAction.REQUEST_MODIFICATION;</span>
     }
     
     /**
@@ -242,49 +242,59 @@ public class Approval {
      * @throws IllegalArgumentException if validation fails
      */
     public void validateBusinessRules() {
-<span class="pc bpc" id="L245" title="1 of 2 branches missed.">        if (timesheetId == null) {</span>
-<span class="nc" id="L246">            throw new IllegalArgumentException(&quot;Timesheet ID cannot be null&quot;);</span>
+<span class="fc" id="L245">        validateBusinessRules(true);</span>
+<span class="fc" id="L246">    }</span>
+    
+    /**
+     * Validate business rules for the approval action with optional timesheet ID validation.
+     * 
+     * @param requireTimesheetId whether to require timesheet ID to be non-null
+     * @throws IllegalArgumentException if validation fails
+     */
+    public void validateBusinessRules(boolean requireTimesheetId) {
+<span class="fc bfc" id="L255" title="All 4 branches covered.">        if (requireTimesheetId &amp;&amp; timesheetId == null) {</span>
+<span class="fc" id="L256">            throw new IllegalArgumentException(&quot;Timesheet ID cannot be null&quot;);</span>
         }
         
-<span class="pc bpc" id="L249" title="1 of 2 branches missed.">        if (approverId == null) {</span>
-<span class="nc" id="L250">            throw new IllegalArgumentException(&quot;Approver ID cannot be null&quot;);</span>
+<span class="fc bfc" id="L259" title="All 2 branches covered.">        if (approverId == null) {</span>
+<span class="fc" id="L260">            throw new IllegalArgumentException(&quot;Approver ID cannot be null&quot;);</span>
         }
         
-<span class="pc bpc" id="L253" title="1 of 2 branches missed.">        if (action == null) {</span>
-<span class="nc" id="L254">            throw new IllegalArgumentException(&quot;Approval action cannot be null&quot;);</span>
+<span class="fc bfc" id="L263" title="All 2 branches covered.">        if (action == null) {</span>
+<span class="fc" id="L264">            throw new IllegalArgumentException(&quot;Approval action cannot be null&quot;);</span>
         }
         
-<span class="pc bpc" id="L257" title="1 of 2 branches missed.">        if (previousStatus == null) {</span>
-<span class="nc" id="L258">            throw new IllegalArgumentException(&quot;Previous status cannot be null&quot;);</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">        if (previousStatus == null) {</span>
+<span class="fc" id="L268">            throw new IllegalArgumentException(&quot;Previous status cannot be null&quot;);</span>
         }
         
-<span class="pc bpc" id="L261" title="1 of 2 branches missed.">        if (newStatus == null) {</span>
-<span class="nc" id="L262">            throw new IllegalArgumentException(&quot;New status cannot be null&quot;);</span>
+<span class="fc bfc" id="L271" title="All 2 branches covered.">        if (newStatus == null) {</span>
+<span class="fc" id="L272">            throw new IllegalArgumentException(&quot;New status cannot be null&quot;);</span>
         }
         
         // Validate that the status transition is valid
-<span class="pc bpc" id="L266" title="1 of 2 branches missed.">        if (!previousStatus.canTransitionTo(newStatus)) {</span>
-<span class="nc" id="L267">            throw new IllegalArgumentException(&quot;Invalid status transition from &quot; + previousStatus + &quot; to &quot; + newStatus);</span>
+<span class="fc bfc" id="L276" title="All 2 branches covered.">        if (!previousStatus.canTransitionTo(newStatus)) {</span>
+<span class="fc" id="L277">            throw new IllegalArgumentException(&quot;Invalid status transition from &quot; + previousStatus + &quot; to &quot; + newStatus);</span>
         }
         
         // Validate comment length
-<span class="pc bpc" id="L271" title="1 of 4 branches missed.">        if (comment != null &amp;&amp; comment.length() &gt; 500) {</span>
-<span class="nc" id="L272">            throw new IllegalArgumentException(&quot;Comment cannot exceed 500 characters&quot;);</span>
+<span class="fc bfc" id="L281" title="All 4 branches covered.">        if (comment != null &amp;&amp; comment.length() &gt; 500) {</span>
+<span class="fc" id="L282">            throw new IllegalArgumentException(&quot;Comment cannot exceed 500 characters&quot;);</span>
         }
-<span class="fc" id="L274">    }</span>
+<span class="fc" id="L284">    }</span>
     
     @Override
     public String toString() {
-<span class="nc" id="L278">        return &quot;Approval{&quot; +</span>
-                &quot;id=&quot; + id +
-                &quot;, timesheetId=&quot; + timesheetId +
-                &quot;, approverId=&quot; + approverId +
-                &quot;, action=&quot; + action +
-                &quot;, previousStatus=&quot; + previousStatus +
-                &quot;, newStatus=&quot; + newStatus +
-                &quot;, comment='&quot; + comment + '\'' +
-                &quot;, timestamp=&quot; + timestamp +
-                &quot;, isActive=&quot; + isActive +
+<span class="fc" id="L288">        return &quot;Approval{&quot; +</span>
+<span class="fc" id="L289">                &quot;id=&quot; + id +</span>
+<span class="fc" id="L290">                &quot;, timesheetId=&quot; + timesheetId +</span>
+<span class="fc" id="L291">                &quot;, approverId=&quot; + approverId +</span>
+<span class="fc" id="L292">                &quot;, action=&quot; + action +</span>
+<span class="fc" id="L293">                &quot;, previousStatus=&quot; + previousStatus +</span>
+<span class="fc" id="L294">                &quot;, newStatus=&quot; + newStatus +</span>
+<span class="fc" id="L295">                &quot;, comment='&quot; + comment + '\'' +</span>
+<span class="fc" id="L296">                &quot;, timestamp=&quot; + timestamp +</span>
+<span class="fc" id="L297">                &quot;, isActive=&quot; + isActive +</span>
                 '}';
     }
 }

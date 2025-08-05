@@ -1,5 +1,7 @@
 package com.usyd.catams.enums;
 
+import com.usyd.catams.common.application.ApprovalStateMachine;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -8,66 +10,69 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Unit tests for ApprovalAction enum.
  * 
- * Tests the approval action workflow transitions as specified in Story 2.1.
+ * Tests the enum delegation to ApprovalStateMachine and role-based permissions.
+ * Most workflow testing is now handled by ApprovalStateMachineTest.
  */
 class ApprovalActionTest {
-
-    @Test
-    @DisplayName("APPROVE action should transition PENDING_LECTURER_APPROVAL to APPROVED")
-    void shouldTransitionPendingLecturerApprovalToApproved() {
-        ApprovalAction action = ApprovalAction.APPROVE;
-        ApprovalStatus currentStatus = ApprovalStatus.PENDING_LECTURER_APPROVAL;
-        
-        ApprovalStatus targetStatus = action.getTargetStatus(currentStatus);
-        
-        assertEquals(ApprovalStatus.APPROVED, targetStatus);
+    
+    private ApprovalStateMachine stateMachine;
+    
+    @BeforeEach
+    void setUp() {
+        stateMachine = new ApprovalStateMachine();
+        // Initialize the static holder to test enum delegation
+        ApprovalAction.StateMachineHolder.instance = stateMachine;
     }
 
     @Test
-    @DisplayName("REJECT action should transition PENDING_LECTURER_APPROVAL to REJECTED")
-    void shouldTransitionPendingLecturerApprovalToRejected() {
-        ApprovalAction action = ApprovalAction.REJECT;
-        ApprovalStatus currentStatus = ApprovalStatus.PENDING_LECTURER_APPROVAL;
+    @DisplayName("getTargetStatus should delegate to ApprovalStateMachine")
+    void getTargetStatus_ShouldDelegateToStateMachine() {
+        // Test valid transitions delegate to state machine
+        ApprovalStatus result = ApprovalAction.SUBMIT_FOR_APPROVAL.getTargetStatus(ApprovalStatus.DRAFT);
+        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, result);
         
-        ApprovalStatus targetStatus = action.getTargetStatus(currentStatus);
+        result = ApprovalAction.APPROVE.getTargetStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertEquals(ApprovalStatus.APPROVED_BY_TUTOR, result);
         
-        assertEquals(ApprovalStatus.REJECTED, targetStatus);
+        result = ApprovalAction.APPROVE.getTargetStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        assertEquals(ApprovalStatus.FINAL_APPROVED, result);
     }
 
     @Test
-    @DisplayName("APPROVE action should fail on non-pending status")
-    void shouldFailApproveOnNonPendingStatus() {
-        ApprovalAction action = ApprovalAction.APPROVE;
-        ApprovalStatus currentStatus = ApprovalStatus.DRAFT;
+    @DisplayName("getTargetStatus should throw exception for invalid transitions")
+    void getTargetStatus_ShouldThrowExceptionForInvalidTransitions() {
+        // Test that invalid transitions throw exceptions (delegated to state machine)
+        assertThrows(IllegalStateException.class, () -> {
+            ApprovalAction.APPROVE.getTargetStatus(ApprovalStatus.DRAFT);
+        });
         
-        assertThrows(IllegalArgumentException.class, () -> {
-            action.getTargetStatus(currentStatus);
+        assertThrows(IllegalStateException.class, () -> {
+            ApprovalAction.SUBMIT_FOR_APPROVAL.getTargetStatus(ApprovalStatus.FINAL_APPROVED);
         });
     }
 
     @Test
-    @DisplayName("REJECT action should fail on non-pending status")
-    void shouldFailRejectOnNonPendingStatus() {
-        ApprovalAction action = ApprovalAction.REJECT;
-        ApprovalStatus currentStatus = ApprovalStatus.FINAL_APPROVED;
+    @DisplayName("LECTURER should only be able to perform SUBMIT_FOR_APPROVAL action")
+    void lecturerShouldOnlySubmitForApproval() {
+        // Based on SSOT: Lecturers are creators, they can only submit for approval
+        assertTrue(ApprovalAction.SUBMIT_FOR_APPROVAL.canBePerformedByLecturer());
         
-        assertThrows(IllegalArgumentException.class, () -> {
-            action.getTargetStatus(currentStatus);
-        });
+        // Lecturers cannot perform approval/rejection actions
+        assertFalse(ApprovalAction.APPROVE.canBePerformedByLecturer());
+        assertFalse(ApprovalAction.REJECT.canBePerformedByLecturer());
+        assertFalse(ApprovalAction.REQUEST_MODIFICATION.canBePerformedByLecturer());
     }
 
     @Test
-    @DisplayName("LECTURER should be able to perform APPROVE and REJECT actions")
-    void lecturerShouldPerformApproveAndReject() {
-        assertTrue(ApprovalAction.APPROVE.canBePerformedByLecturer());
-        assertTrue(ApprovalAction.REJECT.canBePerformedByLecturer());
-    }
-
-    @Test
-    @DisplayName("TUTOR should not be able to perform APPROVE and REJECT actions")
-    void tutorShouldNotPerformApproveAndReject() {
-        assertFalse(ApprovalAction.APPROVE.canBePerformedByTutor());
-        assertFalse(ApprovalAction.REJECT.canBePerformedByTutor());
+    @DisplayName("TUTOR should be able to perform APPROVE, REJECT, and REQUEST_MODIFICATION actions")
+    void tutorShouldPerformReviewActions() {
+        // Based on SSOT: Tutors review timesheets created for them
+        assertTrue(ApprovalAction.APPROVE.canBePerformedByTutor());
+        assertTrue(ApprovalAction.REJECT.canBePerformedByTutor());
+        assertTrue(ApprovalAction.REQUEST_MODIFICATION.canBePerformedByTutor());
+        
+        // Tutors cannot submit for approval (that's lecturer's role)
+        assertFalse(ApprovalAction.SUBMIT_FOR_APPROVAL.canBePerformedByTutor());
     }
 
     @Test
@@ -76,5 +81,6 @@ class ApprovalActionTest {
         assertTrue(ApprovalAction.APPROVE.canBePerformedByAdmin());
         assertTrue(ApprovalAction.REJECT.canBePerformedByAdmin());
         assertTrue(ApprovalAction.SUBMIT_FOR_APPROVAL.canBePerformedByAdmin());
+        assertTrue(ApprovalAction.REQUEST_MODIFICATION.canBePerformedByAdmin());
     }
 }

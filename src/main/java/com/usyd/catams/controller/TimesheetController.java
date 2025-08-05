@@ -1,18 +1,15 @@
 package com.usyd.catams.controller;
 
+import com.usyd.catams.application.TimesheetApplicationService;
 import com.usyd.catams.dto.request.TimesheetCreateRequest;
 import com.usyd.catams.dto.request.TimesheetUpdateRequest;
 import com.usyd.catams.dto.response.PagedTimesheetResponse;
 import com.usyd.catams.dto.response.TimesheetResponse;
-import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.enums.ApprovalStatus;
-import com.usyd.catams.dto.response.ErrorResponse;
 import com.usyd.catams.exception.ResourceNotFoundException;
-import com.usyd.catams.mapper.TimesheetMapper;
-import com.usyd.catams.service.TimesheetService;
+import com.usyd.catams.security.AuthenticationUtils;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -21,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
@@ -42,13 +40,14 @@ import java.util.Optional;
 @RequestMapping("/api/timesheets")
 public class TimesheetController {
 
-    private final TimesheetService timesheetService;
-    private final TimesheetMapper timesheetMapper;
+    private final TimesheetApplicationService timesheetApplicationService;
+    private final AuthenticationUtils authenticationUtils;
 
     @Autowired
-    public TimesheetController(TimesheetService timesheetService, TimesheetMapper timesheetMapper) {
-        this.timesheetService = timesheetService;
-        this.timesheetMapper = timesheetMapper;
+    public TimesheetController(TimesheetApplicationService timesheetApplicationService, 
+                              AuthenticationUtils authenticationUtils) {
+        this.timesheetApplicationService = timesheetApplicationService;
+        this.authenticationUtils = authenticationUtils;
     }
 
     /**
@@ -64,10 +63,10 @@ public class TimesheetController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-        Long creatorId = getCurrentUserId(authentication);
+        Long creatorId = authenticationUtils.getCurrentUserId(authentication);
 
-        // Create timesheet using service layer
-        Timesheet createdTimesheet = timesheetService.createTimesheet(
+        // Create timesheet using application service (returns DTO directly)
+        TimesheetResponse response = timesheetApplicationService.createTimesheetAndReturnDto(
             request.getTutorId(),
             request.getCourseId(),
             request.getWeekStartDate(),
@@ -76,9 +75,6 @@ public class TimesheetController {
             request.getDescription(),
             creatorId
         );
-
-        // Convert to response DTO
-        TimesheetResponse response = timesheetMapper.toResponse(createdTimesheet);
 
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
@@ -115,15 +111,12 @@ public class TimesheetController {
         Pageable pageable = createPageable(page, size, sort);
 
         // Get current user ID from authentication context
-        Long requesterId = getCurrentUserId(authentication);
+        Long requesterId = authenticationUtils.getCurrentUserId(authentication);
 
-        // Get timesheets using service layer (with access control)
-        Page<Timesheet> timesheetsPage = timesheetService.getTimesheets(
+        // Get timesheets using application service (returns DTO directly)
+        PagedTimesheetResponse response = timesheetApplicationService.getTimesheetsAsDto(
             tutorId, courseId, status, requesterId, pageable
         );
-
-        // Convert to response DTO
-        PagedTimesheetResponse response = timesheetMapper.toPagedResponse(timesheetsPage);
 
         return ResponseEntity.ok(response);
     }
@@ -140,17 +133,17 @@ public class TimesheetController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-        Long requesterId = getCurrentUserId(authentication);
+        Long requesterId = authenticationUtils.getCurrentUserId(authentication);
 
-        // Get timesheet using service layer (with access control)
-        Optional<Timesheet> timesheetOpt = timesheetService.getTimesheetById(id, requesterId);
+        // Get timesheet using application service (returns DTO directly)
+        Optional<TimesheetResponse> timesheetResponseOpt = timesheetApplicationService.getTimesheetByIdAsDto(id, requesterId);
 
-        if (timesheetOpt.isEmpty()) {
+        if (timesheetResponseOpt.isEmpty()) {
             throw new ResourceNotFoundException("Timesheet", id.toString());
         }
 
-        // Convert to response DTO
-        TimesheetResponse response = timesheetMapper.toResponse(timesheetOpt.get());
+        // Return the DTO response
+        TimesheetResponse response = timesheetResponseOpt.get();
 
         return ResponseEntity.ok(response);
     }
@@ -177,25 +170,22 @@ public class TimesheetController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-        Long requesterId = getCurrentUserId(authentication);
+        Long requesterId = authenticationUtils.getCurrentUserId(authentication);
 
         // Check if user can edit this timesheet (includes TUTOR-specific logic)
-        if (!timesheetService.canUserEditTimesheet(id, requesterId)) {
+        if (!timesheetApplicationService.canUserEditTimesheet(id, requesterId)) {
             // This will be caught by the GlobalExceptionHandler and return proper error response
             throw new SecurityException("User does not have permission to modify this timesheet");
         }
 
-        // Update timesheet using service layer
-        Timesheet updatedTimesheet = timesheetService.updateTimesheet(
+        // Update timesheet using application service (returns DTO directly)
+        TimesheetResponse response = timesheetApplicationService.updateTimesheetAndReturnDto(
             id,
             request.getHours(),
             request.getHourlyRate(),
             request.getDescription(),
             requesterId
         );
-
-        // Convert to response DTO
-        TimesheetResponse response = timesheetMapper.toResponse(updatedTimesheet);
 
         return ResponseEntity.ok(response);
     }
@@ -221,16 +211,16 @@ public class TimesheetController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-        Long requesterId = getCurrentUserId(authentication);
+        Long requesterId = authenticationUtils.getCurrentUserId(authentication);
 
         // Check if user can edit this timesheet (includes TUTOR-specific logic)
-        if (!timesheetService.canUserEditTimesheet(id, requesterId)) {
+        if (!timesheetApplicationService.canUserEditTimesheet(id, requesterId)) {
             // This will be caught by the GlobalExceptionHandler and return proper error response
             throw new SecurityException("User does not have permission to modify this timesheet");
         }
 
-        // Delete timesheet using service layer
-        timesheetService.deleteTimesheet(id, requesterId);
+        // Delete timesheet using application service
+        timesheetApplicationService.deleteTimesheet(id, requesterId);
 
         // Return 204 No Content as per OpenAPI specification
         return ResponseEntity.noContent().build();
@@ -238,35 +228,6 @@ public class TimesheetController {
 
     // Helper methods
 
-    /**
-     * Extract user ID from authentication context.
-     * 
-     * @param authentication the authentication object
-     * @return the user ID
-     */
-    private Long getCurrentUserId(Authentication authentication) {
-        if (authentication == null || authentication.getPrincipal() == null) {
-            throw new SecurityException("Authentication required");
-        }
-
-        // Extract user ID from authentication principal
-        // The principal is a User object as set by JwtAuthenticationFilter
-        Object principal = authentication.getPrincipal();
-        
-        if (principal instanceof com.usyd.catams.entity.User) {
-            return ((com.usyd.catams.entity.User) principal).getId();
-        } else if (principal instanceof Long) {
-            return (Long) principal;
-        } else if (principal instanceof String) {
-            try {
-                return Long.parseLong((String) principal);
-            } catch (NumberFormatException e) {
-                throw new SecurityException("Invalid user ID in authentication context");
-            }
-        } else {
-            throw new SecurityException("Invalid authentication principal type: " + principal.getClass().getName());
-        }
-    }
 
     /**
      * Create Pageable object from request parameters.
@@ -356,7 +317,7 @@ public class TimesheetController {
         
         try {
             // Get current user ID from authentication context
-            Long requesterId = getCurrentUserId(authentication);
+            Long requesterId = authenticationUtils.getCurrentUserId(authentication);
             
             // Validate pagination parameters
             if (page < 0) {
@@ -369,17 +330,14 @@ public class TimesheetController {
             // Parse sort parameter
             Pageable pageable = createPageable(page, size, sort);
             
-            // Get timesheets for the tutor
-            Page<Timesheet> timesheetPage = timesheetService.getTimesheetsByTutor(requesterId, pageable);
-            
-            // Apply status filtering if provided
+            // Get timesheets for the tutor using application service (returns DTO directly)
+            PagedTimesheetResponse response;
             if (status != null) {
                 // Filter in service layer for better performance
-                timesheetPage = timesheetService.getTimesheets(requesterId, null, status, requesterId, pageable);
+                response = timesheetApplicationService.getTimesheetsAsDto(requesterId, null, status, requesterId, pageable);
+            } else {
+                response = timesheetApplicationService.getTimesheetsByTutorAsDto(requesterId, pageable);
             }
-            
-            // Convert to response DTO
-            PagedTimesheetResponse response = timesheetMapper.toPagedResponse(timesheetPage);
             
             return ResponseEntity.ok(response);
             
@@ -412,7 +370,7 @@ public class TimesheetController {
      * @return paginated list of timesheets pending lecturer approval
      */
     @GetMapping("/pending-approval")
-    @PreAuthorize("hasRole('LECTURER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('TUTOR') or hasRole('LECTURER') or hasRole('ADMIN')")
     public ResponseEntity<PagedTimesheetResponse> getPendingApprovalTimesheets(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
@@ -425,8 +383,16 @@ public class TimesheetController {
             if (authentication == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
+
+            // ADR CATAMS-ADR-001: Lecturers are creators, not approvers → forbid access
+            boolean isLecturer = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_LECTURER"::equals);
+            if (isLecturer) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             
-            Long requesterId = getCurrentUserId(authentication);
+            Long requesterId = authenticationUtils.getCurrentUserId(authentication);
             
             // Validate pagination parameters
             if (page < 0) page = 0;
@@ -435,11 +401,8 @@ public class TimesheetController {
             // Validate and create pageable with default sort
             Pageable pageable = createPageable(page, size, sort);
             
-            // Get pending approval timesheets with proper error handling
-            Page<Timesheet> timesheetPage = timesheetService.getPendingApprovalTimesheets(requesterId, pageable);
-            
-            // Convert to response DTO
-            PagedTimesheetResponse response = timesheetMapper.toPagedResponse(timesheetPage);
+            // Get pending approval timesheets using application service (returns DTO directly)
+            PagedTimesheetResponse response = timesheetApplicationService.getPendingApprovalTimesheetsAsDto(requesterId, pageable);
             
             return ResponseEntity.ok(response);
             

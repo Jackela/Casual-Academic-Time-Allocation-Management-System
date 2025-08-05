@@ -2,6 +2,8 @@ package com.usyd.catams.dto.response;
 
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,6 +15,7 @@ import java.util.List;
  * 
  * Based on OpenAPI schema: ApprovalActionResponse
  */
+@JsonInclude(JsonInclude.Include.ALWAYS)
 public class ApprovalActionResponse {
 
     /**
@@ -43,6 +46,7 @@ public class ApprovalActionResponse {
     /**
      * Comment provided with the approval action.
      */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     private String comment;
 
     /**
@@ -123,6 +127,8 @@ public class ApprovalActionResponse {
         this.approverName = approverName;
     }
 
+    @JsonProperty("comment")
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public String getComment() {
         return comment;
     }
@@ -202,32 +208,17 @@ public class ApprovalActionResponse {
      */
     public static List<String> generateNextStepsForStatus(ApprovalStatus status) {
         switch (status) {
-            case PENDING_LECTURER_APPROVAL:
-                return List.of(
-                    "Timesheet is now pending lecturer approval",
-                    "Lecturer can approve, reject, or request modifications",
-                    "No further action required from submitter at this time"
-                );
-                
             case PENDING_TUTOR_REVIEW:
                 return List.of(
-                    "Timesheet has been approved by lecturer",
-                    "Now pending tutor review and confirmation",
-                    "Tutor can approve or request modifications"
+                    "Timesheet is now pending lecturer approval",
+                    "Lecturer will review and may request changes",
+                    "Tutor can monitor status from their dashboard"
                 );
                 
-            case TUTOR_APPROVED:
+            case APPROVED_BY_TUTOR:
                 return List.of(
                     "Timesheet has been approved by tutor",
-                    "Automatically moving to HR review queue",
-                    "No further action required from tutor or lecturer"
-                );
-                
-            case PENDING_HR_REVIEW:
-                return List.of(
-                    "Timesheet is now in HR review queue",
-                    "HR can give final approval or reject",
-                    "No action required from other parties"
+                    "Lecturer should now provide final approval"
                 );
                 
             case FINAL_APPROVED:

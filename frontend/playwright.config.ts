@@ -6,6 +6,7 @@ import { E2E_CONFIG } from './e2e/config/e2e.config';
  */
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: ['**/e2e/api/**'],
   /* Global setup to handle authentication */
   globalSetup: './e2e/global.setup.ts',
   /* Run tests in files in parallel */
@@ -96,7 +97,7 @@ export default defineConfig({
 
   /* Auto-start dev server for E2E tests */
   webServer: {
-    command: 'npm run dev',
+    command: 'npm run dev -- --mode e2e',
     url: E2E_CONFIG.FRONTEND.URL,
     reuseExistingServer: !process.env.CI,
     timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.STARTUP,

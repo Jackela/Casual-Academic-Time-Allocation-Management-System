@@ -93,14 +93,19 @@ public class DashboardController {
      * Extract user ID from Spring Security authentication
      */
     private Long extractUserId(Authentication authentication) {
-        // For this implementation, we'll use a simple approach
-        // In a real system, this would extract from JWT token or UserDetails
+        // Extract user ID from authenticated User principal
+        if (authentication.getPrincipal() instanceof com.usyd.catams.entity.User) {
+            com.usyd.catams.entity.User user = (com.usyd.catams.entity.User) authentication.getPrincipal();
+            return user.getId();
+        }
+        
+        // Fallback for non-User principals
         String username = authentication.getName();
         try {
             return Long.parseLong(username);
         } catch (NumberFormatException e) {
-            // Fallback for non-numeric usernames - in real system would query user by username
-            return 1L; // Default for testing
+            // Last resort fallback for testing
+            return 1L;
         }
     }
 

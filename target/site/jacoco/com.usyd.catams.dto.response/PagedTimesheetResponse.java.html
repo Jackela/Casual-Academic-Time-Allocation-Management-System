@@ -12,8 +12,8 @@ import java.util.List;
  */
 public class PagedTimesheetResponse {
 
-<span class="pc" id="L15">    @JsonProperty(&quot;success&quot;)</span>
-    private boolean success = true;
+    @JsonProperty(&quot;success&quot;)
+<span class="pc" id="L16">    private boolean success = true;</span>
 
     @JsonProperty(&quot;timesheets&quot;)
     private List&lt;TimesheetResponse&gt; timesheets;
@@ -33,8 +33,8 @@ public class PagedTimesheetResponse {
 <span class="nc" id="L33">    }</span>
 
     // Constructor with Spring Data Page
-    public PagedTimesheetResponse(List&lt;TimesheetResponse&gt; timesheets, int pageNumber, int pageSize,
-<span class="fc" id="L37">                                long totalElements, int totalPages, boolean isFirst, boolean isLast) {</span>
+<span class="fc" id="L36">    public PagedTimesheetResponse(List&lt;TimesheetResponse&gt; timesheets, int pageNumber, int pageSize,</span>
+                                long totalElements, int totalPages, boolean isFirst, boolean isLast) {
 <span class="fc" id="L38">        this.success = true;</span>
 <span class="fc" id="L39">        this.timesheets = timesheets;</span>
 <span class="fc" id="L40">        this.pageInfo = new PageInfo(pageNumber, pageSize, totalElements, totalPages, isFirst, isLast);</span>
@@ -130,12 +130,12 @@ public class PagedTimesheetResponse {
         private boolean empty;
 
         // Default constructor
-<span class="nc" id="L133">        public PageInfo() {</span>
-<span class="nc" id="L134">        }</span>
+<span class="fc" id="L133">        public PageInfo() {</span>
+<span class="fc" id="L134">        }</span>
 
         // Constructor
-        public PageInfo(int number, int size, long totalElements, int totalPages,
-<span class="fc" id="L138">                       boolean first, boolean last) {</span>
+<span class="fc" id="L137">        public PageInfo(int number, int size, long totalElements, int totalPages,</span>
+                       boolean first, boolean last) {
 <span class="fc" id="L139">            this.number = number;</span>
 <span class="fc" id="L140">            this.size = size;</span>
 <span class="fc" id="L141">            this.totalElements = totalElements;</span>
@@ -152,76 +152,76 @@ public class PagedTimesheetResponse {
         }
 
         public void setNumber(int number) {
-<span class="nc" id="L155">            this.number = number;</span>
-<span class="nc" id="L156">        }</span>
+<span class="fc" id="L155">            this.number = number;</span>
+<span class="fc" id="L156">        }</span>
 
         public int getSize() {
 <span class="fc" id="L159">            return size;</span>
         }
 
         public void setSize(int size) {
-<span class="nc" id="L163">            this.size = size;</span>
-<span class="nc" id="L164">        }</span>
+<span class="fc" id="L163">            this.size = size;</span>
+<span class="fc" id="L164">        }</span>
 
         public long getTotalElements() {
 <span class="fc" id="L167">            return totalElements;</span>
         }
 
         public void setTotalElements(long totalElements) {
-<span class="nc" id="L171">            this.totalElements = totalElements;</span>
-<span class="nc" id="L172">        }</span>
+<span class="fc" id="L171">            this.totalElements = totalElements;</span>
+<span class="fc" id="L172">        }</span>
 
         public int getTotalPages() {
 <span class="fc" id="L175">            return totalPages;</span>
         }
 
         public void setTotalPages(int totalPages) {
-<span class="nc" id="L179">            this.totalPages = totalPages;</span>
-<span class="nc" id="L180">        }</span>
+<span class="fc" id="L179">            this.totalPages = totalPages;</span>
+<span class="fc" id="L180">        }</span>
 
         public boolean isFirst() {
 <span class="fc" id="L183">            return first;</span>
         }
 
         public void setFirst(boolean first) {
-<span class="nc" id="L187">            this.first = first;</span>
-<span class="nc" id="L188">        }</span>
+<span class="fc" id="L187">            this.first = first;</span>
+<span class="fc" id="L188">        }</span>
 
         public boolean isLast() {
 <span class="fc" id="L191">            return last;</span>
         }
 
         public void setLast(boolean last) {
-<span class="nc" id="L195">            this.last = last;</span>
-<span class="nc" id="L196">        }</span>
+<span class="fc" id="L195">            this.last = last;</span>
+<span class="fc" id="L196">        }</span>
 
         public int getNumberOfElements() {
 <span class="fc" id="L199">            return numberOfElements;</span>
         }
 
         public void setNumberOfElements(int numberOfElements) {
-<span class="nc" id="L203">            this.numberOfElements = numberOfElements;</span>
-<span class="nc" id="L204">        }</span>
+<span class="fc" id="L203">            this.numberOfElements = numberOfElements;</span>
+<span class="fc" id="L204">        }</span>
 
         public boolean isEmpty() {
 <span class="fc" id="L207">            return empty;</span>
         }
 
         public void setEmpty(boolean empty) {
-<span class="nc" id="L211">            this.empty = empty;</span>
-<span class="nc" id="L212">        }</span>
+<span class="fc" id="L211">            this.empty = empty;</span>
+<span class="fc" id="L212">        }</span>
 
         @Override
         public String toString() {
 <span class="nc" id="L216">            return &quot;PageInfo{&quot; +</span>
-                    &quot;number=&quot; + number +
-                    &quot;, size=&quot; + size +
-                    &quot;, totalElements=&quot; + totalElements +
-                    &quot;, totalPages=&quot; + totalPages +
-                    &quot;, first=&quot; + first +
-                    &quot;, last=&quot; + last +
-                    &quot;, numberOfElements=&quot; + numberOfElements +
-                    &quot;, empty=&quot; + empty +
+<span class="nc" id="L217">                    &quot;number=&quot; + number +</span>
+<span class="nc" id="L218">                    &quot;, size=&quot; + size +</span>
+<span class="nc" id="L219">                    &quot;, totalElements=&quot; + totalElements +</span>
+<span class="nc" id="L220">                    &quot;, totalPages=&quot; + totalPages +</span>
+<span class="nc" id="L221">                    &quot;, first=&quot; + first +</span>
+<span class="nc" id="L222">                    &quot;, last=&quot; + last +</span>
+<span class="nc" id="L223">                    &quot;, numberOfElements=&quot; + numberOfElements +</span>
+<span class="nc" id="L224">                    &quot;, empty=&quot; + empty +</span>
                     '}';
         }
     }
@@ -229,9 +229,9 @@ public class PagedTimesheetResponse {
     @Override
     public String toString() {
 <span class="nc" id="L231">        return &quot;PagedTimesheetResponse{&quot; +</span>
-                &quot;success=&quot; + success +
-                &quot;, timesheets=&quot; + timesheets +
-                &quot;, pageInfo=&quot; + pageInfo +
+<span class="nc" id="L232">                &quot;success=&quot; + success +</span>
+<span class="nc" id="L233">                &quot;, timesheets=&quot; + timesheets +</span>
+<span class="nc" id="L234">                &quot;, pageInfo=&quot; + pageInfo +</span>
                 '}';
     }
 }

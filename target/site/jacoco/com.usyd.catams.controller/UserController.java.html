@@ -46,8 +46,8 @@ public class UserController {
     public ResponseEntity&lt;UserResponse&gt; createUser(@Valid @RequestBody UserCreateRequest request) {
         // Service layer handles validation, duplicate checking, password hashing
         // Global exception handler manages error responses
-<span class="fc" id="L49">        UserResponse userResponse = userService.createUser(request);</span>
-<span class="fc" id="L50">        return ResponseEntity.status(HttpStatus.CREATED).body(userResponse);</span>
+<span class="nc" id="L49">        UserResponse userResponse = userService.createUser(request);</span>
+<span class="nc" id="L50">        return ResponseEntity.status(HttpStatus.CREATED).body(userResponse);</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

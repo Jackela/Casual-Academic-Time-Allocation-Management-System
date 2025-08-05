@@ -1,53 +1,31 @@
 spring:
-  # E2E Testing Profile Configuration
-  
-  # H2 In-Memory Database for E2E Tests
   datasource:
-    url: jdbc:h2:mem:catams_e2e;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: password
-    
-  # JPA Configuration
+    url: jdbc:tc:postgresql:15:///catams_e2e
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
   jpa:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
-    defer-datasource-initialization: true
-    
-  # H2 Console for debugging (optional)
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-      
-  # Flyway configuration for E2E
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    
-  # Application specific properties
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
   application:
     cors:
       allowed-origins: "http://localhost:5174"
-      
-# JWT Configuration
-jwt:
-  secret: e2e-test-secret-key-for-testing-only-not-production
-  expiration: 86400000  # 24 hours in milliseconds
-  
-# Logging for E2E tests
+  security:
+    jwt:
+      secret: YXJjaGl0ZWN0dXJlLXNlY3JldC1rZXktZm9yLXRlc3RpbmctcHVycG9zZXMtb25seQ==
+      expiration: 86400000
+
+
 logging:
   level:
     com.usyd.catams: INFO
     org.springframework.security: INFO
     org.springframework.web: INFO
-    org.flywaydb: INFO
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
-# Server configuration
 server:
   port: 8084
   servlet:

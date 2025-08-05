@@ -1,0 +1,40 @@
+AuthenticationRequest:
+  type: object
+  required:
+    - email
+    - password
+  properties:
+    email:
+      type: string
+      format: email
+      description: User email address
+      example: "lecturer@university.edu.au"
+      maxLength: 255
+    password:
+      type: string
+      format: password
+      description: User password
+      example: "SecurePass123!"
+      minLength: 8
+      maxLength: 255
+
+AuthResult:
+  type: object
+  required:
+    - success
+  properties:
+    success:
+      type: boolean
+      description: Whether authentication was successful
+      example: true
+    token:
+      type: string
+      description: JWT token for subsequent requests (only present if success=true)
+      example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    user:
+      $ref: './users.yaml#/UserResponse'
+    errorMessage:
+      type: string
+      description: Error message (only present if success=false)
+      example: null
+      nullable: true

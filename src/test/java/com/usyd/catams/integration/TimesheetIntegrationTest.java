@@ -10,6 +10,7 @@ import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -28,9 +29,9 @@ import static org.assertj.core.api.Assertions.*;
  * This is our first TDD failing test to establish the basic CRUD operations.
  */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("integration-test")
 @Transactional
-public class TimesheetIntegrationTest {
+public class TimesheetIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private TimesheetRepository timesheetRepository;
@@ -137,7 +138,7 @@ public class TimesheetIntegrationTest {
         timesheetRepository.save(timesheet);
 
         // ACT: Find by unique combination
-        Optional<Timesheet> found = timesheetRepository.findByTutorIdAndCourseIdAndWeekStartDate(
+        Optional<Timesheet> found = timesheetRepository.findByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(
                 tutor.getId(), course.getId(), mondayDate);
 
         // ASSERT
@@ -154,14 +155,14 @@ public class TimesheetIntegrationTest {
         timesheetRepository.save(timesheet);
 
         // ACT & ASSERT: Check existence
-        boolean exists = timesheetRepository.existsByTutorIdAndCourseIdAndWeekStartDate(
+        boolean exists = timesheetRepository.existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(
                 tutor.getId(), course.getId(), mondayDate);
         
         assertThat(exists).isTrue();
 
         // Check non-existence
         LocalDate differentMonday = mondayDate.plusWeeks(1);
-        boolean notExists = timesheetRepository.existsByTutorIdAndCourseIdAndWeekStartDate(
+        boolean notExists = timesheetRepository.existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(
                 tutor.getId(), course.getId(), differentMonday);
         
         assertThat(notExists).isFalse();
@@ -204,7 +205,7 @@ public class TimesheetIntegrationTest {
         assertThatThrownBy(() -> timesheetRepository.save(invalidLowHours))
                 .isInstanceOf(Exception.class);
 
-        // Test hours above maximum (40.0)
+        // Test hours above maximum (38.0)
         Timesheet invalidHighHours = new Timesheet(
                 tutor.getId(),
                 course.getId(),
@@ -258,7 +259,7 @@ public class TimesheetIntegrationTest {
 
         // ACT & ASSERT: Test business methods
         BigDecimal expectedPay = BigDecimal.valueOf(10.5).multiply(BigDecimal.valueOf(45.00));
-        assertThat(timesheet.calculateTotalPay()).isEqualTo(expectedPay);
+        assertThat(timesheet.calculateTotalPayAmount()).isEqualTo(expectedPay);
 
         assertThat(timesheet.isEditable()).isTrue(); // DRAFT status should be editable
         assertThat(timesheet.canBeApproved()).isFalse(); // DRAFT status cannot be approved yet

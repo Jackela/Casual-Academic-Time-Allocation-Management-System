@@ -1,14 +1,37 @@
 import { test, expect, mockResponses } from '../../fixtures/base';
 
 test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
-  test('should display timesheet table with mocked data', async ({ mockedPage }) => {
-    await mockedPage.goto('/dashboard');
-    
-    // Should show the dashboard header
-    await expect(mockedPage.locator('[data-testid="main-dashboard-title"]')).toContainText('Lecturer Dashboard');
+  test('should display timesheet table with mocked data', async ({ authenticatedPage: page }) => {
+    // Ensure auth state is preset (LECTURER)
+    await page.addInitScript((authData) => {
+      localStorage.setItem('token', authData.token);
+      localStorage.setItem('user', JSON.stringify(authData.user));
+    }, mockResponses.auth.success);
+    // 1) Define the Mock BEFORE navigation
+    await page.route('**/api/timesheets/pending-approval**', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockResponses.timesheets.withData)
+      });
+    });
+
+    // 2) Navigate to dashboard
+    const respPromise = page.waitForResponse(resp => resp.url().includes('/api/timesheets/pending-approval'));
+    await page.goto('/dashboard');
+
+    // 3) Wait for mocked API confirmation
+    await respPromise;
+
+    // 4) Wait for UI readiness
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('[data-testid="main-dashboard-header"]')).toBeVisible();
+
+    // 5) Assert UI
+    await expect(page.locator('[data-testid="main-dashboard-title"]')).toContainText('Lecturer Dashboard');
     
     // Should display the timesheet table
-    const table = mockedPage.locator('[data-testid="timesheets-table"]');
+    const table = page.locator('[data-testid="timesheets-table"]');
     await expect(table).toBeVisible();
     
     // Should have table headers
@@ -26,11 +49,34 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
     await expect(rows.first()).toContainText('Introduction to Programming');
   });
 
-  test('should show approve/reject buttons for each timesheet', async ({ mockedPage }) => {
-    await mockedPage.goto('/dashboard');
-    
-    const approveButtons = mockedPage.locator('button:has-text("Approve")');
-    const rejectButtons = mockedPage.locator('button:has-text("Reject")');
+  test('should show approve/reject buttons for each timesheet', async ({ authenticatedPage: page }) => {
+    // Ensure auth state is preset (LECTURER)
+    await page.addInitScript((authData) => {
+      localStorage.setItem('token', authData.token);
+      localStorage.setItem('user', JSON.stringify(authData.user));
+    }, mockResponses.auth.success);
+    // 1) Define the Mock BEFORE navigation
+    await page.route('**/api/timesheets/pending-approval**', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockResponses.timesheets.withData)
+      });
+    });
+
+    // 2) Navigate to dashboard
+    const respPromise = page.waitForResponse(resp => resp.url().includes('/api/timesheets/pending-approval'));
+    await page.goto('/dashboard');
+
+    // 3) Wait for mocked API confirmation
+    await respPromise;
+
+    // 4) Wait for UI readiness
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('[data-testid="main-dashboard-header"]')).toBeVisible();
+
+    const approveButtons = page.locator('button:has-text("Approve")');
+    const rejectButtons = page.locator('button:has-text("Reject")');
     
     await expect(approveButtons).toHaveCount(1);
     await expect(rejectButtons).toHaveCount(1);

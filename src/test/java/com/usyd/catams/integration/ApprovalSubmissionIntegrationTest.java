@@ -9,7 +9,6 @@ import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
-import com.usyd.catams.repository.ApprovalRepository;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
@@ -22,8 +21,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -34,6 +35,7 @@ import java.util.List;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.containsString;
 
 /**
@@ -46,9 +48,10 @@ import static org.hamcrest.Matchers.containsString;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Transactional
-public class ApprovalSubmissionIntegrationTest {
+@ActiveProfiles("integration-test")
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private MockMvc mockMvc;
@@ -62,8 +65,6 @@ public class ApprovalSubmissionIntegrationTest {
     @Autowired
     private TimesheetRepository timesheetRepository;
 
-    @Autowired
-    private ApprovalRepository approvalRepository;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -84,7 +85,6 @@ public class ApprovalSubmissionIntegrationTest {
     @BeforeEach
     void setUp() {
         // Clean up existing data
-        approvalRepository.deleteAll();
         timesheetRepository.deleteAll();
         courseRepository.deleteAll();
         userRepository.deleteAll();
@@ -145,7 +145,7 @@ public class ApprovalSubmissionIntegrationTest {
         approvedTimesheet.setHours(BigDecimal.valueOf(8.0));
         approvedTimesheet.setHourlyRate(BigDecimal.valueOf(25.00));
         approvedTimesheet.setDescription("Lab sessions");
-        approvedTimesheet.setStatus(ApprovalStatus.FINAL_APPROVED);
+        approvedTimesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
         approvedTimesheet.setCreatedBy(lecturer.getId());
         approvedTimesheet = timesheetRepository.save(approvedTimesheet);
     }
@@ -170,25 +170,25 @@ public class ApprovalSubmissionIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.timesheetId").value(draftTimesheet.getId()))
                 .andExpect(jsonPath("$.action").value("SUBMIT_FOR_APPROVAL"))
-                .andExpect(jsonPath("$.newStatus").value("PENDING_LECTURER_APPROVAL"))
+                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_REVIEW"))
                 .andExpect(jsonPath("$.approverId").value(tutor.getId()))
                 .andExpect(jsonPath("$.approverName").value("John Doe"))
-                .andExpect(jsonPath("$.comment").value("Submitting timesheet for approval"))
+                .andExpect(jsonPath("$.comment").value(nullValue()))
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.nextSteps").exists())
                 .andExpect(jsonPath("$.nextSteps[0]").value("Timesheet is now pending lecturer approval"));
 
         // Verify timesheet status was updated
         Timesheet updated = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
-        assertEquals(ApprovalStatus.PENDING_LECTURER_APPROVAL, updated.getStatus());
+        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, updated.getStatus());
 
-        // Verify approval record was created
-        List<Approval> approvals = approvalRepository.findByTimesheetIdOrderByTimestampAsc(draftTimesheet.getId());
+        // Verify approval record was created through aggregate
+        List<Approval> approvals = updated.getApprovalHistory();
         assertEquals(1, approvals.size());
         Approval approval = approvals.get(0);
         assertEquals(ApprovalAction.SUBMIT_FOR_APPROVAL, approval.getAction());
         assertEquals(ApprovalStatus.DRAFT, approval.getPreviousStatus());
-        assertEquals(ApprovalStatus.PENDING_LECTURER_APPROVAL, approval.getNewStatus());
+        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, approval.getNewStatus());
         assertEquals(tutor.getId(), approval.getApproverId());
         assertEquals("Submitting timesheet for approval", approval.getComment());
     }
@@ -209,11 +209,11 @@ public class ApprovalSubmissionIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.newStatus").value("PENDING_LECTURER_APPROVAL"));
+                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_REVIEW"));
 
         // Verify timesheet status was updated
         Timesheet updated = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
-        assertEquals(ApprovalStatus.PENDING_LECTURER_APPROVAL, updated.getStatus());
+        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, updated.getStatus());
     }
 
     @Test
@@ -233,7 +233,7 @@ public class ApprovalSubmissionIntegrationTest {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists())
-                .andExpect(jsonPath("$.message").value(containsString("Cannot perform SUBMIT_FOR_APPROVAL on timesheet with status FINAL_APPROVED")));
+                .andExpect(jsonPath("$.message").value(containsString("Cannot perform SUBMIT_FOR_APPROVAL on timesheet with status APPROVED_BY_LECTURER_AND_TUTOR")));
     }
 
     @Test
@@ -269,20 +269,56 @@ public class ApprovalSubmissionIntegrationTest {
     }
 
     @Test
-    @DisplayName("AC4: LECTURER cannot submit timesheets (wrong role for submission)")
-    void testLecturerCannotSubmitTimesheet() throws Exception {
+    @DisplayName("AC4: LECTURER can submit timesheets (lecturers are creators per SSOT)")
+    void testLecturerCanSubmitTimesheet() throws Exception {
         String token = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
         
         ApprovalActionRequest request = new ApprovalActionRequest(
             draftTimesheet.getId(),
             ApprovalAction.SUBMIT_FOR_APPROVAL,
-            "Lecturer attempting submission"
+            "Lecturer submitting timesheet"
         );
 
         mockMvc.perform(post("/api/approvals")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_REVIEW"));
+
+        // Verify timesheet status was updated
+        Timesheet updated = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
+        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, updated.getStatus());
+    }
+
+    @Test
+    @DisplayName("AC4: LECTURER cannot approve timesheets (only tutors can approve per SSOT)")
+    void testLecturerCannotApproveTimesheet() throws Exception {
+        // First submit the timesheet to get it into PENDING_TUTOR_REVIEW state (lecturer submits per SSOT)
+        String lecturerToken = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
+        ApprovalActionRequest submitRequest = new ApprovalActionRequest(
+            draftTimesheet.getId(),
+            ApprovalAction.SUBMIT_FOR_APPROVAL,
+            "Submitting for approval"
+        );
+        
+        mockMvc.perform(post("/api/approvals")
+                .header("Authorization", "Bearer " + lecturerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(submitRequest)))
+                .andExpect(status().isOk());
+
+        // Now try to approve as lecturer - should fail (lecturers can't approve per SSOT)
+        ApprovalActionRequest approveRequest = new ApprovalActionRequest(
+            draftTimesheet.getId(),
+            ApprovalAction.APPROVE,
+            "Lecturer attempting to approve"
+        );
+
+        mockMvc.perform(post("/api/approvals")
+                .header("Authorization", "Bearer " + lecturerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(approveRequest)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").exists());
     }
@@ -317,8 +353,7 @@ public class ApprovalSubmissionIntegrationTest {
                 .andExpect(jsonPath("$.approverId").isNumber())
                 .andExpect(jsonPath("$.approverName").exists())
                 .andExpect(jsonPath("$.approverName").isString())
-                .andExpect(jsonPath("$.comment").exists())
-                .andExpect(jsonPath("$.comment").isString())
+                .andExpect(jsonPath("$.comment").value(nullValue()))
                 .andExpect(jsonPath("$.timestamp").exists())
                 // Verify optional fields
                 .andExpect(jsonPath("$.nextSteps").exists())

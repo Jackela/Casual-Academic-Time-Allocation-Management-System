@@ -1,0 +1,115 @@
+post:
+  tags:
+    - Approvals
+  summary: Perform approval action
+  description: |
+    Perform an approval action on a timesheet (approve, reject, or request modification).
+    
+    **Access rules**:
+    - **LECTURER**: Can approve/reject timesheets for their courses
+    - **TUTOR**: Can request modifications to their own timesheets
+    - **ADMIN**: Can perform any approval action
+    
+    **Workflow states**:
+    - DRAFT -> PENDING_LECTURER_APPROVAL (submit for approval)
+    - PENDING_LECTURER_APPROVAL -> APPROVED or REJECTED or MODIFICATION_REQUESTED
+    - MODIFICATION_REQUESTED -> PENDING_LECTURER_APPROVAL (after tutor addresses)
+    - APPROVED -> PENDING_HR_REVIEW (auto-transition)
+    - PENDING_HR_REVIEW -> FINAL_APPROVED or REJECTED (ADMIN/HR only)
+  operationId: performApprovalAction
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/approvals.yaml#/ApprovalActionRequest'
+        examples:
+          approve_timesheet:
+            summary: Approve timesheet
+            value:
+              timesheetId: 789
+              action: "APPROVE"
+              comment: "Approved - hours and description look correct"
+          reject_timesheet:
+            summary: Reject timesheet
+            value:
+              timesheetId: 789
+              action: "REJECT"
+              comment: "Rejected - hours seem excessive for the described work"
+          request_modification:
+            summary: Request modification
+            value:
+              timesheetId: 789
+              action: "REQUEST_MODIFICATION"
+              comment: "Please provide more detailed description of the tutorial work"
+  responses:
+    '200':
+      description: Approval action completed successfully
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/approvals.yaml#/ApprovalActionResponse'
+          examples:
+            approval_success:
+              summary: Successful approval action
+              value:
+                timesheetId: 789
+                action: "APPROVE"
+                newStatus: "APPROVED"
+                approverId: 999
+                approverName: "Dr. John Smith"
+                comment: "Approved - hours and description look correct"
+                timestamp: "2025-08-01T16:30:00Z"
+                nextSteps:
+                  - "Timesheet automatically submitted to HR for final review"
+    '400':
+      description: Invalid approval action or business rule violation
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+          examples:
+            invalid_transition:
+              summary: Invalid state transition
+              value:
+                timestamp: "2025-08-01T10:15:30.123Z"
+                status: 400
+                error: "INVALID_STATE_TRANSITION"
+                message: "Cannot approve timesheet in current state: DRAFT"
+                path: "/api/approvals"
+    '401':
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+    '403':
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+          examples:
+            not_authorized:
+              summary: Not authorized for this timesheet
+              value:
+                timestamp: "2025-08-01T10:15:30.123Z"
+                status: 403
+                error: "ACCESS_DENIED"
+                message: "You are not authorized to approve this timesheet"
+                path: "/api/approvals"
+    '404':
+      description: Timesheet not found
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+    '500':
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+

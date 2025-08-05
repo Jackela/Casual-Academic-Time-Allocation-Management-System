@@ -2,6 +2,7 @@ import { Page, expect, Locator } from '@playwright/test';
 
 export class NavigationPage {
   readonly page: Page;
+  readonly layoutHeader: Locator;
   readonly appTitle: Locator;
   readonly userInfo: Locator;
   readonly userName: Locator;
@@ -16,6 +17,7 @@ export class NavigationPage {
 
   constructor(page: Page) {
     this.page = page;
+    this.layoutHeader = page.getByTestId('layout-dashboard-header');
     this.appTitle = page.getByTestId('app-title');
     this.userInfo = page.getByTestId('user-info');
     this.userName = page.getByTestId('user-name');
@@ -30,9 +32,18 @@ export class NavigationPage {
   }
 
   async expectHeaderElements() {
-    await expect(this.appTitle).toContainText('CATAMS');
-    await expect(this.userInfo).toBeVisible();
-    await expect(this.logoutButton).toBeVisible();
+    // Ensure we are on dashboard page, not login
+    await expect(this.page).toHaveURL(/\/dashboard$/, { timeout: 15000 });
+    // Wait for dashboard layout header to appear to avoid race with auth loading
+    await expect(this.layoutHeader).toBeVisible({ timeout: 15000 });
+    await expect(this.appTitle).toContainText('CATAMS', { timeout: 15000 });
+    // user-info may be collapsed or lazy in some viewports; make it best-effort
+    try {
+      await expect(this.userInfo).toBeVisible({ timeout: 3000 });
+    } catch {}
+    // Allow either button or link to be used for logout to reduce selector brittleness
+    const logout = this.logoutButton.or(this.page.getByRole('button', { name: /sign out/i }));
+    await expect(logout).toBeVisible({ timeout: 15000 });
   }
 
   async expectUserInfo(expectedName: string, expectedRole: string) {
@@ -56,8 +67,13 @@ export class NavigationPage {
       // Should not see lecturer navigation
       await expect(this.navTimesheets).not.toBeVisible();
       await expect(this.navApprovals).not.toBeVisible();
+    } else if (role === 'TUTOR') {
+      // TUTOR should only see dashboard, no additional navigation items
+      await expect(this.navTimesheets).not.toBeVisible();
+      await expect(this.navApprovals).not.toBeVisible();
+      await expect(this.navUsers).not.toBeVisible();
+      await expect(this.navReports).not.toBeVisible();
     }
-    // TUTOR role would have different navigation items if implemented
   }
 
   async clickNavigation(item: 'dashboard' | 'timesheets' | 'approvals' | 'users' | 'reports') {

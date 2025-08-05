@@ -17,8 +17,6 @@ import java.time.LocalDateTime;
  */
 public class TimesheetResponse {
 
-    @JsonProperty("success")
-    private boolean success = true;
 
     @JsonProperty("id")
     private Long id;
@@ -26,8 +24,14 @@ public class TimesheetResponse {
     @JsonProperty("tutorId")
     private Long tutorId;
 
+    @JsonProperty("tutorName")
+    private String tutorName;
+
     @JsonProperty("courseId")
     private Long courseId;
+
+    @JsonProperty("courseName")
+    private String courseName;
 
     @JsonProperty("weekStartDate")
     @JsonFormat(pattern = "yyyy-MM-dd")
@@ -49,36 +53,35 @@ public class TimesheetResponse {
     private ApprovalStatus status;
 
     @JsonProperty("createdAt")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
     private LocalDateTime createdAt;
 
     @JsonProperty("updatedAt")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
     private LocalDateTime updatedAt;
 
-    @JsonProperty("createdBy")
-    private Long createdBy;
-
-    // Additional computed fields for API response
     @JsonProperty("isEditable")
     private Boolean isEditable;
 
     @JsonProperty("canBeApproved")
     private Boolean canBeApproved;
 
+    @JsonProperty("createdBy")
+    private Long createdBy;
+
     // Default constructor
     public TimesheetResponse() {
     }
 
     // Full constructor
-    public TimesheetResponse(Long id, Long tutorId, Long courseId, LocalDate weekStartDate,
-                           BigDecimal hours, BigDecimal hourlyRate, String description,
-                           ApprovalStatus status, LocalDateTime createdAt, LocalDateTime updatedAt,
-                           Long createdBy) {
-        this.success = true;
+    public TimesheetResponse(Long id, Long tutorId, String tutorName, Long courseId, String courseName,
+                           LocalDate weekStartDate, BigDecimal hours, BigDecimal hourlyRate, String description,
+                           ApprovalStatus status, LocalDateTime createdAt, LocalDateTime updatedAt, Long createdBy) {
         this.id = id;
         this.tutorId = tutorId;
+        this.tutorName = tutorName;
         this.courseId = courseId;
+        this.courseName = courseName;
         this.weekStartDate = weekStartDate;
         this.hours = hours;
         this.hourlyRate = hourlyRate;
@@ -95,13 +98,6 @@ public class TimesheetResponse {
     }
 
     // Getters and Setters
-    public boolean isSuccess() {
-        return success;
-    }
-
-    public void setSuccess(boolean success) {
-        this.success = success;
-    }
 
     public Long getId() {
         return id;
@@ -119,12 +115,28 @@ public class TimesheetResponse {
         this.tutorId = tutorId;
     }
 
+    public String getTutorName() {
+        return tutorName;
+    }
+
+    public void setTutorName(String tutorName) {
+        this.tutorName = tutorName;
+    }
+
     public Long getCourseId() {
         return courseId;
     }
 
     public void setCourseId(Long courseId) {
         this.courseId = courseId;
+    }
+
+    public String getCourseName() {
+        return courseName;
+    }
+
+    public void setCourseName(String courseName) {
+        this.courseName = courseName;
     }
 
     public LocalDate getWeekStartDate() {
@@ -175,8 +187,6 @@ public class TimesheetResponse {
 
     public void setStatus(ApprovalStatus status) {
         this.status = status;
-        this.isEditable = calculateIsEditable(); // Recalculate when status changes
-        this.canBeApproved = calculateCanBeApproved();
     }
 
     public LocalDateTime getCreatedAt() {
@@ -195,14 +205,6 @@ public class TimesheetResponse {
         this.updatedAt = updatedAt;
     }
 
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(Long createdBy) {
-        this.createdBy = createdBy;
-    }
-
     public Boolean getIsEditable() {
         return isEditable;
     }
@@ -217,6 +219,14 @@ public class TimesheetResponse {
 
     public void setCanBeApproved(Boolean canBeApproved) {
         this.canBeApproved = canBeApproved;
+    }
+
+    public Long getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(Long createdBy) {
+        this.createdBy = createdBy;
     }
 
     // Business logic methods
@@ -246,7 +256,9 @@ public class TimesheetResponse {
         return "TimesheetResponse{" +
                 "id=" + id +
                 ", tutorId=" + tutorId +
+                ", tutorName='" + tutorName + '\'' +
                 ", courseId=" + courseId +
+                ", courseName='" + courseName + '\'' +
                 ", weekStartDate=" + weekStartDate +
                 ", hours=" + hours +
                 ", hourlyRate=" + hourlyRate +
@@ -255,9 +267,9 @@ public class TimesheetResponse {
                 ", status=" + status +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
-                ", createdBy=" + createdBy +
                 ", isEditable=" + isEditable +
                 ", canBeApproved=" + canBeApproved +
+                ", createdBy=" + createdBy +
                 '}';
     }
 }

@@ -8,73 +8,102 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Unit tests for ApprovalStatus enum.
  * 
- * Tests the status transitions and business rules as specified in Story 2.1.
+ * Tests the status transitions and business rules as specified in SSOT document:
+ * docs/timesheet-approval-workflow-ssot.md
  */
 class ApprovalStatusTest {
 
     @Test
-    @DisplayName("APPROVED status should allow transition to PENDING_HR_REVIEW")
-    void approvedShouldTransitionToPendingHrReview() {
-        ApprovalStatus status = ApprovalStatus.APPROVED;
-        
-        assertTrue(status.canTransitionTo(ApprovalStatus.PENDING_HR_REVIEW));
-    }
-
-    @Test
-    @DisplayName("APPROVED status should not be editable")
-    void approvedShouldNotBeEditable() {
-        ApprovalStatus status = ApprovalStatus.APPROVED;
+    @DisplayName("APPROVED_BY_TUTOR status should not be editable")
+    void tutorApprovedShouldNotBeEditable() {
+        ApprovalStatus status = ApprovalStatus.APPROVED_BY_TUTOR;
         
         assertFalse(status.isEditable());
     }
 
     @Test
-    @DisplayName("APPROVED status should not be final")
-    void approvedShouldNotBeFinal() {
-        ApprovalStatus status = ApprovalStatus.APPROVED;
+    @DisplayName("APPROVED_BY_TUTOR status should not be final")
+    void tutorApprovedShouldNotBeFinal() {
+        ApprovalStatus status = ApprovalStatus.APPROVED_BY_TUTOR;
         
         assertFalse(status.isFinal());
     }
 
     @Test
-    @DisplayName("REJECTED status should be editable for resubmission")
-    void rejectedShouldBeEditable() {
+    @DisplayName("REJECTED status should NOT be editable (read-only)")
+    void rejectedShouldNotBeEditable() {
         ApprovalStatus status = ApprovalStatus.REJECTED;
+        
+        assertFalse(status.isEditable());
+    }
+
+    @Test
+    @DisplayName("DRAFT status should be editable")
+    void draftShouldBeEditable() {
+        ApprovalStatus status = ApprovalStatus.DRAFT;
         
         assertTrue(status.isEditable());
     }
 
     @Test
-    @DisplayName("PENDING_LECTURER_APPROVAL should allow transitions to APPROVED and REJECTED")
-    void pendingLecturerApprovalShouldAllowApprovedAndRejected() {
-        ApprovalStatus status = ApprovalStatus.PENDING_LECTURER_APPROVAL;
+    @DisplayName("PENDING_TUTOR_REVIEW should be pending")
+    void pendingTutorReviewShouldBePending() {
+        ApprovalStatus status = ApprovalStatus.PENDING_TUTOR_REVIEW;
         
-        assertTrue(status.canTransitionTo(ApprovalStatus.APPROVED));
-        assertTrue(status.canTransitionTo(ApprovalStatus.REJECTED));
+        assertTrue(status.isPending());
+        assertFalse(status.isEditable());
+        assertFalse(status.isFinal());
     }
 
     @Test
-    @DisplayName("Status parsing should work correctly")
-    void statusParsingShouldWork() {
-        assertEquals(ApprovalStatus.APPROVED, ApprovalStatus.fromValue("approved"));
-        assertEquals(ApprovalStatus.REJECTED, ApprovalStatus.fromValue("rejected"));
-        assertEquals(ApprovalStatus.PENDING_LECTURER_APPROVAL, 
-                    ApprovalStatus.fromValue("pending_lecturer_approval"));
+    @DisplayName("APPROVED_BY_LECTURER_AND_TUTOR should be pending")
+    void pendingHrReviewShouldBePending() {
+        ApprovalStatus status = ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR;
+        
+        assertTrue(status.isPending());
+        assertFalse(status.isEditable());
+        assertFalse(status.isFinal());
     }
 
     @Test
-    @DisplayName("Invalid status value should throw exception")
-    void invalidStatusValueShouldThrowException() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            ApprovalStatus.fromValue("invalid_status");
-        });
+    @DisplayName("FINAL_APPROVED should be final")
+    void hrApprovedShouldBeFinal() {
+        ApprovalStatus status = ApprovalStatus.FINAL_APPROVED;
+        
+        assertTrue(status.isFinal());
+        assertFalse(status.isEditable());
+        assertFalse(status.isPending());
     }
 
     @Test
-    @DisplayName("Null status value should throw exception")
-    void nullStatusValueShouldThrowException() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            ApprovalStatus.fromValue(null);
-        });
+    @DisplayName("REJECTED should be final")
+    void rejectedShouldBeFinal() {
+        ApprovalStatus status = ApprovalStatus.REJECTED;
+        
+        assertTrue(status.isFinal());
+        assertFalse(status.isEditable()); // REJECTED is read-only and cannot be modified
+        assertFalse(status.isPending());
+    }
+
+    @Test
+    @DisplayName("Display names should be correct")
+    void displayNamesShouldBeCorrect() {
+        assertEquals("Draft", ApprovalStatus.DRAFT.getDisplayName());
+        assertEquals("Pending Tutor Review", ApprovalStatus.PENDING_TUTOR_REVIEW.getDisplayName());
+        assertEquals("Approved by Tutor", ApprovalStatus.APPROVED_BY_TUTOR.getDisplayName());
+        assertEquals("Approved by Lecturer and Tutor", ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR.getDisplayName());
+        assertEquals("Final Approved", ApprovalStatus.FINAL_APPROVED.getDisplayName());
+        assertEquals("Rejected", ApprovalStatus.REJECTED.getDisplayName());
+    }
+
+    @Test
+    @DisplayName("Values should be correct")
+    void valuesShouldBeCorrect() {
+        assertEquals("draft", ApprovalStatus.DRAFT.getValue());
+        assertEquals("pending_tutor_review", ApprovalStatus.PENDING_TUTOR_REVIEW.getValue());
+        assertEquals("approved_by_tutor", ApprovalStatus.APPROVED_BY_TUTOR.getValue());
+        assertEquals("approved_by_lecturer_and_tutor", ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR.getValue());
+        assertEquals("final_approved", ApprovalStatus.FINAL_APPROVED.getValue());
+        assertEquals("rejected", ApprovalStatus.REJECTED.getValue());
     }
 }

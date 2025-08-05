@@ -39,7 +39,7 @@ test.describe('Critical User Journeys', () => {
     await dashboardPage.expectToBeLoaded();
 
     // Verify user information and navigation are correct for lecturer role
-    await dashboardPage.expectUserInfo('Test Lecturer', 'Lecturer');
+    await dashboardPage.expectUserInfo('Dr. Jane Smith', 'Lecturer');
     await dashboardPage.expectNavigationForRole('LECTURER');
 
     // Verify timesheet data loading workflow
@@ -137,7 +137,7 @@ test.describe('Critical User Journeys', () => {
     await dashboardPage.expectToBeLoaded();
 
     // Verify authenticated state
-    await dashboardPage.expectUserInfo('Test Lecturer', 'Lecturer');
+    await dashboardPage.expectUserInfo('Dr. Jane Smith', 'Lecturer');
 
     // Logout workflow
     await dashboardPage.logout();
@@ -146,12 +146,12 @@ test.describe('Critical User Journeys', () => {
     // Verify login page is displayed
     await loginPage.expectToBeVisible();
 
-    // Test re-authentication with different user
+    // Test re-authentication with different user (admin)
     await loginPage.login('admin@example.com', 'Admin123!');
-    await dashboardPage.expectToBeLoaded();
+    await dashboardPage.expectToBeLoaded('ADMIN');
 
     // Verify different user context
-    await dashboardPage.expectUserInfo('Test Admin', 'Administrator');
+    await dashboardPage.expectUserInfo('Admin User', 'Administrator');
     await dashboardPage.expectNavigationForRole('ADMIN');
   });
 

@@ -40,8 +40,8 @@ public class AuthController {
     public ResponseEntity&lt;AuthResult&gt; login(@Valid @RequestBody AuthenticationRequest request) {
         // No try-catch - let exceptions bubble up to GlobalExceptionHandler
         // Follow Exception Handling Principle 2: Centralized Exception Handling
-<span class="fc" id="L43">        AuthResult result = userService.authenticate(request);</span>
-<span class="fc" id="L44">        return ResponseEntity.ok(result);</span>
+<span class="nc" id="L43">        AuthResult result = userService.authenticate(request);</span>
+<span class="nc" id="L44">        return ResponseEntity.ok(result);</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

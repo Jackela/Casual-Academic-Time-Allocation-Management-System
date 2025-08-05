@@ -4,15 +4,14 @@
  * Standard error response DTO
  * 
  * All API error responses must use this format to ensure consistency
- * across the entire CATAMS system. The success field is always false
- * for error responses, following the OpenAPI specification.
+ * across the entire CATAMS system, matching the OpenAPI ErrorResponse schema.
  * 
  * @author Development Team
  * @since 1.0
  */
 public class ErrorResponse {
     
-<span class="pc" id="L15">    private boolean success = false;</span>
+<span class="pc" id="L14">    private boolean success = false;</span>
     private String timestamp;
     private int status;
     private String error;
@@ -20,18 +19,18 @@ public class ErrorResponse {
     private String errorMessage;
     private String path;
     
-<span class="nc" id="L23">    public ErrorResponse() {</span>
-<span class="nc" id="L24">    }</span>
+<span class="nc" id="L22">    public ErrorResponse() {</span>
+<span class="nc" id="L23">    }</span>
     
-<span class="fc" id="L26">    public ErrorResponse(String timestamp, int status, String error, String message, String path) {</span>
-<span class="fc" id="L27">        this.success = false;</span>
-<span class="fc" id="L28">        this.timestamp = timestamp;</span>
-<span class="fc" id="L29">        this.status = status;</span>
-<span class="fc" id="L30">        this.error = error;</span>
-<span class="fc" id="L31">        this.message = message;</span>
-<span class="fc" id="L32">        this.errorMessage = message; // Set errorMessage same as message for backward compatibility</span>
-<span class="fc" id="L33">        this.path = path;</span>
-<span class="fc" id="L34">    }</span>
+<span class="fc" id="L25">    public ErrorResponse(String timestamp, int status, String error, String message, String path) {</span>
+<span class="fc" id="L26">        this.success = false;</span>
+<span class="fc" id="L27">        this.timestamp = timestamp;</span>
+<span class="fc" id="L28">        this.status = status;</span>
+<span class="fc" id="L29">        this.error = error;</span>
+<span class="fc" id="L30">        this.message = message;</span>
+<span class="fc" id="L31">        this.errorMessage = message; // Set errorMessage same as message for backward compatibility</span>
+<span class="fc" id="L32">        this.path = path;</span>
+<span class="fc" id="L33">    }</span>
     
     /**
      * Builder pattern creator for ErrorResponse
@@ -39,11 +38,11 @@ public class ErrorResponse {
      * @return ErrorResponseBuilder instance for fluent construction
      */
     public static ErrorResponseBuilder builder() {
-<span class="fc" id="L42">        return new ErrorResponseBuilder();</span>
+<span class="fc" id="L41">        return new ErrorResponseBuilder();</span>
     }
     
-<span class="fc" id="L45">    public static class ErrorResponseBuilder {</span>
-<span class="fc" id="L46">        private boolean success = false;</span>
+<span class="fc" id="L44">    public static class ErrorResponseBuilder {</span>
+<span class="fc" id="L45">        private boolean success = false;</span>
         private String timestamp;
         private int status;
         private String error;
@@ -52,108 +51,108 @@ public class ErrorResponse {
         private String path;
         
         public ErrorResponseBuilder timestamp(String timestamp) {
-<span class="fc" id="L55">            this.timestamp = timestamp;</span>
-<span class="fc" id="L56">            return this;</span>
+<span class="fc" id="L54">            this.timestamp = timestamp;</span>
+<span class="fc" id="L55">            return this;</span>
         }
         
         public ErrorResponseBuilder status(int status) {
-<span class="fc" id="L60">            this.status = status;</span>
-<span class="fc" id="L61">            return this;</span>
+<span class="fc" id="L59">            this.status = status;</span>
+<span class="fc" id="L60">            return this;</span>
         }
         
         public ErrorResponseBuilder error(String error) {
-<span class="fc" id="L65">            this.error = error;</span>
-<span class="fc" id="L66">            return this;</span>
+<span class="fc" id="L64">            this.error = error;</span>
+<span class="fc" id="L65">            return this;</span>
         }
         
         public ErrorResponseBuilder message(String message) {
-<span class="fc" id="L70">            this.message = message;</span>
-<span class="fc" id="L71">            this.errorMessage = message; // Keep them in sync</span>
-<span class="fc" id="L72">            return this;</span>
+<span class="fc" id="L69">            this.message = message;</span>
+<span class="fc" id="L70">            this.errorMessage = message; // Keep them in sync</span>
+<span class="fc" id="L71">            return this;</span>
         }
         
         public ErrorResponseBuilder errorMessage(String errorMessage) {
-<span class="fc" id="L76">            this.errorMessage = errorMessage;</span>
-<span class="pc bpc" id="L77" title="1 of 2 branches missed.">            if (this.message == null) {</span>
-<span class="nc" id="L78">                this.message = errorMessage; // Keep them in sync</span>
+<span class="fc" id="L75">            this.errorMessage = errorMessage;</span>
+<span class="pc bpc" id="L76" title="1 of 2 branches missed.">            if (this.message == null) {</span>
+<span class="nc" id="L77">                this.message = errorMessage; // Keep them in sync</span>
             }
-<span class="fc" id="L80">            return this;</span>
+<span class="fc" id="L79">            return this;</span>
         }
         
         public ErrorResponseBuilder path(String path) {
-<span class="fc" id="L84">            this.path = path;</span>
-<span class="fc" id="L85">            return this;</span>
+<span class="fc" id="L83">            this.path = path;</span>
+<span class="fc" id="L84">            return this;</span>
         }
         
         public ErrorResponseBuilder success(boolean success) {
-<span class="nc" id="L89">            this.success = success;</span>
-<span class="nc" id="L90">            return this;</span>
+<span class="nc" id="L88">            this.success = success;</span>
+<span class="nc" id="L89">            return this;</span>
         }
         
         public ErrorResponse build() {
-<span class="fc" id="L94">            ErrorResponse response = new ErrorResponse(timestamp, status, error, message, path);</span>
-<span class="fc" id="L95">            response.success = this.success;</span>
-<span class="fc" id="L96">            response.errorMessage = this.errorMessage;</span>
-<span class="fc" id="L97">            return response;</span>
+<span class="fc" id="L93">            ErrorResponse response = new ErrorResponse(timestamp, status, error, message, path);</span>
+<span class="fc" id="L94">            response.success = this.success;</span>
+<span class="fc" id="L95">            response.errorMessage = this.errorMessage;</span>
+<span class="fc" id="L96">            return response;</span>
         }
     }
     
     // Getters and setters
     public boolean isSuccess() {
-<span class="fc" id="L103">        return success;</span>
+<span class="fc" id="L102">        return success;</span>
     }
     
     public void setSuccess(boolean success) {
-<span class="nc" id="L107">        this.success = success;</span>
-<span class="nc" id="L108">    }</span>
+<span class="nc" id="L106">        this.success = success;</span>
+<span class="nc" id="L107">    }</span>
     
     public String getTimestamp() {
-<span class="fc" id="L111">        return timestamp;</span>
+<span class="fc" id="L110">        return timestamp;</span>
     }
     
     public void setTimestamp(String timestamp) {
-<span class="nc" id="L115">        this.timestamp = timestamp;</span>
-<span class="nc" id="L116">    }</span>
+<span class="nc" id="L114">        this.timestamp = timestamp;</span>
+<span class="nc" id="L115">    }</span>
     
     public int getStatus() {
-<span class="fc" id="L119">        return status;</span>
+<span class="fc" id="L118">        return status;</span>
     }
     
     public void setStatus(int status) {
-<span class="nc" id="L123">        this.status = status;</span>
-<span class="nc" id="L124">    }</span>
+<span class="nc" id="L122">        this.status = status;</span>
+<span class="nc" id="L123">    }</span>
     
     public String getError() {
-<span class="fc" id="L127">        return error;</span>
+<span class="fc" id="L126">        return error;</span>
     }
     
     public void setError(String error) {
-<span class="nc" id="L131">        this.error = error;</span>
-<span class="nc" id="L132">    }</span>
+<span class="nc" id="L130">        this.error = error;</span>
+<span class="nc" id="L131">    }</span>
     
     public String getMessage() {
-<span class="fc" id="L135">        return message;</span>
+<span class="fc" id="L134">        return message;</span>
     }
     
     public void setMessage(String message) {
-<span class="nc" id="L139">        this.message = message;</span>
-<span class="nc" id="L140">        this.errorMessage = message; // Keep them in sync</span>
-<span class="nc" id="L141">    }</span>
+<span class="nc" id="L138">        this.message = message;</span>
+<span class="nc" id="L139">        this.errorMessage = message; // Keep them in sync</span>
+<span class="nc" id="L140">    }</span>
     
     public String getErrorMessage() {
-<span class="fc" id="L144">        return errorMessage;</span>
+<span class="fc" id="L143">        return errorMessage;</span>
     }
     
     public void setErrorMessage(String errorMessage) {
-<span class="nc" id="L148">        this.errorMessage = errorMessage;</span>
-<span class="nc" id="L149">    }</span>
+<span class="nc" id="L147">        this.errorMessage = errorMessage;</span>
+<span class="nc" id="L148">    }</span>
     
     public String getPath() {
-<span class="fc" id="L152">        return path;</span>
+<span class="fc" id="L151">        return path;</span>
     }
     
     public void setPath(String path) {
-<span class="nc" id="L156">        this.path = path;</span>
-<span class="nc" id="L157">    }</span>
+<span class="nc" id="L155">        this.path = path;</span>
+<span class="nc" id="L156">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

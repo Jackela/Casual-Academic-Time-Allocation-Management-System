@@ -2,26 +2,21 @@
 # Used with TestContainers for realistic database testing
 
 spring:
-  # Database configuration (overridden by TestContainers)
+  # H2 In-Memory Database Configuration for Integration Tests
   datasource:
-    url: jdbc:postgresql://localhost:5432/catams_test
-    username: test_user
-    password: test_password
-    driver-class-name: org.postgresql.Driver
-    
-  # JPA Configuration
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+  
   jpa:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.H2Dialect
         format_sql: false
-        jdbc:
-          batch_size: 20
-        order_inserts: true
-        order_updates: true
         
   # Security Configuration
   security:
@@ -66,6 +61,22 @@ test:
     # Test-specific security settings
     disable-csrf: true
     allow-test-tokens: true
+
+# E2E test user configuration
+e2e:
+  admin:
+    email: "admin.e2e@test.com"
+    password: "e2eAdminPassword"
+    name: "E2E Admin"
+  lecturer:
+    email: "lecturer.e2e@test.com"
+    password: "e2eLecturerPassword"
+    name: "E2E Lecturer"
+  tutor:
+    email: "tutor.e2e@test.com"
+    password: "e2eTutorPassword"
+    name: "E2E Tutor"
+
 
 # Management and Monitoring
 management:

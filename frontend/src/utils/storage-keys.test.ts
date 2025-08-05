@@ -3,7 +3,7 @@
  * Tests for centralized localStorage key constants
  */
 
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, vi } from 'vitest';
 import { STORAGE_KEYS, type StorageKey } from './storage-keys';
 
 describe('storage-keys utilities', () => {

@@ -2,6 +2,8 @@
 
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,6 +15,7 @@ import java.util.List;
  * 
  * Based on OpenAPI schema: ApprovalActionResponse
  */
+@JsonInclude(JsonInclude.Include.ALWAYS)
 public class ApprovalActionResponse {
 
     /**
@@ -43,6 +46,7 @@ public class ApprovalActionResponse {
     /**
      * Comment provided with the approval action.
      */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     private String comment;
 
     /**
@@ -56,8 +60,8 @@ public class ApprovalActionResponse {
     private List&lt;String&gt; nextSteps;
 
     // Default constructor
-<span class="nc" id="L59">    public ApprovalActionResponse() {</span>
-<span class="nc" id="L60">    }</span>
+<span class="nc" id="L63">    public ApprovalActionResponse() {</span>
+<span class="nc" id="L64">    }</span>
 
     /**
      * Constructor with essential fields.
@@ -70,82 +74,84 @@ public class ApprovalActionResponse {
      * @param comment comment provided with the action
      * @param timestamp when the action was performed
      */
-    public ApprovalActionResponse(Long timesheetId, ApprovalAction action, ApprovalStatus newStatus,
-<span class="fc" id="L74">                                 Long approverId, String approverName, String comment, LocalDateTime timestamp) {</span>
-<span class="fc" id="L75">        this.timesheetId = timesheetId;</span>
-<span class="fc" id="L76">        this.action = action;</span>
-<span class="fc" id="L77">        this.newStatus = newStatus;</span>
-<span class="fc" id="L78">        this.approverId = approverId;</span>
-<span class="fc" id="L79">        this.approverName = approverName;</span>
-<span class="fc" id="L80">        this.comment = comment;</span>
-<span class="fc" id="L81">        this.timestamp = timestamp;</span>
-<span class="fc" id="L82">    }</span>
+<span class="fc" id="L77">    public ApprovalActionResponse(Long timesheetId, ApprovalAction action, ApprovalStatus newStatus,</span>
+                                 Long approverId, String approverName, String comment, LocalDateTime timestamp) {
+<span class="fc" id="L79">        this.timesheetId = timesheetId;</span>
+<span class="fc" id="L80">        this.action = action;</span>
+<span class="fc" id="L81">        this.newStatus = newStatus;</span>
+<span class="fc" id="L82">        this.approverId = approverId;</span>
+<span class="fc" id="L83">        this.approverName = approverName;</span>
+<span class="fc" id="L84">        this.comment = comment;</span>
+<span class="fc" id="L85">        this.timestamp = timestamp;</span>
+<span class="fc" id="L86">    }</span>
 
     // Getters and Setters
 
     public Long getTimesheetId() {
-<span class="fc" id="L87">        return timesheetId;</span>
+<span class="fc" id="L91">        return timesheetId;</span>
     }
 
     public void setTimesheetId(Long timesheetId) {
-<span class="nc" id="L91">        this.timesheetId = timesheetId;</span>
-<span class="nc" id="L92">    }</span>
+<span class="nc" id="L95">        this.timesheetId = timesheetId;</span>
+<span class="nc" id="L96">    }</span>
 
     public ApprovalAction getAction() {
-<span class="fc" id="L95">        return action;</span>
+<span class="fc" id="L99">        return action;</span>
     }
 
     public void setAction(ApprovalAction action) {
-<span class="nc" id="L99">        this.action = action;</span>
-<span class="nc" id="L100">    }</span>
+<span class="nc" id="L103">        this.action = action;</span>
+<span class="nc" id="L104">    }</span>
 
     public ApprovalStatus getNewStatus() {
-<span class="fc" id="L103">        return newStatus;</span>
+<span class="fc" id="L107">        return newStatus;</span>
     }
 
     public void setNewStatus(ApprovalStatus newStatus) {
-<span class="nc" id="L107">        this.newStatus = newStatus;</span>
-<span class="nc" id="L108">    }</span>
+<span class="nc" id="L111">        this.newStatus = newStatus;</span>
+<span class="nc" id="L112">    }</span>
 
     public Long getApproverId() {
-<span class="fc" id="L111">        return approverId;</span>
+<span class="fc" id="L115">        return approverId;</span>
     }
 
     public void setApproverId(Long approverId) {
-<span class="nc" id="L115">        this.approverId = approverId;</span>
-<span class="nc" id="L116">    }</span>
+<span class="nc" id="L119">        this.approverId = approverId;</span>
+<span class="nc" id="L120">    }</span>
 
     public String getApproverName() {
-<span class="fc" id="L119">        return approverName;</span>
+<span class="fc" id="L123">        return approverName;</span>
     }
 
     public void setApproverName(String approverName) {
-<span class="nc" id="L123">        this.approverName = approverName;</span>
-<span class="nc" id="L124">    }</span>
+<span class="nc" id="L127">        this.approverName = approverName;</span>
+<span class="nc" id="L128">    }</span>
 
+    @JsonProperty(&quot;comment&quot;)
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public String getComment() {
-<span class="fc" id="L127">        return comment;</span>
+<span class="fc" id="L133">        return comment;</span>
     }
 
     public void setComment(String comment) {
-<span class="nc" id="L131">        this.comment = comment;</span>
-<span class="nc" id="L132">    }</span>
+<span class="nc" id="L137">        this.comment = comment;</span>
+<span class="nc" id="L138">    }</span>
 
     public LocalDateTime getTimestamp() {
-<span class="fc" id="L135">        return timestamp;</span>
+<span class="fc" id="L141">        return timestamp;</span>
     }
 
     public void setTimestamp(LocalDateTime timestamp) {
-<span class="nc" id="L139">        this.timestamp = timestamp;</span>
-<span class="nc" id="L140">    }</span>
+<span class="nc" id="L145">        this.timestamp = timestamp;</span>
+<span class="nc" id="L146">    }</span>
 
     public List&lt;String&gt; getNextSteps() {
-<span class="fc" id="L143">        return nextSteps;</span>
+<span class="fc" id="L149">        return nextSteps;</span>
     }
 
     public void setNextSteps(List&lt;String&gt; nextSteps) {
-<span class="fc" id="L147">        this.nextSteps = nextSteps;</span>
-<span class="fc" id="L148">    }</span>
+<span class="fc" id="L153">        this.nextSteps = nextSteps;</span>
+<span class="fc" id="L154">    }</span>
 
     /**
      * Add a next step to the workflow guidance.
@@ -153,11 +159,11 @@ public class ApprovalActionResponse {
      * @param step description of the next step
      */
     public void addNextStep(String step) {
-<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (this.nextSteps == null) {</span>
-<span class="nc" id="L157">            this.nextSteps = new java.util.ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">        if (this.nextSteps == null) {</span>
+<span class="nc" id="L163">            this.nextSteps = new java.util.ArrayList&lt;&gt;();</span>
         }
-<span class="nc" id="L159">        this.nextSteps.add(step);</span>
-<span class="nc" id="L160">    }</span>
+<span class="nc" id="L165">        this.nextSteps.add(step);</span>
+<span class="nc" id="L166">    }</span>
 
     /**
      * Check if this response represents a successful submission.
@@ -165,7 +171,7 @@ public class ApprovalActionResponse {
      * @return true if action was SUBMIT_FOR_APPROVAL
      */
     public boolean isSubmissionResponse() {
-<span class="fc bfc" id="L168" title="All 2 branches covered.">        return action == ApprovalAction.SUBMIT_FOR_APPROVAL;</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        return action == ApprovalAction.SUBMIT_FOR_APPROVAL;</span>
     }
 
     /**
@@ -174,7 +180,7 @@ public class ApprovalActionResponse {
      * @return true if action was APPROVE
      */
     public boolean isApprovalResponse() {
-<span class="fc bfc" id="L177" title="All 2 branches covered.">        return action == ApprovalAction.APPROVE;</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        return action == ApprovalAction.APPROVE;</span>
     }
 
     /**
@@ -183,7 +189,7 @@ public class ApprovalActionResponse {
      * @return true if action was REJECT
      */
     public boolean isRejectionResponse() {
-<span class="fc bfc" id="L186" title="All 2 branches covered.">        return action == ApprovalAction.REJECT;</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">        return action == ApprovalAction.REJECT;</span>
     }
 
     /**
@@ -192,7 +198,7 @@ public class ApprovalActionResponse {
      * @return true if action was REQUEST_MODIFICATION
      */
     public boolean isModificationRequestResponse() {
-<span class="pc bpc" id="L195" title="1 of 2 branches missed.">        return action == ApprovalAction.REQUEST_MODIFICATION;</span>
+<span class="pc bpc" id="L201" title="1 of 2 branches missed.">        return action == ApprovalAction.REQUEST_MODIFICATION;</span>
     }
 
     /**
@@ -201,79 +207,64 @@ public class ApprovalActionResponse {
      * @return list of next steps appropriate for the current status
      */
     public static List&lt;String&gt; generateNextStepsForStatus(ApprovalStatus status) {
-<span class="pc bpc" id="L204" title="6 of 9 branches missed.">        switch (status) {</span>
-            case PENDING_LECTURER_APPROVAL:
-<span class="fc" id="L206">                return List.of(</span>
-                    &quot;Timesheet is now pending lecturer approval&quot;,
-                    &quot;Lecturer can approve, reject, or request modifications&quot;,
-                    &quot;No further action required from submitter at this time&quot;
-                );
-                
+<span class="pc bpc" id="L210" title="3 of 7 branches missed.">        switch (status) {</span>
             case PENDING_TUTOR_REVIEW:
-<span class="nc" id="L213">                return List.of(</span>
-                    &quot;Timesheet has been approved by lecturer&quot;,
-                    &quot;Now pending tutor review and confirmation&quot;,
-                    &quot;Tutor can approve or request modifications&quot;
+<span class="fc" id="L212">                return List.of(</span>
+<span class="fc" id="L213">                    &quot;Timesheet is now pending lecturer approval&quot;,</span>
+<span class="fc" id="L214">                    &quot;Lecturer will review and may request changes&quot;,</span>
+<span class="fc" id="L215">                    &quot;Tutor can monitor status from their dashboard&quot;</span>
                 );
                 
-            case TUTOR_APPROVED:
-<span class="nc" id="L220">                return List.of(</span>
-                    &quot;Timesheet has been approved by tutor&quot;,
-                    &quot;Automatically moving to HR review queue&quot;,
-                    &quot;No further action required from tutor or lecturer&quot;
-                );
-                
-            case PENDING_HR_REVIEW:
-<span class="nc" id="L227">                return List.of(</span>
-                    &quot;Timesheet is now in HR review queue&quot;,
-                    &quot;HR can give final approval or reject&quot;,
-                    &quot;No action required from other parties&quot;
+            case APPROVED_BY_TUTOR:
+<span class="fc" id="L219">                return List.of(</span>
+<span class="fc" id="L220">                    &quot;Timesheet has been approved by tutor&quot;,</span>
+<span class="fc" id="L221">                    &quot;Lecturer should now provide final approval&quot;</span>
                 );
                 
             case FINAL_APPROVED:
-<span class="nc" id="L234">                return List.of(</span>
-                    &quot;Timesheet has been fully approved&quot;,
-                    &quot;Ready for payroll processing&quot;,
-                    &quot;No further approvals required&quot;
+<span class="nc" id="L225">                return List.of(</span>
+<span class="nc" id="L226">                    &quot;Timesheet has been fully approved&quot;,</span>
+<span class="nc" id="L227">                    &quot;Ready for payroll processing&quot;,</span>
+<span class="nc" id="L228">                    &quot;No further approvals required&quot;</span>
                 );
                 
             case REJECTED:
-<span class="fc" id="L241">                return List.of(</span>
-                    &quot;Timesheet has been rejected&quot;,
-                    &quot;Review rejection reason and make necessary corrections&quot;,
-                    &quot;Can be edited and resubmitted&quot;
+<span class="fc" id="L232">                return List.of(</span>
+<span class="fc" id="L233">                    &quot;Timesheet has been rejected&quot;,</span>
+<span class="fc" id="L234">                    &quot;Review rejection reason and make necessary corrections&quot;,</span>
+<span class="fc" id="L235">                    &quot;Can be edited and resubmitted&quot;</span>
                 );
                 
             case MODIFICATION_REQUESTED:
-<span class="nc" id="L248">                return List.of(</span>
-                    &quot;Modifications have been requested&quot;,
-                    &quot;Review the feedback and update the timesheet&quot;,
-                    &quot;Resubmit after making the requested changes&quot;
+<span class="nc" id="L239">                return List.of(</span>
+<span class="nc" id="L240">                    &quot;Modifications have been requested&quot;,</span>
+<span class="nc" id="L241">                    &quot;Review the feedback and update the timesheet&quot;,</span>
+<span class="nc" id="L242">                    &quot;Resubmit after making the requested changes&quot;</span>
                 );
                 
             case DRAFT:
-<span class="nc" id="L255">                return List.of(</span>
-                    &quot;Timesheet is in draft status&quot;,
-                    &quot;Can be edited and updated as needed&quot;,
-                    &quot;Submit for approval when ready&quot;
+<span class="nc" id="L246">                return List.of(</span>
+<span class="nc" id="L247">                    &quot;Timesheet is in draft status&quot;,</span>
+<span class="nc" id="L248">                    &quot;Can be edited and updated as needed&quot;,</span>
+<span class="nc" id="L249">                    &quot;Submit for approval when ready&quot;</span>
                 );
                 
             default:
-<span class="fc" id="L262">                return List.of(&quot;Status updated successfully&quot;);</span>
+<span class="fc" id="L253">                return List.of(&quot;Status updated successfully&quot;);</span>
         }
     }
 
     @Override
     public String toString() {
-<span class="nc" id="L268">        return &quot;ApprovalActionResponse{&quot; +</span>
-                &quot;timesheetId=&quot; + timesheetId +
-                &quot;, action=&quot; + action +
-                &quot;, newStatus=&quot; + newStatus +
-                &quot;, approverId=&quot; + approverId +
-                &quot;, approverName='&quot; + approverName + '\'' +
-                &quot;, comment='&quot; + comment + '\'' +
-                &quot;, timestamp=&quot; + timestamp +
-                &quot;, nextSteps=&quot; + nextSteps +
+<span class="nc" id="L259">        return &quot;ApprovalActionResponse{&quot; +</span>
+<span class="nc" id="L260">                &quot;timesheetId=&quot; + timesheetId +</span>
+<span class="nc" id="L261">                &quot;, action=&quot; + action +</span>
+<span class="nc" id="L262">                &quot;, newStatus=&quot; + newStatus +</span>
+<span class="nc" id="L263">                &quot;, approverId=&quot; + approverId +</span>
+<span class="nc" id="L264">                &quot;, approverName='&quot; + approverName + '\'' +</span>
+<span class="nc" id="L265">                &quot;, comment='&quot; + comment + '\'' +</span>
+<span class="nc" id="L266">                &quot;, timestamp=&quot; + timestamp +</span>
+<span class="nc" id="L267">                &quot;, nextSteps=&quot; + nextSteps +</span>
                 '}';
     }
 }

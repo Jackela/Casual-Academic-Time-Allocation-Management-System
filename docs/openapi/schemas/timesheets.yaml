@@ -1,0 +1,304 @@
+TimesheetCreateRequest:
+  type: object
+  required:
+    - tutorId
+    - courseId
+    - weekStartDate
+    - hours
+    - hourlyRate
+    - description
+  properties:
+    tutorId:
+      type: integer
+      format: int64
+      description: ID of the tutor this timesheet is for
+      example: 123
+    courseId:
+      type: integer
+      format: int64
+      description: ID of the course this work relates to
+      example: 456
+    weekStartDate:
+      type: string
+      format: date
+      description: Start date of the work week (must be a Monday)
+      example: "2025-07-28"
+    hours:
+      type: number
+      format: decimal
+      minimum: 0.1
+      maximum: 60.0
+      description: Number of hours worked
+      example: 10.5
+    hourlyRate:
+      type: number
+      format: decimal
+      minimum: 0.01
+      maximum: 200.00
+      description: Hourly rate in AUD
+      example: 45.00
+    description:
+      type: string
+      description: Description of work performed
+      example: "Tutorial sessions and assignment marking"
+      maxLength: 1000
+
+TimesheetUpdateRequest:
+  type: object
+  properties:
+    hours:
+      type: number
+      format: decimal
+      minimum: 0.1
+      maximum: 60.0
+      description: Number of hours worked
+      example: 12.0
+    hourlyRate:
+      type: number
+      format: decimal
+      minimum: 0.01
+      maximum: 200.00
+      description: Hourly rate in AUD
+      example: 45.00
+    description:
+      type: string
+      description: Description of work performed
+      example: "Tutorial sessions, assignment marking, and consultation hours"
+      maxLength: 1000
+
+TimesheetResponse:
+  type: object
+  required:
+    - id
+    - tutorId
+    - tutorName
+    - courseId
+    - courseName
+    - weekStartDate
+    - hours
+    - hourlyRate
+    - totalPay
+    - description
+    - status
+    - createdAt
+    - updatedAt
+    - isEditable
+    - canBeApproved
+  properties:
+    id:
+      type: integer
+      format: int64
+      description: Unique timesheet identifier
+      example: 789
+    tutorId:
+      type: integer
+      format: int64
+      description: ID of the tutor
+      example: 123
+    tutorName:
+      type: string
+      description: Full name of the tutor
+      example: "Alice Johnson"
+    courseId:
+      type: integer
+      format: int64
+      description: ID of the course
+      example: 456
+    courseName:
+      type: string
+      description: Full name of the course
+      example: "COMP1001 - Introduction to Programming"
+    weekStartDate:
+      type: string
+      format: date
+      description: Start date of the work week
+      example: "2025-07-28"
+    hours:
+      type: number
+      format: decimal
+      description: Number of hours worked
+      example: 10.5
+    hourlyRate:
+      type: number
+      format: decimal
+      description: Hourly rate in AUD
+      example: 45.00
+    totalPay:
+      type: number
+      format: decimal
+      description: Calculated total pay (hours × hourlyRate)
+      example: 472.50
+    description:
+      type: string
+      description: Description of work performed
+      example: "Tutorial sessions and assignment marking"
+    status:
+      $ref: './approvals.yaml#/ApprovalStatus'
+    createdAt:
+      type: string
+      format: date-time
+      description: When the timesheet was created
+      example: "2025-07-28T09:00:00Z"
+    updatedAt:
+      type: string
+      format: date-time
+      description: When the timesheet was last updated
+      example: "2025-07-28T09:00:00Z"
+    isEditable:
+      type: boolean
+      description: Whether the timesheet can be edited by the current user
+      example: false
+    canBeApproved:
+      type: boolean
+      description: Whether the timesheet can be approved by the current user
+      example: true
+
+TimesheetDetailResponse:
+  allOf:
+    - $ref: '#/TimesheetResponse'
+    - type: object
+      additionalProperties: true
+      properties:
+        tutorEmail:
+          type: string
+          format: email
+          description: Email of the tutor
+          example: "alice.johnson@university.edu.au"
+        courseCode:
+          type: string
+          description: Course code
+          example: "COMP1001"
+        lecturerId:
+          type: integer
+          format: int64
+          description: ID of the course lecturer
+          example: 999
+        lecturerName:
+          type: string
+          description: Name of the course lecturer
+          example: "Dr. John Smith"
+        approvalHistory:
+          type: array
+          description: History of approval actions on this timesheet
+          items:
+            $ref: './approvals.yaml#/ApprovalHistoryEntry'
+
+TimesheetPageResponse:
+  type: object
+  required:
+    - success
+    - timesheets
+    - pageInfo
+  properties:
+    success:
+      type: boolean
+      description: Whether the request was successful
+      example: true
+    timesheets:
+      type: array
+      description: List of timesheets on this page
+      items:
+        $ref: '#/TimesheetResponse'
+    pageInfo:
+      $ref: '#/PageInfo'
+    # Legacy fields for backward compatibility
+    content:
+      type: array
+      description: List of timesheets on this page (deprecated - use timesheets)
+      deprecated: true
+      items:
+        $ref: '#/TimesheetResponse'
+    data:
+      type: array
+      description: List of timesheets on this page (deprecated - use timesheets)
+      deprecated: true
+      items:
+        $ref: '#/TimesheetResponse'
+    page:
+      $ref: '#/PageInfo'
+      description: Page information (deprecated - use pageInfo)
+      deprecated: true
+
+PageInfo:
+  type: object
+  required:
+    - currentPage
+    - pageSize
+    - totalElements
+    - totalPages
+    - first
+    - last
+    - numberOfElements
+    - empty
+  properties:
+    currentPage:
+      type: integer
+      description: Current page number (0-based)
+      example: 0
+    pageSize:
+      type: integer
+      description: Size of each page
+      example: 20
+    totalElements:
+      type: integer
+      format: int64
+      description: Total number of elements across all pages
+      example: 45
+    totalPages:
+      type: integer
+      description: Total number of pages
+      example: 3
+    first:
+      type: boolean
+      description: Whether this is the first page
+      example: true
+    last:
+      type: boolean
+      description: Whether this is the last page
+      example: false
+    numberOfElements:
+      type: integer
+      description: Number of elements on this page
+      example: 20
+    empty:
+      type: boolean
+      description: Whether the page is empty
+      example: false
+
+Pageable:
+  type: object
+  required:
+    - pageNumber
+    - pageSize
+  properties:
+    pageNumber:
+      type: integer
+      description: Current page number (0-based)
+      example: 0
+    pageSize:
+      type: integer
+      description: Page size
+      example: 20
+    sort:
+      $ref: '#/Sort'
+
+Sort:
+  type: object
+  required:
+    - sorted
+  properties:
+    sorted:
+      type: boolean
+      description: Whether the results are sorted
+      example: true
+    orderBy:
+      type: string
+      description: Field used for sorting
+      example: "weekStartDate"
+    direction:
+      type: string
+      enum:
+        - ASC
+        - DESC
+      description: Sort direction
+      example: "DESC"

@@ -1,0 +1,24 @@
+{
+  "backend": {
+    "profiles": {
+      "unit": "test",
+      "integration": "integration-test",
+      "performance": "integration-test"
+    },
+    "patterns": {
+      "unit": ["*UnitTest", "com.usyd.catams.unit.*"],
+      "integration": ["*IntegrationTest", "com.usyd.catams.integration.*"],
+      "performance": ["*PerformanceTest", "com.usyd.catams.performance.*"]
+    }
+  },
+  "frontend": {
+    "dir": "frontend",
+    "scripts": {
+      "unit": "test:unit",
+      "contract": "test:contract",
+      "e2e": "test:e2e"
+    }
+  }
+}
+
+

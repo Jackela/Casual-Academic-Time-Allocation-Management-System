@@ -24,9 +24,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -48,14 +50,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - AC4: TUTOR can delete REJECTED timesheets
  * - AC5: TUTOR can resubmit edited timesheets via POST /api/approvals
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Transactional
-public class TutorTimesheetWorkflowIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
+@ActiveProfiles("integration-test")
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private TimesheetRepository timesheetRepository;
@@ -66,20 +64,14 @@ public class TutorTimesheetWorkflowIntegrationTest {
     @Autowired
     private CourseRepository courseRepository;
 
-    @Autowired
-    private JwtTokenProvider jwtTokenProvider;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
     private User lecturer;
     private User tutor;
     private User admin;
     private Course course;
     private LocalDate mondayDate;
-    private String tutorToken;
-    private String lecturerToken;
-    private String adminToken;
+    private String localTutorToken;
+    private String localLecturerToken;
+    private String localAdminToken;
 
     @BeforeEach
     void setUp() {
@@ -94,15 +86,18 @@ public class TutorTimesheetWorkflowIntegrationTest {
         admin = createUser("admin@test.com", "Admin User", UserRole.ADMIN);
 
         // Create test course
-        course = createCourse("TEST101", "Test Course", lecturer.getId());
+        course = createCourse("TEST3001", "Test Course", lecturer.getId());
 
-        // Get next Monday for testing
-        mondayDate = getNextMonday();
+        // Use current or previous Monday for testing to avoid future-date rule violations
+        mondayDate = LocalDate.now().with(DayOfWeek.MONDAY);
+        if (mondayDate.isAfter(LocalDate.now())) {
+            mondayDate = mondayDate.minusWeeks(1);
+        }
 
         // Generate JWT tokens for testing
-        tutorToken = jwtTokenProvider.generateToken(tutor.getId(), tutor.getEmail(), tutor.getRole().name());
-        lecturerToken = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
-        adminToken = jwtTokenProvider.generateToken(admin.getId(), admin.getEmail(), admin.getRole().name());
+        localTutorToken = jwtTokenProvider.generateToken(tutor.getId(), tutor.getEmail(), tutor.getRole().name());
+        localLecturerToken = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
+        localAdminToken = jwtTokenProvider.generateToken(admin.getId(), admin.getEmail(), admin.getRole().name());
     }
 
     /**
@@ -113,11 +108,11 @@ public class TutorTimesheetWorkflowIntegrationTest {
         // Given: Create timesheets in different statuses for the tutor
         Timesheet draftTimesheet = createTimesheet(tutor.getId(), course.getId(), mondayDate, ApprovalStatus.DRAFT);
         Timesheet rejectedTimesheet = createTimesheet(tutor.getId(), course.getId(), mondayDate.plusWeeks(1), ApprovalStatus.REJECTED);
-        Timesheet approvedTimesheet = createTimesheet(tutor.getId(), course.getId(), mondayDate.plusWeeks(2), ApprovalStatus.FINAL_APPROVED);
+        Timesheet approvedTimesheet = createTimesheet(tutor.getId(), course.getId(), mondayDate.plusWeeks(2), ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
 
         // When: TUTOR calls GET /api/timesheets/me
         MvcResult result = mockMvc.perform(get("/api/timesheets/me")
-                .header("Authorization", "Bearer " + tutorToken)
+                .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -143,7 +138,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
         // When: TUTOR calls GET /api/timesheets/me?status=REJECTED
         MvcResult result = mockMvc.perform(get("/api/timesheets/me")
                 .param("status", "REJECTED")
-                .header("Authorization", "Bearer " + tutorToken)
+                .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -167,7 +162,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
 
         // When: TUTOR calls GET /api/timesheets/me
         MvcResult result = mockMvc.perform(get("/api/timesheets/me")
-                .header("Authorization", "Bearer " + tutorToken)
+                .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -197,7 +192,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
         updateRequest.setDescription("Updated work description after rejection feedback");
 
         mockMvc.perform(put("/api/timesheets/" + rejectedTimesheet.getId())
-                .header("Authorization", "Bearer " + tutorToken)
+                .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
@@ -228,7 +223,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
 
         // Then: Request should be forbidden
         mockMvc.perform(put("/api/timesheets/" + draftTimesheet.getId())
-                .header("Authorization", "Bearer " + tutorToken)
+                .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isForbidden());
@@ -244,7 +239,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
 
         // When: TUTOR deletes the REJECTED timesheet
         mockMvc.perform(delete("/api/timesheets/" + rejectedTimesheet.getId())
-                .header("Authorization", "Bearer " + tutorToken))
+                .header("Authorization", "Bearer " + localTutorToken))
                 .andExpect(status().isNoContent());
 
         // Then: Timesheet should be deleted from database
@@ -262,7 +257,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
         // When: TUTOR tries to delete the DRAFT timesheet
         // Then: Request should be forbidden
         mockMvc.perform(delete("/api/timesheets/" + draftTimesheet.getId())
-                .header("Authorization", "Bearer " + tutorToken))
+                .header("Authorization", "Bearer " + localTutorToken))
                 .andExpect(status().isForbidden());
 
         // And: Timesheet should still exist in database
@@ -284,7 +279,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
         updateRequest.setDescription("Updated after feedback");
 
         mockMvc.perform(put("/api/timesheets/" + rejectedTimesheet.getId())
-                .header("Authorization", "Bearer " + tutorToken)
+                .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk());
@@ -296,15 +291,15 @@ public class TutorTimesheetWorkflowIntegrationTest {
         approvalRequest.setComment("Resubmitting after addressing feedback");
 
         mockMvc.perform(post("/api/approvals")
-                .header("Authorization", "Bearer " + tutorToken)
+                .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(approvalRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.newStatus").value("PENDING_LECTURER_APPROVAL"));
+                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_REVIEW"));
 
-        // Then: Status should be PENDING_LECTURER_APPROVAL
+        // Then: Status should be PENDING_TUTOR_REVIEW
         Timesheet resubmittedTimesheet = timesheetRepository.findById(rejectedTimesheet.getId()).orElseThrow();
-        assertThat(resubmittedTimesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_LECTURER_APPROVAL);
+        assertThat(resubmittedTimesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
     }
 
     /**
@@ -322,7 +317,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
         createRequest.setDescription("Initial timesheet");
 
         MvcResult createResult = mockMvc.perform(post("/api/timesheets")
-                .header("Authorization", "Bearer " + lecturerToken)
+                .header("Authorization", "Bearer " + localLecturerToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(createRequest)))
                 .andExpect(status().isCreated())
@@ -331,25 +326,25 @@ public class TutorTimesheetWorkflowIntegrationTest {
         TimesheetResponse createdTimesheet = objectMapper.readValue(
             createResult.getResponse().getContentAsString(), TimesheetResponse.class);
 
-        // Step 2: TUTOR submits for approval (as TUTORs submit their own timesheets)
+        // Step 2: LECTURER submits for approval (LECTURERs are the ones who submit per SSOT)
         ApprovalActionRequest submitRequest = new ApprovalActionRequest();
         submitRequest.setTimesheetId(createdTimesheet.getId());
         submitRequest.setAction(ApprovalAction.SUBMIT_FOR_APPROVAL);
 
         mockMvc.perform(post("/api/approvals")
-                .header("Authorization", "Bearer " + tutorToken)
+                .header("Authorization", "Bearer " + localLecturerToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(submitRequest)))
                 .andExpect(status().isOk());
 
-        // Step 3: LECTURER rejects timesheet
+        // Step 3: TUTOR rejects timesheet (TUTORs are the first-level approvers per SSOT)
         ApprovalActionRequest rejectRequest = new ApprovalActionRequest();
         rejectRequest.setTimesheetId(createdTimesheet.getId());
         rejectRequest.setAction(ApprovalAction.REJECT);
         rejectRequest.setComment("Please increase hours and provide more detail");
 
         mockMvc.perform(post("/api/approvals")
-                .header("Authorization", "Bearer " + lecturerToken)
+                .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(rejectRequest)))
                 .andExpect(status().isOk());
@@ -357,7 +352,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
         // Step 4: TUTOR views rejection via GET /api/timesheets/me
         MvcResult viewResult = mockMvc.perform(get("/api/timesheets/me")
                 .param("status", "REJECTED")
-                .header("Authorization", "Bearer " + tutorToken))
+                .header("Authorization", "Bearer " + localTutorToken))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -373,7 +368,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
         updateRequest.setDescription("Updated timesheet with more detail and increased hours as requested");
 
         mockMvc.perform(put("/api/timesheets/" + createdTimesheet.getId())
-                .header("Authorization", "Bearer " + tutorToken)
+                .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
@@ -386,15 +381,15 @@ public class TutorTimesheetWorkflowIntegrationTest {
         resubmitRequest.setComment("Addressed feedback - increased hours and added detail");
 
         mockMvc.perform(post("/api/approvals")
-                .header("Authorization", "Bearer " + tutorToken)
+                .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(resubmitRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.newStatus").value("PENDING_LECTURER_APPROVAL"));
+                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_REVIEW"));
 
         // Verify final state
         Timesheet finalTimesheet = timesheetRepository.findById(createdTimesheet.getId()).orElseThrow();
-        assertThat(finalTimesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_LECTURER_APPROVAL);
+        assertThat(finalTimesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
         assertThat(finalTimesheet.getHours()).isEqualTo(new BigDecimal("15.0"));
         assertThat(finalTimesheet.getDescription()).contains("increased hours");
     }
@@ -410,7 +405,7 @@ public class TutorTimesheetWorkflowIntegrationTest {
 
         // When: TUTOR calls GET /api/timesheets/me
         MvcResult result = mockMvc.perform(get("/api/timesheets/me")
-                .header("Authorization", "Bearer " + tutorToken))
+                .header("Authorization", "Bearer " + localTutorToken))
                 .andExpect(status().isOk())
                 .andReturn();
 

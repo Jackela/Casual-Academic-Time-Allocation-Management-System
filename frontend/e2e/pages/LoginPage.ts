@@ -43,8 +43,10 @@ export class LoginPage {
   async login(email: string, password: string) {
     await this.fillCredentials(email, password);
     
+    // Wait for both backend auth response and navigation to dashboard to avoid race conditions
     const [response] = await Promise.all([
       this.page.waitForResponse(`**${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`),
+      this.page.waitForURL('/dashboard', { timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.PAGE_LOAD }),
       this.submitForm()
     ]);
     
@@ -93,5 +95,28 @@ export class LoginPage {
   async expectLoadingState() {
     await expect(this.submitButton).toContainText('Signing in...');
     await this.expectFormDisabled();
+  }
+
+  private resolveEnv(name: string, fallback: string): string {
+    const value = process.env[name];
+    return value && value.length > 0 ? value : fallback;
+  }
+
+  async loginAsTutor() {
+    const email = this.resolveEnv('E2E_TUTOR_EMAIL', 'tutor@example.com');
+    const password = this.resolveEnv('E2E_TUTOR_PASSWORD', 'Tutor123!');
+    return await this.login(email, password);
+  }
+
+  async loginAsLecturer() {
+    const email = this.resolveEnv('E2E_LECTURER_EMAIL', 'lecturer@example.com');
+    const password = this.resolveEnv('E2E_LECTURER_PASSWORD', 'Lecturer123!');
+    return await this.login(email, password);
+  }
+
+  async loginAsAdmin() {
+    const email = this.resolveEnv('E2E_ADMIN_EMAIL', 'admin@example.com');
+    const password = this.resolveEnv('E2E_ADMIN_PASSWORD', 'Admin123!');
+    return await this.login(email, password);
   }
 }

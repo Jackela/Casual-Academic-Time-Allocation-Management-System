@@ -32,7 +32,7 @@ import java.util.Optional;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     
 <span class="fc" id="L34">    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);</span>
-    private static final String AUTHORIZATION_HEADER = &quot;Authorization&quot;;
+<span class="fc" id="L35">    private static final String AUTHORIZATION_HEADER = &quot;Authorization&quot;;</span>
     
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
@@ -54,11 +54,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 <span class="pc bpc" id="L54" title="1 of 4 branches missed.">            if (token != null &amp;&amp; jwtTokenProvider.validateToken(token)) {</span>
 <span class="fc" id="L55">                authenticateUser(token, request);</span>
             }
-<span class="nc" id="L57">        } catch (Exception e) {</span>
+<span class="pc" id="L57">        } catch (Exception e) {</span>
 <span class="nc" id="L58">            logger.warn(&quot;JWT authentication failed: {}&quot;, e.getMessage());</span>
             // Clear security context on any authentication error
 <span class="nc" id="L60">            SecurityContextHolder.clearContext();</span>
-<span class="fc" id="L61">        }</span>
+        }
         
 <span class="fc" id="L63">        filterChain.doFilter(request, response);</span>
 <span class="fc" id="L64">    }</span>
@@ -79,7 +79,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             
             // Verify user still exists and is active
 <span class="fc" id="L81">            Optional&lt;User&gt; userOpt = userRepository.findByEmailAndIsActive(userEmail, true);</span>
-<span class="fc bfc" id="L82" title="All 2 branches covered.">            if (userOpt.isPresent()) {</span>
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">            if (userOpt.isPresent()) {</span>
 <span class="fc" id="L83">                User user = userOpt.get();</span>
                 
                 // Verify token claims match database record
@@ -88,9 +88,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // Create authentication with user details and role
 <span class="fc" id="L89">                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority(&quot;ROLE_&quot; + role);</span>
 <span class="fc" id="L90">                    UsernamePasswordAuthenticationToken authentication = </span>
-                        new UsernamePasswordAuthenticationToken(
-                            user, 
-                            null, 
+<span class="fc" id="L91">                        new UsernamePasswordAuthenticationToken(</span>
+<span class="fc" id="L92">                            user, </span>
+<span class="fc" id="L93">                            null, </span>
 <span class="fc" id="L94">                            Collections.singletonList(authority)</span>
                         );
                     
@@ -101,8 +101,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 <span class="fc" id="L101">                } else {</span>
 <span class="nc" id="L102">                    logger.warn(&quot;JWT token claims mismatch with database record for user: {}&quot;, userEmail);</span>
                 }
-<span class="fc" id="L104">            } else {</span>
-<span class="fc" id="L105">                logger.warn(&quot;User not found or inactive for JWT token: {}&quot;, userEmail);</span>
+<span class="nc" id="L104">            } else {</span>
+<span class="nc" id="L105">                logger.warn(&quot;User not found or inactive for JWT token: {}&quot;, userEmail);</span>
             }
         }
 <span class="fc" id="L108">    }</span>

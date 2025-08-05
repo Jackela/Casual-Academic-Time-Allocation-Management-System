@@ -90,7 +90,7 @@ public class Approval {
      */
     @NotNull
     @Column(nullable = false, name = "is_active")
-    private Boolean isActive = true;
+    private Boolean isActive;
     
     // Default constructor
     public Approval() {
@@ -242,7 +242,17 @@ public class Approval {
      * @throws IllegalArgumentException if validation fails
      */
     public void validateBusinessRules() {
-        if (timesheetId == null) {
+        validateBusinessRules(true);
+    }
+    
+    /**
+     * Validate business rules for the approval action with optional timesheet ID validation.
+     * 
+     * @param requireTimesheetId whether to require timesheet ID to be non-null
+     * @throws IllegalArgumentException if validation fails
+     */
+    public void validateBusinessRules(boolean requireTimesheetId) {
+        if (requireTimesheetId && timesheetId == null) {
             throw new IllegalArgumentException("Timesheet ID cannot be null");
         }
         

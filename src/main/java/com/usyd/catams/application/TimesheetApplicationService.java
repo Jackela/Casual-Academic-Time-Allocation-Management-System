@@ -1,0 +1,639 @@
+package com.usyd.catams.application;
+
+import com.usyd.catams.domain.service.TimesheetDomainService;
+import com.usyd.catams.dto.response.PagedTimesheetResponse;
+import com.usyd.catams.dto.response.TimesheetResponse;
+import com.usyd.catams.entity.Course;
+import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.entity.User;
+import com.usyd.catams.mapper.TimesheetMapper;
+import com.usyd.catams.enums.ApprovalStatus;
+import com.usyd.catams.enums.UserRole;
+import com.usyd.catams.exception.ResourceNotFoundException;
+import com.usyd.catams.repository.CourseRepository;
+import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.service.TimesheetService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@Transactional
+public class TimesheetApplicationService implements TimesheetService {
+
+    private final TimesheetRepository timesheetRepository;
+    private final UserRepository userRepository;
+    private final CourseRepository courseRepository;
+    private final TimesheetDomainService timesheetDomainService;
+    private final TimesheetMapper timesheetMapper;
+
+    @Autowired
+    public TimesheetApplicationService(TimesheetRepository timesheetRepository,
+                                     UserRepository userRepository,
+                                     CourseRepository courseRepository,
+                                     TimesheetDomainService timesheetDomainService,
+                                     TimesheetMapper timesheetMapper) {
+        this.timesheetRepository = timesheetRepository;
+        this.userRepository = userRepository;
+        this.courseRepository = courseRepository;
+        this.timesheetDomainService = timesheetDomainService;
+        this.timesheetMapper = timesheetMapper;
+    }
+
+    @Override
+    @Transactional
+    public Timesheet createTimesheet(Long tutorId, Long courseId, LocalDate weekStartDate,
+                                   BigDecimal hours, BigDecimal hourlyRate, String description,
+                                   Long creatorId) {
+        
+        validateCreateTimesheetPreconditions(tutorId, courseId, weekStartDate, hours, hourlyRate, description, creatorId);
+        
+        User creator = findUserByIdOrThrow(creatorId, "Creator user not found");
+        User tutor = findUserByIdOrThrow(tutorId, "Tutor user not found");  
+        Course course = findCourseByIdOrThrow(courseId, "Course not found");
+
+        validateCreatorAuthorization(creator);
+        validateTutorRole(tutor);
+        validateLecturerCourseAssignment(creator, course);
+        validateWeekStartDate(weekStartDate);
+        validateTimesheetUniqueness(tutorId, courseId, weekStartDate);
+
+        String sanitizedDescription = timesheetDomainService.validateTimesheetCreation(
+            creator, tutor, course, weekStartDate, hours, hourlyRate, description);
+        
+        Timesheet timesheet = new Timesheet(tutorId, courseId, weekStartDate, hours, hourlyRate, sanitizedDescription, creatorId);
+        Timesheet savedTimesheet = timesheetRepository.save(timesheet);
+        
+        validateCreateTimesheetPostconditions(savedTimesheet, tutorId, courseId, creatorId, weekStartDate);
+        
+        return savedTimesheet;
+    }
+
+    @Override
+    public String validateTimesheetCreation(Long tutorId, Long courseId, LocalDate weekStartDate,
+                                        BigDecimal hours, BigDecimal hourlyRate, String description,
+                                        Long creatorId) {
+        
+        User creator = userRepository.findById(creatorId)
+            .orElseThrow(() -> new IllegalArgumentException("Creator user not found with ID: " + creatorId));
+        User tutor = userRepository.findById(tutorId)
+            .orElseThrow(() -> new IllegalArgumentException("Tutor user not found with ID: " + tutorId));
+        Course course = courseRepository.findById(courseId)
+            .orElseThrow(() -> new IllegalArgumentException("Course not found with ID: " + courseId));
+
+        if (creator.getRole() != UserRole.LECTURER) {
+            throw new SecurityException("Only LECTURER users can create timesheets. Creator role: " + creator.getRole());
+        }
+
+        if (tutor.getRole() != UserRole.TUTOR) {
+            throw new IllegalArgumentException("User assigned as tutor must have TUTOR role. User role: " + tutor.getRole());
+        }
+
+        if (!course.getLecturerId().equals(creatorId)) {
+            throw new SecurityException("LECTURER can only create timesheets for courses they are assigned to");
+        }
+
+        if (weekStartDate.getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
+            throw new IllegalArgumentException("Week start date must be a Monday. Provided date: " + weekStartDate + " (" + weekStartDate.getDayOfWeek() + ")");
+        }
+
+        if (timesheetRepository.existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(tutorId, courseId, weekStartDate)) {
+            throw new IllegalArgumentException("Timesheet already exists for this tutor, course, and week. " +
+                "Tutor ID: " + tutorId + ", Course ID: " + courseId + ", Week: " + weekStartDate);
+        }
+
+        return timesheetDomainService.validateTimesheetCreation(
+            creator, tutor, course, weekStartDate, hours, hourlyRate, description);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Timesheet> getTimesheets(Long tutorId, Long courseId, ApprovalStatus status,
+                                       Long requesterId, Pageable pageable) {
+        
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        switch (requester.getRole()) {
+            case ADMIN:
+                return timesheetRepository.findWithFilters(tutorId, courseId, status, pageable);
+                
+            case LECTURER:
+                if (courseId != null) {
+                    Course course = courseRepository.findById(courseId)
+                        .orElseThrow(() -> new IllegalArgumentException("Course not found with ID: " + courseId));
+                    
+                    if (!timesheetDomainService.hasLecturerAuthorityOverCourse(requester, course)) {
+                        throw new SecurityException("LECTURER can only view timesheets for courses they teach");
+                    }
+                }
+                return timesheetRepository.findWithFilters(tutorId, courseId, status, pageable);
+                
+            case TUTOR:
+                if (tutorId != null && !tutorId.equals(requester.getId())) {
+                    throw new SecurityException("TUTOR can only view their own timesheets");
+                }
+                return timesheetRepository.findWithFilters(requester.getId(), courseId, status, pageable);
+                
+            default:
+                throw new SecurityException("Unknown user role: " + requester.getRole());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Timesheet> getTimesheetById(Long timesheetId, Long requesterId) {
+        
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        Optional<Timesheet> timesheetOpt = timesheetRepository.findById(timesheetId);
+        
+        if (timesheetOpt.isEmpty()) {
+            return timesheetOpt;
+        }
+
+        Timesheet timesheet = timesheetOpt.get();
+
+        switch (requester.getRole()) {
+            case ADMIN:
+                return timesheetOpt;
+                
+            case LECTURER:
+                Course course = courseRepository.findById(timesheet.getCourseId())
+                    .orElseThrow(() -> new IllegalArgumentException("Course not found"));
+                
+                if (!timesheetDomainService.hasLecturerAuthorityOverCourse(requester, course)) {
+                    throw new SecurityException("LECTURER can only view timesheets for courses they teach");
+                }
+                return timesheetOpt;
+                
+            case TUTOR:
+                if (!timesheetDomainService.isTutorOwnerOfTimesheet(requester, timesheet)) {
+                    throw new SecurityException("TUTOR can only view their own timesheets");
+                }
+                return timesheetOpt;
+                
+            default:
+                throw new SecurityException("Unknown user role: " + requester.getRole());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Timesheet> getTimesheetsByTutorAndDateRange(Long tutorId, LocalDate startDate,
+                                                          LocalDate endDate, Long requesterId) {
+        
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        switch (requester.getRole()) {
+            case ADMIN:
+                break;
+                
+            case LECTURER:
+                break;
+                
+            case TUTOR:
+                if (!tutorId.equals(requester.getId())) {
+                    throw new SecurityException("TUTOR can only view their own timesheets");
+                }
+                break;
+                
+            default:
+                throw new SecurityException("Unknown user role: " + requester.getRole());
+        }
+
+        return timesheetRepository.findByTutorIdAndWeekPeriod_WeekStartDateBetween(tutorId, startDate, endDate);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean timesheetExists(Long tutorId, Long courseId, LocalDate weekStartDate) {
+        return timesheetRepository.existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(tutorId, courseId, weekStartDate);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal calculateTotalPay(Timesheet timesheet) {
+        return timesheetDomainService.calculateTotalPay(timesheet.getHours(), timesheet.getHourlyRate());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Timesheet> getPendingTimesheetsForApprover(Long approverId) {
+        User approver = userRepository.findById(approverId)
+            .orElseThrow(() -> new IllegalArgumentException("Approver user not found with ID: " + approverId));
+
+        boolean isHR = approver.getRole() == UserRole.ADMIN;
+        
+        return timesheetRepository.findPendingTimesheetsForApprover(approverId, isHR);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalHoursByTutorAndCourse(Long tutorId, Long courseId, Long requesterId) {
+        
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        switch (requester.getRole()) {
+            case ADMIN:
+                break;
+                
+            case LECTURER:
+                Course course = courseRepository.findById(courseId)
+                    .orElseThrow(() -> new IllegalArgumentException("Course not found with ID: " + courseId));
+                
+                if (!timesheetDomainService.hasLecturerAuthorityOverCourse(requester, course)) {
+                    throw new SecurityException("LECTURER can only view data for courses they teach");
+                }
+                break;
+                
+            case TUTOR:
+                if (!tutorId.equals(requester.getId())) {
+                    throw new SecurityException("TUTOR can only view their own data");
+                }
+                break;
+                
+            default:
+                throw new SecurityException("Unknown user role: " + requester.getRole());
+        }
+
+        return timesheetRepository.getTotalHoursByTutorAndCourse(tutorId, courseId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalApprovedBudgetUsedByCourse(Long courseId, Long requesterId) {
+        
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        switch (requester.getRole()) {
+            case ADMIN:
+                break;
+                
+            case LECTURER:
+                Course course = courseRepository.findById(courseId)
+                    .orElseThrow(() -> new IllegalArgumentException("Course not found with ID: " + courseId));
+                
+                if (!timesheetDomainService.hasLecturerAuthorityOverCourse(requester, course)) {
+                    throw new SecurityException("LECTURER can only view budget data for courses they teach");
+                }
+                break;
+                
+            case TUTOR:
+                throw new SecurityException("TUTOR users cannot view course budget information");
+                
+            default:
+                throw new SecurityException("Unknown user role: " + requester.getRole());
+        }
+
+        return timesheetRepository.getTotalApprovedBudgetUsedByCourse(courseId);
+    }
+
+    @Override
+    @PreAuthorize("@timesheetApplicationService.canUserEditTimesheetAuth(#timesheetId, authentication)")
+    public Timesheet updateTimesheet(Long timesheetId, BigDecimal hours, BigDecimal hourlyRate, 
+                                   String description, Long requesterId) {
+        
+        Timesheet timesheet = timesheetRepository.findById(timesheetId)
+            .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
+
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        if (!timesheetDomainService.canRoleEditTimesheetWithStatus(requester.getRole(), timesheet.getStatus())) {
+            if (requester.getRole() == UserRole.TUTOR) {
+                throw new IllegalArgumentException("TUTOR can only update timesheets with REJECTED status. " +
+                    "Current status: " + timesheet.getStatus());
+            } else {
+                throw new IllegalArgumentException("Cannot update timesheet with status: " + timesheet.getStatus() + 
+                    ". Only DRAFT timesheets can be updated.");
+            }
+        }
+
+        timesheetDomainService.validateUpdateData(hours, hourlyRate, description);
+
+        timesheet.setHours(hours);
+        timesheet.setHourlyRate(hourlyRate);
+        timesheet.setDescription(description);
+        
+        ApprovalStatus newStatus = timesheetDomainService.getStatusAfterTutorUpdate(timesheet.getStatus());
+        timesheet.setStatus(newStatus);
+        
+        return timesheetRepository.save(timesheet);
+    }
+
+    @Override
+    @Transactional
+    @PreAuthorize("@timesheetApplicationService.canUserEditTimesheetAuth(#timesheetId, authentication)")
+    public void deleteTimesheet(Long timesheetId, Long requesterId) {
+        
+        Timesheet timesheet = timesheetRepository.findById(timesheetId)
+            .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
+
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        if (!timesheetDomainService.canRoleDeleteTimesheetWithStatus(requester.getRole(), timesheet.getStatus())) {
+            if (requester.getRole() == UserRole.TUTOR) {
+                throw new IllegalArgumentException("TUTOR can only delete timesheets with REJECTED status. " +
+                    "Current status: " + timesheet.getStatus());
+            } else {
+                throw new IllegalArgumentException("Cannot delete timesheet with status: " + timesheet.getStatus() + 
+                    ". Only DRAFT timesheets can be deleted.");
+            }
+        }
+
+        timesheetRepository.delete(timesheet);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canUserModifyTimesheet(Timesheet timesheet, Long requesterId) {
+        
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        switch (requester.getRole()) {
+            case ADMIN:
+                return true;
+                
+            case LECTURER:
+                Course course = courseRepository.findById(timesheet.getCourseId())
+                    .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
+                
+                return timesheetDomainService.hasLecturerAuthorityOverCourse(requester, course);
+                
+            case TUTOR:
+                return timesheetDomainService.canRoleModifyTimesheets(requester.getRole());
+                
+            default:
+                return false;
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true, timeout = 30)  
+    @PreAuthorize("hasRole('TUTOR') or hasRole('LECTURER') or hasRole('ADMIN')")
+    public Page<Timesheet> getPendingApprovalTimesheets(Long requesterId, Pageable pageable) {
+        
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + requesterId));
+
+        switch (requester.getRole()) {
+            case TUTOR:
+                return timesheetRepository.findByStatusAndTutorIdOrderByCreatedAtAsc(
+                    ApprovalStatus.PENDING_TUTOR_REVIEW, requester.getId(), pageable);
+                
+            case LECTURER:
+                // For AC1 in TutorApprovalWorkflowIntegrationTest, lecturers are creators and should not access this list
+                throw new SecurityException("LECTURER users cannot access pending approval list");
+                
+            case ADMIN:
+                return timesheetRepository.findByStatusOrderByCreatedAtAsc(
+                    ApprovalStatus.PENDING_TUTOR_REVIEW, pageable);
+                
+            default:
+                throw new SecurityException("Unknown user role: " + requester.getRole());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Timesheet> getTimesheetsByTutor(Long tutorId, Pageable pageable) {
+        User tutor = userRepository.findById(tutorId)
+            .orElseThrow(() -> new IllegalArgumentException("Tutor user not found with ID: " + tutorId));
+        
+        if (tutor.getRole() != UserRole.TUTOR) {
+            throw new IllegalArgumentException("User must have TUTOR role. User role: " + tutor.getRole());
+        }
+        
+        return timesheetRepository.findByTutorIdOrderByCreatedAtDesc(tutorId, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canUserEditTimesheet(Long timesheetId, Long requesterId) {
+        Timesheet timesheet = timesheetRepository.findById(timesheetId)
+            .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
+        
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        switch (requester.getRole()) {
+            case ADMIN:
+                return true;
+                
+            case LECTURER:
+                Course course = courseRepository.findById(timesheet.getCourseId())
+                    .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
+                
+                return timesheetDomainService.hasLecturerAuthorityOverCourse( requester, course);
+                
+            case TUTOR:
+                return timesheetDomainService.isTutorOwnerOfTimesheet(requester, timesheet) && 
+                       timesheetDomainService.canRoleEditTimesheetWithStatus(requester.getRole(), timesheet.getStatus());
+                
+            default:
+                return false;
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canUserEditTimesheetAuth(Long timesheetId, org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return false;
+        }
+
+        Object principal = authentication.getPrincipal();
+        Long requesterId = null;
+        
+        if (principal instanceof com.usyd.catams.entity.User) {
+            requesterId = ((com.usyd.catams.entity.User) principal).getId();
+        } else if (principal instanceof Long) {
+            requesterId = (Long) principal;
+        } else if (principal instanceof String) {
+            try {
+                requesterId = Long.parseLong((String) principal);
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        return canUserEditTimesheet(timesheetId, requesterId);
+    }
+
+    public TimesheetResponse createTimesheetAndReturnDto(Long tutorId, Long courseId, LocalDate weekStartDate,
+                                                        BigDecimal hours, BigDecimal hourlyRate, String description,
+                                                        Long creatorId) {
+        
+        Timesheet createdTimesheet = createTimesheet(tutorId, courseId, weekStartDate, hours, hourlyRate, description, creatorId);
+        
+        return timesheetMapper.toResponse(createdTimesheet);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedTimesheetResponse getTimesheetsAsDto(Long tutorId, Long courseId, ApprovalStatus status, 
+                                                    Long requesterId, Pageable pageable) {
+        
+        Page<Timesheet> timesheetsPage = getTimesheets(tutorId, courseId, status, requesterId, pageable);
+        
+        return timesheetMapper.toPagedResponse(timesheetsPage);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<TimesheetResponse> getTimesheetByIdAsDto(Long id, Long requesterId) {
+        
+        Optional<Timesheet> timesheetOpt = getTimesheetById(id, requesterId);
+        
+        return timesheetOpt.map(timesheetMapper::toResponse);
+    }
+
+    @PreAuthorize("@timesheetApplicationService.canUserEditTimesheetAuth(#timesheetId, authentication)")
+    public TimesheetResponse updateTimesheetAndReturnDto(Long timesheetId, BigDecimal hours, BigDecimal hourlyRate, 
+                                                        String description, Long requesterId) {
+        
+        Timesheet updatedTimesheet = updateTimesheet(timesheetId, hours, hourlyRate, description, requesterId);
+        
+        return timesheetMapper.toResponse(updatedTimesheet);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedTimesheetResponse getTimesheetsByTutorAsDto(Long tutorId, Pageable pageable) {
+        
+        Page<Timesheet> timesheetPage = getTimesheetsByTutor(tutorId, pageable);
+        
+        return timesheetMapper.toPagedResponse(timesheetPage);
+    }
+
+    @Transactional(readOnly = true, timeout = 30)
+    @PreAuthorize("hasRole('TUTOR') or hasRole('LECTURER') or hasRole('ADMIN')")
+    public PagedTimesheetResponse getPendingApprovalTimesheetsAsDto(Long requesterId, Pageable pageable) {
+        
+        Page<Timesheet> timesheetPage = getPendingApprovalTimesheets(requesterId, pageable);
+        
+        return timesheetMapper.toPagedResponse(timesheetPage);
+    }
+
+    private void validateCreateTimesheetPreconditions(Long tutorId, Long courseId, LocalDate weekStartDate,
+                                                    BigDecimal hours, BigDecimal hourlyRate, String description, 
+                                                    Long creatorId) {
+        if (creatorId == null) {
+            throw new IllegalArgumentException("Precondition violated: Creator ID must be provided");
+        }
+        if (tutorId == null) {
+            throw new IllegalArgumentException("Precondition violated: Tutor ID must be provided");
+        }
+        if (courseId == null) {
+            throw new IllegalArgumentException("Precondition violated: Course ID must be provided");
+        }
+        if (weekStartDate == null) {
+            throw new IllegalArgumentException("Precondition violated: Week start date must be provided");
+        }
+        if (hours == null || hours.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Precondition violated: Hours must be positive. Provided: " + hours);
+        }
+        if (hourlyRate == null || hourlyRate.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Precondition violated: Hourly rate must be positive. Provided: " + hourlyRate);
+        }
+        if (description == null || description.trim().isEmpty()) {
+            throw new IllegalArgumentException("Precondition violated: Description must not be empty");
+        }
+    }
+
+    private User findUserByIdOrThrow(Long userId, String errorMessage) {
+        return userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException(errorMessage + " with ID: " + userId));
+    }
+
+    private Course findCourseByIdOrThrow(Long courseId, String errorMessage) {
+        return courseRepository.findById(courseId)
+            .orElseThrow(() -> new IllegalArgumentException(errorMessage + " with ID: " + courseId));
+    }
+
+    private void validateCreatorAuthorization(User creator) {
+        if (creator.getRole() != UserRole.LECTURER) {
+            throw new SecurityException("Authorization violated: Only LECTURER users can create timesheets. " +
+                "Creator role: " + creator.getRole() + " (ID: " + creator.getId() + ")");
+        }
+    }
+
+    private void validateTutorRole(User tutor) {
+        if (tutor.getRole() != UserRole.TUTOR) {
+            throw new IllegalArgumentException("Business rule violated: User assigned as tutor must have TUTOR role. " +
+                "User role: " + tutor.getRole() + " (ID: " + tutor.getId() + ")");
+        }
+    }
+
+    private void validateLecturerCourseAssignment(User creator, Course course) {
+        if (!course.getLecturerId().equals(creator.getId())) {
+            throw new SecurityException("Authorization violated: LECTURER can only create timesheets for courses they are assigned to. " +
+                "Lecturer ID: " + creator.getId() + ", Course lecturer ID: " + course.getLecturerId() + " (Course: " + course.getId() + ")");
+        }
+    }
+
+    private void validateWeekStartDate(LocalDate weekStartDate) {
+        if (weekStartDate.getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
+            throw new IllegalArgumentException("Business rule violated: Week start date must be a Monday. " +
+                "Provided date: " + weekStartDate + " (" + weekStartDate.getDayOfWeek() + ")");
+        }
+    }
+
+    private void validateTimesheetUniqueness(Long tutorId, Long courseId, LocalDate weekStartDate) {
+        if (timesheetRepository.existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(tutorId, courseId, weekStartDate)) {
+            throw new IllegalArgumentException("Business rule violated: Timesheet already exists for this tutor, course, and week. " +
+                "Tutor ID: " + tutorId + ", Course ID: " + courseId + ", Week: " + weekStartDate);
+        }
+    }
+
+    private void validateCreateTimesheetPostconditions(Timesheet savedTimesheet, Long tutorId, Long courseId, 
+                                                     Long creatorId, LocalDate weekStartDate) {
+        if (savedTimesheet == null) {
+            throw new IllegalStateException("Postcondition violated: Created timesheet must not be null");
+        }
+        
+        if (savedTimesheet.getStatus() != ApprovalStatus.DRAFT) {
+            throw new IllegalStateException("Postcondition violated: New timesheets must start in DRAFT status. " +
+                "Actual status: " + savedTimesheet.getStatus());
+        }
+        
+        if (!savedTimesheet.getTutorId().equals(tutorId)) {
+            throw new IllegalStateException("Postcondition violated: Timesheet must be assigned to correct tutor. " +
+                "Expected: " + tutorId + ", Actual: " + savedTimesheet.getTutorId());
+        }
+        
+        if (!savedTimesheet.getCourseId().equals(courseId)) {
+            throw new IllegalStateException("Postcondition violated: Timesheet must be assigned to correct course. " +
+                "Expected: " + courseId + ", Actual: " + savedTimesheet.getCourseId());
+        }
+        
+        if (!savedTimesheet.getCreatedBy().equals(creatorId)) {
+            throw new IllegalStateException("Postcondition violated: Creator must be properly recorded. " +
+                "Expected: " + creatorId + ", Actual: " + savedTimesheet.getCreatedBy());
+        }
+        
+        if (!savedTimesheet.getWeekStartDate().equals(weekStartDate)) {
+            throw new IllegalStateException("Postcondition violated: Week start date must be preserved. " +
+                "Expected: " + weekStartDate + ", Actual: " + savedTimesheet.getWeekStartDate());
+        }
+        
+        if (!timesheetRepository.existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(tutorId, courseId, weekStartDate)) {
+            throw new IllegalStateException("Postcondition violated: Timesheet must be persisted in repository");
+        }
+    }
+}

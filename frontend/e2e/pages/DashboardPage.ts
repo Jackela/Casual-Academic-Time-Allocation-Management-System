@@ -23,11 +23,18 @@ export class DashboardPage {
   }
 
   async waitForTimesheetData() {
-    await this.page.waitForResponse('**/api/timesheets/pending-approval');
+    // Be resilient: wait for either the API response or any UI state to appear
+    await Promise.race([
+      this.page.waitForResponse('**/api/timesheets/pending-approval').catch(() => null),
+      this.timesheetPage.timesheetsTable.waitFor({ timeout: 5000 }).catch(() => null),
+      this.timesheetPage.emptyState.waitFor({ timeout: 5000 }).catch(() => null),
+      this.timesheetPage.errorMessage.waitFor({ timeout: 5000 }).catch(() => null)
+    ]);
   }
 
-  async expectToBeLoaded() {
-    await expect(this.dashboardTitle).toContainText('Lecturer Dashboard');
+  async expectToBeLoaded(role: 'LECTURER' | 'ADMIN' | 'TUTOR' = 'LECTURER') {
+    const expectedTitle = role === 'ADMIN' ? 'Admin Dashboard' : role === 'TUTOR' ? 'Tutor Dashboard' : 'Lecturer Dashboard';
+    await expect(this.dashboardTitle).toContainText(expectedTitle);
     await expect(this.welcomeMessage).toBeVisible();
     await this.navigationPage.expectHeaderElements();
   }

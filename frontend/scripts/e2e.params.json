@@ -1,0 +1,14 @@
+{
+  "backendPort": 8084,
+  "backendProfile": "e2e",
+  "backendHealthCheckPath": "/actuator/health",
+  "frontendUrl": "http://localhost:5174",
+  "jsonReportPath": "playwright-report/results.json",
+  "testUsers": {
+    "lecturer": { "email": "lecturer@example.com", "password": "Lecturer123!" },
+    "tutor": { "email": "tutor@example.com", "password": "Tutor123!" },
+    "admin": { "email": "admin@example.com", "password": "Admin123!" }
+  }
+}
+
+

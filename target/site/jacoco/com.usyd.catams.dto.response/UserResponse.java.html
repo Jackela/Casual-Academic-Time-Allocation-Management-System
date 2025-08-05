@@ -30,15 +30,15 @@ public class UserResponse {
      * @param name User full name
      * @param role User role as string
      */
-<span class="fc" id="L33">    public UserResponse(Long id, String email, String name, String role) {</span>
-<span class="fc" id="L34">        this.id = id;</span>
-<span class="fc" id="L35">        this.email = email;</span>
-<span class="fc" id="L36">        this.name = name;</span>
-<span class="fc" id="L37">        this.role = role;</span>
-<span class="fc" id="L38">    }</span>
+<span class="nc" id="L33">    public UserResponse(Long id, String email, String name, String role) {</span>
+<span class="nc" id="L34">        this.id = id;</span>
+<span class="nc" id="L35">        this.email = email;</span>
+<span class="nc" id="L36">        this.name = name;</span>
+<span class="nc" id="L37">        this.role = role;</span>
+<span class="nc" id="L38">    }</span>
 
     public Long getId() {
-<span class="fc" id="L41">        return id;</span>
+<span class="nc" id="L41">        return id;</span>
     }
 
     public void setId(Long id) {
@@ -46,7 +46,7 @@ public class UserResponse {
 <span class="nc" id="L46">    }</span>
 
     public String getEmail() {
-<span class="fc" id="L49">        return email;</span>
+<span class="nc" id="L49">        return email;</span>
     }
 
     public void setEmail(String email) {
@@ -54,7 +54,7 @@ public class UserResponse {
 <span class="nc" id="L54">    }</span>
 
     public String getName() {
-<span class="fc" id="L57">        return name;</span>
+<span class="nc" id="L57">        return name;</span>
     }
 
     public void setName(String name) {
@@ -62,7 +62,7 @@ public class UserResponse {
 <span class="nc" id="L62">    }</span>
 
     public String getRole() {
-<span class="fc" id="L65">        return role;</span>
+<span class="nc" id="L65">        return role;</span>
     }
 
     public void setRole(String role) {
@@ -72,10 +72,10 @@ public class UserResponse {
     @Override
     public String toString() {
 <span class="nc" id="L74">        return &quot;UserResponse{&quot; +</span>
-                &quot;id=&quot; + id +
-                &quot;, email='&quot; + email + '\'' +
-                &quot;, name='&quot; + name + '\'' +
-                &quot;, role='&quot; + role + '\'' +
+<span class="nc" id="L75">                &quot;id=&quot; + id +</span>
+<span class="nc" id="L76">                &quot;, email='&quot; + email + '\'' +</span>
+<span class="nc" id="L77">                &quot;, name='&quot; + name + '\'' +</span>
+<span class="nc" id="L78">                &quot;, role='&quot; + role + '\'' +</span>
                 '}';
     }
 }

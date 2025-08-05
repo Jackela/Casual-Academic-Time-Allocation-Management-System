@@ -1,347 +1,77 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ApprovalServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">CATAMS</a> &gt; <a href="index.source.html" class="el_package">com.usyd.catams.service.impl</a> &gt; <span class="el_source">ApprovalServiceImpl.java</span></div><h1>ApprovalServiceImpl.java</h1><pre class="source lang-java linenums">package com.usyd.catams.service.impl;
 
+import com.usyd.catams.application.ApprovalApplicationService;
 import com.usyd.catams.entity.Approval;
-import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
-import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
-import com.usyd.catams.enums.UserRole;
-import com.usyd.catams.exception.ResourceNotFoundException;
-import com.usyd.catams.repository.ApprovalRepository;
-import com.usyd.catams.repository.CourseRepository;
-import com.usyd.catams.repository.TimesheetRepository;
-import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.service.ApprovalService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
- * Implementation of ApprovalService with comprehensive business rule validation.
+ * Legacy implementation of ApprovalService that delegates to ApprovalApplicationService.
  * 
- * This service enforces all CATAMS business rules for timesheet approval workflow
- * including role-based access control, status transition validation, and audit trail management.
+ * This class serves as a bridge during the DDD refactoring transition.
+ * Controllers and other services that still reference ApprovalServiceImpl
+ * will continue to work while we gradually migrate to direct usage of
+ * ApprovalApplicationService in the application layer.
+ * 
+ * @deprecated Use ApprovalApplicationService directly instead
  */
 @Service
-@Transactional
+@Primary
+@Deprecated
 public class ApprovalServiceImpl implements ApprovalService {
 
-    private final ApprovalRepository approvalRepository;
-    private final TimesheetRepository timesheetRepository;
-    private final UserRepository userRepository;
-    private final CourseRepository courseRepository;
+    private final ApprovalApplicationService approvalApplicationService;
 
     @Autowired
-    public ApprovalServiceImpl(ApprovalRepository approvalRepository,
-                              TimesheetRepository timesheetRepository,
-                              UserRepository userRepository,
-<span class="fc" id="L42">                              CourseRepository courseRepository) {</span>
-<span class="fc" id="L43">        this.approvalRepository = approvalRepository;</span>
-<span class="fc" id="L44">        this.timesheetRepository = timesheetRepository;</span>
-<span class="fc" id="L45">        this.userRepository = userRepository;</span>
-<span class="fc" id="L46">        this.courseRepository = courseRepository;</span>
-<span class="fc" id="L47">    }</span>
+<span class="fc" id="L33">    public ApprovalServiceImpl(ApprovalApplicationService approvalApplicationService) {</span>
+<span class="fc" id="L34">        this.approvalApplicationService = approvalApplicationService;</span>
+<span class="fc" id="L35">    }</span>
 
     @Override
     public Approval submitForApproval(Long timesheetId, String comment, Long requesterId) {
-<span class="nc" id="L51">        return performApprovalAction(timesheetId, ApprovalAction.SUBMIT_FOR_APPROVAL, comment, requesterId);</span>
+<span class="nc" id="L39">        return approvalApplicationService.submitForApproval(timesheetId, comment, requesterId);</span>
     }
 
     @Override
     public Approval performApprovalAction(Long timesheetId, ApprovalAction action, String comment, Long requesterId) {
-        
-        // 1. Validate timesheet exists
-<span class="fc" id="L58">        Timesheet timesheet = timesheetRepository.findById(timesheetId)</span>
-<span class="fc" id="L59">            .orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Timesheet&quot;, timesheetId.toString()));</span>
-
-        // 2. Validate user can perform this action
-<span class="fc" id="L62">        validateApprovalAction(timesheet, action, requesterId);</span>
-
-        // 3. Get current status and calculate target status
-<span class="fc" id="L65">        ApprovalStatus currentStatus = timesheet.getStatus();</span>
-<span class="fc" id="L66">        ApprovalStatus targetStatus = action.getTargetStatus(currentStatus);</span>
-
-        // 4. Create approval record for the primary action
-<span class="fc" id="L69">        Approval approval = new Approval(timesheetId, requesterId, action, currentStatus, targetStatus, comment);</span>
-        
-        // Validate the approval record
-<span class="fc" id="L72">        approval.validateBusinessRules();</span>
-
-        // 5. Update timesheet status to the target status
-<span class="fc" id="L75">        timesheet.setStatus(targetStatus);</span>
-<span class="fc" id="L76">        timesheetRepository.save(timesheet);</span>
-
-        // 6. Save the primary approval record
-<span class="fc" id="L79">        Approval savedApproval = approvalRepository.save(approval);</span>
-
-        // 7. Handle auto-transition from APPROVED to PENDING_HR_REVIEW (Story 2.1 requirement)
-<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (targetStatus == ApprovalStatus.APPROVED) {</span>
-            // Auto-transition to PENDING_HR_REVIEW within the same transaction
-<span class="fc" id="L84">            ApprovalStatus hrReviewStatus = ApprovalStatus.PENDING_HR_REVIEW;</span>
-            
-            // Create auto-transition approval record
-<span class="fc" id="L87">            Approval autoTransitionApproval = new Approval(</span>
-                timesheetId, 
-                requesterId, // Same user who approved triggers the auto-transition
-                ApprovalAction.APPROVE, // Internal system action
-                ApprovalStatus.APPROVED,
-                hrReviewStatus,
-                &quot;Auto-transition to HR review after lecturer approval&quot;
-            );
-            
-            // Update timesheet to HR review status
-<span class="fc" id="L97">            timesheet.setStatus(hrReviewStatus);</span>
-<span class="fc" id="L98">            timesheetRepository.save(timesheet);</span>
-            
-            // Save auto-transition approval record
-<span class="fc" id="L101">            approvalRepository.save(autoTransitionApproval);</span>
-        }
-
-<span class="fc" id="L104">        return savedApproval;</span>
+<span class="nc" id="L44">        return approvalApplicationService.performApprovalAction(timesheetId, action, comment, requesterId);</span>
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List&lt;Approval&gt; getApprovalHistory(Long timesheetId, Long requesterId) {
-        
-        // Validate timesheet exists and user has access
-<span class="fc" id="L112">        Timesheet timesheet = timesheetRepository.findById(timesheetId)</span>
-<span class="pc" id="L113">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Timesheet not found with ID: &quot; + timesheetId));</span>
-
-<span class="fc" id="L115">        User requester = userRepository.findById(requesterId)</span>
-<span class="pc" id="L116">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Requester user not found with ID: &quot; + requesterId));</span>
-
-        // Apply access control - similar to timesheet viewing permissions
-<span class="pc bpc" id="L119" title="1 of 2 branches missed.">        if (!canUserViewTimesheet(timesheet, requester)) {</span>
-<span class="nc" id="L120">            throw new SecurityException(&quot;User does not have permission to view approval history for this timesheet&quot;);</span>
-        }
-
-<span class="fc" id="L123">        return approvalRepository.findByTimesheetIdOrderByTimestampAsc(timesheetId);</span>
+<span class="nc" id="L49">        return approvalApplicationService.getApprovalHistory(timesheetId, requesterId);</span>
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List&lt;Timesheet&gt; getPendingApprovalsForUser(Long approverId) {
-        
-<span class="nc" id="L130">        User approver = userRepository.findById(approverId)</span>
-<span class="nc" id="L131">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Approver user not found with ID: &quot; + approverId));</span>
-
-        // Define which statuses this user can act on based on their role
-        List&lt;ApprovalStatus&gt; relevantStatuses;
-        
-<span class="nc bnc" id="L136" title="All 4 branches missed.">        switch (approver.getRole()) {</span>
-            case LECTURER:
-                // LECTURERs act on submissions (PENDING_LECTURER_APPROVAL)
-<span class="nc" id="L139">                relevantStatuses = List.of(ApprovalStatus.PENDING_LECTURER_APPROVAL);</span>
-<span class="nc" id="L140">                break;</span>
-                
-            case TUTOR:
-                // TUTORs don't typically act on pending approvals in this workflow
-                // But they might need to see timesheets pending their review
-<span class="nc" id="L145">                relevantStatuses = List.of(ApprovalStatus.PENDING_TUTOR_REVIEW);</span>
-<span class="nc" id="L146">                break;</span>
-                
-            case ADMIN:
-                // ADMINs can act on HR-level approvals
-<span class="nc" id="L150">                relevantStatuses = List.of(ApprovalStatus.PENDING_HR_REVIEW, ApprovalStatus.PENDING_LECTURER_APPROVAL);</span>
-<span class="nc" id="L151">                break;</span>
-                
-            default:
-<span class="nc" id="L154">                return List.of(); // No pending approvals for unknown roles</span>
-        }
-
-        // Get timesheets that are in relevant pending states and that this user can act on
-<span class="nc" id="L158">        List&lt;Approval&gt; pendingApprovals = approvalRepository.findPendingApprovalsForStatuses(relevantStatuses);</span>
-        
-<span class="nc" id="L160">        return pendingApprovals.stream()</span>
-<span class="nc" id="L161">            .map(approval -&gt; timesheetRepository.findById(approval.getTimesheetId()))</span>
-<span class="nc" id="L162">            .filter(opt -&gt; opt.isPresent())</span>
-<span class="nc" id="L163">            .map(opt -&gt; opt.get())</span>
-<span class="nc" id="L164">            .filter(timesheet -&gt; canUserActOnTimesheet(timesheet, approver))</span>
-<span class="nc" id="L165">            .collect(Collectors.toList());</span>
+<span class="nc" id="L54">        return approvalApplicationService.getPendingApprovalsForUser(approverId);</span>
     }
 
     @Override
-    @Transactional(readOnly = true)
     public boolean canUserPerformAction(Timesheet timesheet, ApprovalAction action, Long requesterId) {
-        
-        try {
-<span class="nc" id="L173">            validateApprovalAction(timesheet, action, requesterId);</span>
-<span class="nc" id="L174">            return true;</span>
-<span class="nc" id="L175">        } catch (Exception e) {</span>
-<span class="nc" id="L176">            return false;</span>
-        }
+<span class="nc" id="L59">        return approvalApplicationService.canUserPerformAction(timesheet, action, requesterId);</span>
     }
 
     @Override
-    @Transactional(readOnly = true)
     public ApprovalStatus getCurrentApprovalStatus(Long timesheetId) {
-        
-        // First check the timesheet's status field
-<span class="nc" id="L185">        Timesheet timesheet = timesheetRepository.findById(timesheetId)</span>
-<span class="nc" id="L186">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Timesheet not found with ID: &quot; + timesheetId));</span>
-
-<span class="nc" id="L188">        return timesheet.getStatus();</span>
+<span class="nc" id="L64">        return approvalApplicationService.getCurrentApprovalStatus(timesheetId);</span>
     }
 
     @Override
     public void validateApprovalAction(Timesheet timesheet, ApprovalAction action, Long requesterId) {
-        
-        // 1. Validate user exists
-<span class="fc" id="L195">        User requester = userRepository.findById(requesterId)</span>
-<span class="pc" id="L196">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Requester user not found with ID: &quot; + requesterId));</span>
-
-        // 2. Validate user role can perform this type of action
-<span class="fc bfc" id="L199" title="All 2 branches covered.">        if (!canRolePerformAction(requester.getRole(), action)) {</span>
-<span class="fc" id="L200">            throw new SecurityException(&quot;User role &quot; + requester.getRole() + &quot; cannot perform action &quot; + action);</span>
-        }
-
-        // 3. Validate user has permission for this specific timesheet
-<span class="fc bfc" id="L204" title="All 2 branches covered.">        if (!hasPermissionForTimesheet(timesheet, requester, action)) {</span>
-<span class="fc" id="L205">            throw new SecurityException(&quot;User does not have permission to perform &quot; + action + &quot; on this timesheet&quot;);</span>
-        }
-
-        // 4. Validate current status allows this action
-<span class="fc" id="L209">        ApprovalStatus currentStatus = timesheet.getStatus();</span>
-        
-        try {
-            // This will throw an exception if the transition is invalid
-<span class="fc" id="L213">            action.getTargetStatus(currentStatus);</span>
-<span class="fc" id="L214">        } catch (IllegalArgumentException e) {</span>
-<span class="fc" id="L215">            throw new IllegalArgumentException(&quot;Cannot perform &quot; + action + &quot; on timesheet with status &quot; + currentStatus.name() + &quot;: &quot; + e.getMessage());</span>
-<span class="fc" id="L216">        }</span>
-
-        // 5. Additional business rule validation
-<span class="fc" id="L219">        validateBusinessRulesForAction(timesheet, action, requester);</span>
-<span class="fc" id="L220">    }</span>
+<span class="nc" id="L69">        approvalApplicationService.validateApprovalAction(timesheet, action, requesterId);</span>
+<span class="nc" id="L70">    }</span>
 
     @Override
-    @Transactional(readOnly = true)
     public List&lt;Object[]&gt; getApprovalStatistics(Long approverId, Long requesterId) {
-        
-<span class="nc" id="L226">        User requester = userRepository.findById(requesterId)</span>
-<span class="nc" id="L227">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Requester user not found with ID: &quot; + requesterId));</span>
-
-        // Only ADMIN users or the approver themselves can view statistics
-<span class="nc bnc" id="L230" title="All 4 branches missed.">        if (!requester.getRole().equals(UserRole.ADMIN) &amp;&amp; !requesterId.equals(approverId)) {</span>
-<span class="nc" id="L231">            throw new SecurityException(&quot;User does not have permission to view approval statistics&quot;);</span>
-        }
-
-<span class="nc" id="L234">        return approvalRepository.getApprovalStatisticsByApprover(approverId);</span>
+<span class="nc" id="L74">        return approvalApplicationService.getApprovalStatistics(approverId, requesterId);</span>
     }
-
-    // Private helper methods
-
-    /**
-     * Check if a user role can perform a specific approval action.
-     */
-    private boolean canRolePerformAction(UserRole role, ApprovalAction action) {
-<span class="pc bpc" id="L243" title="1 of 4 branches missed.">        switch (role) {</span>
-            case TUTOR:
-<span class="fc" id="L245">                return action.canBePerformedByTutor();</span>
-            case LECTURER:
-<span class="fc" id="L247">                return action.canBePerformedByLecturer();</span>
-            case ADMIN:
-<span class="fc" id="L249">                return action.canBePerformedByAdmin();</span>
-            default:
-<span class="nc" id="L251">                return false;</span>
-        }
-    }
-
-    /**
-     * Check if a user has permission to perform a specific action on a timesheet.
-     */
-    private boolean hasPermissionForTimesheet(Timesheet timesheet, User user, ApprovalAction action) {
-        
-<span class="pc bpc" id="L260" title="1 of 4 branches missed.">        switch (user.getRole()) {</span>
-            case ADMIN:
-                // ADMIN can perform any action on any timesheet
-<span class="fc" id="L263">                return true;</span>
-                
-            case LECTURER:
-                // LECTURER can act on timesheets for courses they teach
-<span class="fc" id="L267">                Course course = courseRepository.findById(timesheet.getCourseId())</span>
-<span class="pc" id="L268">                    .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Course not found for timesheet&quot;));</span>
-                
-<span class="fc" id="L270">                return user.getId().equals(course.getLecturerId());</span>
-                
-            case TUTOR:
-                // TUTOR can only submit their own timesheets
-<span class="pc bpc" id="L274" title="1 of 2 branches missed.">                if (action == ApprovalAction.SUBMIT_FOR_APPROVAL) {</span>
-<span class="fc" id="L275">                    return user.getId().equals(timesheet.getTutorId());</span>
-                }
-<span class="nc" id="L277">                return false;</span>
-                
-            default:
-<span class="nc" id="L280">                return false;</span>
-        }
-    }
-
-    /**
-     * Check if a user can view a timesheet (for approval history access control).
-     */
-    private boolean canUserViewTimesheet(Timesheet timesheet, User user) {
-        
-<span class="pc bpc" id="L289" title="3 of 4 branches missed.">        switch (user.getRole()) {</span>
-            case ADMIN:
-<span class="nc" id="L291">                return true;</span>
-                
-            case LECTURER:
-<span class="nc" id="L294">                Course course = courseRepository.findById(timesheet.getCourseId())</span>
-<span class="nc" id="L295">                    .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Course not found for timesheet&quot;));</span>
-                
-<span class="nc" id="L297">                return user.getId().equals(course.getLecturerId());</span>
-                
-            case TUTOR:
-<span class="fc" id="L300">                return user.getId().equals(timesheet.getTutorId());</span>
-                
-            default:
-<span class="nc" id="L303">                return false;</span>
-        }
-    }
-
-    /**
-     * Check if a user can act on a timesheet (for pending approvals filtering).
-     */
-    private boolean canUserActOnTimesheet(Timesheet timesheet, User user) {
-        
-<span class="nc bnc" id="L312" title="All 4 branches missed.">        switch (user.getRole()) {</span>
-            case ADMIN:
-<span class="nc" id="L314">                return true;</span>
-                
-            case LECTURER:
-<span class="nc" id="L317">                Course course = courseRepository.findById(timesheet.getCourseId())</span>
-<span class="nc" id="L318">                    .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Course not found for timesheet&quot;));</span>
-                
-<span class="nc" id="L320">                return user.getId().equals(course.getLecturerId());</span>
-                
-            case TUTOR:
-                // TUTORs typically don't act on pending approvals, but if needed:
-<span class="nc" id="L324">                return user.getId().equals(timesheet.getTutorId());</span>
-                
-            default:
-<span class="nc" id="L327">                return false;</span>
-        }
-    }
-
-    /**
-     * Validate additional business rules for specific actions.
-     */
-    private void validateBusinessRulesForAction(Timesheet timesheet, ApprovalAction action, User requester) {
-        
-        // Additional validation can be added here as business rules evolve
-        
-        // For example, we could validate:
-        // - Time limits for approval actions
-        // - Required comments for certain actions
-        // - Budget constraints before final approval
-        // - etc.
-        
-        // For now, basic validation is sufficient for the story requirements
-<span class="fc" id="L345">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

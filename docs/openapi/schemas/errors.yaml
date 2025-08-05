@@ -1,0 +1,39 @@
+ErrorResponse:
+  type: object
+  required:
+    - timestamp
+    - status
+    - error
+    - message
+    - path
+    - success
+  properties:
+    timestamp:
+      type: string
+      format: date-time
+      description: When the error occurred
+      example: "2025-08-01T10:15:30.123Z"
+    status:
+      type: integer
+      description: HTTP status code
+      example: 400
+    error:
+      type: string
+      description: Error code for programmatic handling
+      example: "VALIDATION_FAILED"
+    message:
+      type: string
+      description: Human-readable error message
+      example: "Validation failed: email: Email format is invalid"
+    path:
+      type: string
+      description: Request path that caused the error
+      example: "/api/auth/login"
+    success:
+      type: boolean
+      description: Indicates if the operation was successful (always false for errors)
+      example: false
+    errorMessage:
+      type: string
+      description: Detailed error message (often same as 'message')
+      nullable: true

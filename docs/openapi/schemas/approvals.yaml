@@ -1,0 +1,134 @@
+ApprovalStatus:
+  type: string
+  enum:
+    - DRAFT
+    - PENDING_LECTURER_APPROVAL
+    - APPROVED
+    - REJECTED
+    - MODIFICATION_REQUESTED
+    - PENDING_HR_REVIEW
+    - FINAL_APPROVED
+  description: |
+    Approval status of a timesheet:
+    - **DRAFT**: Initial state, being prepared
+    - **PENDING_LECTURER_APPROVAL**: Submitted for lecturer review
+    - **APPROVED**: Approved by lecturer, ready for HR
+    - **REJECTED**: Rejected by lecturer or HR
+    - **MODIFICATION_REQUESTED**: Lecturer requested changes
+    - **PENDING_HR_REVIEW**: Awaiting final HR approval
+    - **FINAL_APPROVED**: Final approval by HR, ready for payment
+  example: "PENDING_LECTURER_APPROVAL"
+
+ApprovalActionRequest:
+  type: object
+  required:
+    - timesheetId
+    - action
+  properties:
+    timesheetId:
+      type: integer
+      format: int64
+      description: ID of the timesheet to act upon
+      example: 789
+    action:
+      $ref: '#/ApprovalAction'
+    comment:
+      type: string
+      description: Optional comment explaining the action
+      example: "Approved - hours and description look correct"
+      maxLength: 500
+
+ApprovalAction:
+  type: string
+  enum:
+    - SUBMIT_FOR_APPROVAL
+    - APPROVE
+    - REJECT
+    - REQUEST_MODIFICATION
+  description: |
+    Type of approval action:
+    - **SUBMIT_FOR_APPROVAL**: Submit draft timesheet for approval
+    - **APPROVE**: Approve the timesheet
+    - **REJECT**: Reject the timesheet
+    - **REQUEST_MODIFICATION**: Request changes to the timesheet
+  example: "APPROVE"
+
+ApprovalActionResponse:
+  type: object
+  required:
+    - timesheetId
+    - action
+    - newStatus
+    - approverId
+    - approverName
+    - timestamp
+  properties:
+    timesheetId:
+      type: integer
+      format: int64
+      description: ID of the timesheet that was acted upon
+      example: 789
+    action:
+      $ref: '#/ApprovalAction'
+    newStatus:
+      $ref: '#/ApprovalStatus'
+    approverId:
+      type: integer
+      format: int64
+      description: ID of the user who performed the action
+      example: 999
+    approverName:
+      type: string
+      description: Name of the user who performed the action
+      example: "Dr. John Smith"
+    comment:
+      type: string
+      description: Comment provided with the action
+      example: "Approved - hours and description look correct"
+    timestamp:
+      type: string
+      format: date-time
+      description: When the action was performed
+      example: "2025-08-01T16:30:00Z"
+    nextSteps:
+      type: array
+      description: Information about what happens next in the workflow
+      items:
+        type: string
+      example:
+        - "Timesheet automatically submitted to HR for final review"
+
+ApprovalHistoryEntry:
+  type: object
+  required:
+    - id
+    - approverId
+    - approverName
+    - action
+    - timestamp
+  properties:
+    id:
+      type: integer
+      format: int64
+      description: Unique identifier for this history entry
+      example: 1
+    approverId:
+      type: integer
+      format: int64
+      description: ID of the user who performed the action
+      example: 999
+    approverName:
+      type: string
+      description: Name of the user who performed the action
+      example: "Dr. John Smith"
+    action:
+      $ref: '#/ApprovalAction'
+    comment:
+      type: string
+      description: Comment provided with the action
+      example: "Initial submission"
+    timestamp:
+      type: string
+      format: date-time
+      description: When the action was performed
+      example: "2025-07-28T09:00:00Z"

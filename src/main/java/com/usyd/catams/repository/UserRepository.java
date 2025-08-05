@@ -28,7 +28,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @param email Email address to search for
      * @return Optional containing the user if found, empty otherwise
      */
-    Optional<User> findByEmail(String email);
+    @Query("SELECT u FROM User u WHERE u.email.value = :email")
+    Optional<User> findByEmail(@Param("email") String email);
     
     /**
      * Check if user exists by email address
@@ -36,7 +37,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @param email Email address to check
      * @return true if user exists, false otherwise
      */
-    boolean existsByEmail(String email);
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM User u WHERE u.email.value = :email")
+    boolean existsByEmail(@Param("email") String email);
     
     /**
      * Find all users by role
@@ -72,7 +74,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @param isActive Active status filter
      * @return Optional containing the user if found and matches criteria, empty otherwise
      */
-    Optional<User> findByEmailAndIsActive(String email, Boolean isActive);
+    @Query("SELECT u FROM User u WHERE u.email.value = :email AND u.isActive = :isActive")
+    Optional<User> findByEmailAndIsActive(@Param("email") String email, @Param("isActive") Boolean isActive);
     
     /**
      * Count users by role

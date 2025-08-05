@@ -23,7 +23,12 @@ public enum UserRole {
     /**
      * Tutor role for teaching assistants who work on specific courses
      */
-    TUTOR("Tutor");
+    TUTOR("Tutor"),
+    
+    /**
+     * HR role for human resources staff who manage user accounts and approvals
+     */
+    HR("Human Resources");
     
     private final String displayName;
     

@@ -36,8 +36,8 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
     
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-<span class="fc" id="L40">                         JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint) {</span>
+<span class="fc" id="L39">    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,</span>
+                         JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint) {
 <span class="fc" id="L41">        this.jwtAuthenticationFilter = jwtAuthenticationFilter;</span>
 <span class="fc" id="L42">        this.jsonAuthenticationEntryPoint = jsonAuthenticationEntryPoint;</span>
 <span class="fc" id="L43">    }</span>
@@ -91,23 +91,23 @@ public class SecurityConfig {
         
         // Allow specific origins (update these for production environments)
 <span class="fc" id="L93">        configuration.setAllowedOrigins(Arrays.asList(</span>
-            &quot;http://localhost:3000&quot;,    // React development server
-            &quot;http://localhost:3001&quot;,    // Alternative React port
-            &quot;http://localhost:5174&quot;,    // Vite development server (E2E tests)
-            &quot;http://localhost:5175&quot;,    // Alternative Vite port
-            &quot;https://catams.edu.au&quot;     // Production frontend (when deployed)
+<span class="fc" id="L94">            &quot;http://localhost:3000&quot;,    // React development server</span>
+<span class="fc" id="L95">            &quot;http://localhost:3001&quot;,    // Alternative React port</span>
+<span class="fc" id="L96">            &quot;http://localhost:5174&quot;,    // Vite development server (E2E tests)</span>
+<span class="fc" id="L97">            &quot;http://localhost:5175&quot;,    // Alternative Vite port</span>
+<span class="fc" id="L98">            &quot;https://catams.edu.au&quot;     // Production frontend (when deployed)</span>
         ));
         
         // Allow specific HTTP methods
 <span class="fc" id="L102">        configuration.setAllowedMethods(Arrays.asList(</span>
-            &quot;GET&quot;, &quot;POST&quot;, &quot;PUT&quot;, &quot;DELETE&quot;, &quot;PATCH&quot;, &quot;OPTIONS&quot;
+<span class="fc" id="L103">            &quot;GET&quot;, &quot;POST&quot;, &quot;PUT&quot;, &quot;DELETE&quot;, &quot;PATCH&quot;, &quot;OPTIONS&quot;</span>
         ));
         
         // Allow specific headers
 <span class="fc" id="L107">        configuration.setAllowedHeaders(Arrays.asList(</span>
-            &quot;Authorization&quot;, &quot;Content-Type&quot;, &quot;X-Requested-With&quot;, 
-            &quot;Accept&quot;, &quot;Origin&quot;, &quot;Access-Control-Request-Method&quot;,
-            &quot;Access-Control-Request-Headers&quot;
+<span class="fc" id="L108">            &quot;Authorization&quot;, &quot;Content-Type&quot;, &quot;X-Requested-With&quot;, </span>
+<span class="fc" id="L109">            &quot;Accept&quot;, &quot;Origin&quot;, &quot;Access-Control-Request-Method&quot;,</span>
+<span class="fc" id="L110">            &quot;Access-Control-Request-Headers&quot;</span>
         ));
         
         // Allow credentials for JWT token transmission

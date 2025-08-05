@@ -36,8 +36,8 @@ public class JwtTokenProvider {
      * @param secretKeyString Base64 encoded secret key string
      * @param validityInMilliseconds Token validity period in milliseconds
      */
-    public JwtTokenProvider(@Value(&quot;${spring.security.jwt.secret}&quot;) String secretKeyString,
-<span class="fc" id="L40">                           @Value(&quot;${spring.security.jwt.expiration}&quot;) long validityInMilliseconds) {</span>
+<span class="fc" id="L39">    public JwtTokenProvider(@Value(&quot;${spring.security.jwt.secret}&quot;) String secretKeyString,</span>
+                           @Value(&quot;${spring.security.jwt.expiration}&quot;) long validityInMilliseconds) {
 <span class="fc" id="L41">        byte[] keyBytes = Base64.getDecoder().decode(secretKeyString);</span>
 <span class="fc" id="L42">        this.secretKey = Keys.hmacShaKeyFor(keyBytes);</span>
 <span class="fc" id="L43">        this.tokenValidityInMilliseconds = validityInMilliseconds;</span>
@@ -84,7 +84,7 @@ public class JwtTokenProvider {
 <span class="nc" id="L84">            logger.warn(&quot;JWT token is invalid: {}&quot;, e.getMessage());</span>
 <span class="nc" id="L85">        } catch (Exception e) {</span>
 <span class="nc" id="L86">            logger.warn(&quot;JWT token validation failed: {}&quot;, e.getMessage());</span>
-<span class="nc" id="L87">        }</span>
+        }
 <span class="nc" id="L88">        return false;</span>
     }
     

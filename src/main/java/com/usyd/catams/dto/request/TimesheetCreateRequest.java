@@ -1,5 +1,6 @@
 package com.usyd.catams.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -34,13 +35,11 @@ public class TimesheetCreateRequest {
     @NotNull(message = "Hours is required")
     @DecimalMin(value = "0.1", inclusive = true, message = "Hours must be at least 0.1")
     @DecimalMax(value = "40.0", inclusive = true, message = "Hours cannot exceed 40.0")
-    @Digits(integer = 2, fraction = 1, message = "Hours must have at most 2 integer digits and 1 decimal place")
     private BigDecimal hours;
 
     @NotNull(message = "Hourly rate is required")
     @DecimalMin(value = "10.00", inclusive = true, message = "Hourly rate must be at least 10.00")
     @DecimalMax(value = "200.00", inclusive = true, message = "Hourly rate cannot exceed 200.00")
-    @Digits(integer = 3, fraction = 2, message = "Hourly rate must have at most 3 integer digits and 2 decimal places")
     private BigDecimal hourlyRate;
 
     @NotBlank(message = "Description is required")
@@ -117,6 +116,7 @@ public class TimesheetCreateRequest {
      * 
      * @return true if date is Monday, false otherwise
      */
+    @JsonIgnore
     public boolean isWeekStartDateMonday() {
         if (weekStartDate == null) {
             return false;
@@ -129,6 +129,7 @@ public class TimesheetCreateRequest {
      * 
      * @return total pay amount
      */
+    @JsonIgnore
     public BigDecimal calculateTotalPay() {
         if (hours == null || hourlyRate == null) {
             return BigDecimal.ZERO;

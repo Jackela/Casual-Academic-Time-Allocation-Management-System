@@ -36,28 +36,28 @@ import org.springframework.security.crypto.password.PasswordEncoder;
                 
                 // Create test tutor user
 <span class="fc" id="L38">                User testTutor = new User(</span>
-                    &quot;test@example.com&quot;,
-                    &quot;Test User&quot;,
+<span class="fc" id="L39">                    &quot;test@example.com&quot;,</span>
+<span class="fc" id="L40">                    &quot;Test User&quot;,</span>
 <span class="fc" id="L41">                    passwordEncoder.encode(&quot;Password123!&quot;),</span>
-                    UserRole.TUTOR
+<span class="fc" id="L42">                    UserRole.TUTOR</span>
                 );
 <span class="fc" id="L44">                userRepository.save(testTutor);</span>
                 
                 // Create test lecturer user
 <span class="fc" id="L47">                User testLecturer = new User(</span>
-                    &quot;lecturer@example.com&quot;,
-                    &quot;Test Lecturer&quot;,
+<span class="fc" id="L48">                    &quot;lecturer@example.com&quot;,</span>
+<span class="fc" id="L49">                    &quot;Test Lecturer&quot;,</span>
 <span class="fc" id="L50">                    passwordEncoder.encode(&quot;Password123!&quot;),</span>
-                    UserRole.LECTURER
+<span class="fc" id="L51">                    UserRole.LECTURER</span>
                 );
 <span class="fc" id="L53">                userRepository.save(testLecturer);</span>
                 
                 // Create test admin user
 <span class="fc" id="L56">                User testAdmin = new User(</span>
-                    &quot;admin@example.com&quot;,
-                    &quot;Test Admin&quot;,
+<span class="fc" id="L57">                    &quot;admin@example.com&quot;,</span>
+<span class="fc" id="L58">                    &quot;Test Admin&quot;,</span>
 <span class="fc" id="L59">                    passwordEncoder.encode(&quot;Password123!&quot;),</span>
-                    UserRole.ADMIN
+<span class="fc" id="L60">                    UserRole.ADMIN</span>
                 );
 <span class="fc" id="L62">                userRepository.save(testAdmin);</span>
                 

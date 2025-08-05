@@ -239,3 +239,4 @@ nul
 *.pid
 *.seed
 *.pid.lock
+node_modules

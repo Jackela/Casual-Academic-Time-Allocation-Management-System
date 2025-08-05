@@ -3,6 +3,11 @@ package com.usyd.catams.mapper;
 import com.usyd.catams.dto.response.PagedTimesheetResponse;
 import com.usyd.catams.dto.response.TimesheetResponse;
 import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.entity.User;
+import com.usyd.catams.entity.Course;
+import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.repository.CourseRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +23,15 @@ import java.util.stream.Collectors;
 @Component
 public class TimesheetMapper {
 
+    private final UserRepository userRepository;
+    private final CourseRepository courseRepository;
+
+    @Autowired
+    public TimesheetMapper(UserRepository userRepository, CourseRepository courseRepository) {
+        this.userRepository = userRepository;
+        this.courseRepository = courseRepository;
+    }
+
     /**
      * Convert a Timesheet entity to TimesheetResponse DTO.
      * 
@@ -29,10 +43,21 @@ public class TimesheetMapper {
             return null;
         }
 
+        // Fetch tutor and course names
+        String tutorName = userRepository.findById(timesheet.getTutorId())
+            .map(User::getName)
+            .orElse("Unknown Tutor");
+        
+        String courseName = courseRepository.findById(timesheet.getCourseId())
+            .map(Course::getName)
+            .orElse("Unknown Course");
+
         return new TimesheetResponse(
             timesheet.getId(),
             timesheet.getTutorId(),
+            tutorName,
             timesheet.getCourseId(),
+            courseName,
             timesheet.getWeekStartDate(),
             timesheet.getHours(),
             timesheet.getHourlyRate(),
@@ -111,12 +136,24 @@ public class TimesheetMapper {
         response.setHourlyRate(hourlyRate);
         response.setStatus(status);
         
+        // Fetch tutor and course names
+        String tutorName = userRepository.findById(tutorId)
+            .map(User::getName)
+            .orElse("Unknown Tutor");
+        
+        String courseName = courseRepository.findById(courseId)
+            .map(Course::getName)
+            .orElse("Unknown Course");
+            
+        response.setTutorName(tutorName);
+        response.setCourseName(courseName);
+        
         // Calculate total pay
         if (hours != null && hourlyRate != null) {
             response.setTotalPay(hours.multiply(hourlyRate));
         }
         
-        // Set computed fields based on status
+        // Set computed business fields based on status
         if (status != null) {
             response.setIsEditable(status.isEditable());
             response.setCanBeApproved(status.isPending());
@@ -142,6 +179,7 @@ public class TimesheetMapper {
             response.setTotalPay(response.getHours().multiply(response.getHourlyRate()));
         }
 
+        // Set computed business fields based on status
         if (response.getStatus() != null) {
             response.setIsEditable(response.getStatus().isEditable());
             response.setCanBeApproved(response.getStatus().isPending());

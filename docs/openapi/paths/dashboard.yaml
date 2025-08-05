@@ -1,0 +1,157 @@
+get:
+  tags:
+    - Dashboard
+  summary: Get dashboard summary
+  description: |
+    Retrieve dashboard summary with key metrics and recent activities.
+    
+    **Access rules**:
+    - **LECTURER**: See summary for their courses and tutors
+    - **TUTOR**: See summary for their own timesheets
+    - **ADMIN**: See system-wide summary
+    
+    **Data includes**:
+    - Total timesheets and pending approvals
+    - Total hours worked and pay amounts
+    - Recent activities and notifications
+    - Budget usage information (for LECTURER/ADMIN)
+    - Workload analysis and trends
+  operationId: getDashboardSummary
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: courseId
+      in: query
+      description: Filter summary by specific course (LECTURER/ADMIN only)
+      required: false
+      schema:
+        type: integer
+        format: int64
+    - name: semester
+      in: query
+      description: Filter by semester (YYYY-S format, e.g., "2025-1")
+      required: false
+      schema:
+        type: string
+        pattern: '^\d{4}-[12]$'
+        example: "2025-1"
+    - name: startDate
+      in: query
+      description: Start date for metrics calculation (YYYY-MM-DD)
+      required: false
+      schema:
+        type: string
+        format: date
+    - name: endDate
+      in: query
+      description: End date for metrics calculation (YYYY-MM-DD)
+      required: false
+      schema:
+        type: string
+        format: date
+  responses:
+    '200':
+      description: Dashboard summary retrieved successfully
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/dashboard.yaml#/DashboardSummaryResponse'
+          examples:
+            lecturer_dashboard:
+              summary: Dashboard summary for lecturer
+              value:
+                totalTimesheets: 25
+                pendingApprovals: 3
+                totalHours: 145.5
+                totalPay: 6547.50
+                budgetUsage:
+                  totalBudget: 10000.00
+                  usedBudget: 6547.50
+                  remainingBudget: 3452.50
+                  utilizationPercentage: 65.48
+                recentActivities:
+                  - id: 1
+                    type: "TIMESHEET_SUBMITTED"
+                    description: "Alice Johnson submitted timesheet for COMP1001"
+                    timestamp: "2025-08-01T14:30:00Z"
+                    timesheetId: 789
+                    userId: 123
+                    userName: "Alice Johnson"
+                  - id: 2
+                    type: "MODIFICATION_REQUESTED"
+                    description: "Bob Smith requested modification for timesheet #788"
+                    timestamp: "2025-08-01T10:15:00Z"
+                    timesheetId: 788
+                    userId: 124
+                    userName: "Bob Smith"
+                pendingItems:
+                  - id: 789
+                    type: "TIMESHEET_APPROVAL"
+                    title: "Review timesheet for Alice Johnson"
+                    description: "COMP1001 - Week of July 28, 2025"
+                    priority: "MEDIUM"
+                    dueDate: "2025-08-03T23:59:59Z"
+                    timesheetId: 789
+                workloadAnalysis:
+                  currentWeekHours: 42.5
+                  previousWeekHours: 38.0
+                  averageWeeklyHours: 40.2
+                  peakWeekHours: 48.5
+                  totalTutors: 5
+                  activeTutors: 4
+            tutor_dashboard:
+              summary: Dashboard summary for tutor
+              value:
+                totalTimesheets: 8
+                pendingApprovals: 1
+                totalHours: 64.0
+                totalPay: 2880.00
+                budgetUsage: null
+                recentActivities:
+                  - id: 3
+                    type: "TIMESHEET_APPROVED"
+                    description: "Your timesheet for COMP1001 was approved"
+                    timestamp: "2025-08-01T16:45:00Z"
+                    timesheetId: 785
+                    userId: 999
+                    userName: "Dr. John Smith"
+                  - id: 4
+                    type: "MODIFICATION_REQUESTED"
+                    description: "Dr. Smith requested changes to timesheet #784"
+                    timestamp: "2025-07-31T11:30:00Z"
+                    timesheetId: 784
+                    userId: 999
+                    userName: "Dr. John Smith"
+                pendingItems:
+                  - id: 784
+                    type: "MODIFICATION_RESPONSE"
+                    title: "Address requested changes"
+                    description: "Dr. Smith requested more details for tutorial work"
+                    priority: "HIGH"
+                    dueDate: "2025-08-02T23:59:59Z"
+                    timesheetId: 784
+                workloadAnalysis:
+                  currentWeekHours: 8.0
+                  previousWeekHours: 12.0
+                  averageWeeklyHours: 8.5
+                  peakWeekHours: 14.0
+                  totalTutors: null
+                  activeTutors: null
+    '401':
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+    '403':
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+    '500':
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'

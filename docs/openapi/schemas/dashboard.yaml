@@ -1,0 +1,237 @@
+DashboardSummaryResponse:
+  type: object
+  required:
+    - totalTimesheets
+    - pendingApprovals
+    - totalHours
+    - totalPay
+    - recentActivities
+    - pendingItems
+    - workloadAnalysis
+  properties:
+    totalTimesheets:
+      type: integer
+      description: Total number of timesheets for the user's scope
+      example: 25
+    pendingApprovals:
+      type: integer
+      description: Number of timesheets pending approval
+      example: 3
+    totalHours:
+      type: number
+      format: decimal
+      description: Total hours worked in the selected period
+      example: 145.5
+    totalPay:
+      type: number
+      format: decimal
+      description: Total pay amount in AUD
+      example: 6547.50
+    budgetUsage:
+      $ref: '#/BudgetUsage'
+    recentActivities:
+      type: array
+      description: List of recent activities and notifications
+      items:
+        $ref: '#/RecentActivity'
+    pendingItems:
+      type: array
+      description: List of items requiring attention
+      items:
+        $ref: '#/PendingItem'
+    workloadAnalysis:
+      $ref: '#/WorkloadAnalysis'
+
+BudgetUsage:
+  type: object
+  required:
+    - totalBudget
+    - usedBudget
+    - remainingBudget
+    - utilizationPercentage
+  properties:
+    totalBudget:
+      type: number
+      format: decimal
+      description: Total allocated budget in AUD
+      example: 10000.00
+    usedBudget:
+      type: number
+      format: decimal
+      description: Amount of budget used in AUD
+      example: 6547.50
+    remainingBudget:
+      type: number
+      format: decimal
+      description: Remaining budget in AUD
+      example: 3452.50
+    utilizationPercentage:
+      type: number
+      format: decimal
+      minimum: 0
+      maximum: 100
+      description: Budget utilization as a percentage
+      example: 65.48
+
+RecentActivity:
+  type: object
+  required:
+    - id
+    - type
+    - description
+    - timestamp
+  properties:
+    id:
+      type: integer
+      format: int64
+      description: Unique identifier for the activity
+      example: 1
+    type:
+      $ref: '#/ActivityType'
+    description:
+      type: string
+      description: Human-readable description of the activity
+      example: "Alice Johnson submitted timesheet for COMP1001"
+    timestamp:
+      type: string
+      format: date-time
+      description: When the activity occurred
+      example: "2025-08-01T14:30:00Z"
+    timesheetId:
+      type: integer
+      format: int64
+      description: Related timesheet ID (if applicable)
+      example: 789
+    userId:
+      type: integer
+      format: int64
+      description: ID of the user who performed the activity
+      example: 123
+    userName:
+      type: string
+      description: Name of the user who performed the activity
+      example: "Alice Johnson"
+
+ActivityType:
+  type: string
+  enum:
+    - TIMESHEET_CREATED
+    - TIMESHEET_SUBMITTED
+    - TIMESHEET_APPROVED
+    - TIMESHEET_REJECTED
+    - MODIFICATION_REQUESTED
+    - MODIFICATION_COMPLETED
+    - HR_REVIEW_STARTED
+    - FINAL_APPROVAL
+    - PAYMENT_PROCESSED
+  description: |
+    Type of activity:
+    - **TIMESHEET_CREATED**: New timesheet was created
+    - **TIMESHEET_SUBMITTED**: Timesheet submitted for approval
+    - **TIMESHEET_APPROVED**: Timesheet was approved
+    - **TIMESHEET_REJECTED**: Timesheet was rejected
+    - **MODIFICATION_REQUESTED**: Changes were requested
+    - **MODIFICATION_COMPLETED**: Requested changes were addressed
+    - **HR_REVIEW_STARTED**: HR began final review
+    - **FINAL_APPROVAL**: Final approval by HR
+    - **PAYMENT_PROCESSED**: Payment was processed
+  example: "TIMESHEET_SUBMITTED"
+
+PendingItem:
+  type: object
+  required:
+    - id
+    - type
+    - title
+    - description
+    - priority
+  properties:
+    id:
+      type: integer
+      format: int64
+      description: Unique identifier for the pending item
+      example: 789
+    type:
+      $ref: '#/PendingItemType'
+    title:
+      type: string
+      description: Title of the pending item
+      example: "Review timesheet for Alice Johnson"
+    description:
+      type: string
+      description: Detailed description of what needs to be done
+      example: "COMP1001 - Week of July 28, 2025"
+    priority:
+      $ref: '#/Priority'
+    dueDate:
+      type: string
+      format: date-time
+      description: When this item is due (optional)
+      example: "2025-08-03T23:59:59Z"
+    timesheetId:
+      type: integer
+      format: int64
+      description: Related timesheet ID (if applicable)
+      example: 789
+
+PendingItemType:
+  type: string
+  enum:
+    - TIMESHEET_APPROVAL
+    - MODIFICATION_RESPONSE
+    - HR_REVIEW
+    - BUDGET_REVIEW
+    - SYSTEM_NOTIFICATION
+  description: |
+    Type of pending item:
+    - **TIMESHEET_APPROVAL**: Timesheet needs approval
+    - **MODIFICATION_RESPONSE**: Need to respond to modification request
+    - **HR_REVIEW**: HR review required
+    - **BUDGET_REVIEW**: Budget limit reached, review needed
+    - **SYSTEM_NOTIFICATION**: General system notification
+  example: "TIMESHEET_APPROVAL"
+
+Priority:
+  type: string
+  enum:
+    - LOW
+    - MEDIUM
+    - HIGH
+    - URGENT
+  description: Priority level of the item
+  example: "MEDIUM"
+
+WorkloadAnalysis:
+  type: object
+  required:
+    - currentWeekHours
+    - averageWeeklyHours
+  properties:
+    currentWeekHours:
+      type: number
+      format: decimal
+      description: Hours worked in the current week
+      example: 42.5
+    previousWeekHours:
+      type: number
+      format: decimal
+      description: Hours worked in the previous week
+      example: 38.0
+    averageWeeklyHours:
+      type: number
+      format: decimal
+      description: Average weekly hours over the selected period
+      example: 40.2
+    peakWeekHours:
+      type: number
+      format: decimal
+      description: Highest weekly hours in the selected period
+      example: 48.5
+    totalTutors:
+      type: integer
+      description: Total number of tutors (LECTURER/ADMIN view only)
+      example: 5
+    activeTutors:
+      type: integer
+      description: Number of active tutors (LECTURER/ADMIN view only)
+      example: 4

@@ -41,7 +41,7 @@ test.describe('Authentication Integration Tests', { tag: '@auth' }, () => {
     // Verify successful authentication maintains session
     await loginPage.expectSuccessfulLogin();
     await dashboardPage.expectToBeLoaded();
-    await dashboardPage.expectUserInfo('Test Lecturer', 'Lecturer');
+    await dashboardPage.expectUserInfo('Dr. Jane Smith', 'Lecturer');
     
     // Reload page to test session persistence
     await page.reload();
@@ -49,7 +49,7 @@ test.describe('Authentication Integration Tests', { tag: '@auth' }, () => {
     
     // Should still be authenticated
     await dashboardPage.expectToBeLoaded();
-    await dashboardPage.expectUserInfo('Test Lecturer', 'Lecturer');
+    await dashboardPage.expectUserInfo('Dr. Jane Smith', 'Lecturer');
   });
 });
 

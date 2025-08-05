@@ -5,32 +5,42 @@ import { E2E_CONFIG, API_ENDPOINTS } from '../config/e2e.config';
 // Test credentials
 export const testCredentials = {
   lecturer: {
-    email: 'lecturer@example.com',
-    password: 'Lecturer123!',
+    email: process.env.E2E_LECTURER_EMAIL || 'lecturer@example.com',
+    password: process.env.E2E_LECTURER_PASSWORD || 'Lecturer123!',
     expectedRole: 'LECTURER',
     expectedName: 'Dr. Jane Smith'
   },
   tutor: {
-    email: 'tutor@example.com',
-    password: 'Tutor123!',
+    email: process.env.E2E_TUTOR_EMAIL || 'tutor@example.com',
+    password: process.env.E2E_TUTOR_PASSWORD || 'Tutor123!',
     expectedRole: 'TUTOR',
     expectedName: 'John Doe'
   },
   admin: {
-    email: 'admin@example.com',
-    password: 'Admin123!',
+    email: process.env.E2E_ADMIN_EMAIL || 'admin@example.com',
+    password: process.env.E2E_ADMIN_PASSWORD || 'Admin123!',
     expectedRole: 'ADMIN',
     expectedName: 'Admin User'
   }
 };
 
 // Mock API responses
+const buildUser = (role: 'lecturer' | 'tutor' | 'admin') => {
+  const creds = testCredentials[role];
+  return {
+    id: role === 'lecturer' ? 101 : role === 'tutor' ? 201 : 1,
+    email: creds.email,
+    name: creds.expectedName,
+    role: creds.expectedRole,
+  };
+};
+
 export const mockResponses = {
   auth: {
     success: {
       success: true,
       token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJsZWN0dXJlckBleGFtcGxlLmNvbSIsInJvbGUiOiJMRUNUVVJFUiJ9.mock-token',
-      user: testCredentials.lecturer,
+      user: buildUser('lecturer'),
       errorMessage: null
     },
     error: {
@@ -134,7 +144,9 @@ export class TimesheetAPI {
 type TestFixtures = {
   authAPI: AuthAPI;
   timesheetAPI: TimesheetAPI;
+  tutorTimesheetAPI: TimesheetAPI;
   authenticatedPage: Page;
+  tutorAuthenticatedPage: Page;
   mockedPage: Page;
 };
 
@@ -144,10 +156,24 @@ export const test = base.extend<TestFixtures>({
     await use(new AuthAPI(request));
   },
 
-  // API client for timesheets with authentication
+  // API client for timesheets with authentication (admin by default for pending-approval access)
   timesheetAPI: async ({ request }, use) => {
     const authAPI = new AuthAPI(request);
+    const auth = await authAPI.login(testCredentials.admin.email, testCredentials.admin.password);
+    await use(new TimesheetAPI(request, auth.token));
+  },
+
+  // Optional: lecturer-authenticated timesheet API (for tests needing lecturer scope)
+  lecturerTimesheetAPI: async ({ request }, use) => {
+    const authAPI = new AuthAPI(request);
     const auth = await authAPI.login(testCredentials.lecturer.email, testCredentials.lecturer.password);
+    await use(new TimesheetAPI(request, auth.token));
+  },
+
+  // API client for tutor timesheet operations
+  tutorTimesheetAPI: async ({ request }, use) => {
+    const authAPI = new AuthAPI(request);
+    const auth = await authAPI.login(testCredentials.tutor.email, testCredentials.tutor.password);
     await use(new TimesheetAPI(request, auth.token));
   },
 
@@ -168,15 +194,60 @@ export const test = base.extend<TestFixtures>({
     }
   },
 
+  // Page with tutor authentication
+  tutorAuthenticatedPage: async ({ page, authAPI }, use) => {
+    try {
+      const auth = await authAPI.login(testCredentials.tutor.email, testCredentials.tutor.password);
+      
+      await page.addInitScript((authData, storageKeys) => {
+        localStorage.setItem(storageKeys.TOKEN, authData.token);
+        localStorage.setItem(storageKeys.USER, JSON.stringify(authData.user));
+      }, auth, STORAGE_KEYS);
+
+      await use(page);
+    } catch (error) {
+      console.warn('Tutor authentication failed, using unauthenticated page:', error);
+      await use(page);
+    }
+  },
+
   // Page with mocked API responses - enhanced with realistic delays
   mockedPage: async ({ page }, use) => {
     // Mock authentication endpoints with realistic delays
-    await page.route(`**${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`, async route => {
+    await page.route(`**${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`, async (route, request) => {
       await new Promise(resolve => setTimeout(resolve, 200)); // Realistic API delay
+      
+      const postData = JSON.parse(await request.postData() || '{}');
+      let response = { ...mockResponses.auth.success } as any;
+      
+      // Return different user data based on email
+      if (postData.email === 'tutor@example.com') {
+        response = {
+          success: true,
+          token: 'tutor-mock-token',
+          user: buildUser('tutor'),
+          errorMessage: null
+        };
+      } else if (postData.email === 'admin@example.com') {
+        response = {
+          success: true,
+          token: 'admin-mock-token',
+          user: buildUser('admin'),
+          errorMessage: null
+        };
+      } else if (postData.email === 'lecturer@example.com') {
+        response = {
+          success: true,
+          token: 'lecturer-mock-token',
+          user: buildUser('lecturer'),
+          errorMessage: null
+        };
+      }
+      
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockResponses.auth.success)
+        body: JSON.stringify(response)
       });
     });
 
@@ -190,6 +261,60 @@ export const test = base.extend<TestFixtures>({
       });
     });
 
+    // Mock all timesheets endpoint for admin (GET /api/timesheets)
+    await page.route('**/api/timesheets?**', async route => {
+      await new Promise(resolve => setTimeout(resolve, 300)); // Realistic API delay
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          timesheets: [
+            {
+              id: 1,
+              tutorId: 2,
+              courseId: 1,
+              weekStartDate: '2025-01-27',
+              hours: 10,
+              hourlyRate: 45.00,
+              description: 'Tutorial sessions and marking for COMP1001',
+              status: 'PENDING',
+              createdAt: '2025-01-27T09:00:00Z',
+              updatedAt: '2025-01-27T09:00:00Z',
+              tutorName: 'John Doe',
+              courseName: 'Introduction to Programming',
+              courseCode: 'COMP1001'
+            },
+            {
+              id: 2,
+              tutorId: 3,
+              courseId: 2,
+              weekStartDate: '2025-01-27',
+              hours: 8,
+              hourlyRate: 42.00,
+              description: 'Lab assistance and student support',
+              status: 'APPROVED',
+              createdAt: '2025-01-26T14:30:00Z',
+              updatedAt: '2025-01-27T11:15:00Z',
+              tutorName: 'Jane Smith',
+              courseName: 'Data Structures',
+              courseCode: 'COMP2001'
+            }
+          ],
+          pageInfo: {
+            currentPage: 0,
+            pageSize: 20,
+            totalElements: 2,
+            totalPages: 1,
+            first: true,
+            last: true,
+            numberOfElements: 2,
+            empty: false
+          }
+        })
+      });
+    });
+
     // Mock approval endpoints
     await page.route(`**${E2E_CONFIG.BACKEND.ENDPOINTS.APPROVALS}`, async route => {
       await new Promise(resolve => setTimeout(resolve, 400)); // Realistic API delay
@@ -200,11 +325,62 @@ export const test = base.extend<TestFixtures>({
       });
     });
 
+    // Mock dashboard summary endpoint for admin
+    await page.route('**/api/dashboard/summary', async route => {
+      await new Promise(resolve => setTimeout(resolve, 250)); // Realistic API delay
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          totalTimesheets: 15,
+          pendingApprovals: 3,
+          totalHours: 120.5,
+          totalPay: 5422.50,
+          budgetUsage: {
+            totalBudget: 10000.00,
+            usedBudget: 5422.50,
+            remainingBudget: 4577.50,
+            utilizationPercentage: 54.2
+          },
+          recentActivities: [
+            {
+              id: 1,
+              type: 'APPROVAL',
+              description: 'Timesheet approved for COMP1001',
+              timestamp: '2025-08-05T10:30:00Z',
+              timesheetId: 1,
+              userId: 2,
+              userName: 'John Doe'
+            }
+          ],
+          pendingItems: [
+            {
+              id: 1,
+              type: 'TIMESHEET_APPROVAL',
+              title: 'Timesheet Pending Review',
+              description: 'COMP1001 - Week of Jan 27, 2025',
+              priority: 'HIGH',
+              dueDate: '2025-08-07T23:59:59Z',
+              timesheetId: 1
+            }
+          ],
+          workloadAnalysis: {
+            currentWeekHours: 45.0,
+            previousWeekHours: 38.5,
+            averageWeeklyHours: 42.3,
+            peakWeekHours: 55.0,
+            totalTutors: 12,
+            activeTutors: 8
+          }
+        })
+      });
+    });
+
     // Setup mock auth state
-    await page.addInitScript((authData, storageKeys) => {
-      localStorage.setItem(storageKeys.TOKEN, authData.token);
-      localStorage.setItem(storageKeys.USER, JSON.stringify(authData.user));
-    }, mockResponses.auth.success, STORAGE_KEYS);
+    await page.addInitScript((token, user, storageKeys) => {
+      localStorage.setItem(storageKeys.TOKEN, token);
+      localStorage.setItem(storageKeys.USER, JSON.stringify(user));
+    }, mockResponses.auth.success.token, buildUser('lecturer'), STORAGE_KEYS);
 
     await use(page);
   }

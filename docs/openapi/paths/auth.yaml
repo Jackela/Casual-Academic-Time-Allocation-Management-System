@@ -1,0 +1,87 @@
+post:
+  tags:
+    - Authentication
+  summary: User login
+  description: |
+    Authenticate user credentials and return JWT token for subsequent requests.
+    
+    **Supported roles**: ALL
+    
+    **Business rules**:
+    - Email must be a valid format
+    - Password must meet security requirements
+    - User account must be active
+    - Failed attempts are logged for security
+  operationId: login
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/authentication.yaml#/AuthenticationRequest'
+        examples:
+          lecturer_login:
+            summary: Lecturer login example
+            value:
+              email: "lecturer@university.edu.au"
+              password: "SecurePass123!"
+          tutor_login:
+            summary: Tutor login example
+            value:
+              email: "tutor@university.edu.au"
+              password: "MyPassword456!"
+  responses:
+    '200':
+      description: Login successful
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/authentication.yaml#/AuthResult'
+          examples:
+            successful_login:
+              summary: Successful login response
+              value:
+                success: true
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                user:
+                  id: 1
+                  email: "lecturer@university.edu.au"
+                  name: "Dr. John Smith"
+                  role: "LECTURER"
+                errorMessage: null
+    '401':
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+          examples:
+            invalid_credentials:
+              summary: Invalid credentials
+              value:
+                timestamp: "2025-08-01T10:15:30.123Z"
+                status: 401
+                error: "AUTH_FAILED"
+                message: "Authentication failed"
+                path: "/api/auth/login"
+    '400':
+      description: Invalid request format
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+          examples:
+            validation_error:
+              summary: Validation error
+              value:
+                timestamp: "2025-08-01T10:15:30.123Z"
+                status: 400
+                error: "VALIDATION_FAILED"
+                message: "Validation failed: email: Email format is invalid"
+                path: "/api/auth/login"
+    '500':
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'

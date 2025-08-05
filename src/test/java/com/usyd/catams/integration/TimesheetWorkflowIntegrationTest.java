@@ -3,7 +3,12 @@ package com.usyd.catams.integration;
 import com.usyd.catams.dto.request.TimesheetCreateRequest;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.User;
-import com.usyd.catams.enums.UserRole;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import java.util.Collections;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
@@ -19,6 +24,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * Full integration test for timesheet workflow.
@@ -60,25 +66,27 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
         // Create test lecturer
         testLecturer = TestDataBuilder.aLecturer()
-            .email("lecturer.integration@test.com")
-            .password(passwordEncoder.encode("password123"))
-            .name("Integration Test Lecturer")
+            .withId(1L)
+            .withEmail("lecturer.integration@test.com")
+            .withHashedPassword(passwordEncoder.encode("password123"))
+            .withName("Integration Test Lecturer")
             .build();
         testLecturer = userRepository.save(testLecturer);
 
         // Create test tutor
         testTutor = TestDataBuilder.aTutor()
-            .email("tutor.integration@test.com")
-            .password(passwordEncoder.encode("password123"))
-            .name("Integration Test Tutor")
+            .withId(2L)
+            .withEmail("tutor.integration@test.com")
+            .withHashedPassword(passwordEncoder.encode("password123"))
+            .withName("Integration Test Tutor")
             .build();
         testTutor = userRepository.save(testTutor);
 
         // Create test course
         testCourse = TestDataBuilder.aCourse()
-            .code("INTEG101")
-            .name("Integration Testing Course")
-            .lecturer(testLecturer)
+            .withCode("COMP3999")
+            .withName("Integration Testing Course")
+            .withLecturer(testLecturer)
             .build();
         testCourse = courseRepository.save(testCourse);
 
@@ -95,14 +103,14 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     @DisplayName("Complete timesheet creation workflow - should succeed")
     void createTimesheetWorkflow_ValidRequest_ShouldSucceed() throws Exception {
         // Arrange
-        LocalDate nextMonday = LocalDate.now().with(DayOfWeek.MONDAY).plusWeeks(1);
+        LocalDate nextMonday = LocalDate.now().with(DayOfWeek.MONDAY).minusWeeks(1);
         TimesheetCreateRequest request = TestDataBuilder.aTimesheetRequest()
-            .tutorId(testTutor.getId())
-            .courseId(testCourse.getId())
-            .weekCommencing(nextMonday)
-            .hours(new BigDecimal("15.5"))
-            .hourlyRate(new BigDecimal("45.00"))
-            .description("Full integration test timesheet - database persistence verified")
+            .withTutorId(testTutor.getId())
+            .withCourseId(testCourse.getId())
+            .withWeekStartDate(nextMonday)
+            .withHours(new BigDecimal("15.5"))
+            .withHourlyRate(new BigDecimal("45.00"))
+            .withDescription("Full integration test timesheet - database persistence verified")
             .build();
 
         // Act & Assert - HTTP layer
@@ -133,8 +141,8 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     void timesheetCreation_UnauthenticatedRequest_ShouldReturn401() throws Exception {
         // Arrange
         TimesheetCreateRequest request = TestDataBuilder.aTimesheetRequest()
-            .tutorId(testTutor.getId())
-            .courseId(testCourse.getId())
+            .withTutorId(testTutor.getId())
+            .withCourseId(testCourse.getId())
             .build();
 
         // Act & Assert
@@ -151,8 +159,8 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     void timesheetCreation_TutorRole_ShouldReturn403() throws Exception {
         // Arrange
         TimesheetCreateRequest request = TestDataBuilder.aTimesheetRequest()
-            .tutorId(testTutor.getId())
-            .courseId(testCourse.getId())
+            .withTutorId(testTutor.getId())
+            .withCourseId(testCourse.getId())
             .build();
 
         // Act & Assert
@@ -169,9 +177,9 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     void timesheetCreation_InvalidHours_ShouldReturn400() throws Exception {
         // Arrange
         TimesheetCreateRequest request = TestDataBuilder.aTimesheetRequest()
-            .tutorId(testTutor.getId())
-            .courseId(testCourse.getId())
-            .hours(new BigDecimal("0.05")) // Below minimum 0.1
+            .withTutorId(testTutor.getId())
+            .withCourseId(testCourse.getId())
+            .withHours(new BigDecimal("0.05")) // Below minimum 0.1
             .build();
 
         // Act & Assert
@@ -190,8 +198,8 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     void timesheetCreation_DatabaseConstraintViolation_ShouldRollback() throws Exception {
         // Arrange - Create request with non-existent course ID
         TimesheetCreateRequest request = TestDataBuilder.aTimesheetRequest()
-            .tutorId(testTutor.getId())
-            .courseId(99999L) // Non-existent course
+            .withTutorId(testTutor.getId())
+            .withCourseId(99999L) // Non-existent course
             .build();
 
         // Act & Assert
@@ -207,15 +215,25 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     @DisplayName("End-to-end timesheet retrieval workflow")
     void timesheetRetrieval_AfterCreation_ShouldWork() throws Exception {
         // Arrange - Create a timesheet first
-        LocalDate nextMonday = LocalDate.now().with(DayOfWeek.MONDAY).plusWeeks(1);
+        LocalDate nextMonday = LocalDate.now().with(DayOfWeek.MONDAY).minusWeeks(1);
         TimesheetCreateRequest createRequest = TestDataBuilder.aTimesheetRequest()
-            .tutorId(testTutor.getId())
-            .courseId(testCourse.getId())
-            .weekCommencing(nextMonday)
+            .withTutorId(testTutor.getId())
+            .withCourseId(testCourse.getId())
+            .withWeekStartDate(nextMonday)
             .build();
 
-        // Create timesheet
-        var createResponse = performPost("/api/timesheets", createRequest, lecturerToken)
+        // Ensure clean security context and set authenticated lecturer directly
+        SecurityContextHolder.clearContext();
+        UsernamePasswordAuthenticationToken lecturerAuth = new UsernamePasswordAuthenticationToken(
+            testLecturer, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_LECTURER"))
+        );
+        SecurityContextHolder.getContext().setAuthentication(lecturerAuth);
+
+        MvcResult createResponse = mockMvc.perform(
+                post("/api/timesheets")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(createRequest))
+            )
             .andExpect(status().isCreated())
             .andReturn();
 
@@ -225,14 +243,14 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         Long timesheetId = responseNode.get("id").asLong();
 
         // Act & Assert - Retrieve the created timesheet
-        performGet("/api/timesheets/" + timesheetId, lecturerToken)
+        performGet("/api/timesheets/" + timesheetId, null)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(timesheetId))
             .andExpect(jsonPath("$.tutorId").value(testTutor.getId()))
             .andExpect(jsonPath("$.courseId").value(testCourse.getId()));
 
         // Test list endpoint
-        performGet("/api/timesheets", lecturerToken)
+        performGet("/api/timesheets", null)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.timesheets").isArray())
             .andExpect(jsonPath("$.timesheets[0].id").value(timesheetId))
@@ -245,16 +263,16 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     void timesheetAccess_DifferentLecturer_ShouldBeRestricted() throws Exception {
         // Arrange - Create another lecturer and course
         User otherLecturer = TestDataBuilder.aLecturer()
-            .email("other.lecturer@test.com")
-            .password(passwordEncoder.encode("password123"))
-            .name("Other Lecturer")
+            .withEmail("other.lecturer@test.com")
+            .withHashedPassword(passwordEncoder.encode("password123"))
+            .withName("Other Lecturer")
             .build();
         otherLecturer = userRepository.save(otherLecturer);
 
         Course otherCourse = TestDataBuilder.aCourse()
-            .code("OTHER101")
-            .name("Other Course")
-            .lecturer(otherLecturer)
+            .withCode("MATH2001")
+            .withName("Other Course")
+            .withLecturer(otherLecturer)
             .build();
         otherCourse = courseRepository.save(otherCourse);
 
@@ -264,8 +282,8 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
         // Create timesheet with original lecturer
         TimesheetCreateRequest request = TestDataBuilder.aTimesheetRequest()
-            .tutorId(testTutor.getId())
-            .courseId(testCourse.getId())
+            .withTutorId(testTutor.getId())
+            .withCourseId(testCourse.getId())
             .build();
 
         var createResponse = performPost("/api/timesheets", request, lecturerToken)

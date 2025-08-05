@@ -35,14 +35,14 @@ public interface TimesheetService {
      * - Course must exist and be active
      * - weekStartDate must be a Monday
      * - No duplicate timesheet for same tutor+course+week combination
-     * - Hours must be within range (0.1 - 40.0)
+     * - Hours must be within range (0.1 - 38.0)
      * - Hourly rate must be within range (10.00 - 200.00)
      * - Description must not be empty and within length limits
      * 
      * @param tutorId ID of the tutor for whom the timesheet is created
      * @param courseId ID of the course for which work was performed
      * @param weekStartDate Start date of the work week (must be Monday)
-     * @param hours Number of hours worked (0.1 - 40.0)
+     * @param hours Number of hours worked (0.1 - 38.0)
      * @param hourlyRate Hourly rate for the work (10.00 - 200.00)
      * @param description Description of work performed (1-1000 characters)
      * @param creatorId ID of the user creating the timesheet (must be LECTURER)
@@ -198,7 +198,7 @@ public interface TimesheetService {
      * - All validation rules from creation apply
      * 
      * @param timesheetId the timesheet ID to update
-     * @param hours new number of hours worked (0.1 - 40.0)
+     * @param hours new number of hours worked (0.1 - 38.0)
      * @param hourlyRate new hourly rate (10.00 - 200.00)
      * @param description new description of work performed (1-1000 characters)
      * @param requesterId ID of the user making the update request
