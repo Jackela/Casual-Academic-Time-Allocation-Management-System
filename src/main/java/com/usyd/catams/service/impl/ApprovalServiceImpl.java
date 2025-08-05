@@ -7,6 +7,7 @@ import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
+import com.usyd.catams.exception.ResourceNotFoundException;
 import com.usyd.catams.repository.ApprovalRepository;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
@@ -55,7 +56,7 @@ public class ApprovalServiceImpl implements ApprovalService {
         
         // 1. Validate timesheet exists
         Timesheet timesheet = timesheetRepository.findById(timesheetId)
-            .orElseThrow(() -> new IllegalArgumentException("Timesheet not found with ID: " + timesheetId));
+            .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
 
         // 2. Validate user can perform this action
         validateApprovalAction(timesheet, action, requesterId);
@@ -211,7 +212,7 @@ public class ApprovalServiceImpl implements ApprovalService {
             // This will throw an exception if the transition is invalid
             action.getTargetStatus(currentStatus);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Cannot perform " + action + " on timesheet with status " + currentStatus + ": " + e.getMessage());
+            throw new IllegalArgumentException("Cannot perform " + action + " on timesheet with status " + currentStatus.name() + ": " + e.getMessage());
         }
 
         // 5. Additional business rule validation

@@ -5,6 +5,7 @@ import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
+import com.usyd.catams.exception.ResourceNotFoundException;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
@@ -49,17 +50,17 @@ public class TimesheetServiceImpl implements TimesheetService {
                                    BigDecimal hours, BigDecimal hourlyRate, String description,
                                    Long creatorId) {
         
-        // Perform comprehensive validation
-        validateTimesheetCreation(tutorId, courseId, weekStartDate, hours, hourlyRate, description, creatorId);
+        // Perform comprehensive validation and get sanitized description
+        String sanitizedDescription = validateTimesheetCreation(tutorId, courseId, weekStartDate, hours, hourlyRate, description, creatorId);
         
-        // Create and save the timesheet
-        Timesheet timesheet = new Timesheet(tutorId, courseId, weekStartDate, hours, hourlyRate, description, creatorId);
+        // Create and save the timesheet with sanitized description
+        Timesheet timesheet = new Timesheet(tutorId, courseId, weekStartDate, hours, hourlyRate, sanitizedDescription, creatorId);
         
         return timesheetRepository.save(timesheet);
     }
 
     @Override
-    public void validateTimesheetCreation(Long tutorId, Long courseId, LocalDate weekStartDate,
+    public String validateTimesheetCreation(Long tutorId, Long courseId, LocalDate weekStartDate,
                                         BigDecimal hours, BigDecimal hourlyRate, String description,
                                         Long creatorId) {
         
@@ -124,13 +125,14 @@ public class TimesheetServiceImpl implements TimesheetService {
             throw new IllegalArgumentException("Hourly rate must be between 10.00 and 200.00. Provided: " + hourlyRate);
         }
 
-        // 9. Validate description
-        if (description == null || description.trim().isEmpty()) {
+        // 9. Validate and sanitize description
+        String sanitizedDescription = description.trim();
+        if (sanitizedDescription.isEmpty()) {
             throw new IllegalArgumentException("Description cannot be empty");
         }
         
-        if (description.length() > 1000) {
-            throw new IllegalArgumentException("Description cannot exceed 1000 characters. Provided length: " + description.length());
+        if (sanitizedDescription.length() > 1000) {
+            throw new IllegalArgumentException("Description cannot exceed 1000 characters. Provided length: " + sanitizedDescription.length());
         }
 
         // 10. Validate budget availability (optional business rule)
@@ -140,6 +142,9 @@ public class TimesheetServiceImpl implements TimesheetService {
             // But we could make it blocking if required
             // throw new IllegalArgumentException("Insufficient course budget. Required: " + totalCost + ", Available: " + course.getBudgetRemaining());
         }
+        
+        // Return the sanitized description
+        return sanitizedDescription;
     }
 
     @Override
@@ -351,31 +356,49 @@ public class TimesheetServiceImpl implements TimesheetService {
         
         // 1. Validate timesheet exists
         Timesheet timesheet = timesheetRepository.findById(timesheetId)
-            .orElseThrow(() -> new IllegalArgumentException("Timesheet not found with ID: " + timesheetId));
+            .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
 
-        // 2. Check user permission to modify this timesheet
-        if (!canUserModifyTimesheet(timesheet, requesterId)) {
+        // 2. Get requester to check role for business rules
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        // 3. Check user permission to edit this timesheet
+        if (!canUserEditTimesheet(timesheetId, requesterId)) {
             throw new SecurityException("User does not have permission to modify this timesheet");
         }
 
-        // 3. Validate timesheet is in editable state (DRAFT only for this story)
-        if (timesheet.getStatus() != ApprovalStatus.DRAFT) {
-            throw new IllegalArgumentException("Cannot update timesheet with status: " + timesheet.getStatus() + 
-                ". Only DRAFT timesheets can be updated.");
+        // 4. Validate timesheet is in editable state based on user role
+        if (requester.getRole() == UserRole.TUTOR) {
+            // TUTOR can only edit REJECTED timesheets
+            if (timesheet.getStatus() != ApprovalStatus.REJECTED) {
+                throw new IllegalArgumentException("TUTOR can only update timesheets with REJECTED status. " +
+                    "Current status: " + timesheet.getStatus());
+            }
+        } else {
+            // LECTURER/ADMIN can only edit DRAFT timesheets
+            if (timesheet.getStatus() != ApprovalStatus.DRAFT) {
+                throw new IllegalArgumentException("Cannot update timesheet with status: " + timesheet.getStatus() + 
+                    ". Only DRAFT timesheets can be updated.");
+            }
         }
 
-        // 4. Validate update data (similar to creation validation)
+        // 5. Validate update data (similar to creation validation)
         validateUpdateData(hours, hourlyRate, description);
 
-        // 5. Update the timesheet fields
+        // 6. Update the timesheet fields
         timesheet.setHours(hours);
         timesheet.setHourlyRate(hourlyRate);
         timesheet.setDescription(description);
         
+        // 7. Handle status transition for TUTOR updates
+        if (requester.getRole() == UserRole.TUTOR && timesheet.getStatus() == ApprovalStatus.REJECTED) {
+            // Reset status from REJECTED to DRAFT for TUTOR edits
+            timesheet.setStatus(ApprovalStatus.DRAFT);
+        }
+        
         // The @PreUpdate will automatically set updatedAt timestamp
-        // Status remains DRAFT as per business rules
 
-        // 6. Save and return updated timesheet
+        // 8. Save and return updated timesheet
         return timesheetRepository.save(timesheet);
     }
 
@@ -384,20 +407,33 @@ public class TimesheetServiceImpl implements TimesheetService {
         
         // 1. Validate timesheet exists
         Timesheet timesheet = timesheetRepository.findById(timesheetId)
-            .orElseThrow(() -> new IllegalArgumentException("Timesheet not found with ID: " + timesheetId));
+            .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
 
-        // 2. Check user permission to modify this timesheet
-        if (!canUserModifyTimesheet(timesheet, requesterId)) {
+        // 2. Get requester to check role for business rules
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        // 3. Check user permission to edit this timesheet
+        if (!canUserEditTimesheet(timesheetId, requesterId)) {
             throw new SecurityException("User does not have permission to delete this timesheet");
         }
 
-        // 3. Validate timesheet is in deletable state (DRAFT only for this story)
-        if (timesheet.getStatus() != ApprovalStatus.DRAFT) {
-            throw new IllegalArgumentException("Cannot delete timesheet with status: " + timesheet.getStatus() + 
-                ". Only DRAFT timesheets can be deleted.");
+        // 4. Validate timesheet is in deletable state based on user role
+        if (requester.getRole() == UserRole.TUTOR) {
+            // TUTOR can only delete REJECTED timesheets
+            if (timesheet.getStatus() != ApprovalStatus.REJECTED) {
+                throw new IllegalArgumentException("TUTOR can only delete timesheets with REJECTED status. " +
+                    "Current status: " + timesheet.getStatus());
+            }
+        } else {
+            // LECTURER/ADMIN can only delete DRAFT timesheets
+            if (timesheet.getStatus() != ApprovalStatus.DRAFT) {
+                throw new IllegalArgumentException("Cannot delete timesheet with status: " + timesheet.getStatus() + 
+                    ". Only DRAFT timesheets can be deleted.");
+            }
         }
 
-        // 4. Perform physical deletion
+        // 5. Perform physical deletion
         // Note: In a production system, we might want to create an audit log entry here
         // before deletion, but for this story we're focusing on core functionality
         timesheetRepository.delete(timesheet);
@@ -461,7 +497,7 @@ public class TimesheetServiceImpl implements TimesheetService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, timeout = 30)  
     public Page<Timesheet> getPendingApprovalTimesheets(Long requesterId, Pageable pageable) {
         
         // 1. Validate user exists and get user details
@@ -486,5 +522,81 @@ public class TimesheetServiceImpl implements TimesheetService {
             default:
                 throw new SecurityException("Unknown user role: " + requester.getRole());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Timesheet> getTimesheetsByTutor(Long tutorId, Pageable pageable) {
+        // Validate tutor exists
+        User tutor = userRepository.findById(tutorId)
+            .orElseThrow(() -> new IllegalArgumentException("Tutor user not found with ID: " + tutorId));
+        
+        if (tutor.getRole() != UserRole.TUTOR) {
+            throw new IllegalArgumentException("User must have TUTOR role. User role: " + tutor.getRole());
+        }
+        
+        // Return all timesheets for the tutor across all statuses
+        return timesheetRepository.findByTutorIdOrderByCreatedAtDesc(tutorId, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canUserEditTimesheet(Long timesheetId, Long requesterId) {
+        // Get timesheet
+        Timesheet timesheet = timesheetRepository.findById(timesheetId)
+            .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
+        
+        // Get requester
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+
+        switch (requester.getRole()) {
+            case ADMIN:
+                // ADMIN can edit any timesheet
+                return true;
+                
+            case LECTURER:
+                // LECTURER can edit timesheets for courses they teach
+                Course course = courseRepository.findById(timesheet.getCourseId())
+                    .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
+                
+                return requester.getId().equals(course.getLecturerId());
+                
+            case TUTOR:
+                // TUTOR can only edit their own REJECTED timesheets
+                return timesheet.getTutorId().equals(requester.getId()) && 
+                       timesheet.getStatus() == ApprovalStatus.REJECTED;
+                
+            default:
+                return false;
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canUserEditTimesheetAuth(Long timesheetId, org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return false;
+        }
+
+        // Extract user ID from authentication principal
+        Object principal = authentication.getPrincipal();
+        Long requesterId = null;
+        
+        if (principal instanceof com.usyd.catams.entity.User) {
+            requesterId = ((com.usyd.catams.entity.User) principal).getId();
+        } else if (principal instanceof Long) {
+            requesterId = (Long) principal;
+        } else if (principal instanceof String) {
+            try {
+                requesterId = Long.parseLong((String) principal);
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        return canUserEditTimesheet(timesheetId, requesterId);
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import java.time.Instant;
 import java.util.List;
@@ -167,6 +168,45 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
     
+    /**
+     * Handle missing or malformed request body
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException e, HttpServletRequest request) {
+        
+        String message = "Invalid request body";
+        logger.warn("Message not readable: {}", message);
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .timestamp(Instant.now().toString())
+            .status(HttpStatus.BAD_REQUEST.value())
+            .error(ErrorCodes.VALIDATION_FAILED)
+            .message(message)
+            .path(request.getRequestURI())
+            .build();
+            
+        return ResponseEntity.badRequest().body(error);
+    }
+    
+    
+    /**
+     * Handle resource not found exceptions
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException e, HttpServletRequest request) {
+        logger.warn("Resource not found: {}", e.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .timestamp(Instant.now().toString())
+            .status(HttpStatus.NOT_FOUND.value())
+            .error(ErrorCodes.RESOURCE_NOT_FOUND)
+            .message(e.getMessage())
+            .path(request.getRequestURI())
+            .build();
+            
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
     
     /**
      * Handle unexpected runtime exceptions

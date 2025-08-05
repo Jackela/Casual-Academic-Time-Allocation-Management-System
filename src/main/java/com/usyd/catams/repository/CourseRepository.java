@@ -150,4 +150,14 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      */
     @Query("SELECT COALESCE(SUM(c.budgetUsed), 0) FROM Course c WHERE c.lecturerId = :lecturerId AND c.isActive = true")
     Double getTotalBudgetUsedByLecturer(@Param("lecturerId") Long lecturerId);
+    
+    /**
+     * Check if a lecturer has access to a specific course.
+     * Used for authorization checks in dashboard filtering.
+     *
+     * @param lecturerId the lecturer's ID
+     * @param courseId the course ID
+     * @return true if lecturer teaches the course
+     */
+    boolean existsByIdAndLecturerId(Long courseId, Long lecturerId);
 }

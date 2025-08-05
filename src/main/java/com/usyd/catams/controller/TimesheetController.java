@@ -7,6 +7,7 @@ import com.usyd.catams.dto.response.TimesheetResponse;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.dto.response.ErrorResponse;
+import com.usyd.catams.exception.ResourceNotFoundException;
 import com.usyd.catams.mapper.TimesheetMapper;
 import com.usyd.catams.service.TimesheetService;
 import jakarta.validation.Valid;
@@ -145,7 +146,7 @@ public class TimesheetController {
         Optional<Timesheet> timesheetOpt = timesheetService.getTimesheetById(id, requesterId);
 
         if (timesheetOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
+            throw new ResourceNotFoundException("Timesheet", id.toString());
         }
 
         // Convert to response DTO
@@ -157,15 +158,19 @@ public class TimesheetController {
     /**
      * Update an existing timesheet.
      * 
-     * Only LECTURER and ADMIN users can update timesheets.
+     * Access control:
+     * - LECTURER and ADMIN users can update timesheets (existing functionality)
+     * - TUTOR can update their own REJECTED timesheets (Story 2.2 addition)
+     * 
      * Business rules:
-     * - Only DRAFT status timesheets can be updated
+     * - LECTURER/ADMIN: Only DRAFT status timesheets can be updated
+     * - TUTOR: Only REJECTED status timesheets that they own can be updated
+     * - TUTOR updates reset status from REJECTED → DRAFT
      * - LECTURER can update timesheets for courses they teach
      * - ADMIN can update any timesheet
-     * - Updated timesheet status remains DRAFT
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('LECTURER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('LECTURER') or hasRole('ADMIN') or hasRole('TUTOR')")
     public ResponseEntity<TimesheetResponse> updateTimesheet(
             @PathVariable("id") Long id,
             @Valid @RequestBody TimesheetUpdateRequest request,
@@ -173,6 +178,12 @@ public class TimesheetController {
 
         // Get current user ID from authentication context
         Long requesterId = getCurrentUserId(authentication);
+
+        // Check if user can edit this timesheet (includes TUTOR-specific logic)
+        if (!timesheetService.canUserEditTimesheet(id, requesterId)) {
+            // This will be caught by the GlobalExceptionHandler and return proper error response
+            throw new SecurityException("User does not have permission to modify this timesheet");
+        }
 
         // Update timesheet using service layer
         Timesheet updatedTimesheet = timesheetService.updateTimesheet(
@@ -192,21 +203,31 @@ public class TimesheetController {
     /**
      * Delete an existing timesheet.
      * 
-     * Only LECTURER and ADMIN users can delete timesheets.
+     * Access control:
+     * - LECTURER and ADMIN users can delete timesheets (existing functionality)
+     * - TUTOR can delete their own REJECTED timesheets (Story 2.2 addition)
+     * 
      * Business rules:
-     * - Only DRAFT status timesheets can be deleted
+     * - LECTURER/ADMIN: Only DRAFT status timesheets can be deleted
+     * - TUTOR: Only REJECTED status timesheets that they own can be deleted
      * - LECTURER can delete timesheets for courses they teach
      * - ADMIN can delete any timesheet
      * - Deletion is permanent
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('LECTURER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('LECTURER') or hasRole('ADMIN') or hasRole('TUTOR')")
     public ResponseEntity<Void> deleteTimesheet(
             @PathVariable("id") Long id,
             Authentication authentication) {
 
         // Get current user ID from authentication context
         Long requesterId = getCurrentUserId(authentication);
+
+        // Check if user can edit this timesheet (includes TUTOR-specific logic)
+        if (!timesheetService.canUserEditTimesheet(id, requesterId)) {
+            // This will be caught by the GlobalExceptionHandler and return proper error response
+            throw new SecurityException("User does not have permission to modify this timesheet");
+        }
 
         // Delete timesheet using service layer
         timesheetService.deleteTimesheet(id, requesterId);
@@ -306,6 +327,72 @@ public class TimesheetController {
     }
 
     /**
+     * Get all timesheets for the authenticated tutor.
+     * 
+     * Access control:
+     * - TUTOR: Can only view their own timesheets across all statuses
+     * - ADMIN: Can view any user's timesheets
+     * 
+     * Business rules:
+     * - Returns ALL timesheet statuses for complete workflow visibility
+     * - Supports pagination and sorting
+     * - Default sort is by creation date (newest first)
+     * 
+     * @param page page number (0-based)
+     * @param size page size (max 100)
+     * @param sort sort criteria (e.g., "createdAt,desc" or "weekStartDate,asc")
+     * @param status optional status filter
+     * @param authentication current user authentication
+     * @return paginated list of tutor's timesheets
+     */
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('TUTOR') or hasRole('ADMIN')")
+    public ResponseEntity<PagedTimesheetResponse> getMyTimesheets(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @RequestParam(value = "sort", defaultValue = "createdAt,desc") String sort,
+            @RequestParam(value = "status", required = false) ApprovalStatus status,
+            Authentication authentication) {
+        
+        try {
+            // Get current user ID from authentication context
+            Long requesterId = getCurrentUserId(authentication);
+            
+            // Validate pagination parameters
+            if (page < 0) {
+                page = 0;
+            }
+            if (size <= 0 || size > 100) {
+                size = 20; // Default size with maximum limit
+            }
+
+            // Parse sort parameter
+            Pageable pageable = createPageable(page, size, sort);
+            
+            // Get timesheets for the tutor
+            Page<Timesheet> timesheetPage = timesheetService.getTimesheetsByTutor(requesterId, pageable);
+            
+            // Apply status filtering if provided
+            if (status != null) {
+                // Filter in service layer for better performance
+                timesheetPage = timesheetService.getTimesheets(requesterId, null, status, requesterId, pageable);
+            }
+            
+            // Convert to response DTO
+            PagedTimesheetResponse response = timesheetMapper.toPagedResponse(timesheetPage);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
      * Get timesheets pending lecturer approval with pagination.
      * 
      * Access control:
@@ -335,12 +422,20 @@ public class TimesheetController {
         try {
             // Get current user ID from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            
             Long requesterId = getCurrentUserId(authentication);
+            
+            // Validate pagination parameters
+            if (page < 0) page = 0;
+            if (size <= 0 || size > 100) size = 20;
             
             // Validate and create pageable with default sort
             Pageable pageable = createPageable(page, size, sort);
             
-            // Get pending approval timesheets
+            // Get pending approval timesheets with proper error handling
             Page<Timesheet> timesheetPage = timesheetService.getPendingApprovalTimesheets(requesterId, pageable);
             
             // Convert to response DTO
@@ -353,6 +448,9 @@ public class TimesheetController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {
+            // Log the error for debugging in E2E environment
+            System.err.println("Error in getPendingApprovalTimesheets: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

@@ -12,9 +12,13 @@ import java.time.LocalDateTime;
  * Response DTO for timesheet data.
  * 
  * This DTO represents the structure returned by the API for timesheet queries
- * according to the OpenAPI specification.
+ * according to the OpenAPI specification. Includes success field for consistent
+ * API response format.
  */
 public class TimesheetResponse {
+
+    @JsonProperty("success")
+    private boolean success = true;
 
     @JsonProperty("id")
     private Long id;
@@ -71,6 +75,7 @@ public class TimesheetResponse {
                            BigDecimal hours, BigDecimal hourlyRate, String description,
                            ApprovalStatus status, LocalDateTime createdAt, LocalDateTime updatedAt,
                            Long createdBy) {
+        this.success = true;
         this.id = id;
         this.tutorId = tutorId;
         this.courseId = courseId;
@@ -90,6 +95,14 @@ public class TimesheetResponse {
     }
 
     // Getters and Setters
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+
     public Long getId() {
         return id;
     }

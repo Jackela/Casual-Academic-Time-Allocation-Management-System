@@ -138,7 +138,7 @@ public enum ApprovalAction {
                 break;
         }
         
-        throw new IllegalArgumentException("Cannot perform action " + this + " on timesheet with status " + currentStatus);
+        throw new IllegalArgumentException("Cannot perform action " + this + " on timesheet with status " + currentStatus.name());
     }
     
     @Override

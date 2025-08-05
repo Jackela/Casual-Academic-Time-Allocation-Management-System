@@ -46,11 +46,11 @@ public class ApprovalActionRequest {
      * @param action the approval action to perform
      * @param comment optional comment explaining the action
      */
-<span class="nc" id="L49">    public ApprovalActionRequest(Long timesheetId, ApprovalAction action, String comment) {</span>
-<span class="nc" id="L50">        this.timesheetId = timesheetId;</span>
-<span class="nc" id="L51">        this.action = action;</span>
-<span class="nc" id="L52">        this.comment = comment;</span>
-<span class="nc" id="L53">    }</span>
+<span class="fc" id="L49">    public ApprovalActionRequest(Long timesheetId, ApprovalAction action, String comment) {</span>
+<span class="fc" id="L50">        this.timesheetId = timesheetId;</span>
+<span class="fc" id="L51">        this.action = action;</span>
+<span class="fc" id="L52">        this.comment = comment;</span>
+<span class="fc" id="L53">    }</span>
 
     /**
      * Constructor without comment.
@@ -118,7 +118,7 @@ public class ApprovalActionRequest {
      * @return true if action is SUBMIT_FOR_APPROVAL
      */
     public boolean isSubmission() {
-<span class="pc bpc" id="L121" title="1 of 2 branches missed.">        return action == ApprovalAction.SUBMIT_FOR_APPROVAL;</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">        return action == ApprovalAction.SUBMIT_FOR_APPROVAL;</span>
     }
 
     /**

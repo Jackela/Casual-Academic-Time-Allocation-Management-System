@@ -7,58 +7,108 @@ import java.util.List;
  * Response DTO for paginated timesheet queries.
  * 
  * This DTO follows the standard pagination pattern defined in the OpenAPI specification
- * and provides metadata about the page along with the content.
+ * and provides metadata about the page along with the content. Includes success field
+ * for consistent API response format.
  */
 public class PagedTimesheetResponse {
 
-    @JsonProperty("content")
-    private List<TimesheetResponse> content;
+    @JsonProperty("success")
+    private boolean success = true;
 
-    @JsonProperty("page")
-    private PageInfo page;
+    @JsonProperty("timesheets")
+    private List<TimesheetResponse> timesheets;
+
+    @JsonProperty("pageInfo")
+    private PageInfo pageInfo;
 
     // Default constructor
     public PagedTimesheetResponse() {
     }
 
     // Constructor
-    public PagedTimesheetResponse(List<TimesheetResponse> content, PageInfo page) {
-        this.content = content;
-        this.page = page;
+    public PagedTimesheetResponse(List<TimesheetResponse> timesheets, PageInfo pageInfo) {
+        this.success = true;
+        this.timesheets = timesheets;
+        this.pageInfo = pageInfo;
     }
 
     // Constructor with Spring Data Page
-    public PagedTimesheetResponse(List<TimesheetResponse> content, int pageNumber, int pageSize,
+    public PagedTimesheetResponse(List<TimesheetResponse> timesheets, int pageNumber, int pageSize,
                                 long totalElements, int totalPages, boolean isFirst, boolean isLast) {
-        this.content = content;
-        this.page = new PageInfo(pageNumber, pageSize, totalElements, totalPages, isFirst, isLast);
+        this.success = true;
+        this.timesheets = timesheets;
+        this.pageInfo = new PageInfo(pageNumber, pageSize, totalElements, totalPages, isFirst, isLast);
     }
 
     // Getters and Setters
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+
+    public List<TimesheetResponse> getTimesheets() {
+        return timesheets;
+    }
+
+    public void setTimesheets(List<TimesheetResponse> timesheets) {
+        this.timesheets = timesheets;
+    }
+
+    // Keep legacy getter for backward compatibility during transition
+    @Deprecated
     public List<TimesheetResponse> getContent() {
-        return content;
+        return timesheets;
     }
 
+    // Keep legacy setter for backward compatibility during transition
+    @Deprecated
     public void setContent(List<TimesheetResponse> content) {
-        this.content = content;
+        this.timesheets = content;
     }
 
+    // Keep data getter for backward compatibility during transition
+    @Deprecated
+    public List<TimesheetResponse> getData() {
+        return timesheets;
+    }
+
+    // Keep data setter for backward compatibility during transition
+    @Deprecated
+    public void setData(List<TimesheetResponse> data) {
+        this.timesheets = data;
+    }
+
+    public PageInfo getPageInfo() {
+        return pageInfo;
+    }
+
+    public void setPageInfo(PageInfo pageInfo) {
+        this.pageInfo = pageInfo;
+    }
+
+    // Keep legacy getter for backward compatibility during transition
+    @Deprecated
     public PageInfo getPage() {
-        return page;
+        return pageInfo;
     }
 
+    // Keep legacy setter for backward compatibility during transition
+    @Deprecated
     public void setPage(PageInfo page) {
-        this.page = page;
+        this.pageInfo = page;
     }
 
     /**
      * Inner class for pagination metadata.
      */
     public static class PageInfo {
-        @JsonProperty("number")
+        @JsonProperty("currentPage")
         private int number;
 
-        @JsonProperty("size")
+        @JsonProperty("pageSize")
         private int size;
 
         @JsonProperty("totalElements")
@@ -179,8 +229,9 @@ public class PagedTimesheetResponse {
     @Override
     public String toString() {
         return "PagedTimesheetResponse{" +
-                "content=" + content +
-                ", page=" + page +
+                "success=" + success +
+                ", timesheets=" + timesheets +
+                ", pageInfo=" + pageInfo +
                 '}';
     }
 }

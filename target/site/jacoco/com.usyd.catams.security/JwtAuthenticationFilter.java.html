@@ -83,7 +83,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 <span class="fc" id="L83">                User user = userOpt.get();</span>
                 
                 // Verify token claims match database record
-<span class="pc bpc" id="L86" title="1 of 4 branches missed.">                if (user.getId().equals(userId) &amp;&amp; user.getRole().name().equals(role)) {</span>
+<span class="pc bpc" id="L86" title="2 of 4 branches missed.">                if (user.getId().equals(userId) &amp;&amp; user.getRole().name().equals(role)) {</span>
                     
                     // Create authentication with user details and role
 <span class="fc" id="L89">                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority(&quot;ROLE_&quot; + role);</span>
@@ -99,7 +99,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     
 <span class="fc" id="L100">                    logger.debug(&quot;JWT authentication successful for user: {} with role: {}&quot;, userEmail, role);</span>
 <span class="fc" id="L101">                } else {</span>
-<span class="fc" id="L102">                    logger.warn(&quot;JWT token claims mismatch with database record for user: {}&quot;, userEmail);</span>
+<span class="nc" id="L102">                    logger.warn(&quot;JWT token claims mismatch with database record for user: {}&quot;, userEmail);</span>
                 }
 <span class="fc" id="L104">            } else {</span>
 <span class="fc" id="L105">                logger.warn(&quot;User not found or inactive for JWT token: {}&quot;, userEmail);</span>
@@ -112,7 +112,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 <span class="fc" id="L112">        String path = request.getRequestURI();</span>
         
         // Skip JWT filter for public endpoints
-<span class="fc bfc" id="L115" title="All 2 branches covered.">        return path.equals(&quot;/auth/login&quot;) || </span>
+<span class="pc bpc" id="L115" title="1 of 2 branches missed.">        return path.equals(&quot;/auth/login&quot;) || </span>
 <span class="pc bpc" id="L116" title="1 of 2 branches missed.">               path.equals(&quot;/actuator/health&quot;) ||</span>
 <span class="pc bpc" id="L117" title="1 of 2 branches missed.">               path.startsWith(&quot;/actuator/health/&quot;);</span>
     }

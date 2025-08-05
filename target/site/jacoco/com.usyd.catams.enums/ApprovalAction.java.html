@@ -79,7 +79,7 @@
      * @return true if LECTURER can perform this action
      */
     public boolean canBePerformedByLecturer() {
-<span class="pc bpc" id="L82" title="3 of 6 branches missed.">        return this == APPROVE || this == REJECT || this == REQUEST_MODIFICATION;</span>
+<span class="pc bpc" id="L82" title="1 of 6 branches missed.">        return this == APPROVE || this == REJECT || this == REQUEST_MODIFICATION;</span>
     }
     
     /**
@@ -108,10 +108,10 @@
      * @throws IllegalArgumentException if action is not valid for current status
      */
     public ApprovalStatus getTargetStatus(ApprovalStatus currentStatus) {
-<span class="pc bpc" id="L111" title="3 of 5 branches missed.">        switch (this) {</span>
+<span class="pc bpc" id="L111" title="2 of 5 branches missed.">        switch (this) {</span>
             case SUBMIT_FOR_APPROVAL:
-<span class="nc bnc" id="L113" title="All 2 branches missed.">                if (currentStatus == ApprovalStatus.DRAFT) {</span>
-<span class="nc" id="L114">                    return ApprovalStatus.PENDING_LECTURER_APPROVAL;</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">                if (currentStatus == ApprovalStatus.DRAFT) {</span>
+<span class="fc" id="L114">                    return ApprovalStatus.PENDING_LECTURER_APPROVAL;</span>
                 }
                 break;
                 
@@ -138,7 +138,7 @@
                 break;
         }
         
-<span class="fc" id="L141">        throw new IllegalArgumentException(&quot;Cannot perform action &quot; + this + &quot; on timesheet with status &quot; + currentStatus);</span>
+<span class="fc" id="L141">        throw new IllegalArgumentException(&quot;Cannot perform action &quot; + this + &quot; on timesheet with status &quot; + currentStatus.name());</span>
     }
     
     @Override

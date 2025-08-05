@@ -1,0 +1,16 @@
+{
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --grep '@smoke'",
+    "test:e2e:critical": "playwright test --grep '@critical'",
+    "test:e2e:integration": "playwright test --grep '@integration'",
+    "test:e2e:ui": "playwright test --grep '@ui'",
+    "test:e2e:auth": "playwright test --grep '@auth'",
+    "test:e2e:error-handling": "playwright test --grep '@error-handling'",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:trace": "playwright test --trace on",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:install": "playwright install"
+  }
+}

@@ -120,7 +120,7 @@ public interface TimesheetService {
      * Validate business rules for timesheet creation.
      * 
      * This method performs all validation without creating the timesheet,
-     * useful for pre-validation checks.
+     * useful for pre-validation checks. Also performs input sanitization.
      * 
      * @param tutorId the tutor's ID
      * @param courseId the course ID
@@ -129,10 +129,11 @@ public interface TimesheetService {
      * @param hourlyRate the hourly rate
      * @param description the work description
      * @param creatorId the creator's ID
+     * @return the sanitized description after validation
      * @throws IllegalArgumentException if validation fails
      * @throws SecurityException if creator lacks permission
      */
-    void validateTimesheetCreation(Long tutorId, Long courseId, LocalDate weekStartDate,
+    String validateTimesheetCreation(Long tutorId, Long courseId, LocalDate weekStartDate,
                                  BigDecimal hours, BigDecimal hourlyRate, String description,
                                  Long creatorId);
 
@@ -238,4 +239,34 @@ public interface TimesheetService {
      * @return true if user can modify the timesheet
      */
     boolean canUserModifyTimesheet(Timesheet timesheet, Long requesterId);
+
+    /**
+     * Get all timesheets for a specific tutor with pagination.
+     * Used by the GET /api/timesheets/me endpoint.
+     * 
+     * @param tutorId the tutor's ID
+     * @param pageable pagination parameters
+     * @return page of tutor's timesheets across all statuses
+     */
+    Page<Timesheet> getTimesheetsByTutor(Long tutorId, Pageable pageable);
+
+    /**
+     * Check if user can edit a specific timesheet.
+     * Extends existing canUserModifyTimesheet with TUTOR-specific rules.
+     * 
+     * @param timesheetId the timesheet ID to check
+     * @param requesterId the user requesting access
+     * @return true if user can edit the timesheet
+     */
+    boolean canUserEditTimesheet(Long timesheetId, Long requesterId);
+    
+    /**
+     * Check if authenticated user can edit a specific timesheet.
+     * For use in @PreAuthorize expressions with authentication context.
+     * 
+     * @param timesheetId the timesheet ID to check
+     * @param authentication the authentication object
+     * @return true if user can edit the timesheet
+     */
+    boolean canUserEditTimesheetAuth(Long timesheetId, org.springframework.security.core.Authentication authentication);
 }

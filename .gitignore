@@ -1,0 +1,241 @@
+# CATAMS Project .gitignore
+# Comprehensive exclusion rules for Java Spring Boot + React frontend project
+
+# ===========================
+# JAVA / SPRING BOOT
+# ===========================
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle (if used in future)
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Java
+*.class
+*.log
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+
+# IDE Files
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# ===========================
+# DATABASE & TESTING
+# ===========================
+
+# H2 Database files
+*.db
+*.trace.db
+*.lock.db
+
+# Test databases
+test*.db
+testdb/
+
+# Test outputs
+**/test-results/
+**/test-reports/
+TEST-*.xml
+junit.xml
+
+# ===========================
+# ENVIRONMENT & CONFIG
+# ===========================
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.environment
+
+# Application properties (exclude sensitive configs)
+application-local.yml
+application-prod.yml
+**/application-secrets.yml
+
+# ===========================
+# LOGS & MONITORING
+# ===========================
+
+# Log files
+logs/
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===========================
+# OPERATING SYSTEM
+# ===========================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===========================
+# TEMPORARY & CACHE FILES
+# ===========================
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.#*
+\#*#
+
+# Cache directories
+.cache/
+*.cache
+.npm
+.eslintcache
+
+# ===========================
+# SECURITY & SENSITIVE DATA
+# ===========================
+
+# Keys and certificates
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+secrets/
+.secrets/
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# ===========================
+# PROJECT SPECIFIC
+# ===========================
+
+# Generated documentation
+/docs/generated/
+
+# Compiled frontend assets (handled by frontend/.gitignore)
+# /frontend/dist/
+# /frontend/node_modules/
+
+# Test artifacts
+coverage/
+*.lcov
+.nyc_output/
+
+# Build artifacts
+build/
+out/
+
+# Package files
+*.tgz
+*.tar.gz
+
+# Editor directories and files
+.history/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Miscellaneous
+nul
+*.dmp
+*.pid
+*.seed
+*.pid.lock

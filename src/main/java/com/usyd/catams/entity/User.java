@@ -130,6 +130,15 @@ public class User {
     }
     
     /**
+     * Check if user is active (simplified method name for test compatibility)
+     * 
+     * @return true if user is active, false otherwise
+     */
+    public boolean isActive() {
+        return Boolean.TRUE.equals(isActive);
+    }
+    
+    /**
      * Deactivate user account
      */
     public void deactivate() {
@@ -192,6 +201,15 @@ public class User {
     
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+    
+    /**
+     * Set user active status (simplified method name for test compatibility)
+     * 
+     * @param active the active status to set
+     */
+    public void setActive(Boolean active) {
+        this.isActive = active;
     }
     
     public LocalDateTime getCreatedAt() {

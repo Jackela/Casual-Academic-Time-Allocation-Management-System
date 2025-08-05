@@ -12,9 +12,13 @@ import java.time.LocalDateTime;
  * Response DTO for timesheet data.
  * 
  * This DTO represents the structure returned by the API for timesheet queries
- * according to the OpenAPI specification.
+ * according to the OpenAPI specification. Includes success field for consistent
+ * API response format.
  */
 public class TimesheetResponse {
+
+<span class="fc" id="L20">    @JsonProperty(&quot;success&quot;)</span>
+    private boolean success = true;
 
     @JsonProperty(&quot;id&quot;)
     private Long id;
@@ -63,174 +67,183 @@ public class TimesheetResponse {
     private Boolean canBeApproved;
 
     // Default constructor
-<span class="nc" id="L66">    public TimesheetResponse() {</span>
-<span class="nc" id="L67">    }</span>
+<span class="fc" id="L70">    public TimesheetResponse() {</span>
+<span class="fc" id="L71">    }</span>
 
     // Full constructor
     public TimesheetResponse(Long id, Long tutorId, Long courseId, LocalDate weekStartDate,
                            BigDecimal hours, BigDecimal hourlyRate, String description,
                            ApprovalStatus status, LocalDateTime createdAt, LocalDateTime updatedAt,
-<span class="fc" id="L73">                           Long createdBy) {</span>
-<span class="fc" id="L74">        this.id = id;</span>
-<span class="fc" id="L75">        this.tutorId = tutorId;</span>
-<span class="fc" id="L76">        this.courseId = courseId;</span>
-<span class="fc" id="L77">        this.weekStartDate = weekStartDate;</span>
-<span class="fc" id="L78">        this.hours = hours;</span>
-<span class="fc" id="L79">        this.hourlyRate = hourlyRate;</span>
-<span class="fc" id="L80">        this.description = description;</span>
-<span class="fc" id="L81">        this.status = status;</span>
-<span class="fc" id="L82">        this.createdAt = createdAt;</span>
-<span class="fc" id="L83">        this.updatedAt = updatedAt;</span>
-<span class="fc" id="L84">        this.createdBy = createdBy;</span>
+<span class="fc" id="L77">                           Long createdBy) {</span>
+<span class="fc" id="L78">        this.success = true;</span>
+<span class="fc" id="L79">        this.id = id;</span>
+<span class="fc" id="L80">        this.tutorId = tutorId;</span>
+<span class="fc" id="L81">        this.courseId = courseId;</span>
+<span class="fc" id="L82">        this.weekStartDate = weekStartDate;</span>
+<span class="fc" id="L83">        this.hours = hours;</span>
+<span class="fc" id="L84">        this.hourlyRate = hourlyRate;</span>
+<span class="fc" id="L85">        this.description = description;</span>
+<span class="fc" id="L86">        this.status = status;</span>
+<span class="fc" id="L87">        this.createdAt = createdAt;</span>
+<span class="fc" id="L88">        this.updatedAt = updatedAt;</span>
+<span class="fc" id="L89">        this.createdBy = createdBy;</span>
         
         // Calculate computed fields
-<span class="fc" id="L87">        this.totalPay = calculateTotalPay();</span>
-<span class="fc" id="L88">        this.isEditable = calculateIsEditable();</span>
-<span class="fc" id="L89">        this.canBeApproved = calculateCanBeApproved();</span>
-<span class="fc" id="L90">    }</span>
+<span class="fc" id="L92">        this.totalPay = calculateTotalPay();</span>
+<span class="fc" id="L93">        this.isEditable = calculateIsEditable();</span>
+<span class="fc" id="L94">        this.canBeApproved = calculateCanBeApproved();</span>
+<span class="fc" id="L95">    }</span>
 
     // Getters and Setters
+    public boolean isSuccess() {
+<span class="fc" id="L99">        return success;</span>
+    }
+
+    public void setSuccess(boolean success) {
+<span class="fc" id="L103">        this.success = success;</span>
+<span class="fc" id="L104">    }</span>
+
     public Long getId() {
-<span class="fc" id="L94">        return id;</span>
+<span class="fc" id="L107">        return id;</span>
     }
 
     public void setId(Long id) {
-<span class="nc" id="L98">        this.id = id;</span>
-<span class="nc" id="L99">    }</span>
+<span class="fc" id="L111">        this.id = id;</span>
+<span class="fc" id="L112">    }</span>
 
     public Long getTutorId() {
-<span class="fc" id="L102">        return tutorId;</span>
+<span class="fc" id="L115">        return tutorId;</span>
     }
 
     public void setTutorId(Long tutorId) {
-<span class="nc" id="L106">        this.tutorId = tutorId;</span>
-<span class="nc" id="L107">    }</span>
+<span class="fc" id="L119">        this.tutorId = tutorId;</span>
+<span class="fc" id="L120">    }</span>
 
     public Long getCourseId() {
-<span class="fc" id="L110">        return courseId;</span>
+<span class="fc" id="L123">        return courseId;</span>
     }
 
     public void setCourseId(Long courseId) {
-<span class="nc" id="L114">        this.courseId = courseId;</span>
-<span class="nc" id="L115">    }</span>
+<span class="fc" id="L127">        this.courseId = courseId;</span>
+<span class="fc" id="L128">    }</span>
 
     public LocalDate getWeekStartDate() {
-<span class="fc" id="L118">        return weekStartDate;</span>
+<span class="fc" id="L131">        return weekStartDate;</span>
     }
 
     public void setWeekStartDate(LocalDate weekStartDate) {
-<span class="nc" id="L122">        this.weekStartDate = weekStartDate;</span>
-<span class="nc" id="L123">    }</span>
+<span class="fc" id="L135">        this.weekStartDate = weekStartDate;</span>
+<span class="fc" id="L136">    }</span>
 
     public BigDecimal getHours() {
-<span class="fc" id="L126">        return hours;</span>
+<span class="fc" id="L139">        return hours;</span>
     }
 
     public void setHours(BigDecimal hours) {
-<span class="nc" id="L130">        this.hours = hours;</span>
-<span class="nc" id="L131">        this.totalPay = calculateTotalPay(); // Recalculate when hours change</span>
-<span class="nc" id="L132">    }</span>
+<span class="fc" id="L143">        this.hours = hours;</span>
+<span class="fc" id="L144">        this.totalPay = calculateTotalPay(); // Recalculate when hours change</span>
+<span class="fc" id="L145">    }</span>
 
     public BigDecimal getHourlyRate() {
-<span class="fc" id="L135">        return hourlyRate;</span>
+<span class="fc" id="L148">        return hourlyRate;</span>
     }
 
     public void setHourlyRate(BigDecimal hourlyRate) {
-<span class="nc" id="L139">        this.hourlyRate = hourlyRate;</span>
-<span class="nc" id="L140">        this.totalPay = calculateTotalPay(); // Recalculate when rate changes</span>
-<span class="nc" id="L141">    }</span>
+<span class="fc" id="L152">        this.hourlyRate = hourlyRate;</span>
+<span class="fc" id="L153">        this.totalPay = calculateTotalPay(); // Recalculate when rate changes</span>
+<span class="fc" id="L154">    }</span>
 
     public BigDecimal getTotalPay() {
-<span class="fc" id="L144">        return totalPay;</span>
+<span class="fc" id="L157">        return totalPay;</span>
     }
 
     public void setTotalPay(BigDecimal totalPay) {
-<span class="nc" id="L148">        this.totalPay = totalPay;</span>
-<span class="nc" id="L149">    }</span>
+<span class="fc" id="L161">        this.totalPay = totalPay;</span>
+<span class="fc" id="L162">    }</span>
 
     public String getDescription() {
-<span class="fc" id="L152">        return description;</span>
+<span class="fc" id="L165">        return description;</span>
     }
 
     public void setDescription(String description) {
-<span class="nc" id="L156">        this.description = description;</span>
-<span class="nc" id="L157">    }</span>
+<span class="fc" id="L169">        this.description = description;</span>
+<span class="fc" id="L170">    }</span>
 
     public ApprovalStatus getStatus() {
-<span class="fc" id="L160">        return status;</span>
+<span class="fc" id="L173">        return status;</span>
     }
 
     public void setStatus(ApprovalStatus status) {
-<span class="nc" id="L164">        this.status = status;</span>
-<span class="nc" id="L165">        this.isEditable = calculateIsEditable(); // Recalculate when status changes</span>
-<span class="nc" id="L166">        this.canBeApproved = calculateCanBeApproved();</span>
-<span class="nc" id="L167">    }</span>
+<span class="fc" id="L177">        this.status = status;</span>
+<span class="fc" id="L178">        this.isEditable = calculateIsEditable(); // Recalculate when status changes</span>
+<span class="fc" id="L179">        this.canBeApproved = calculateCanBeApproved();</span>
+<span class="fc" id="L180">    }</span>
 
     public LocalDateTime getCreatedAt() {
-<span class="fc" id="L170">        return createdAt;</span>
+<span class="fc" id="L183">        return createdAt;</span>
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {
-<span class="nc" id="L174">        this.createdAt = createdAt;</span>
-<span class="nc" id="L175">    }</span>
+<span class="fc" id="L187">        this.createdAt = createdAt;</span>
+<span class="fc" id="L188">    }</span>
 
     public LocalDateTime getUpdatedAt() {
-<span class="fc" id="L178">        return updatedAt;</span>
+<span class="fc" id="L191">        return updatedAt;</span>
     }
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
-<span class="nc" id="L182">        this.updatedAt = updatedAt;</span>
-<span class="nc" id="L183">    }</span>
+<span class="fc" id="L195">        this.updatedAt = updatedAt;</span>
+<span class="fc" id="L196">    }</span>
 
     public Long getCreatedBy() {
-<span class="fc" id="L186">        return createdBy;</span>
+<span class="fc" id="L199">        return createdBy;</span>
     }
 
     public void setCreatedBy(Long createdBy) {
-<span class="nc" id="L190">        this.createdBy = createdBy;</span>
-<span class="nc" id="L191">    }</span>
+<span class="fc" id="L203">        this.createdBy = createdBy;</span>
+<span class="fc" id="L204">    }</span>
 
     public Boolean getIsEditable() {
-<span class="fc" id="L194">        return isEditable;</span>
+<span class="fc" id="L207">        return isEditable;</span>
     }
 
     public void setIsEditable(Boolean isEditable) {
-<span class="nc" id="L198">        this.isEditable = isEditable;</span>
-<span class="nc" id="L199">    }</span>
+<span class="fc" id="L211">        this.isEditable = isEditable;</span>
+<span class="fc" id="L212">    }</span>
 
     public Boolean getCanBeApproved() {
-<span class="fc" id="L202">        return canBeApproved;</span>
+<span class="fc" id="L215">        return canBeApproved;</span>
     }
 
     public void setCanBeApproved(Boolean canBeApproved) {
-<span class="nc" id="L206">        this.canBeApproved = canBeApproved;</span>
-<span class="nc" id="L207">    }</span>
+<span class="fc" id="L219">        this.canBeApproved = canBeApproved;</span>
+<span class="fc" id="L220">    }</span>
 
     // Business logic methods
     private BigDecimal calculateTotalPay() {
-<span class="pc bpc" id="L211" title="2 of 4 branches missed.">        if (hours == null || hourlyRate == null) {</span>
-<span class="nc" id="L212">            return BigDecimal.ZERO;</span>
+<span class="pc bpc" id="L224" title="1 of 4 branches missed.">        if (hours == null || hourlyRate == null) {</span>
+<span class="fc" id="L225">            return BigDecimal.ZERO;</span>
         }
-<span class="fc" id="L214">        return hours.multiply(hourlyRate);</span>
+<span class="fc" id="L227">        return hours.multiply(hourlyRate);</span>
     }
 
     private Boolean calculateIsEditable() {
-<span class="pc bpc" id="L218" title="1 of 2 branches missed.">        if (status == null) {</span>
-<span class="nc" id="L219">            return false;</span>
+<span class="pc bpc" id="L231" title="1 of 2 branches missed.">        if (status == null) {</span>
+<span class="nc" id="L232">            return false;</span>
         }
-<span class="fc" id="L221">        return status.isEditable();</span>
+<span class="fc" id="L234">        return status.isEditable();</span>
     }
 
     private Boolean calculateCanBeApproved() {
-<span class="pc bpc" id="L225" title="1 of 2 branches missed.">        if (status == null) {</span>
-<span class="nc" id="L226">            return false;</span>
+<span class="pc bpc" id="L238" title="1 of 2 branches missed.">        if (status == null) {</span>
+<span class="nc" id="L239">            return false;</span>
         }
-<span class="fc" id="L228">        return status.isPending();</span>
+<span class="fc" id="L241">        return status.isPending();</span>
     }
 
     @Override
     public String toString() {
-<span class="nc" id="L233">        return &quot;TimesheetResponse{&quot; +</span>
+<span class="nc" id="L246">        return &quot;TimesheetResponse{&quot; +</span>
                 &quot;id=&quot; + id +
                 &quot;, tutorId=&quot; + tutorId +
                 &quot;, courseId=&quot; + courseId +

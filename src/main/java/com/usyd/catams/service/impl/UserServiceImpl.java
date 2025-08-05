@@ -54,9 +54,12 @@ public class UserServiceImpl implements UserService {
         Assert.notNull(credentials, "Authentication credentials cannot be null");
         Assert.hasText(credentials.getEmail(), "Email cannot be empty");
         Assert.hasText(credentials.getPassword(), "Password cannot be empty");
+        
+        // Input sanitization - trim and normalize email
+        String sanitizedEmail = credentials.getEmail().trim().toLowerCase();
 
         // Find user by email and active status
-        User user = userRepository.findByEmailAndIsActive(credentials.getEmail(), true)
+        User user = userRepository.findByEmailAndIsActive(sanitizedEmail, true)
             .orElseThrow(() -> new AuthenticationException("Invalid email or password"));
 
         // Verify password
@@ -105,9 +108,13 @@ public class UserServiceImpl implements UserService {
         Assert.hasText(request.getName(), "Name cannot be empty");
         Assert.hasText(request.getPassword(), "Password cannot be empty");
         Assert.notNull(request.getRole(), "User role cannot be null");
+        
+        // Input sanitization - trim and normalize inputs
+        String sanitizedEmail = request.getEmail().trim().toLowerCase();
+        String sanitizedName = request.getName().trim();
 
         // Check if email already exists
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmail(sanitizedEmail)) {
             throw new BusinessException(ErrorCodes.EMAIL_EXISTS, "Email already exists");
         }
 
@@ -116,8 +123,8 @@ public class UserServiceImpl implements UserService {
 
         // Create new user entity
         User user = new User(
-            request.getEmail(),
-            request.getName(),
+            sanitizedEmail,
+            sanitizedName,
             hashedPassword,
             request.getRole()
         );

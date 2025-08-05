@@ -1,0 +1,22 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5174",
+      "localStorage": [
+        {
+          "name": "token",
+          "value": "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJsZWN0dXJlckBleGFtcGxlLmNvbSIsInVzZXJJZCI6Miwicm9sZSI6IkxFQ1RVUkVSIiwiaWF0IjoxNzU0MzA3MTQ5LCJleHAiOjE3NTQzMzU5NDl9.yLTPxA12ZuUEBtFyhel0tG0fRNElj4IyQ1gU_8IMarjkTDdjuq7eXwPJLorr5c2a"
+        },
+        {
+          "name": "authToken",
+          "value": "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJsZWN0dXJlckBleGFtcGxlLmNvbSIsInVzZXJJZCI6Miwicm9sZSI6IkxFQ1RVUkVSIiwiaWF0IjoxNzU0MzA3MTQ5LCJleHAiOjE3NTQzMzU5NDl9.yLTPxA12ZuUEBtFyhel0tG0fRNElj4IyQ1gU_8IMarjkTDdjuq7eXwPJLorr5c2a"
+        },
+        {
+          "name": "user",
+          "value": "{\"id\":2,\"email\":\"lecturer@example.com\",\"name\":\"Dr. Jane Smith\",\"role\":\"LECTURER\"}"
+        }
+      ]
+    }
+  ]
+}

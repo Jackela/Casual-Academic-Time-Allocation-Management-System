@@ -7,6 +7,7 @@ import com.usyd.catams.dto.response.TimesheetResponse;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.dto.response.ErrorResponse;
+import com.usyd.catams.exception.ResourceNotFoundException;
 import com.usyd.catams.mapper.TimesheetMapper;
 import com.usyd.catams.service.TimesheetService;
 import jakarta.validation.Valid;
@@ -45,10 +46,10 @@ public class TimesheetController {
     private final TimesheetMapper timesheetMapper;
 
     @Autowired
-<span class="fc" id="L48">    public TimesheetController(TimesheetService timesheetService, TimesheetMapper timesheetMapper) {</span>
-<span class="fc" id="L49">        this.timesheetService = timesheetService;</span>
-<span class="fc" id="L50">        this.timesheetMapper = timesheetMapper;</span>
-<span class="fc" id="L51">    }</span>
+<span class="fc" id="L49">    public TimesheetController(TimesheetService timesheetService, TimesheetMapper timesheetMapper) {</span>
+<span class="fc" id="L50">        this.timesheetService = timesheetService;</span>
+<span class="fc" id="L51">        this.timesheetMapper = timesheetMapper;</span>
+<span class="fc" id="L52">    }</span>
 
     /**
      * Create a new timesheet.
@@ -63,23 +64,23 @@ public class TimesheetController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-<span class="nc" id="L66">        Long creatorId = getCurrentUserId(authentication);</span>
+<span class="fc" id="L67">        Long creatorId = getCurrentUserId(authentication);</span>
 
         // Create timesheet using service layer
-<span class="nc" id="L69">        Timesheet createdTimesheet = timesheetService.createTimesheet(</span>
-<span class="nc" id="L70">            request.getTutorId(),</span>
-<span class="nc" id="L71">            request.getCourseId(),</span>
-<span class="nc" id="L72">            request.getWeekStartDate(),</span>
-<span class="nc" id="L73">            request.getHours(),</span>
-<span class="nc" id="L74">            request.getHourlyRate(),</span>
-<span class="nc" id="L75">            request.getDescription(),</span>
+<span class="fc" id="L70">        Timesheet createdTimesheet = timesheetService.createTimesheet(</span>
+<span class="fc" id="L71">            request.getTutorId(),</span>
+<span class="fc" id="L72">            request.getCourseId(),</span>
+<span class="fc" id="L73">            request.getWeekStartDate(),</span>
+<span class="fc" id="L74">            request.getHours(),</span>
+<span class="fc" id="L75">            request.getHourlyRate(),</span>
+<span class="fc" id="L76">            request.getDescription(),</span>
             creatorId
         );
 
         // Convert to response DTO
-<span class="nc" id="L80">        TimesheetResponse response = timesheetMapper.toResponse(createdTimesheet);</span>
+<span class="fc" id="L81">        TimesheetResponse response = timesheetMapper.toResponse(createdTimesheet);</span>
 
-<span class="nc" id="L82">        return new ResponseEntity&lt;&gt;(response, HttpStatus.CREATED);</span>
+<span class="fc" id="L83">        return new ResponseEntity&lt;&gt;(response, HttpStatus.CREATED);</span>
     }
 
     /**
@@ -103,28 +104,28 @@ public class TimesheetController {
             Authentication authentication) {
 
         // Validate pagination parameters
-<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (page &lt; 0) {</span>
-<span class="nc" id="L107">            page = 0;</span>
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">        if (page &lt; 0) {</span>
+<span class="nc" id="L108">            page = 0;</span>
         }
-<span class="nc bnc" id="L109" title="All 4 branches missed.">        if (size &lt;= 0 || size &gt; 100) {</span>
-<span class="nc" id="L110">            size = 20; // Default size with maximum limit</span>
+<span class="pc bpc" id="L110" title="2 of 4 branches missed.">        if (size &lt;= 0 || size &gt; 100) {</span>
+<span class="nc" id="L111">            size = 20; // Default size with maximum limit</span>
         }
 
         // Parse sort parameter
-<span class="nc" id="L114">        Pageable pageable = createPageable(page, size, sort);</span>
+<span class="fc" id="L115">        Pageable pageable = createPageable(page, size, sort);</span>
 
         // Get current user ID from authentication context
-<span class="nc" id="L117">        Long requesterId = getCurrentUserId(authentication);</span>
+<span class="fc" id="L118">        Long requesterId = getCurrentUserId(authentication);</span>
 
         // Get timesheets using service layer (with access control)
-<span class="nc" id="L120">        Page&lt;Timesheet&gt; timesheetsPage = timesheetService.getTimesheets(</span>
+<span class="fc" id="L121">        Page&lt;Timesheet&gt; timesheetsPage = timesheetService.getTimesheets(</span>
             tutorId, courseId, status, requesterId, pageable
         );
 
         // Convert to response DTO
-<span class="nc" id="L125">        PagedTimesheetResponse response = timesheetMapper.toPagedResponse(timesheetsPage);</span>
+<span class="fc" id="L126">        PagedTimesheetResponse response = timesheetMapper.toPagedResponse(timesheetsPage);</span>
 
-<span class="nc" id="L127">        return ResponseEntity.ok(response);</span>
+<span class="fc" id="L128">        return ResponseEntity.ok(response);</span>
     }
 
     /**
@@ -139,80 +140,100 @@ public class TimesheetController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-<span class="nc" id="L142">        Long requesterId = getCurrentUserId(authentication);</span>
+<span class="fc" id="L143">        Long requesterId = getCurrentUserId(authentication);</span>
 
         // Get timesheet using service layer (with access control)
-<span class="nc" id="L145">        Optional&lt;Timesheet&gt; timesheetOpt = timesheetService.getTimesheetById(id, requesterId);</span>
+<span class="fc" id="L146">        Optional&lt;Timesheet&gt; timesheetOpt = timesheetService.getTimesheetById(id, requesterId);</span>
 
-<span class="nc bnc" id="L147" title="All 2 branches missed.">        if (timesheetOpt.isEmpty()) {</span>
-<span class="nc" id="L148">            return ResponseEntity.notFound().build();</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">        if (timesheetOpt.isEmpty()) {</span>
+<span class="fc" id="L149">            throw new ResourceNotFoundException(&quot;Timesheet&quot;, id.toString());</span>
         }
 
         // Convert to response DTO
-<span class="nc" id="L152">        TimesheetResponse response = timesheetMapper.toResponse(timesheetOpt.get());</span>
+<span class="fc" id="L153">        TimesheetResponse response = timesheetMapper.toResponse(timesheetOpt.get());</span>
 
-<span class="nc" id="L154">        return ResponseEntity.ok(response);</span>
+<span class="fc" id="L155">        return ResponseEntity.ok(response);</span>
     }
 
     /**
      * Update an existing timesheet.
      * 
-     * Only LECTURER and ADMIN users can update timesheets.
+     * Access control:
+     * - LECTURER and ADMIN users can update timesheets (existing functionality)
+     * - TUTOR can update their own REJECTED timesheets (Story 2.2 addition)
+     * 
      * Business rules:
-     * - Only DRAFT status timesheets can be updated
+     * - LECTURER/ADMIN: Only DRAFT status timesheets can be updated
+     * - TUTOR: Only REJECTED status timesheets that they own can be updated
+     * - TUTOR updates reset status from REJECTED → DRAFT
      * - LECTURER can update timesheets for courses they teach
      * - ADMIN can update any timesheet
-     * - Updated timesheet status remains DRAFT
      */
     @PutMapping(&quot;/{id}&quot;)
-    @PreAuthorize(&quot;hasRole('LECTURER') or hasRole('ADMIN')&quot;)
+    @PreAuthorize(&quot;hasRole('LECTURER') or hasRole('ADMIN') or hasRole('TUTOR')&quot;)
     public ResponseEntity&lt;TimesheetResponse&gt; updateTimesheet(
             @PathVariable(&quot;id&quot;) Long id,
             @Valid @RequestBody TimesheetUpdateRequest request,
             Authentication authentication) {
 
         // Get current user ID from authentication context
-<span class="nc" id="L175">        Long requesterId = getCurrentUserId(authentication);</span>
+<span class="nc" id="L180">        Long requesterId = getCurrentUserId(authentication);</span>
+
+        // Check if user can edit this timesheet (includes TUTOR-specific logic)
+<span class="nc bnc" id="L183" title="All 2 branches missed.">        if (!timesheetService.canUserEditTimesheet(id, requesterId)) {</span>
+            // This will be caught by the GlobalExceptionHandler and return proper error response
+<span class="nc" id="L185">            throw new SecurityException(&quot;User does not have permission to modify this timesheet&quot;);</span>
+        }
 
         // Update timesheet using service layer
-<span class="nc" id="L178">        Timesheet updatedTimesheet = timesheetService.updateTimesheet(</span>
+<span class="nc" id="L189">        Timesheet updatedTimesheet = timesheetService.updateTimesheet(</span>
             id,
-<span class="nc" id="L180">            request.getHours(),</span>
-<span class="nc" id="L181">            request.getHourlyRate(),</span>
-<span class="nc" id="L182">            request.getDescription(),</span>
+<span class="nc" id="L191">            request.getHours(),</span>
+<span class="nc" id="L192">            request.getHourlyRate(),</span>
+<span class="nc" id="L193">            request.getDescription(),</span>
             requesterId
         );
 
         // Convert to response DTO
-<span class="nc" id="L187">        TimesheetResponse response = timesheetMapper.toResponse(updatedTimesheet);</span>
+<span class="nc" id="L198">        TimesheetResponse response = timesheetMapper.toResponse(updatedTimesheet);</span>
 
-<span class="nc" id="L189">        return ResponseEntity.ok(response);</span>
+<span class="nc" id="L200">        return ResponseEntity.ok(response);</span>
     }
 
     /**
      * Delete an existing timesheet.
      * 
-     * Only LECTURER and ADMIN users can delete timesheets.
+     * Access control:
+     * - LECTURER and ADMIN users can delete timesheets (existing functionality)
+     * - TUTOR can delete their own REJECTED timesheets (Story 2.2 addition)
+     * 
      * Business rules:
-     * - Only DRAFT status timesheets can be deleted
+     * - LECTURER/ADMIN: Only DRAFT status timesheets can be deleted
+     * - TUTOR: Only REJECTED status timesheets that they own can be deleted
      * - LECTURER can delete timesheets for courses they teach
      * - ADMIN can delete any timesheet
      * - Deletion is permanent
      */
     @DeleteMapping(&quot;/{id}&quot;)
-    @PreAuthorize(&quot;hasRole('LECTURER') or hasRole('ADMIN')&quot;)
+    @PreAuthorize(&quot;hasRole('LECTURER') or hasRole('ADMIN') or hasRole('TUTOR')&quot;)
     public ResponseEntity&lt;Void&gt; deleteTimesheet(
             @PathVariable(&quot;id&quot;) Long id,
             Authentication authentication) {
 
         // Get current user ID from authentication context
-<span class="nc" id="L209">        Long requesterId = getCurrentUserId(authentication);</span>
+<span class="nc" id="L224">        Long requesterId = getCurrentUserId(authentication);</span>
+
+        // Check if user can edit this timesheet (includes TUTOR-specific logic)
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        if (!timesheetService.canUserEditTimesheet(id, requesterId)) {</span>
+            // This will be caught by the GlobalExceptionHandler and return proper error response
+<span class="nc" id="L229">            throw new SecurityException(&quot;User does not have permission to modify this timesheet&quot;);</span>
+        }
 
         // Delete timesheet using service layer
-<span class="nc" id="L212">        timesheetService.deleteTimesheet(id, requesterId);</span>
+<span class="nc" id="L233">        timesheetService.deleteTimesheet(id, requesterId);</span>
 
         // Return 204 No Content as per OpenAPI specification
-<span class="nc" id="L215">        return ResponseEntity.noContent().build();</span>
+<span class="nc" id="L236">        return ResponseEntity.noContent().build();</span>
     }
 
     // Helper methods
@@ -224,26 +245,26 @@ public class TimesheetController {
      * @return the user ID
      */
     private Long getCurrentUserId(Authentication authentication) {
-<span class="pc bpc" id="L227" title="2 of 4 branches missed.">        if (authentication == null || authentication.getPrincipal() == null) {</span>
-<span class="nc" id="L228">            throw new SecurityException(&quot;Authentication required&quot;);</span>
+<span class="pc bpc" id="L248" title="2 of 4 branches missed.">        if (authentication == null || authentication.getPrincipal() == null) {</span>
+<span class="nc" id="L249">            throw new SecurityException(&quot;Authentication required&quot;);</span>
         }
 
         // Extract user ID from authentication principal
         // The principal is a User object as set by JwtAuthenticationFilter
-<span class="fc" id="L233">        Object principal = authentication.getPrincipal();</span>
+<span class="fc" id="L254">        Object principal = authentication.getPrincipal();</span>
         
-<span class="pc bpc" id="L235" title="1 of 2 branches missed.">        if (principal instanceof com.usyd.catams.entity.User) {</span>
-<span class="fc" id="L236">            return ((com.usyd.catams.entity.User) principal).getId();</span>
-<span class="nc bnc" id="L237" title="All 2 branches missed.">        } else if (principal instanceof Long) {</span>
-<span class="nc" id="L238">            return (Long) principal;</span>
-<span class="nc bnc" id="L239" title="All 2 branches missed.">        } else if (principal instanceof String) {</span>
+<span class="pc bpc" id="L256" title="1 of 2 branches missed.">        if (principal instanceof com.usyd.catams.entity.User) {</span>
+<span class="fc" id="L257">            return ((com.usyd.catams.entity.User) principal).getId();</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        } else if (principal instanceof Long) {</span>
+<span class="nc" id="L259">            return (Long) principal;</span>
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        } else if (principal instanceof String) {</span>
             try {
-<span class="nc" id="L241">                return Long.parseLong((String) principal);</span>
-<span class="nc" id="L242">            } catch (NumberFormatException e) {</span>
-<span class="nc" id="L243">                throw new SecurityException(&quot;Invalid user ID in authentication context&quot;);</span>
+<span class="nc" id="L262">                return Long.parseLong((String) principal);</span>
+<span class="nc" id="L263">            } catch (NumberFormatException e) {</span>
+<span class="nc" id="L264">                throw new SecurityException(&quot;Invalid user ID in authentication context&quot;);</span>
             }
         } else {
-<span class="nc" id="L246">            throw new SecurityException(&quot;Invalid authentication principal type: &quot; + principal.getClass().getName());</span>
+<span class="nc" id="L267">            throw new SecurityException(&quot;Invalid authentication principal type: &quot; + principal.getClass().getName());</span>
         }
     }
 
@@ -257,30 +278,30 @@ public class TimesheetController {
      */
     private Pageable createPageable(int page, int size, String sort) {
         try {
-<span class="pc bpc" id="L260" title="2 of 4 branches missed.">            if (sort == null || sort.trim().isEmpty()) {</span>
-<span class="nc" id="L261">                return PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, &quot;createdAt&quot;));</span>
+<span class="pc bpc" id="L281" title="2 of 4 branches missed.">            if (sort == null || sort.trim().isEmpty()) {</span>
+<span class="nc" id="L282">                return PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, &quot;createdAt&quot;));</span>
             }
 
-<span class="fc" id="L264">            String[] sortParts = sort.split(&quot;,&quot;);</span>
-<span class="fc" id="L265">            String field = sortParts[0].trim();</span>
+<span class="fc" id="L285">            String[] sortParts = sort.split(&quot;,&quot;);</span>
+<span class="fc" id="L286">            String field = sortParts[0].trim();</span>
             
-<span class="fc" id="L267">            Sort.Direction direction = Sort.Direction.DESC;</span>
-<span class="pc bpc" id="L268" title="1 of 2 branches missed.">            if (sortParts.length &gt; 1) {</span>
-<span class="fc" id="L269">                String directionStr = sortParts[1].trim().toLowerCase();</span>
-<span class="pc bpc" id="L270" title="1 of 2 branches missed.">                if (&quot;asc&quot;.equals(directionStr)) {</span>
-<span class="fc" id="L271">                    direction = Sort.Direction.ASC;</span>
+<span class="fc" id="L288">            Sort.Direction direction = Sort.Direction.DESC;</span>
+<span class="fc bfc" id="L289" title="All 2 branches covered.">            if (sortParts.length &gt; 1) {</span>
+<span class="fc" id="L290">                String directionStr = sortParts[1].trim().toLowerCase();</span>
+<span class="pc bpc" id="L291" title="1 of 2 branches missed.">                if (&quot;asc&quot;.equals(directionStr)) {</span>
+<span class="nc" id="L292">                    direction = Sort.Direction.ASC;</span>
                 }
             }
 
             // Validate sort field (security measure to prevent SQL injection)
-<span class="pc bpc" id="L276" title="1 of 2 branches missed.">            if (!isValidSortField(field)) {</span>
-<span class="nc" id="L277">                field = &quot;createdAt&quot;; // Default to safe field</span>
+<span class="fc bfc" id="L297" title="All 2 branches covered.">            if (!isValidSortField(field)) {</span>
+<span class="fc" id="L298">                field = &quot;createdAt&quot;; // Default to safe field</span>
             }
 
-<span class="fc" id="L280">            return PageRequest.of(page, size, Sort.by(direction, field));</span>
-<span class="nc" id="L281">        } catch (Exception e) {</span>
+<span class="fc" id="L301">            return PageRequest.of(page, size, Sort.by(direction, field));</span>
+<span class="nc" id="L302">        } catch (Exception e) {</span>
             // Fallback to default sorting if parsing fails
-<span class="nc" id="L283">            return PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, &quot;createdAt&quot;));</span>
+<span class="nc" id="L304">            return PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, &quot;createdAt&quot;));</span>
         }
     }
 
@@ -292,17 +313,83 @@ public class TimesheetController {
      */
     private boolean isValidSortField(String field) {
         // Define allowed sort fields to prevent SQL injection
-<span class="pc bpc" id="L295" title="1 of 2 branches missed.">        return field != null &amp;&amp; (</span>
-<span class="pc bpc" id="L296" title="1 of 2 branches missed.">            &quot;id&quot;.equals(field) ||</span>
-<span class="pc bpc" id="L297" title="1 of 2 branches missed.">            &quot;tutorId&quot;.equals(field) ||</span>
-<span class="pc bpc" id="L298" title="1 of 2 branches missed.">            &quot;courseId&quot;.equals(field) ||</span>
-<span class="pc bpc" id="L299" title="1 of 2 branches missed.">            &quot;weekStartDate&quot;.equals(field) ||</span>
-<span class="pc bpc" id="L300" title="1 of 2 branches missed.">            &quot;hours&quot;.equals(field) ||</span>
-<span class="pc bpc" id="L301" title="1 of 2 branches missed.">            &quot;hourlyRate&quot;.equals(field) ||</span>
-<span class="pc bpc" id="L302" title="1 of 2 branches missed.">            &quot;status&quot;.equals(field) ||</span>
-<span class="pc bpc" id="L303" title="1 of 2 branches missed.">            &quot;createdAt&quot;.equals(field) ||</span>
-<span class="pc bnc" id="L304" title="All 2 branches missed.">            &quot;updatedAt&quot;.equals(field)</span>
+<span class="pc bpc" id="L316" title="1 of 2 branches missed.">        return field != null &amp;&amp; (</span>
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">            &quot;id&quot;.equals(field) ||</span>
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">            &quot;tutorId&quot;.equals(field) ||</span>
+<span class="pc bpc" id="L319" title="1 of 2 branches missed.">            &quot;courseId&quot;.equals(field) ||</span>
+<span class="pc bpc" id="L320" title="1 of 2 branches missed.">            &quot;weekStartDate&quot;.equals(field) ||</span>
+<span class="pc bpc" id="L321" title="1 of 2 branches missed.">            &quot;hours&quot;.equals(field) ||</span>
+<span class="pc bpc" id="L322" title="1 of 2 branches missed.">            &quot;hourlyRate&quot;.equals(field) ||</span>
+<span class="pc bpc" id="L323" title="1 of 2 branches missed.">            &quot;status&quot;.equals(field) ||</span>
+<span class="fc bfc" id="L324" title="All 2 branches covered.">            &quot;createdAt&quot;.equals(field) ||</span>
+<span class="pc bpc" id="L325" title="1 of 2 branches missed.">            &quot;updatedAt&quot;.equals(field)</span>
         );
+    }
+
+    /**
+     * Get all timesheets for the authenticated tutor.
+     * 
+     * Access control:
+     * - TUTOR: Can only view their own timesheets across all statuses
+     * - ADMIN: Can view any user's timesheets
+     * 
+     * Business rules:
+     * - Returns ALL timesheet statuses for complete workflow visibility
+     * - Supports pagination and sorting
+     * - Default sort is by creation date (newest first)
+     * 
+     * @param page page number (0-based)
+     * @param size page size (max 100)
+     * @param sort sort criteria (e.g., &quot;createdAt,desc&quot; or &quot;weekStartDate,asc&quot;)
+     * @param status optional status filter
+     * @param authentication current user authentication
+     * @return paginated list of tutor's timesheets
+     */
+    @GetMapping(&quot;/me&quot;)
+    @PreAuthorize(&quot;hasRole('TUTOR') or hasRole('ADMIN')&quot;)
+    public ResponseEntity&lt;PagedTimesheetResponse&gt; getMyTimesheets(
+            @RequestParam(value = &quot;page&quot;, defaultValue = &quot;0&quot;) int page,
+            @RequestParam(value = &quot;size&quot;, defaultValue = &quot;20&quot;) int size,
+            @RequestParam(value = &quot;sort&quot;, defaultValue = &quot;createdAt,desc&quot;) String sort,
+            @RequestParam(value = &quot;status&quot;, required = false) ApprovalStatus status,
+            Authentication authentication) {
+        
+        try {
+            // Get current user ID from authentication context
+<span class="nc" id="L359">            Long requesterId = getCurrentUserId(authentication);</span>
+            
+            // Validate pagination parameters
+<span class="nc bnc" id="L362" title="All 2 branches missed.">            if (page &lt; 0) {</span>
+<span class="nc" id="L363">                page = 0;</span>
+            }
+<span class="nc bnc" id="L365" title="All 4 branches missed.">            if (size &lt;= 0 || size &gt; 100) {</span>
+<span class="nc" id="L366">                size = 20; // Default size with maximum limit</span>
+            }
+
+            // Parse sort parameter
+<span class="nc" id="L370">            Pageable pageable = createPageable(page, size, sort);</span>
+            
+            // Get timesheets for the tutor
+<span class="nc" id="L373">            Page&lt;Timesheet&gt; timesheetPage = timesheetService.getTimesheetsByTutor(requesterId, pageable);</span>
+            
+            // Apply status filtering if provided
+<span class="nc bnc" id="L376" title="All 2 branches missed.">            if (status != null) {</span>
+                // Filter in service layer for better performance
+<span class="nc" id="L378">                timesheetPage = timesheetService.getTimesheets(requesterId, null, status, requesterId, pageable);</span>
+            }
+            
+            // Convert to response DTO
+<span class="nc" id="L382">            PagedTimesheetResponse response = timesheetMapper.toPagedResponse(timesheetPage);</span>
+            
+<span class="nc" id="L384">            return ResponseEntity.ok(response);</span>
+            
+<span class="nc" id="L386">        } catch (SecurityException e) {</span>
+<span class="nc" id="L387">            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
+<span class="nc" id="L388">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L389">            return ResponseEntity.badRequest().build();</span>
+<span class="nc" id="L390">        } catch (Exception e) {</span>
+<span class="nc" id="L391">            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();</span>
+        }
     }
 
     /**
@@ -334,26 +421,37 @@ public class TimesheetController {
         
         try {
             // Get current user ID from security context
-<span class="fc" id="L337">            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();</span>
-<span class="fc" id="L338">            Long requesterId = getCurrentUserId(authentication);</span>
+<span class="nc" id="L424">            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="nc bnc" id="L425" title="All 2 branches missed.">            if (authentication == null) {</span>
+<span class="nc" id="L426">                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();</span>
+            }
+            
+<span class="nc" id="L429">            Long requesterId = getCurrentUserId(authentication);</span>
+            
+            // Validate pagination parameters
+<span class="nc bnc" id="L432" title="All 2 branches missed.">            if (page &lt; 0) page = 0;</span>
+<span class="nc bnc" id="L433" title="All 4 branches missed.">            if (size &lt;= 0 || size &gt; 100) size = 20;</span>
             
             // Validate and create pageable with default sort
-<span class="fc" id="L341">            Pageable pageable = createPageable(page, size, sort);</span>
+<span class="nc" id="L436">            Pageable pageable = createPageable(page, size, sort);</span>
             
-            // Get pending approval timesheets
-<span class="fc" id="L344">            Page&lt;Timesheet&gt; timesheetPage = timesheetService.getPendingApprovalTimesheets(requesterId, pageable);</span>
+            // Get pending approval timesheets with proper error handling
+<span class="nc" id="L439">            Page&lt;Timesheet&gt; timesheetPage = timesheetService.getPendingApprovalTimesheets(requesterId, pageable);</span>
             
             // Convert to response DTO
-<span class="fc" id="L347">            PagedTimesheetResponse response = timesheetMapper.toPagedResponse(timesheetPage);</span>
+<span class="nc" id="L442">            PagedTimesheetResponse response = timesheetMapper.toPagedResponse(timesheetPage);</span>
             
-<span class="fc" id="L349">            return ResponseEntity.ok(response);</span>
+<span class="nc" id="L444">            return ResponseEntity.ok(response);</span>
             
-<span class="nc" id="L351">        } catch (SecurityException e) {</span>
-<span class="nc" id="L352">            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
-<span class="nc" id="L353">        } catch (IllegalArgumentException e) {</span>
-<span class="nc" id="L354">            return ResponseEntity.badRequest().build();</span>
-<span class="nc" id="L355">        } catch (Exception e) {</span>
-<span class="nc" id="L356">            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();</span>
+<span class="nc" id="L446">        } catch (SecurityException e) {</span>
+<span class="nc" id="L447">            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
+<span class="nc" id="L448">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L449">            return ResponseEntity.badRequest().build();</span>
+<span class="nc" id="L450">        } catch (Exception e) {</span>
+            // Log the error for debugging in E2E environment
+<span class="nc" id="L452">            System.err.println(&quot;Error in getPendingApprovalTimesheets: &quot; + e.getMessage());</span>
+<span class="nc" id="L453">            e.printStackTrace();</span>
+<span class="nc" id="L454">            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();</span>
         }
     }
 }

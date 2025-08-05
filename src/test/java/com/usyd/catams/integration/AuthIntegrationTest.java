@@ -47,7 +47,7 @@ class AuthIntegrationTest {
             """;
 
         // When & Then - Execute login request and verify response
-        mockMvc.perform(post("/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginRequest))
                 .andExpect(status().isOk())
@@ -72,7 +72,7 @@ class AuthIntegrationTest {
             """;
 
         // When & Then - Execute login request and verify failure response (standardized error format)
-        mockMvc.perform(post("/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(invalidLoginRequest))
                 .andExpect(status().isUnauthorized())
@@ -81,7 +81,7 @@ class AuthIntegrationTest {
                 .andExpect(jsonPath("$.status", is(401)))
                 .andExpect(jsonPath("$.error", is("AUTH_FAILED")))
                 .andExpect(jsonPath("$.message", is("Authentication failed")))
-                .andExpect(jsonPath("$.path", is("/auth/login")));
+                .andExpect(jsonPath("$.path", is("/api/auth/login")));
     }
 
     @Test
@@ -96,7 +96,7 @@ class AuthIntegrationTest {
             """;
 
         // When & Then - Execute request and verify 400 error (standardized error format)
-        mockMvc.perform(post("/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(invalidRequest))
                 .andExpect(status().isBadRequest())
@@ -105,7 +105,7 @@ class AuthIntegrationTest {
                 .andExpect(jsonPath("$.status", is(400)))
                 .andExpect(jsonPath("$.error", is("VALIDATION_FAILED")))
                 .andExpect(jsonPath("$.message", containsString("Validation failed")))
-                .andExpect(jsonPath("$.path", is("/auth/login")));
+                .andExpect(jsonPath("$.path", is("/api/auth/login")));
     }
 
     @Test
@@ -120,7 +120,7 @@ class AuthIntegrationTest {
             """;
 
         // When & Then - Execute login and verify JWT content
-        mockMvc.perform(post("/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginRequest))
                 .andExpect(status().isOk())

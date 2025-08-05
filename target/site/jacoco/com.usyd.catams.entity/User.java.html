@@ -130,111 +130,129 @@ public class User {
     }
     
     /**
+     * Check if user is active (simplified method name for test compatibility)
+     * 
+     * @return true if user is active, false otherwise
+     */
+    public boolean isActive() {
+<span class="nc" id="L138">        return Boolean.TRUE.equals(isActive);</span>
+    }
+    
+    /**
      * Deactivate user account
      */
     public void deactivate() {
-<span class="nc" id="L136">        this.isActive = false;</span>
-<span class="nc" id="L137">        this.updatedAt = LocalDateTime.now();</span>
-<span class="nc" id="L138">    }</span>
+<span class="nc" id="L145">        this.isActive = false;</span>
+<span class="nc" id="L146">        this.updatedAt = LocalDateTime.now();</span>
+<span class="nc" id="L147">    }</span>
     
     /**
      * Activate user account
      */
     public void activate() {
-<span class="nc" id="L144">        this.isActive = true;</span>
-<span class="nc" id="L145">        this.updatedAt = LocalDateTime.now();</span>
-<span class="nc" id="L146">    }</span>
+<span class="nc" id="L153">        this.isActive = true;</span>
+<span class="nc" id="L154">        this.updatedAt = LocalDateTime.now();</span>
+<span class="nc" id="L155">    }</span>
     
     // Getters and setters
     public Long getId() {
-<span class="fc" id="L150">        return id;</span>
+<span class="fc" id="L159">        return id;</span>
     }
     
     public void setId(Long id) {
-<span class="fc" id="L154">        this.id = id;</span>
-<span class="fc" id="L155">    }</span>
+<span class="fc" id="L163">        this.id = id;</span>
+<span class="fc" id="L164">    }</span>
     
     public String getEmail() {
-<span class="fc" id="L158">        return email;</span>
+<span class="fc" id="L167">        return email;</span>
     }
     
     public void setEmail(String email) {
-<span class="fc" id="L162">        this.email = email;</span>
-<span class="fc" id="L163">    }</span>
+<span class="fc" id="L171">        this.email = email;</span>
+<span class="fc" id="L172">    }</span>
     
     public String getName() {
-<span class="fc" id="L166">        return name;</span>
+<span class="fc" id="L175">        return name;</span>
     }
     
     public void setName(String name) {
-<span class="fc" id="L170">        this.name = name;</span>
-<span class="fc" id="L171">    }</span>
+<span class="fc" id="L179">        this.name = name;</span>
+<span class="fc" id="L180">    }</span>
     
     public String getHashedPassword() {
-<span class="fc" id="L174">        return hashedPassword;</span>
+<span class="fc" id="L183">        return hashedPassword;</span>
     }
     
     public void setHashedPassword(String hashedPassword) {
-<span class="fc" id="L178">        this.hashedPassword = hashedPassword;</span>
-<span class="fc" id="L179">    }</span>
+<span class="fc" id="L187">        this.hashedPassword = hashedPassword;</span>
+<span class="fc" id="L188">    }</span>
     
     public UserRole getRole() {
-<span class="fc" id="L182">        return role;</span>
+<span class="fc" id="L191">        return role;</span>
     }
     
     public void setRole(UserRole role) {
-<span class="fc" id="L186">        this.role = role;</span>
-<span class="fc" id="L187">    }</span>
+<span class="fc" id="L195">        this.role = role;</span>
+<span class="fc" id="L196">    }</span>
     
     public Boolean getIsActive() {
-<span class="nc" id="L190">        return isActive;</span>
+<span class="nc" id="L199">        return isActive;</span>
     }
     
     public void setIsActive(Boolean isActive) {
-<span class="nc" id="L194">        this.isActive = isActive;</span>
-<span class="nc" id="L195">    }</span>
+<span class="fc" id="L203">        this.isActive = isActive;</span>
+<span class="fc" id="L204">    }</span>
+    
+    /**
+     * Set user active status (simplified method name for test compatibility)
+     * 
+     * @param active the active status to set
+     */
+    public void setActive(Boolean active) {
+<span class="fc" id="L212">        this.isActive = active;</span>
+<span class="fc" id="L213">    }</span>
     
     public LocalDateTime getCreatedAt() {
-<span class="nc" id="L198">        return createdAt;</span>
+<span class="nc" id="L216">        return createdAt;</span>
     }
     
     public void setCreatedAt(LocalDateTime createdAt) {
-<span class="nc" id="L202">        this.createdAt = createdAt;</span>
-<span class="nc" id="L203">    }</span>
+<span class="nc" id="L220">        this.createdAt = createdAt;</span>
+<span class="nc" id="L221">    }</span>
     
     public LocalDateTime getUpdatedAt() {
-<span class="nc" id="L206">        return updatedAt;</span>
+<span class="nc" id="L224">        return updatedAt;</span>
     }
     
     public void setUpdatedAt(LocalDateTime updatedAt) {
-<span class="nc" id="L210">        this.updatedAt = updatedAt;</span>
-<span class="nc" id="L211">    }</span>
+<span class="nc" id="L228">        this.updatedAt = updatedAt;</span>
+<span class="nc" id="L229">    }</span>
     
     public LocalDateTime getLastLoginAt() {
-<span class="nc" id="L214">        return lastLoginAt;</span>
+<span class="nc" id="L232">        return lastLoginAt;</span>
     }
     
     public void setLastLoginAt(LocalDateTime lastLoginAt) {
-<span class="nc" id="L218">        this.lastLoginAt = lastLoginAt;</span>
-<span class="nc" id="L219">    }</span>
+<span class="nc" id="L236">        this.lastLoginAt = lastLoginAt;</span>
+<span class="nc" id="L237">    }</span>
     
     @Override
     public boolean equals(Object o) {
-<span class="nc bnc" id="L223" title="All 2 branches missed.">        if (this == o) return true;</span>
-<span class="nc bnc" id="L224" title="All 4 branches missed.">        if (o == null || getClass() != o.getClass()) return false;</span>
-<span class="nc" id="L225">        User user = (User) o;</span>
-<span class="nc bnc" id="L226" title="All 2 branches missed.">        return Objects.equals(id, user.id) &amp;&amp; </span>
-<span class="nc bnc" id="L227" title="All 2 branches missed.">               Objects.equals(email, user.email);</span>
+<span class="nc bnc" id="L241" title="All 2 branches missed.">        if (this == o) return true;</span>
+<span class="nc bnc" id="L242" title="All 4 branches missed.">        if (o == null || getClass() != o.getClass()) return false;</span>
+<span class="nc" id="L243">        User user = (User) o;</span>
+<span class="nc bnc" id="L244" title="All 2 branches missed.">        return Objects.equals(id, user.id) &amp;&amp; </span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">               Objects.equals(email, user.email);</span>
     }
     
     @Override
     public int hashCode() {
-<span class="nc" id="L232">        return Objects.hash(id, email);</span>
+<span class="nc" id="L250">        return Objects.hash(id, email);</span>
     }
     
     @Override
     public String toString() {
-<span class="fc" id="L237">        return &quot;User{&quot; +</span>
+<span class="fc" id="L255">        return &quot;User{&quot; +</span>
                 &quot;id=&quot; + id +
                 &quot;, email='&quot; + email + '\'' +
                 &quot;, name='&quot; + name + '\'' +

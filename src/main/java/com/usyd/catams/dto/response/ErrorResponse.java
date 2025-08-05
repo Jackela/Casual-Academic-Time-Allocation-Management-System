@@ -1,44 +1,54 @@
 package com.usyd.catams.dto.response;
 
 /**
- * 标准错误响应DTO
+ * Standard error response DTO
  * 
- * 所有API错误响应都必须使用此格式
+ * All API error responses must use this format to ensure consistency
+ * across the entire CATAMS system. The success field is always false
+ * for error responses, following the OpenAPI specification.
  * 
  * @author Development Team
  * @since 1.0
  */
 public class ErrorResponse {
     
+    private boolean success = false;
     private String timestamp;
     private int status;
     private String error;
     private String message;
+    private String errorMessage;
     private String path;
     
     public ErrorResponse() {
     }
     
     public ErrorResponse(String timestamp, int status, String error, String message, String path) {
+        this.success = false;
         this.timestamp = timestamp;
         this.status = status;
         this.error = error;
         this.message = message;
+        this.errorMessage = message; // Set errorMessage same as message for backward compatibility
         this.path = path;
     }
     
     /**
-     * Builder模式创建器
+     * Builder pattern creator for ErrorResponse
+     * 
+     * @return ErrorResponseBuilder instance for fluent construction
      */
     public static ErrorResponseBuilder builder() {
         return new ErrorResponseBuilder();
     }
     
     public static class ErrorResponseBuilder {
+        private boolean success = false;
         private String timestamp;
         private int status;
         private String error;
         private String message;
+        private String errorMessage;
         private String path;
         
         public ErrorResponseBuilder timestamp(String timestamp) {
@@ -58,6 +68,15 @@ public class ErrorResponse {
         
         public ErrorResponseBuilder message(String message) {
             this.message = message;
+            this.errorMessage = message; // Keep them in sync
+            return this;
+        }
+        
+        public ErrorResponseBuilder errorMessage(String errorMessage) {
+            this.errorMessage = errorMessage;
+            if (this.message == null) {
+                this.message = errorMessage; // Keep them in sync
+            }
             return this;
         }
         
@@ -66,12 +85,28 @@ public class ErrorResponse {
             return this;
         }
         
+        public ErrorResponseBuilder success(boolean success) {
+            this.success = success;
+            return this;
+        }
+        
         public ErrorResponse build() {
-            return new ErrorResponse(timestamp, status, error, message, path);
+            ErrorResponse response = new ErrorResponse(timestamp, status, error, message, path);
+            response.success = this.success;
+            response.errorMessage = this.errorMessage;
+            return response;
         }
     }
     
     // Getters and setters
+    public boolean isSuccess() {
+        return success;
+    }
+    
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+    
     public String getTimestamp() {
         return timestamp;
     }
@@ -102,6 +137,15 @@ public class ErrorResponse {
     
     public void setMessage(String message) {
         this.message = message;
+        this.errorMessage = message; // Keep them in sync
+    }
+    
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+    
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
     }
     
     public String getPath() {

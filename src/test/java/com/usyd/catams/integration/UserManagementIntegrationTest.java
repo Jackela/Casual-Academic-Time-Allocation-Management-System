@@ -100,7 +100,7 @@ class UserManagementIntegrationTest {
             """;
 
         // When - Execute user creation request with ADMIN token
-        MvcResult result = mockMvc.perform(post("/users")
+        MvcResult result = mockMvc.perform(post("/api/users")
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(userCreateRequest))
@@ -146,7 +146,7 @@ class UserManagementIntegrationTest {
             """;
 
         // When & Then - Execute login and verify JWT is returned
-        mockMvc.perform(post("/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginRequest))
                 .andExpect(status().isOk())
@@ -179,7 +179,7 @@ class UserManagementIntegrationTest {
             """;
 
         // When & Then - Execute login with wrong password and verify 401 response
-        mockMvc.perform(post("/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(invalidLoginRequest))
                 .andExpect(status().isUnauthorized())
@@ -188,7 +188,7 @@ class UserManagementIntegrationTest {
                 .andExpect(jsonPath("$.status", is(401)))
                 .andExpect(jsonPath("$.error", is("AUTH_FAILED")))
                 .andExpect(jsonPath("$.message", is("Authentication failed")))
-                .andExpect(jsonPath("$.path", is("/auth/login")));
+                .andExpect(jsonPath("$.path", is("/api/auth/login")));
     }
 
     @Test
@@ -211,7 +211,7 @@ class UserManagementIntegrationTest {
             """;
 
         // When - Execute login and extract JWT
-        MvcResult result = mockMvc.perform(post("/auth/login")
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginRequest))
                 .andExpect(status().isOk())
@@ -255,7 +255,7 @@ class UserManagementIntegrationTest {
             """;
 
         // When & Then - Execute user creation request with TUTOR token and verify 403 response
-        mockMvc.perform(post("/users")
+        mockMvc.perform(post("/api/users")
                 .header("Authorization", "Bearer " + tutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(userCreateRequest))
@@ -279,13 +279,13 @@ class UserManagementIntegrationTest {
             }
             """;
 
-        // When & Then - Execute user creation request without token and verify 403 response
-        // Note: Spring Security returns 403 (Forbidden) rather than 401 (Unauthorized) 
-        // when no authentication token is provided for protected endpoints
-        mockMvc.perform(post("/users")
+        // When & Then - Execute user creation request without token and verify 401 response
+        // Note: Spring Security returns 401 (Unauthorized) for unauthenticated requests
+        // as configured in SecurityConfig with HttpStatusEntryPoint
+        mockMvc.perform(post("/api/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(userCreateRequest))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         // Verify user was NOT created in database
         Optional<User> user = userRepository.findByEmailAndIsActive("noauth@example.com", true);

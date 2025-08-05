@@ -81,17 +81,17 @@ public class ApprovalController {
             Authentication authentication) {
 
         // Get current user ID from authentication context
-<span class="nc" id="L84">        Long requesterId = getCurrentUserId(authentication);</span>
+<span class="fc" id="L84">        Long requesterId = getCurrentUserId(authentication);</span>
 
         // Get approval history using service layer
-<span class="nc" id="L87">        java.util.List&lt;Approval&gt; approvals = approvalService.getApprovalHistory(timesheetId, requesterId);</span>
+<span class="fc" id="L87">        java.util.List&lt;Approval&gt; approvals = approvalService.getApprovalHistory(timesheetId, requesterId);</span>
 
         // Convert to response DTOs
-<span class="nc" id="L90">        java.util.List&lt;ApprovalActionResponse&gt; responses = approvals.stream()</span>
-<span class="nc" id="L91">            .map(this::buildApprovalActionResponse)</span>
-<span class="nc" id="L92">            .collect(java.util.stream.Collectors.toList());</span>
+<span class="fc" id="L90">        java.util.List&lt;ApprovalActionResponse&gt; responses = approvals.stream()</span>
+<span class="fc" id="L91">            .map(this::buildApprovalActionResponse)</span>
+<span class="fc" id="L92">            .collect(java.util.stream.Collectors.toList());</span>
 
-<span class="nc" id="L94">        return ResponseEntity.ok(responses);</span>
+<span class="fc" id="L94">        return ResponseEntity.ok(responses);</span>
     }
 
     /**

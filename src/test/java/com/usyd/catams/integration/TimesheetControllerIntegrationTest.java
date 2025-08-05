@@ -12,14 +12,13 @@ import com.usyd.catams.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.WebApplicationContext;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -27,7 +26,6 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.*;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -42,12 +40,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - AC5: Schema validation compliance
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
 public class TimesheetControllerIntegrationTest {
 
     @Autowired
-    private WebApplicationContext context;
+    private MockMvc mockMvc;
 
     @Autowired
     private UserRepository userRepository;
@@ -67,8 +66,6 @@ public class TimesheetControllerIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private MockMvc mockMvc;
-
     private User lecturer;
     private User tutor;
     private User admin;
@@ -81,11 +78,6 @@ public class TimesheetControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders
-            .webAppContextSetup(context)
-            .apply(springSecurity())
-            .build();
-
         // Clean up existing data
         timesheetRepository.deleteAll();
         courseRepository.deleteAll();

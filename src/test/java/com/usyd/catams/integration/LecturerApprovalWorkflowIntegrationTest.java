@@ -363,11 +363,11 @@ public class LecturerApprovalWorkflowIntegrationTest {
     }
 
     @Test
-    @DisplayName("Unauthorized access returns 403")
+    @DisplayName("Unauthorized access returns 401")
     void shouldRejectUnauthorizedAccess() throws Exception {
         mockMvc.perform(get("/api/timesheets/pending-approval")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         ApprovalActionRequest request = new ApprovalActionRequest();
         request.setTimesheetId(pendingTimesheet.getId());
@@ -376,6 +376,6 @@ public class LecturerApprovalWorkflowIntegrationTest {
         mockMvc.perform(post("/api/approvals")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

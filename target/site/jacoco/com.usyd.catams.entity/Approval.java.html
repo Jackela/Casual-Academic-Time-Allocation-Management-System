@@ -159,7 +159,7 @@ public class Approval {
 <span class="nc" id="L159">    }</span>
     
     public ApprovalStatus getPreviousStatus() {
-<span class="nc" id="L162">        return previousStatus;</span>
+<span class="fc" id="L162">        return previousStatus;</span>
     }
     
     public void setPreviousStatus(ApprovalStatus previousStatus) {
@@ -268,7 +268,7 @@ public class Approval {
         }
         
         // Validate comment length
-<span class="pc bpc" id="L271" title="2 of 4 branches missed.">        if (comment != null &amp;&amp; comment.length() &gt; 500) {</span>
+<span class="pc bpc" id="L271" title="1 of 4 branches missed.">        if (comment != null &amp;&amp; comment.length() &gt; 500) {</span>
 <span class="nc" id="L272">            throw new IllegalArgumentException(&quot;Comment cannot exceed 500 characters&quot;);</span>
         }
 <span class="fc" id="L274">    }</span>

@@ -165,7 +165,7 @@ public class ApprovalActionResponse {
      * @return true if action was SUBMIT_FOR_APPROVAL
      */
     public boolean isSubmissionResponse() {
-<span class="pc bpc" id="L168" title="1 of 2 branches missed.">        return action == ApprovalAction.SUBMIT_FOR_APPROVAL;</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        return action == ApprovalAction.SUBMIT_FOR_APPROVAL;</span>
     }
 
     /**
@@ -201,9 +201,9 @@ public class ApprovalActionResponse {
      * @return list of next steps appropriate for the current status
      */
     public static List&lt;String&gt; generateNextStepsForStatus(ApprovalStatus status) {
-<span class="pc bpc" id="L204" title="7 of 9 branches missed.">        switch (status) {</span>
+<span class="pc bpc" id="L204" title="6 of 9 branches missed.">        switch (status) {</span>
             case PENDING_LECTURER_APPROVAL:
-<span class="nc" id="L206">                return List.of(</span>
+<span class="fc" id="L206">                return List.of(</span>
                     &quot;Timesheet is now pending lecturer approval&quot;,
                     &quot;Lecturer can approve, reject, or request modifications&quot;,
                     &quot;No further action required from submitter at this time&quot;

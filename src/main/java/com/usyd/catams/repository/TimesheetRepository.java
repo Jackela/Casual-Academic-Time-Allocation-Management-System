@@ -1,5 +1,6 @@
 package com.usyd.catams.repository;
 
+import com.usyd.catams.dto.TimesheetSummaryData;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.enums.ApprovalStatus;
 import org.springframework.data.domain.Page;
@@ -33,6 +34,16 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @return page of timesheets
      */
     Page<Timesheet> findByTutorId(Long tutorId, Pageable pageable);
+    
+    /**
+     * Find all timesheets for a specific tutor ordered by creation date (newest first).
+     * Used by GET /api/timesheets/me endpoint.
+     *
+     * @param tutorId the tutor's ID
+     * @param pageable the paging information
+     * @return page of timesheets ordered by creation date descending
+     */
+    Page<Timesheet> findByTutorIdOrderByCreatedAtDesc(Long tutorId, Pageable pageable);
     
     /**
      * Find all timesheets for a specific course.
@@ -233,8 +244,8 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param pageable paging and sorting information
      * @return page of timesheets pending lecturer approval for the lecturer's courses
      */
-    @Query("SELECT t FROM Timesheet t, Course c " +
-           "WHERE t.courseId = c.id AND t.status = 'PENDING_LECTURER_APPROVAL' AND c.lecturerId = :lecturerId")
+    @Query("SELECT t FROM Timesheet t WHERE t.status = 'PENDING_LECTURER_APPROVAL' AND t.courseId IN " +
+           "(SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId)")
     Page<Timesheet> findPendingLecturerApprovalByCourses(@Param("lecturerId") Long lecturerId, Pageable pageable);
     
     /**
@@ -245,4 +256,106 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @return page of all timesheets pending lecturer approval
      */
     Page<Timesheet> findByStatusOrderByCreatedAtAsc(ApprovalStatus status, Pageable pageable);
+    
+    // ==================== DASHBOARD AGGREGATION QUERIES ====================
+    
+    /**
+     * Get timesheet aggregation data for dashboard - TUTOR scope.
+     * Returns summary metrics for efficient dashboard rendering.
+     *
+     * @param tutorId the tutor's ID
+     * @param startDate start date for filtering (inclusive)
+     * @param endDate end date for filtering (inclusive)
+     * @return aggregated timesheet summary data
+     */
+    @Query("""
+        SELECT new com.usyd.catams.dto.TimesheetSummaryData(
+            COUNT(t), 
+            COALESCE(SUM(t.hours), 0), 
+            COALESCE(SUM(t.hours * t.hourlyRate), 0),
+            COUNT(CASE WHEN t.status = 'PENDING_LECTURER_APPROVAL' THEN 1 END)
+        )
+        FROM Timesheet t 
+        WHERE t.tutorId = :tutorId 
+        AND t.weekStartDate BETWEEN :startDate AND :endDate
+        """)
+    TimesheetSummaryData findTimesheetSummaryByTutor(
+        @Param("tutorId") Long tutorId,
+        @Param("startDate") LocalDate startDate, 
+        @Param("endDate") LocalDate endDate
+    );
+    
+    /**
+     * Get timesheet aggregation data for dashboard - LECTURER scope.
+     * Returns summary metrics for courses managed by a lecturer.
+     *
+     * @param courseIds list of course IDs managed by the lecturer
+     * @param startDate start date for filtering (inclusive)
+     * @param endDate end date for filtering (inclusive)
+     * @return aggregated timesheet summary data
+     */
+    @Query("""
+        SELECT new com.usyd.catams.dto.TimesheetSummaryData(
+            COUNT(t), 
+            COALESCE(SUM(t.hours), 0), 
+            COALESCE(SUM(t.hours * t.hourlyRate), 0),
+            COUNT(CASE WHEN t.status = 'PENDING_LECTURER_APPROVAL' THEN 1 END)
+        )
+        FROM Timesheet t 
+        WHERE t.courseId IN :courseIds
+        AND t.weekStartDate BETWEEN :startDate AND :endDate
+        """)
+    TimesheetSummaryData findTimesheetSummaryByCourses(
+        @Param("courseIds") List<Long> courseIds,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
+    
+    /**
+     * Get timesheet aggregation data for dashboard - ADMIN scope.
+     * Returns system-wide summary metrics.
+     *
+     * @param startDate start date for filtering (inclusive)
+     * @param endDate end date for filtering (inclusive)
+     * @return aggregated timesheet summary data
+     */
+    @Query("""
+        SELECT new com.usyd.catams.dto.TimesheetSummaryData(
+            COUNT(t), 
+            COALESCE(SUM(t.hours), 0), 
+            COALESCE(SUM(t.hours * t.hourlyRate), 0),
+            COUNT(CASE WHEN t.status = 'PENDING_LECTURER_APPROVAL' OR t.status = 'PENDING_HR_REVIEW' THEN 1 END)
+        )
+        FROM Timesheet t 
+        WHERE t.weekStartDate BETWEEN :startDate AND :endDate
+        """)
+    TimesheetSummaryData findTimesheetSummarySystemWide(
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
+    
+    /**
+     * Get timesheet aggregation data for a specific course (ADMIN filter).
+     *
+     * @param courseId the course ID
+     * @param startDate start date for filtering (inclusive)
+     * @param endDate end date for filtering (inclusive)
+     * @return aggregated timesheet summary data
+     */
+    @Query("""
+        SELECT new com.usyd.catams.dto.TimesheetSummaryData(
+            COUNT(t), 
+            COALESCE(SUM(t.hours), 0), 
+            COALESCE(SUM(t.hours * t.hourlyRate), 0),
+            COUNT(CASE WHEN t.status = 'PENDING_LECTURER_APPROVAL' OR t.status = 'PENDING_HR_REVIEW' THEN 1 END)
+        )
+        FROM Timesheet t 
+        WHERE t.courseId = :courseId
+        AND t.weekStartDate BETWEEN :startDate AND :endDate
+        """)
+    TimesheetSummaryData findTimesheetSummaryByCourse(
+        @Param("courseId") Long courseId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
 }

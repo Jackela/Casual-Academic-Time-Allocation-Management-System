@@ -87,17 +87,17 @@
      * @throws IllegalArgumentException if value is not recognized
      */
     public static ApprovalStatus fromValue(String value) {
-<span class="fc bfc" id="L90" title="All 2 branches covered.">        if (value == null) {</span>
-<span class="fc" id="L91">            throw new IllegalArgumentException(&quot;Approval status value cannot be null&quot;);</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        if (value == null) {</span>
+<span class="nc" id="L91">            throw new IllegalArgumentException(&quot;Approval status value cannot be null&quot;);</span>
         }
         
-<span class="fc bfc" id="L94" title="All 2 branches covered.">        for (ApprovalStatus status : ApprovalStatus.values()) {</span>
-<span class="fc bfc" id="L95" title="All 2 branches covered.">            if (status.value.equals(value)) {</span>
-<span class="fc" id="L96">                return status;</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        for (ApprovalStatus status : ApprovalStatus.values()) {</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">            if (status.value.equals(value)) {</span>
+<span class="nc" id="L96">                return status;</span>
             }
         }
         
-<span class="fc" id="L100">        throw new IllegalArgumentException(&quot;Unknown approval status value: &quot; + value);</span>
+<span class="nc" id="L100">        throw new IllegalArgumentException(&quot;Unknown approval status value: &quot; + value);</span>
     }
     
     /**
@@ -106,7 +106,7 @@
      * @return true if timesheet can be edited in this status
      */
     public boolean isEditable() {
-<span class="pc bpc" id="L109" title="2 of 6 branches missed.">        return this == DRAFT || this == MODIFICATION_REQUESTED || this == REJECTED;</span>
+<span class="pc bpc" id="L109" title="1 of 6 branches missed.">        return this == DRAFT || this == MODIFICATION_REQUESTED || this == REJECTED;</span>
     }
     
     /**
@@ -124,7 +124,7 @@
      * @return true if status is final
      */
     public boolean isFinal() {
-<span class="pc bpc" id="L127" title="1 of 2 branches missed.">        return this == FINAL_APPROVED;</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        return this == FINAL_APPROVED;</span>
     }
     
     /**
@@ -135,11 +135,11 @@
     public ApprovalStatus[] getNextPossibleStatuses() {
 <span class="pc bpc" id="L136" title="7 of 9 branches missed.">        switch (this) {</span>
             case DRAFT:
-<span class="nc" id="L138">                return new ApprovalStatus[]{PENDING_LECTURER_APPROVAL};</span>
+<span class="fc" id="L138">                return new ApprovalStatus[]{PENDING_LECTURER_APPROVAL};</span>
             case PENDING_LECTURER_APPROVAL:
 <span class="fc" id="L140">                return new ApprovalStatus[]{APPROVED, REJECTED, MODIFICATION_REQUESTED};</span>
             case APPROVED:
-<span class="fc" id="L142">                return new ApprovalStatus[]{PENDING_HR_REVIEW};</span>
+<span class="nc" id="L142">                return new ApprovalStatus[]{PENDING_HR_REVIEW};</span>
             case PENDING_TUTOR_REVIEW:
 <span class="nc" id="L144">                return new ApprovalStatus[]{TUTOR_APPROVED, MODIFICATION_REQUESTED, REJECTED};</span>
             case TUTOR_APPROVED:
