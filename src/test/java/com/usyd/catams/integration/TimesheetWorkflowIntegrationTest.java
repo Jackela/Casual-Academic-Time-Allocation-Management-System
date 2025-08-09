@@ -86,8 +86,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         testCourse = TestDataBuilder.aCourse()
             .withCode("COMP3999")
             .withName("Integration Testing Course")
-            .withLecturer(testLecturer)
-            .build();
+            .withLecturer(testLecturer)            .build();
         testCourse = courseRepository.save(testCourse);
 
         // Update auth tokens with real user IDs
@@ -272,8 +271,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         Course otherCourse = TestDataBuilder.aCourse()
             .withCode("MATH2001")
             .withName("Other Course")
-            .withLecturer(otherLecturer)
-            .build();
+            .withLecturer(otherLecturer)            .build();
         otherCourse = courseRepository.save(otherCourse);
 
         String otherLecturerToken = "Bearer " + jwtTokenProvider.generateToken(

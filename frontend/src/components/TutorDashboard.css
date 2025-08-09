@@ -238,11 +238,14 @@
   color: #991b1b;
 }
 
+<<<<<<< HEAD
 .status-badge.modification {
   background-color: #fef3c7;
   color: #92400e;
 }
 
+=======
+>>>>>>> c8486ccc9d77ad3c5893d5e2f8def3f49db6132a
 /* Action Buttons */
 .action-buttons {
   display: flex;

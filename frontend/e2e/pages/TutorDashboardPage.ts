@@ -60,8 +60,7 @@ export class TutorDashboardPage {
   async expectToBeLoaded() {
     // Ensure we are on dashboard URL to avoid race with auth/navigation
     await expect(this.page).toHaveURL(/\/dashboard$/, { timeout: 15000 });
-    // Rely on header readiness as page loaded signal (mobile layouts may vary)
-    await this.navigationPage.expectHeaderElements();
+    // Rely on header readiness as page loaded signal (mobile layouts may vary)    await this.navigationPage.expectHeaderElements();
   }
 
   async expectTutorDashboardTitle() {
@@ -73,8 +72,7 @@ export class TutorDashboardPage {
   }
 
   async expectTimesheetsTable() {
-    await expect(this.timesheetsTable).toBeVisible({ timeout: 10000 });
-  }
+    await expect(this.timesheetsTable).toBeVisible({ timeout: 10000 });  }
 
   async expectLoadingState() {
     await expect(this.loadingState).toBeVisible();
@@ -207,20 +205,12 @@ export class TutorDashboardPage {
     await expect(this.editModal).toBeVisible();
     if (updates.hours !== undefined) {
       const hoursInput = this.page.getByTestId('edit-hours-input');
-       await expect(hoursInput).toBeVisible();
-      await hoursInput.fill(updates.hours.toString());
+       await expect(hoursInput).toBeVisible();      await hoursInput.fill(updates.hours.toString());
     }
 
     if (updates.hourlyRate !== undefined) {
       const rateInput = this.page.getByTestId('edit-rate-input');
-      await expect(rateInput).toBeVisible();
-      await rateInput.fill(updates.hourlyRate.toString());
-    }
-
-    if (updates.description !== undefined) {
-      const descriptionInput = this.page.getByTestId('edit-description-input');
-      await expect(descriptionInput).toBeVisible();
-      await descriptionInput.fill(updates.description);
+      await expect(rateInput).toBeVisible();      await descriptionInput.fill(updates.description);
     }
   }
 
@@ -244,15 +234,13 @@ export class TutorDashboardPage {
       await expect(saveButton).toBeDisabled();
     } else {
       await expect(saveButton).toBeVisible();
-    }
-  }
+    }  }
 
   async expectNoFormValidationErrors() {
     // Check that save button is enabled
     const saveButton = this.page.getByTestId('edit-save-btn');
     await expect(saveButton).toBeVisible();
-    await expect(saveButton).not.toHaveText(/Saving/i);
-  }
+    await expect(saveButton).not.toHaveText(/Saving/i);  }
 
   // Delete modal interactions
   async clickDeleteButton(timesheetId: number) {
@@ -328,8 +316,7 @@ export class TutorDashboardPage {
 
     // Check that the dashboard adapts to mobile viewport
     const title = this.page.getByTestId('main-dashboard-title').or(this.page.getByTestId('dashboard-title'));
-    await expect(title).toBeVisible({ timeout: 15000 });
-    
+    await expect(title).toBeVisible({ timeout: 15000 });    
     // Verify mobile-specific layout elements
     const viewport = this.page.viewportSize();
     expect(viewport?.width).toBeLessThanOrEqual(768);
@@ -361,8 +348,7 @@ export class TutorDashboardPage {
 
     // Best-effort: if action area exists, ensure at least first action container is present
     const actionButtons = this.page.locator('[data-testid="action-buttons"], .action-buttons, [data-testid^="edit-btn-"], [data-testid^="submit-btn-"]');
-    if (await actionButtons.count() > 0) {
-      await expect(actionButtons.first()).toBeVisible();
+    if (await actionButtons.count() > 0) {      await expect(actionButtons.first()).toBeVisible();
     }
   }
 

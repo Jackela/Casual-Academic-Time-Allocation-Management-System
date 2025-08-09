@@ -106,8 +106,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
     // Best-effort: hide loading if present briefly
     try {
       await page.locator('[data-testid="loading-state"]').first().waitFor({ state: 'hidden', timeout: 5000 });
-    } catch {}
-  });
+    } catch {}  });
 
   test('Lecturer can refresh dashboard data', async ({ page }) => {
     // Login as lecturer

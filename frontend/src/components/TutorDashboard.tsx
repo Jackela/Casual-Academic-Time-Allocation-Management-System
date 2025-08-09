@@ -252,8 +252,7 @@ const TutorDashboard: React.FC = () => {
       case 'REJECTED':
         return 'status-badge rejected';
       case 'MODIFICATION_REQUESTED':
-        return 'status-badge modification';
-      default:
+        return 'status-badge modification';      default:
         return 'status-badge';
     }
   };
@@ -275,8 +274,7 @@ const TutorDashboard: React.FC = () => {
       case 'REJECTED':
         return 'Rejected';
       case 'MODIFICATION_REQUESTED':
-        return 'Modification Requested';
-      default:
+        return 'Modification Requested';      default:
         return status;
     }
   };
@@ -334,8 +332,7 @@ const TutorDashboard: React.FC = () => {
             <p data-testid="empty-state-description">You haven't created any timesheets yet. Contact your lecturer to create timesheets for you.</p>
           </div>
         ) : (
-          <div className="timesheets-table-container" data-testid="timesheets-table-container">
-            <table className="timesheets-table" data-testid="timesheets-table">
+          <div className="timesheets-table-container" data-testid="timesheets-table-container">            <table className="timesheets-table" data-testid="timesheets-table">
               <thead>
                 <tr>
                   <th>Course</th>
@@ -384,8 +381,7 @@ const TutorDashboard: React.FC = () => {
                     </td>
                     <td>{formatDate(timesheet.updatedAt)}</td>
                     <td>
-                      <div className="action-buttons" data-testid="action-buttons">
-                        {/* Show Submit button for DRAFT timesheets */}
+                      <div className="action-buttons" data-testid="action-buttons">                        {/* Show Submit button for DRAFT timesheets */}
                         {timesheet.status === 'DRAFT' && (
                           <button
                             onClick={() => handleSubmitForApproval(timesheet.id)}

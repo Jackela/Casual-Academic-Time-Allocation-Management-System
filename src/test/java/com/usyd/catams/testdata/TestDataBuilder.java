@@ -46,8 +46,7 @@ public class TestDataBuilder {
     /**
      * Creates a new CourseBuilder instance.
      * @return a CourseBuilder instance
-     */
-    public static CourseBuilder aCourse() {
+     */    public static CourseBuilder aCourse() {
         return new CourseBuilder();
     }
 

@@ -8,11 +8,17 @@ import com.usyd.catams.common.domain.model.WeekPeriod;
 import com.usyd.catams.integration.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.beans.factory.annotation.Autowired;import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+=======
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+>>>>>>> c8486ccc9d77ad3c5893d5e2f8def3f49db6132a
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -21,8 +27,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+<<<<<<< HEAD
 class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
-
     @Autowired
     private TimesheetRepository timesheetRepository;
 
@@ -46,7 +52,6 @@ class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
             1L // createdBy (lecturer who manages this course)
         );
         timesheet1.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-
         // Timesheet for different casual staff member - already HR approved for payment
         timesheet2 = new Timesheet(
             2L, // casualStaffId (different tutor)
@@ -58,7 +63,6 @@ class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
             2L // createdBy (lecturer)
         );
         timesheet2.setStatus(ApprovalStatus.FINAL_APPROVED);
-
         // Draft timesheet not yet submitted for approval
         timesheet3 = new Timesheet(
             1L, // casualStaffId (same tutor as timesheet1)
@@ -78,4 +82,3 @@ class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
 
     // ... all other test methods from the original file
 }
-

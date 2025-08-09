@@ -38,6 +38,9 @@ public class Course {
     @Column(nullable = false, name = "lecturer_id")
     private Long lecturerId;
     
+=======
+    @NotNull
+>>>>>>> c8486ccc9d77ad3c5893d5e2f8def3f49db6132a
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "budget_allocated", precision = 12, scale = 2)),
@@ -45,13 +48,12 @@ public class Course {
     })
     private Money budgetAllocated;
     
-    @Embedded
+<<<<<<< HEAD    @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "budget_used", precision = 12, scale = 2)),
         @AttributeOverride(name = "currencyCode", column = @Column(name = "budget_used_currency"))
     })
-    private Money budgetUsed;
-    
+    private Money budgetUsed;    
     @NotNull
     @Column(nullable = false, name = "is_active")
     private Boolean isActive;

@@ -6,8 +6,7 @@ import { E2E_CONFIG } from './e2e/config/e2e.config';
  */
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/e2e/api/**', '**/e2e/examples/**'],
-  /* Global setup to handle authentication */
+  testIgnore: ['**/e2e/api/**', '**/e2e/examples/**'],  /* Global setup to handle authentication */
   globalSetup: './e2e/global.setup.ts',
   /* Allow skipping backend readiness from env for mocked-only runs */
   /* Note: The actual bypass is implemented in global.setup.ts via E2E_SKIP_BACKEND */

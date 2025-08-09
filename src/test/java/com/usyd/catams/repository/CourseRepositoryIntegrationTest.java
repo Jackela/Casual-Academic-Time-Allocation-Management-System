@@ -11,7 +11,6 @@ import jakarta.persistence.EntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -19,13 +18,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CourseRepositoryIntegrationTest extends IntegrationTestBase {
-
     @Autowired
     private CourseRepository courseRepository;
 
     @Autowired
     private EntityManager entityManager;
-
     private Course course1;
     private Course course2;
     private Course course3;
@@ -66,8 +63,7 @@ class CourseRepositoryIntegrationTest extends IntegrationTestBase {
         entityManager.persist(course2);
         entityManager.flush();
         entityManager.persist(course3);
-        entityManager.flush();
-    }
+        entityManager.flush();    }
 
     @Test
     void findByCode_ShouldReturnCourseWhenExists() {
@@ -80,4 +76,3 @@ class CourseRepositoryIntegrationTest extends IntegrationTestBase {
 
     // ... other tests from the original file
 }
-

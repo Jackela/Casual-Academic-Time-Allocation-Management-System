@@ -124,6 +124,5 @@ export class LoginPage {
   async loginAsAdmin() {
     const email = this.resolveEnv('E2E_ADMIN_EMAIL', 'admin@example.com');
     const password = this.resolveEnv('E2E_ADMIN_PASSWORD', 'Admin123!');
-    return await this.login(email, password);
-  }
+    return await this.login(email, password);  }
 }

@@ -67,8 +67,7 @@ test.describe('Tutor Dashboard Workflow - Story 2.2', () => {
           hours: 12,
           hourlyRate: 40.00,
           description: 'Marking assignments for MATH1001',
-          status: 'FINAL_APPROVED',
-          createdAt: '2025-01-15T11:00:00',
+          status: 'FINAL_APPROVED',          createdAt: '2025-01-15T11:00:00',
           updatedAt: '2025-01-22T16:00:00',
           createdBy: 1,
           isEditable: false,
@@ -85,8 +84,7 @@ test.describe('Tutor Dashboard Workflow - Story 2.2', () => {
           hours: 15,
           hourlyRate: 42.00,
           description: 'Tutorial prep and delivery for PHYS1001',
-          status: 'PENDING_TUTOR_REVIEW',
-          createdAt: '2025-02-08T08:00:00',
+          status: 'PENDING_TUTOR_REVIEW',          createdAt: '2025-02-08T08:00:00',
           updatedAt: '2025-02-08T08:00:00',
           createdBy: 1,
           isEditable: false,
@@ -144,8 +142,7 @@ test.describe('Tutor Dashboard Workflow - Story 2.2', () => {
     });
 
     // Setup API mocking for approval actions
-    await page.unroute('**/api/approvals').catch(() => {});
-    await page.route('**/api/approvals', async route => {
+    await page.unroute('**/api/approvals').catch(() => {});    await page.route('**/api/approvals', async route => {
       await new Promise(resolve => setTimeout(resolve, 400)); // Realistic delay
       route.fulfill({
         status: 200,
@@ -163,8 +160,7 @@ test.describe('Tutor Dashboard Workflow - Story 2.2', () => {
     });
 
     // Setup API mocking for timesheet updates
-    await page.route(/.*\/api\/timesheets\/\d+$/, async (route, request) => {
-      await new Promise(resolve => setTimeout(resolve, 350)); // Realistic delay
+    await page.route(/.*\/api\/timesheets\/\d+$/, async (route, request) => {      await new Promise(resolve => setTimeout(resolve, 350)); // Realistic delay
       
       if (request.method() === 'PUT') {
         // Mock successful update
@@ -225,29 +221,25 @@ test.describe('Tutor Dashboard Workflow - Story 2.2', () => {
     // Verify each timesheet displays correct information
     await tutorDashboard.expectTimesheetData(1, {
       courseCode: 'COMP1001',
-      status: 'Rejected',
-      hours: 10,
+      status: 'Rejected',      hours: 10,
       hourlyRate: 45.00
     });
 
     await tutorDashboard.expectTimesheetData(2, {
       courseCode: 'DATA2001',
-      status: 'Draft',
-      hours: 8,
+      status: 'Draft',      hours: 8,
       hourlyRate: 50.00
     });
 
     await tutorDashboard.expectTimesheetData(3, {
       courseCode: 'MATH1001',
-      status: 'Final Approved',
-      hours: 12,
+      status: 'Final Approved',      hours: 12,
       hourlyRate: 40.00
     });
 
     await tutorDashboard.expectTimesheetData(4, {
       courseCode: 'PHYS1001',
-      status: 'Pending Tutor Review',
-      hours: 15,
+      status: 'Pending Tutor Review',      hours: 15,
       hourlyRate: 42.00
     });
   });
@@ -301,7 +293,6 @@ test.describe('Tutor Dashboard Workflow - Story 2.2', () => {
     await tutorDashboard.expectEditModalNotVisible();
     // Verify API call was made
     await putRespPromise;
-
     // Wait for data refresh and verify status change
     await tutorDashboard.waitForMyTimesheetData();
 
@@ -564,6 +555,5 @@ test.describe('Tutor Dashboard Responsive Design', () => {
       await expect(fallbackTitle.first()).toBeVisible({ timeout: 20000 });
     } else {
       await expect(layoutAnchor.first()).toBeVisible({ timeout: 20000 });
-    }
-  });
+    }  });
 });

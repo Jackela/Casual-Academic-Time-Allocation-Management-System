@@ -191,6 +191,5 @@ public enum ApprovalStatus {
             }
         }
         
-        throw new IllegalArgumentException("Invalid approval status value: " + value);
-    }
+        throw new IllegalArgumentException("Invalid approval status value: " + value);    }
 }

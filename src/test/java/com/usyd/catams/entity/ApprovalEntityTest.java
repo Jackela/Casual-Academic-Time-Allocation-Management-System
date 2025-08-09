@@ -19,8 +19,7 @@ class ApprovalEntityTest {
     private static final Long APPROVER_ID = 2L;
     private static final ApprovalAction ACTION = ApprovalAction.APPROVE;
     private static final ApprovalStatus PREVIOUS_STATUS = ApprovalStatus.PENDING_TUTOR_REVIEW;
-    private static final ApprovalStatus NEW_STATUS = ApprovalStatus.APPROVED_BY_TUTOR;
-    private static final String COMMENT = "Approved by tutor";
+    private static final ApprovalStatus NEW_STATUS = ApprovalStatus.APPROVED_BY_TUTOR;    private static final String COMMENT = "Approved by tutor";
 
     @BeforeEach
     void setUp() {
@@ -233,8 +232,7 @@ class ApprovalEntityTest {
         @Test
         void validateBusinessRules_ShouldPassForValidTutorApprovalTransition() {
             approval.setPreviousStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-            approval.setNewStatus(ApprovalStatus.APPROVED_BY_TUTOR);
-            approval.setAction(ApprovalAction.APPROVE);
+            approval.setNewStatus(ApprovalStatus.APPROVED_BY_TUTOR);            approval.setAction(ApprovalAction.APPROVE);
 
             assertThat(approval).satisfies(a -> a.validateBusinessRules());
         }
@@ -242,8 +240,7 @@ class ApprovalEntityTest {
         @Test
         void validateBusinessRules_ShouldPassForValidHRApprovalTransition() {
             approval.setPreviousStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-            approval.setNewStatus(ApprovalStatus.FINAL_APPROVED);
-            approval.setAction(ApprovalAction.APPROVE);
+            approval.setNewStatus(ApprovalStatus.FINAL_APPROVED);            approval.setAction(ApprovalAction.APPROVE);
 
             assertThat(approval).satisfies(a -> a.validateBusinessRules());
         }
@@ -259,8 +256,7 @@ class ApprovalEntityTest {
 
         @Test
         void validateBusinessRules_ShouldPassForValidModificationRequestTransition() {
-            approval.setPreviousStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-            approval.setNewStatus(ApprovalStatus.MODIFICATION_REQUESTED);
+            approval.setPreviousStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            approval.setNewStatus(ApprovalStatus.MODIFICATION_REQUESTED);
             approval.setAction(ApprovalAction.REQUEST_MODIFICATION);
 
             assertThat(approval).satisfies(a -> a.validateBusinessRules());
@@ -269,8 +265,7 @@ class ApprovalEntityTest {
         @Test
         void validateBusinessRules_ShouldFailForInvalidTransition() {
             // Invalid transition: APPROVED_BY_TUTOR -> DRAFT
-            approval.setPreviousStatus(ApprovalStatus.APPROVED_BY_TUTOR);
-            approval.setNewStatus(ApprovalStatus.DRAFT);
+            approval.setPreviousStatus(ApprovalStatus.APPROVED_BY_TUTOR);            approval.setNewStatus(ApprovalStatus.DRAFT);
 
             // Note: This test assumes ApprovalStatus.canTransitionTo() method exists
             // and validates transitions. If it doesn't exist, this test will pass
@@ -350,29 +345,25 @@ class ApprovalEntityTest {
         void tutorApproval_ShouldHaveCorrectProperties() {
             Approval tutorApproval = new Approval(
                 1L, 3L, ApprovalAction.APPROVE,
-                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.APPROVED_BY_TUTOR,
-                "Looks good to me"
+                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.APPROVED_BY_TUTOR,                "Looks good to me"
             );
 
             assertThat(tutorApproval.isApproval()).isTrue();
             assertThat(tutorApproval.isSubmission()).isFalse();
             assertThat(tutorApproval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
-            assertThat(tutorApproval.getNewStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
-            assertThat(tutorApproval.getComment()).isEqualTo("Looks good to me");
+            assertThat(tutorApproval.getNewStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);            assertThat(tutorApproval.getComment()).isEqualTo("Looks good to me");
         }
 
         @Test
         void hrApproval_ShouldHaveCorrectProperties() {
             Approval hrApproval = new Approval(
                 1L, 4L, ApprovalAction.APPROVE,
-                ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalStatus.FINAL_APPROVED,
-                "Final approval granted"
+                ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalStatus.FINAL_APPROVED,                "Final approval granted"
             );
 
             assertThat(hrApproval.isApproval()).isTrue();
             assertThat(hrApproval.getPreviousStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-            assertThat(hrApproval.getNewStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);
-            assertThat(hrApproval.getComment()).isEqualTo("Final approval granted");
+            assertThat(hrApproval.getNewStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);            assertThat(hrApproval.getComment()).isEqualTo("Final approval granted");
         }
 
         @Test
@@ -394,15 +385,13 @@ class ApprovalEntityTest {
         void modificationRequest_ShouldHaveCorrectProperties() {
             Approval modificationRequest = new Approval(
                 1L, 4L, ApprovalAction.REQUEST_MODIFICATION,
-                ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalStatus.MODIFICATION_REQUESTED,
-                "Please provide more details about the work performed"
+                ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalStatus.MODIFICATION_REQUESTED,                "Please provide more details about the work performed"
             );
 
             assertThat(modificationRequest.isModificationRequest()).isTrue();
             assertThat(modificationRequest.isApproval()).isFalse();
             assertThat(modificationRequest.isRejection()).isFalse();
-            assertThat(modificationRequest.getPreviousStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-            assertThat(modificationRequest.getNewStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
+            assertThat(modificationRequest.getPreviousStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            assertThat(modificationRequest.getNewStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
             assertThat(modificationRequest.getComment()).isEqualTo("Please provide more details about the work performed");
         }
     }

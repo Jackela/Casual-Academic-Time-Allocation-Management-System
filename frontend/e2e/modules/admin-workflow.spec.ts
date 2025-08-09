@@ -89,8 +89,7 @@ test.describe('Admin Dashboard Workflow', () => {
 
     expect(['table', 'empty']).toContain(branch);
 
-    if (branch === 'table') {
-      // If table is visible, should have admin-specific columns
+    if (branch === 'table') {      // If table is visible, should have admin-specific columns
       await expect(timesheetTable.locator('th:has-text("ID")')).toBeVisible();
       await expect(timesheetTable.locator('th:has-text("Tutor")')).toBeVisible();
       await expect(timesheetTable.locator('th:has-text("Course")')).toBeVisible();
@@ -162,8 +161,7 @@ test.describe('Admin Dashboard Workflow', () => {
     const optionTexts = await statusFilter.locator('option').allTextContents();
     expect(optionTexts.map(t => t.trim())).toEqual(
       expect.arrayContaining(['All Statuses', 'Draft', 'Pending', 'Approved', 'Rejected'])
-    );
-    
+    );    
     // Try filtering by status
     await statusFilter.selectOption('PENDING');
     
@@ -213,8 +211,7 @@ test.describe('Admin Dashboard Workflow', () => {
       emptyState.waitFor({ state: 'visible', timeout: 10000 }).then(() => 'empty').catch(() => undefined),
     ]);
 
-    if (branch === 'table') {
-      // Look for admin approve buttons (with crown icon)
+    if (branch === 'table') {      // Look for admin approve buttons (with crown icon)
       const adminApproveButtons = page.locator('[data-testid*="admin-approve-btn"]');
       const approveButtonCount = await adminApproveButtons.count();
       
@@ -236,8 +233,7 @@ test.describe('Admin Dashboard Workflow', () => {
       }
     } else {
       // If no timesheets, should show empty state
-      await expect(emptyState).toBeVisible();
-    }
+      await expect(emptyState).toBeVisible();    }
   });
 
   test('Admin can use override reject action on pending timesheets', async ({ page }) => {
@@ -256,8 +252,7 @@ test.describe('Admin Dashboard Workflow', () => {
       emptyState.waitFor({ state: 'visible', timeout: 10000 }).then(() => 'empty').catch(() => undefined),
     ]);
 
-    if (branch === 'table') {
-      // Look for admin reject buttons (with crown icon)  
+    if (branch === 'table') {      // Look for admin reject buttons (with crown icon)  
       const adminRejectButtons = page.locator('[data-testid*="admin-reject-btn"]');
       const rejectButtonCount = await adminRejectButtons.count();
       
@@ -278,8 +273,7 @@ test.describe('Admin Dashboard Workflow', () => {
       }
     } else {
       // If no timesheets, should show empty state
-      await expect(emptyState).toBeVisible();
-    }
+      await expect(emptyState).toBeVisible();    }
   });
 
   test('Admin dashboard shows pagination when many timesheets exist', async ({ page }) => {
@@ -378,8 +372,7 @@ test.describe('Admin Dashboard Workflow', () => {
       emptyState.waitFor({ state: 'visible', timeout: 10000 }).then(() => 'empty').catch(() => undefined),
     ]);
 
-    if (branch === 'table') {
-      // Check for status badges
+    if (branch === 'table') {      // Check for status badges
       const statusBadges = page.locator('[data-testid*="status-badge"]');
       const statusCount = await statusBadges.count();
       
@@ -397,7 +390,6 @@ test.describe('Admin Dashboard Workflow', () => {
       }
     } else {
       // If no timesheets, should show empty state
-      await expect(emptyState).toBeVisible();
-    }
+      await expect(emptyState).toBeVisible();    }
   });
 });

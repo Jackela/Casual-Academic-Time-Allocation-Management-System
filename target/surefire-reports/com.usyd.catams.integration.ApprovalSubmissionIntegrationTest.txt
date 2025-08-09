@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.usyd.catams.integration.ApprovalSubmissionIntegrationTest
--------------------------------------------------------------------------------
-Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 42.24 s -- in com.usyd.catams.integration.ApprovalSubmissionIntegrationTest

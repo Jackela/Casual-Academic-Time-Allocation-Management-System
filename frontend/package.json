@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "build": "tsc -b && vite build",    "preview": "vite preview",
     "test": "vitest",
     "test:unit": "vitest run --reporter=verbose src/utils/",
     "test:component": "vitest run --reporter=verbose src/components/",
@@ -18,8 +17,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
-  },
+    "lint:fix": "eslint . --fix"  },
   "dependencies": {
     "axios": "^1.11.0",
     "react": "^19.1.0",
@@ -47,8 +45,7 @@
     "globals": "^16.3.0",
     "jsdom": "^26.0.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.6.3",
-    "typescript-eslint": "^8.35.1",
+    "typescript": "^5.6.3",    "typescript-eslint": "^8.35.1",
     "vite": "^7.0.4",
     "vitest": "^1.6.0",
     "wait-on": "^8.0.4",

@@ -35,7 +35,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 @Rollback
 class ApiPerformanceTest extends IntegrationTestBase {
-
     @Autowired
     private UserRepository userRepository;
 
@@ -89,8 +88,7 @@ class ApiPerformanceTest extends IntegrationTestBase {
         testCourse = TestDataBuilder.aCourse()
             .withCode("PERF3999")
             .withName("Performance Testing Course")
-            .withLecturer(testLecturer)
-            .build();
+            .withLecturer(testLecturer)            .build();
         testCourse = courseRepository.save(testCourse);
 
         lecturerToken = "Bearer " + jwtTokenProvider.generateToken(

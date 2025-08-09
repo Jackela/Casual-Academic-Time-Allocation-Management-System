@@ -13,8 +13,7 @@ import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.testdata.TestDataBuilder;
-import com.usyd.catams.testdata.builder.UserBuilder;
-import org.junit.jupiter.api.BeforeEach;
+import com.usyd.catams.testdata.builder.UserBuilder;import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -94,7 +93,6 @@ public class TimesheetServiceTest {
             hourlyRateRangeRule,
             futureDateRule,
             budgetExceededRule
-        );
-    }
+        );    }
 }
 

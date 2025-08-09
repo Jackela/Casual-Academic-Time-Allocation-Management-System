@@ -1,32 +1,12 @@
 package com.usyd.catams.domain.service;
 
 import com.usyd.catams.domain.rules.*;
-import com.usyd.catams.domain.rules.context.TimesheetValidationContext;
-import com.usyd.catams.entity.Course;
-import com.usyd.catams.entity.Timesheet;
-import com.usyd.catams.entity.User;
-import com.usyd.catams.enums.ApprovalStatus;
-import com.usyd.catams.enums.UserRole;
-import com.usyd.catams.exception.BusinessException;
-import com.usyd.catams.repository.CourseRepository;
-import com.usyd.catams.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import com.usyd.catams.domain.rules.context.TimesheetValidationContext;import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.List;
-
-/**
- * Domain Service containing pure business logic for Timesheet operations.
- * 
- * This service contains stateless domain logic that operates purely on domain objects
- * without any knowledge of persistence, security, or external systems.
- * 
- * Responsibilities:
- * - Business rule validation (orchestrated by RuleEngine)
- * - Domain calculations
+import java.util.List; * - Domain calculations
  * - Status transition logic
  * - Authorization business rules (not implementation)
  */
@@ -66,8 +46,7 @@ public class TimesheetDomainService {
     }
 
     /**
-     * Validates timesheet creation business rules using the RuleEngine.
-     * 
+     * Validates timesheet creation business rules using the RuleEngine.     * 
      * @param creator the user creating the timesheet
      * @param tutor the tutor for whom the timesheet is created
      * @param course the course for which work was performed
@@ -76,8 +55,7 @@ public class TimesheetDomainService {
      * @param hourlyRate the hourly rate
      * @param description the work description
      * @return sanitized description
-     * @throws BusinessException if business rules are violated
-     */
+     * @throws BusinessException if business rules are violated     */
     public String validateTimesheetCreation(User creator, User tutor, Course course, 
                                           LocalDate weekStartDate, BigDecimal hours, 
                                           BigDecimal hourlyRate, String description) {
@@ -85,8 +63,7 @@ public class TimesheetDomainService {
         TimesheetValidationContext context = new TimesheetValidationContext(creator, tutor, course, weekStartDate, hours, hourlyRate, description);
         ruleEngine.execute(context, creationRules);
         
-        return description.trim(); // Return sanitized description
-    }
+        return description.trim(); // Return sanitized description    }
 
     /**
      * Validates update data for timesheet modifications.
@@ -129,8 +106,7 @@ public class TimesheetDomainService {
             case TUTOR:
                 return status == ApprovalStatus.REJECTED;
             case LECTURER:
-            case ADMIN:
-                return status == ApprovalStatus.DRAFT;
+            case ADMIN:                return status == ApprovalStatus.DRAFT;
             default:
                 return false;
         }
@@ -144,8 +120,7 @@ public class TimesheetDomainService {
             case TUTOR:
                 return status == ApprovalStatus.REJECTED;
             case LECTURER:
-            case ADMIN:
-                return status == ApprovalStatus.DRAFT;
+            case ADMIN:                return status == ApprovalStatus.DRAFT;
             default:
                 return false;
         }
@@ -185,7 +160,6 @@ public class TimesheetDomainService {
     }
 
     // Private validation methods (moved from TimesheetApplicationService)
-
     private void validateCreatorPermissions(User creator, Course course) {
         if (creator.getRole() != UserRole.LECTURER) {
             throw new SecurityException("Only LECTURER users can create timesheets. User role: " + creator.getRole());
@@ -218,22 +192,14 @@ public class TimesheetDomainService {
     }
 
     private void validateWeekStartDate(LocalDate weekStartDate) {
-        // This validation is now also handled by FutureDateRule, but kept here for Monday check
-        if (weekStartDate.getDayOfWeek() != DayOfWeek.MONDAY) {
-            throw new IllegalArgumentException("Week start date must be a Monday. Provided date is: " 
-                + weekStartDate.getDayOfWeek());
-        }
-    }
-
-    private void validateHours(BigDecimal hours) {
-        // This validation is now handled by HoursRangeRule, but kept here for other calls
-        if (hours == null || hours.compareTo(MIN_HOURS) < 0 || hours.compareTo(maxHours) > 0) {
-            throw new IllegalArgumentException("Hours must be between " + MIN_HOURS + " and " + maxHours + ". Provided: " + hours);
-        }
+        // This validation is now also handled by FutureDateRule, but kept here for Monday check        }
     }
 
     private void validateHourlyRate(BigDecimal hourlyRate) {
+<<<<<<< HEAD
         // This validation is now handled by HourlyRateRangeRule, but kept here for other calls
+=======
+>>>>>>> c8486ccc9d77ad3c5893d5e2f8def3f49db6132a
         if (hourlyRate == null || hourlyRate.compareTo(MIN_HOURLY_RATE) < 0 || 
             hourlyRate.compareTo(MAX_HOURLY_RATE) > 0) {
             throw new IllegalArgumentException("Hourly rate must be between " + MIN_HOURLY_RATE + " and " + MAX_HOURLY_RATE + ". Provided: " + hourlyRate);

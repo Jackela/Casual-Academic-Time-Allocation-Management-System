@@ -19,23 +19,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.usyd.catams.test.config.TestConfigurationLoader;
 import com.usyd.catams.common.validation.TimesheetValidationConstants;
-
-class TimesheetEntityTest {
-
-    private Timesheet timesheet;
-    private static final Long TUTOR_ID = 1L;
-    private static final Long COURSE_ID = 1L;
-    private static final Long CREATOR_ID = 1L;
-    private static final BigDecimal HOURS = new BigDecimal("10.5");
-    private static final Money HOURLY_RATE = new Money(new BigDecimal("25.00"));
-    private static final String DESCRIPTION = "Tutorial preparation and delivery";
-    private static final LocalDate WEEK_START = LocalDate.of(2024, 1, 1); // Monday
-
-    @BeforeEach
-    void setUp() {
-        // Initialize validation constants for testing
-        TimesheetValidationConstants.setMaxHoursForTesting(TestConfigurationLoader.getMaxHours());
-        
         timesheet = new Timesheet(
             TUTOR_ID,
             COURSE_ID,
@@ -123,8 +106,7 @@ class TimesheetEntityTest {
                 ApprovalStatus.PENDING_TUTOR_REVIEW,
                 ApprovalStatus.PENDING_TUTOR_REVIEW,
                 ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR,
-                ApprovalStatus.FINAL_APPROVED,
-                ApprovalStatus.REJECTED,
+                ApprovalStatus.FINAL_APPROVED,                ApprovalStatus.REJECTED,
                 ApprovalStatus.FINAL_APPROVED
             };
 
@@ -141,8 +123,7 @@ class TimesheetEntityTest {
             timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
             assertThat(timesheet.canBeApproved()).isTrue();
 
-            timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-            assertThat(timesheet.canBeApproved()).isTrue();
+            timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            assertThat(timesheet.canBeApproved()).isTrue();
         }
 
         @Test
@@ -152,8 +133,7 @@ class TimesheetEntityTest {
                 ApprovalStatus.MODIFICATION_REQUESTED,
                 ApprovalStatus.APPROVED_BY_TUTOR,
                 ApprovalStatus.FINAL_APPROVED,
-                ApprovalStatus.REJECTED
-            };
+                ApprovalStatus.REJECTED            };
 
             for (ApprovalStatus status : nonApprovableStatuses) {
                 timesheet.setStatus(status);
@@ -182,8 +162,7 @@ class TimesheetEntityTest {
 
             assertThatThrownBy(() -> timesheet.validateBusinessRules())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(TestConfigurationLoader.getExpectedHoursValidationMessage());
-        }
+                .hasMessageContaining(TestConfigurationLoader.getExpectedHoursValidationMessage());        }
 
         @Test
         void validateBusinessRules_ShouldFailForTooManyHours() {
@@ -193,8 +172,7 @@ class TimesheetEntityTest {
 
             assertThatThrownBy(() -> timesheet.validateBusinessRules())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(TestConfigurationLoader.getExpectedHoursValidationMessage());
-        }
+                .hasMessageContaining(TestConfigurationLoader.getExpectedHoursValidationMessage());        }
 
         @Test
         void validateBusinessRules_ShouldPassForBoundaryHours() {
@@ -203,8 +181,7 @@ class TimesheetEntityTest {
             assertThat(timesheet).satisfies(t -> t.validateBusinessRules());
 
             // Test maximum boundary
-            timesheet.setHours(TestConfigurationLoader.getMaxHours());
-            assertThat(timesheet).satisfies(t -> t.validateBusinessRules());
+            timesheet.setHours(TestConfigurationLoader.getMaxHours());            assertThat(timesheet).satisfies(t -> t.validateBusinessRules());
         }
 
         @Test
@@ -264,7 +241,6 @@ class TimesheetEntityTest {
         void attemptToSubmitApprovedTimesheet_ShouldThrowBusinessException() {
             // Given: Timesheet is already in final approved state
             timesheet.setStatus(ApprovalStatus.FINAL_APPROVED);
-
             // When: Someone tries to submit an already approved timesheet
             // Then: System must reject this invalid business operation
             assertThatThrownBy(() -> timesheet.submitForApproval(1L))
@@ -273,8 +249,7 @@ class TimesheetEntityTest {
         }
 
         @Test
-        @DisplayName("Tutor Verification Step - When tutor confirms work accuracy, should mark as tutor approved pending lecturer final approval")
-        void tutorConfirmsWorkAccuracy_ShouldAdvanceToHRPaymentApproval() {
+        @DisplayName("Tutor Verification Step - When tutor confirms work accuracy, should mark as tutor approved pending lecturer final approval")        void tutorConfirmsWorkAccuracy_ShouldAdvanceToHRPaymentApproval() {
             // Given: Lecturer-submitted timesheet awaiting tutor verification of work performed
             timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
             Long tutorId = 2L; // Teaching assistant who actually performed the work
@@ -288,23 +263,20 @@ class TimesheetEntityTest {
             assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
             assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
             assertThat(approval.getComment()).isEqualTo(tutorComment);
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
-        }
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);        }
 
         @Test
         @DisplayName("HR Payment Authorization - When HR approves verified timesheet, should authorize casual staff payment")
         void hrAuthorizesPayment_ShouldCompleteWorkflowAndTriggerPayrollProcessing() {
             // Given: Timesheet has been verified by tutor and awaits HR payment authorization
-            timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-            Long hrManagerId = 3L; // HR department staff with payment authorization authority
+            timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            Long hrManagerId = 3L; // HR department staff with payment authorization authority
 
             // When: HR approves the timesheet for payment processing (comment optional)
             Approval approval = timesheet.approve(hrManagerId, null);
 
             // Then: Timesheet should reach final approved state, ready for university payroll system
             assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);
-        }
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);        }
 
         @Test
         void approve_ShouldFailForNonApprovableStatus() {
@@ -349,15 +321,13 @@ class TimesheetEntityTest {
 
         @Test
         void requestModification_ShouldCreateModificationApproval() {
-            timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-            Long approverId = 3L;
+            timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            Long approverId = 3L;
             String comment = "Please add more detail to description";
 
             Approval approval = timesheet.requestModification(approverId, comment);
 
             assertThat(approval.getAction()).isEqualTo(ApprovalAction.REQUEST_MODIFICATION);
-            assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-            assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
+            assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
             assertThat(approval.getComment()).isEqualTo(comment);
             assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
         }
@@ -422,8 +392,7 @@ class TimesheetEntityTest {
 
             List<Approval> approvals = timesheet.getApprovalsByAction(ApprovalAction.APPROVE);
 
-            assertThat(approvals).hasSize(1);
-            assertThat(approvals).allMatch(a -> a.getAction() == ApprovalAction.APPROVE);
+            assertThat(approvals).hasSize(1);            assertThat(approvals).allMatch(a -> a.getAction() == ApprovalAction.APPROVE);
         }
 
         @Test
@@ -511,21 +480,18 @@ class TimesheetEntityTest {
 
             // Lecturer gives final academic approval
             timesheet.finalApprove(1L, "Lecturer final approval");
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-            assertThat(timesheet.canBeApproved()).isTrue();
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            assertThat(timesheet.canBeApproved()).isTrue();
 
             // HR authorizes payment for casual academic staff
             timesheet.approve(3L, "Approved for payroll processing");
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);
-            assertThat(timesheet.canBeApproved()).isFalse();
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);            assertThat(timesheet.canBeApproved()).isFalse();
 
             // Verify complete audit trail for university finance compliance
             List<Approval> history = timesheet.getApprovalHistory();
             assertThat(history).hasSize(4);
             assertThat(history.get(0).getAction()).isEqualTo(ApprovalAction.SUBMIT_FOR_APPROVAL);
             assertThat(history.get(1).getAction()).isEqualTo(ApprovalAction.APPROVE);
-            assertThat(history.get(2).getAction()).isEqualTo(ApprovalAction.FINAL_APPROVAL);
-        }
+            assertThat(history.get(2).getAction()).isEqualTo(ApprovalAction.FINAL_APPROVAL);        }
 
         @Test
         void rejectionWorkflow_ShouldWorkCorrectly() {

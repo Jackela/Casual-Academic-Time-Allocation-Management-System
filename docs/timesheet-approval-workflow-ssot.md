@@ -50,9 +50,9 @@ The workflow follows a clear sequential approval process:
 
 #### Step 4: Lecturer Final Approval and HR Submission
 - After tutor approval (status: `APPROVED_BY_TUTOR`), system notifies **LECTURER**
-- **LECTURER** provides final approval
-- Once both lecturer and tutor approve → status changes to `APPROVED_BY_LECTURER_AND_TUTOR`
-- System automatically notifies **HR team**
+- **LECTURER** provides final approval → status changes to `APPROVED_BY_LECTURER_AND_TUTOR`
+- **LECTURER** may also reject at this stage with reason → status changes to `REJECTED`
+- System automatically notifies **HR team** when entering `APPROVED_BY_LECTURER_AND_TUTOR`
 
 #### Step 5: HR Final Review and Processing
 - **HR team** receives notification and conducts final review

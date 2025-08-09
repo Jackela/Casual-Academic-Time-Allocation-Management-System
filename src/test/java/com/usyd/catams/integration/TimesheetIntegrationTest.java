@@ -32,7 +32,6 @@ import static org.assertj.core.api.Assertions.*;
 @ActiveProfiles("integration-test")
 @Transactional
 public class TimesheetIntegrationTest extends IntegrationTestBase {
-
     @Autowired
     private TimesheetRepository timesheetRepository;
 

@@ -60,7 +60,6 @@ class TimesheetServiceUnitTest {
 
     @Mock
     private TimesheetMapper timesheetMapper;
-
     @InjectMocks
     private TimesheetApplicationService timesheetService;
 
@@ -135,7 +134,6 @@ class TimesheetServiceUnitTest {
             any(), any(BigDecimal.class), any(BigDecimal.class), 
             any(String.class)))
             .thenReturn(timesheet.getDescription()); // Return sanitized description
-
         // Act
         Timesheet result = timesheetService.createTimesheet(
             tutor.getId(),
@@ -164,8 +162,7 @@ class TimesheetServiceUnitTest {
             any(String.class)
         );
         
-        verify(timesheetRepository).save(any(Timesheet.class));
-    }
+        verify(timesheetRepository).save(any(Timesheet.class));    }
 
     @Test
     @DisplayName("createTimesheet - Lecturer cannot create timesheet for other lecturer's course")
@@ -187,7 +184,6 @@ class TimesheetServiceUnitTest {
         // Mock domain service authorization check - lecturer doesn't have authority over other course
         lenient().when(timesheetDomainService.hasLecturerAuthorityOverCourse(lecturer, otherCourse))
             .thenReturn(false);
-
         // Act & Assert
         assertThatThrownBy(() -> 
             timesheetService.createTimesheet(
@@ -201,8 +197,7 @@ class TimesheetServiceUnitTest {
             )
         )
         .isInstanceOf(SecurityException.class)
-        .hasMessageContaining("LECTURER can only create timesheets for courses they are assigned to");
-    }
+        .hasMessageContaining("LECTURER can only create timesheets for courses they are assigned to");    }
 
     @Test
     @DisplayName("createTimesheet - Admin cannot create timesheet (only LECTURER allowed)")
@@ -211,7 +206,6 @@ class TimesheetServiceUnitTest {
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
         when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
-
         // Act & Assert
         assertThatThrownBy(() -> 
             timesheetService.createTimesheet(
@@ -234,7 +228,6 @@ class TimesheetServiceUnitTest {
         // Arrange - Mock repository calls for validation
         when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
         when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
-
         // Act & Assert
         assertThatThrownBy(() -> 
             timesheetService.createTimesheet(
@@ -263,7 +256,6 @@ class TimesheetServiceUnitTest {
         // Mock domain service authorization check
         when(timesheetDomainService.hasLecturerAuthorityOverCourse(lecturer, course))
             .thenReturn(true);
-
         // Act
         Optional<Timesheet> result = timesheetService.getTimesheetById(timesheet.getId(), lecturer.getId());
 
@@ -272,8 +264,7 @@ class TimesheetServiceUnitTest {
         assertThat(result.get()).isEqualTo(timesheet);
 
         verify(userRepository).findById(lecturer.getId());
-        verify(timesheetRepository).findById(timesheet.getId());
-    }
+        verify(timesheetRepository).findById(timesheet.getId());    }
 
     @Test
     @DisplayName("getTimesheetById - Should return empty when not found")
@@ -282,8 +273,7 @@ class TimesheetServiceUnitTest {
         Long nonExistentId = 99999L;
         // Following DDD: Application service validates requester exists
         when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
-        when(timesheetRepository.findById(nonExistentId))
-            .thenReturn(Optional.empty());
+        when(timesheetRepository.findById(nonExistentId))            .thenReturn(Optional.empty());
 
         // Act
         Optional<Timesheet> result = timesheetService.getTimesheetById(nonExistentId, lecturer.getId());
@@ -292,8 +282,7 @@ class TimesheetServiceUnitTest {
         assertThat(result).isEmpty();
 
         verify(userRepository).findById(lecturer.getId());
-        verify(timesheetRepository).findById(nonExistentId);
-    }
+        verify(timesheetRepository).findById(nonExistentId);    }
 
     @Test
     @DisplayName("canUserModifyTimesheet - Lecturer can modify timesheet for their course")
@@ -302,8 +291,7 @@ class TimesheetServiceUnitTest {
         when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
         when(courseRepository.findById(timesheet.getCourseId())).thenReturn(Optional.of(course));
         // Mock domain service authorization check
-        when(timesheetDomainService.hasLecturerAuthorityOverCourse(lecturer, course))
-            .thenReturn(true);
+        when(timesheetDomainService.hasLecturerAuthorityOverCourse(lecturer, course))            .thenReturn(true);
 
         // Act
         boolean result = timesheetService.canUserModifyTimesheet(timesheet, lecturer.getId());
@@ -311,20 +299,17 @@ class TimesheetServiceUnitTest {
         // Assert
         assertThat(result).isTrue();
         verify(userRepository).findById(lecturer.getId());
-        verify(courseRepository).findById(timesheet.getCourseId());
-    }
+        verify(courseRepository).findById(timesheet.getCourseId());    }
 
     @Test
     @DisplayName("canUserModifyTimesheet - Admin can modify any timesheet")
     void canUserModifyTimesheet_Admin_ShouldReturnTrue() {
         // Arrange
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
-
         // Act
         boolean result = timesheetService.canUserModifyTimesheet(timesheet, admin.getId());
 
         // Assert
         assertThat(result).isTrue();
-        verify(userRepository).findById(admin.getId());
-    }
+        verify(userRepository).findById(admin.getId());    }
 }

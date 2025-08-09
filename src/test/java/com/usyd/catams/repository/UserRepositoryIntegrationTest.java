@@ -8,14 +8,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class UserRepositoryIntegrationTest extends IntegrationTestBase {
-
     @Autowired
     private UserRepository userRepository;
 
@@ -69,4 +67,3 @@ class UserRepositoryIntegrationTest extends IntegrationTestBase {
 
     // ... all other test methods from the original file
 }
-

@@ -216,8 +216,7 @@ export const test = base.extend<TestFixtures>({
           localStorage.setItem(storageKeys.TOKEN, authData.token);
           localStorage.setItem(storageKeys.USER, JSON.stringify(authData.user));
         }, auth, STORAGE_KEYS);
-      }
-      await use(page);
+      }      await use(page);
     } catch (error) {
       console.warn('Tutor authentication failed, using unauthenticated page:', error);
       await use(page);
@@ -231,15 +230,13 @@ export const test = base.extend<TestFixtures>({
       await new Promise(resolve => setTimeout(resolve, 200)); // Realistic API delay
       
       const postData = JSON.parse(await request.postData() || '{}');
-      let response = { ...mockResponses.auth.success } as any;
-      
+      let response = { ...mockResponses.auth.success } as any;      
       // Return different user data based on email
       if (postData.email === 'tutor@example.com') {
         response = {
           success: true,
           token: 'tutor-mock-token',
-          user: buildUser('tutor'),
-          errorMessage: null
+          user: buildUser('tutor'),          errorMessage: null
         };
       } else if (postData.email === 'admin@example.com') {
         response = {
@@ -252,8 +249,7 @@ export const test = base.extend<TestFixtures>({
         response = {
           success: true,
           token: 'lecturer-mock-token',
-          user: buildUser('lecturer'),
-          errorMessage: null
+          user: buildUser('lecturer'),          errorMessage: null
         };
       }
       
@@ -400,7 +396,6 @@ export const test = base.extend<TestFixtures>({
         }
       } catch {}
     }, mockResponses.auth.success.token, buildUser('lecturer'), STORAGE_KEYS);
-
     await use(page);
   }
 });

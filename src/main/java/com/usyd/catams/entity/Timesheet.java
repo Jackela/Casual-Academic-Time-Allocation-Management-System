@@ -15,80 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.usyd.catams.common.validation.TimesheetValidationConstants;
-
-@Entity
-@Table(name = "timesheets", 
-    indexes = {
-        @Index(name = "idx_timesheet_tutor", columnList = "tutorId"),
-        @Index(name = "idx_timesheet_course", columnList = "courseId"),
-        @Index(name = "idx_timesheet_week_start", columnList = "weekStartDate"),
-        @Index(name = "idx_timesheet_status", columnList = "status"),
-        @Index(name = "idx_timesheet_created_by", columnList = "createdBy")
-    },
-    uniqueConstraints = {
-        @UniqueConstraint(name = "uk_timesheet_tutor_course_week", 
-                         columnNames = {"tutorId", "courseId", "weekStartDate"})
-    }
-)
-public class Timesheet {
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
-    @NotNull
-    @Column(nullable = false, name = "tutor_id")
-    private Long tutorId;
-    
-    @NotNull
-    @Column(nullable = false, name = "course_id")
-    private Long courseId;
-    
-    @NotNull
-    @Embedded
-    @AttributeOverride(name = "weekStartDate", column = @Column(name = "week_start_date"))
-    private WeekPeriod weekPeriod;
-    
-    @NotNull
-    @DecimalMin(value = "0.1", inclusive = true)
-    @DecimalMax(value = "40.0", inclusive = true)
-    @Digits(integer = 2, fraction = 1)
-    @Column(nullable = false, precision = 3, scale = 1)
-    private BigDecimal hours;
-    
-    @NotNull
-    @Embedded
-    @AttributeOverrides({
-        @AttributeOverride(name = "amount", column = @Column(name = "hourly_rate", precision = 5, scale = 2)),
-        @AttributeOverride(name = "currencyCode", column = @Column(name = "hourly_rate_currency"))
-    })
-    private Money hourlyRate;
-    
-    @NotBlank
-    @Size(max = 1000)
-    @Column(nullable = false, length = 1000)
-    private String description;
-    
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
-    private ApprovalStatus status;
-    
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-    
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-    
-    @NotNull
-    @Column(nullable = false, name = "created_by")
-    private Long createdBy;
-    
-    /**
-     * Approval history for this timesheet - managed as part of the aggregate
-     */
-    @OneToMany(mappedBy = "timesheetId", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    @OrderBy("timestamp ASC")
+import com.usyd.catams.common.validation.TimesheetValidationConstants;    @OrderBy("timestamp ASC")
     private List<Approval> approvals = new ArrayList<>();
     
     // Default constructor
@@ -121,16 +48,14 @@ public class Timesheet {
         this.updatedAt = now;
         
         // Validate on create
-        validateBusinessRules();
-    }
+        validateBusinessRules();    }
     
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
         
         // Validate on update
-        validateBusinessRules();
-    }
+        validateBusinessRules();    }
     
     // Getters and Setters
     public Long getId() {
@@ -204,8 +129,7 @@ public class Timesheet {
         if (normalized.scale() < 1) {
             normalized = normalized.setScale(1);
         }
-        return normalized;
-    }
+        return normalized;    }
     
     public String getDescription() {
         return description;
@@ -270,8 +194,7 @@ public class Timesheet {
         // Ensure week start date is Monday
         if (weekPeriod != null && weekPeriod.getStartDate() != null && weekPeriod.getStartDate().getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
             throw new IllegalArgumentException("Monday");
-        }
-        
+        }        
         if (hours != null && (hours.compareTo(TimesheetValidationConstants.getMinHours()) < 0 || 
                              hours.compareTo(TimesheetValidationConstants.getMaxHours()) > 0)) {
             throw new IllegalArgumentException(TimesheetValidationConstants.getHoursValidationMessage());
@@ -281,8 +204,7 @@ public class Timesheet {
             BigDecimal rate = hourlyRate.getAmount();
             if (rate.compareTo(TimesheetValidationConstants.getMinHourlyRate()) < 0 || 
                 rate.compareTo(TimesheetValidationConstants.getMaxHourlyRate()) > 0) {
-                throw new IllegalArgumentException(TimesheetValidationConstants.getHourlyRateValidationMessage());
-            }
+                throw new IllegalArgumentException(TimesheetValidationConstants.getHourlyRateValidationMessage());            }
         }
     }
     
@@ -322,36 +244,7 @@ public class Timesheet {
         approvals.add(approval);
         
         // SSOT: No automatic transitions. All transitions require explicit actions.
-        
-        return approval;
-    }
-    
-    /**
-     * Submit timesheet for approval
-     * 
-     * @param submitterId ID of the user submitting
-     * @return the created approval record
-     */
-    public Approval submitForApproval(Long submitterId) {
-        if (!isEditable()) {
-            throw new IllegalStateException("Cannot submit timesheet that is not in editable state");
-        }
-        
-        ApprovalStatus newStatus = ApprovalAction.SUBMIT_FOR_APPROVAL.getTargetStatus(this.status);
-        return addApproval(submitterId, ApprovalAction.SUBMIT_FOR_APPROVAL, this.status, newStatus, null);
-    }
-
-    /**
-     * Submit timesheet for approval with comment
-     */
-    public Approval submitForApproval(Long submitterId, String comment) {
-        if (!isEditable()) {
-            throw new IllegalStateException("Cannot submit timesheet that is not in editable state");
-        }
-
-        ApprovalStatus newStatus = ApprovalAction.SUBMIT_FOR_APPROVAL.getTargetStatus(this.status);
-        return addApproval(submitterId, ApprovalAction.SUBMIT_FOR_APPROVAL, this.status, newStatus, comment);
-    }
+            }
     
     /**
      * Approve timesheet
@@ -384,8 +277,7 @@ public class Timesheet {
         
         ApprovalStatus previousStatus = this.status;
         ApprovalStatus newStatus = ApprovalAction.FINAL_APPROVAL.getTargetStatus(previousStatus);
-        return addApproval(approverId, ApprovalAction.FINAL_APPROVAL, previousStatus, newStatus, comment);
-    }
+        return addApproval(approverId, ApprovalAction.FINAL_APPROVAL, previousStatus, newStatus, comment);    }
     
     /**
      * Reject timesheet
@@ -401,8 +293,7 @@ public class Timesheet {
         // - APPROVED_BY_LECTURER_AND_TUTOR (HR stage with HR_REJECT, handled separately)
         if (this.status != ApprovalStatus.PENDING_TUTOR_REVIEW &&
             this.status != ApprovalStatus.APPROVED_BY_TUTOR &&
-            this.status != ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR) {
-            throw new IllegalStateException("Timesheet cannot be rejected in current state: " + this.status);
+            this.status != ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR) {            throw new IllegalStateException("Timesheet cannot be rejected in current state: " + this.status);
         }
         
         if (comment == null || comment.trim().isEmpty()) {
@@ -410,8 +301,7 @@ public class Timesheet {
         }
         
         ApprovalStatus newStatus = ApprovalAction.REJECT.getTargetStatus(this.status);
-        return addApproval(approverId, ApprovalAction.REJECT, this.status, newStatus, comment);
-    }
+        return addApproval(approverId, ApprovalAction.REJECT, this.status, newStatus, comment);    }
     
     /**
      * Request modification to timesheet
@@ -430,8 +320,7 @@ public class Timesheet {
         }
         
         ApprovalStatus newStatus = ApprovalAction.REQUEST_MODIFICATION.getTargetStatus(this.status);
-        return addApproval(approverId, ApprovalAction.REQUEST_MODIFICATION, this.status, newStatus, comment);
-    }
+        return addApproval(approverId, ApprovalAction.REQUEST_MODIFICATION, this.status, newStatus, comment);    }
     
     /**
      * Get the most recent approval action

@@ -106,7 +106,6 @@ export class TimesheetPage {
       })(),
       this.emptyState.waitFor({ timeout: 10000 }).catch(() => null)
     ]);
-
     return response;
   }
 
@@ -141,7 +140,6 @@ export class TimesheetPage {
       })(),
       this.emptyState.waitFor({ timeout: 10000 }).catch(() => null)
     ]);
-
     return response;
   }
 
@@ -210,9 +208,14 @@ export class TimesheetPage {
     // If no rows, check empty state presence
     try {
       await this.emptyState.waitFor({ timeout: 4000 });
-      return false;
-    } catch {
-      return false;
+      return false;    } catch {
+      // If table not found or no rows, check for empty state
+      try {
+        await this.emptyState.waitFor({ timeout: 2000 });
+        return false;
+      } catch {
+        return false;
+      }
     }
   }
 
