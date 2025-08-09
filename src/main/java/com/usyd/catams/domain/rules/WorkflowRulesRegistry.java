@@ -96,6 +96,13 @@ public final class WorkflowRulesRegistry {
             (user, context) -> user.getId().equals(context.getCourse().getLecturerId()),
             ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR
         );
+
+        // LECTURER can reject at final approval stage (send back to edit)
+        addRule(ApprovalAction.REJECT, UserRole.LECTURER, ApprovalStatus.APPROVED_BY_TUTOR,
+            "Step 4 (alt): LECTURER rejects timesheet after tutor approval",
+            (user, context) -> user.getId().equals(context.getCourse().getLecturerId()),
+            ApprovalStatus.REJECTED
+        );
         
         // ===================== STEP 5: HR FINAL REVIEW AND PROCESSING =====================
         

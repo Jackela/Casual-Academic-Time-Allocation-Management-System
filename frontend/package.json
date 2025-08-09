@@ -11,7 +11,7 @@
     "test:unit": "vitest run --reporter=verbose src/utils/",
     "test:component": "vitest run --reporter=verbose src/components/",
     "test:api": "vitest run --reporter=verbose src/api/",
-    "test:contract": "vitest run --reporter=verbose src/api/ --testNamePattern=\"contract|schema\"",
+    "test:contract": "vitest run --reporter=verbose src/api/ --testNamePattern=\"[cC]ontract|[sS]chema\"",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "npm run test:e2e:full",
     "test:e2e:full": "node scripts/run-e2e-tests.js",
@@ -27,6 +27,8 @@
     "react-router-dom": "^7.7.1"
   },
   "devDependencies": {
+    "msw": "^2.3.5",
+    "@playwright/experimental-ct-react": "^1.54.2",
     "@eslint/js": "^9.18.0",
     "@playwright/test": "^1.54.2",
     "@testing-library/jest-dom": "^6.6.3",

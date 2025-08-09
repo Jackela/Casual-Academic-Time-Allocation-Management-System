@@ -6,9 +6,11 @@ import { E2E_CONFIG } from './e2e/config/e2e.config';
  */
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/e2e/api/**'],
+  testIgnore: ['**/e2e/api/**', '**/e2e/examples/**'],
   /* Global setup to handle authentication */
   globalSetup: './e2e/global.setup.ts',
+  /* Allow skipping backend readiness from env for mocked-only runs */
+  /* Note: The actual bypass is implemented in global.setup.ts via E2E_SKIP_BACKEND */
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -64,6 +66,7 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         // No storage state needed - API-first approach
       },
+      grepInvert: /@mobile/,
     },
 
     {
@@ -72,6 +75,20 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         // UI tests with mocked data
       },
+      grepInvert: /@mobile/,
+    },
+
+    // Dedicated mobile project with low concurrency
+    {
+      name: 'mobile-tests',
+      use: {
+        ...devices['Pixel 5'],
+        viewport: { width: 393, height: 851 },
+        storageState: './e2e/.auth/tutor.storage-state.json'
+      },
+      fullyParallel: false,
+      workers: 1,
+      grep: /@mobile/,
     },
 
     /* Test against mobile viewports. */
@@ -96,10 +113,16 @@ export default defineConfig({
   ],
 
   /* Auto-start dev server for E2E tests */
+  // Always cold-start the dev server in e2e mode to ensure env injection is consistent
   webServer: {
     command: 'npm run dev -- --mode e2e',
     url: E2E_CONFIG.FRONTEND.URL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.STARTUP,
+    // Pass-through env to Vite dev server; ensure bypass role is available at boot.
+    env: {
+      ...process.env,
+      VITE_E2E_AUTH_BYPASS_ROLE: process.env.VITE_E2E_AUTH_BYPASS_ROLE ?? 'TUTOR',
+    },
   },
 });

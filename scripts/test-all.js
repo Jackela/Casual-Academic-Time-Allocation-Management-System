@@ -15,7 +15,10 @@ async function main() {
     await runNode('scripts/test-backend-integration.js');
     await runNode('scripts/test-frontend-unit.js');
     await runNode('scripts/test-frontend-contract.js');
-    await runNode('scripts/test-frontend-e2e.js');
+    // E2E staged: ui -> mobile -> all
+    await runCommand('node', ['scripts/run-e2e.js', '--project=ui'], { cwd: path.join(__dirname, '..') });
+    await runCommand('node', ['scripts/run-e2e.js', '--project=mobile'], { cwd: path.join(__dirname, '..') });
+    await runCommand('node', ['scripts/run-e2e.js', '--project=all'], { cwd: path.join(__dirname, '..') });
     console.log('\n✅ All test layers passed.');
   } catch (err) {
     console.error('\n❌ Test pipeline halted due to failure in a lower layer.');

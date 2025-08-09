@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:tc:postgresql:15:///catams_e2e
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
-    username: ""
+    url: jdbc:h2:mem:catams_e2e;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
+    driver-class-name: org.h2.Driver
+    username: sa
     password: ""
   jpa:
     hibernate:
@@ -10,18 +10,10 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-  devtools:
-    restart:
-      enabled: false
+        dialect: org.hibernate.dialect.H2Dialect
   application:
     cors:
       allowed-origins: "http://localhost:5174"
-  security:
-    jwt:
-      secret: YXJjaGl0ZWN0dXJlLXNlY3JldC1rZXktZm9yLXRlc3RpbmctcHVycG9zZXMtb25seQ==
-      expiration: 86400000
-
 
 logging:
   level:
@@ -35,3 +27,5 @@ server:
   port: 8084
   servlet:
     context-path: ""
+
+

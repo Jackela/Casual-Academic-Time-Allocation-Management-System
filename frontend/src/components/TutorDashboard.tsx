@@ -334,7 +334,7 @@ const TutorDashboard: React.FC = () => {
             <p data-testid="empty-state-description">You haven't created any timesheets yet. Contact your lecturer to create timesheets for you.</p>
           </div>
         ) : (
-          <div className="timesheets-table-container">
+          <div className="timesheets-table-container" data-testid="timesheets-table-container">
             <table className="timesheets-table" data-testid="timesheets-table">
               <thead>
                 <tr>
@@ -384,7 +384,7 @@ const TutorDashboard: React.FC = () => {
                     </td>
                     <td>{formatDate(timesheet.updatedAt)}</td>
                     <td>
-                      <div className="action-buttons">
+                      <div className="action-buttons" data-testid="action-buttons">
                         {/* Show Submit button for DRAFT timesheets */}
                         {timesheet.status === 'DRAFT' && (
                           <button

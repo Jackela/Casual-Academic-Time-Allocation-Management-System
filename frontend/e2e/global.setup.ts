@@ -1,4 +1,7 @@
 import { FullConfig } from '@playwright/test';
+import { mkdirSync, writeFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { waitForBackendReady } from './utils/health-checker';
 import { E2E_CONFIG } from './config/e2e.config';
 
@@ -7,6 +10,37 @@ async function globalSetup(config: FullConfig) {
   console.log(`📡 Backend URL: ${E2E_CONFIG.BACKEND.URL}`);
   console.log(`🌐 Frontend URL: ${E2E_CONFIG.FRONTEND.URL}`);
   
+  // Optional bypass for mocked-only runs (e.g., local quick checks)
+  if (process.env.E2E_SKIP_BACKEND === 'true' || process.env.E2E_SKIP_BACKEND === '1') {
+    console.log('⚠️  Skipping backend readiness check due to E2E_SKIP_BACKEND flag');
+    // Prepare storage state for tutor to enable protected dashboard access without backend
+    try {
+      const currentFile = fileURLToPath(import.meta.url);
+      const currentDir = dirname(currentFile);
+      const authDir = join(currentDir, '.auth');
+      try { mkdirSync(authDir, { recursive: true }); } catch {}
+      const storageStatePath = join(authDir, 'tutor.storage-state.json');
+      const tutorUser = { id: 201, email: 'tutor@example.com', name: 'John Doe', role: 'TUTOR' };
+      const storageState = {
+        cookies: [],
+        origins: [
+          {
+            origin: E2E_CONFIG.FRONTEND.URL,
+            localStorage: [
+              { name: 'token', value: 'tutor-mock-token' },
+              { name: 'user', value: JSON.stringify(tutorUser) }
+            ]
+          }
+        ]
+      } as any;
+      writeFileSync(storageStatePath, JSON.stringify(storageState, null, 2), 'utf-8');
+      console.log(`🔑 Wrote tutor storage state to ${storageStatePath}`);
+    } catch (e) {
+      console.warn('⚠️  Failed to write storage state for mocked run:', e);
+    }
+    return;
+  }
+
   try {
     // Comprehensive backend readiness check with retry logic
     const readinessResult = await waitForBackendReady();

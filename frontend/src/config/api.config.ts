@@ -10,7 +10,7 @@ export const API_CONFIG = {
     ENDPOINTS: {
       HEALTH: '/actuator/health',
       AUTH_LOGIN: '/api/auth/login',
-      TIMESHEETS_PENDING: '/api/timesheets/pending-approval',
+      TIMESHEETS_PENDING: '/api/timesheets/pending-final-approval',
       APPROVALS: '/api/approvals'
     },
     TIMEOUTS: {

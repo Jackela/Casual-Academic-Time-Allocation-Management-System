@@ -34,7 +34,7 @@ describe('api.config utilities', () => {
       
       expect(endpoints.HEALTH).toBe('/actuator/health');
       expect(endpoints.AUTH_LOGIN).toBe('/api/auth/login');
-      expect(endpoints.TIMESHEETS_PENDING).toBe('/api/timesheets/pending-approval');
+      expect(endpoints.TIMESHEETS_PENDING).toBe('/api/timesheets/pending-final-approval');
       expect(endpoints.APPROVALS).toBe('/api/approvals');
     });
 

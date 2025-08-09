@@ -395,7 +395,13 @@ public class Timesheet {
      * @return the created approval record
      */
     public Approval reject(Long approverId, String comment) {
-        if (!canBeApproved()) {
+        // Rejection is allowed in pending stages per workflow rules:
+        // - PENDING_TUTOR_REVIEW (tutor stage)
+        // - APPROVED_BY_TUTOR (lecturer final approval stage)
+        // - APPROVED_BY_LECTURER_AND_TUTOR (HR stage with HR_REJECT, handled separately)
+        if (this.status != ApprovalStatus.PENDING_TUTOR_REVIEW &&
+            this.status != ApprovalStatus.APPROVED_BY_TUTOR &&
+            this.status != ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR) {
             throw new IllegalStateException("Timesheet cannot be rejected in current state: " + this.status);
         }
         

@@ -53,9 +53,10 @@ public class E2EDataInitializer {
             System.out.println("🔧 Environment check - Profile: e2e");
             
             // Always clear and recreate data for E2E tests to ensure clean state
-            timesheetRepository.deleteAll();
-            userRepository.deleteAll();
-            courseRepository.deleteAll();
+            // Be defensive: clear in dependency-safe order and ignore errors
+            try { timesheetRepository.deleteAll(); } catch (Exception ignored) {}
+            try { courseRepository.deleteAll(); } catch (Exception ignored) {}
+            try { userRepository.deleteAll(); } catch (Exception ignored) {}
             
             // Create E2E test users with exact credentials from test fixtures
             User adminUser = new User(
@@ -101,16 +102,28 @@ public class E2EDataInitializer {
             course2.setIsActive(true);
             courseRepository.save(course2);
             
-            // Create test timesheets for E2E testing (PENDING_TUTOR_REVIEW status)
+            // Create test timesheets for E2E testing
             // Calculate last Monday and the Monday before that
             LocalDate today = LocalDate.now();
-            LocalDate lastMonday = today.minusDays(today.getDayOfWeek().getValue() - 1);
-            if (lastMonday.equals(today)) {
-                lastMonday = lastMonday.minusDays(7); // If today is Monday, get previous Monday
-            }
+            LocalDate lastMonday = today.minusDays((today.getDayOfWeek().getValue() + 6) % 7);
             LocalDate twoWeeksAgoMonday = lastMonday.minusDays(7);
             
-            Timesheet timesheet1 = new Timesheet(
+            // Helper: idempotent create or update timesheet by unique key
+            java.util.function.Function<Timesheet, Timesheet> upsert = (ts) -> {
+                return timesheetRepository
+                    .findByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(ts.getTutorId(), ts.getCourseId(), ts.getWeekStartDate())
+                    .map(existing -> {
+                        existing.setHours(ts.getHours());
+                        existing.setHourlyRate(ts.getHourlyRate());
+                        existing.setDescription(ts.getDescription());
+                        existing.setStatus(ts.getStatus());
+                        return timesheetRepository.save(existing);
+                    })
+                    .orElseGet(() -> timesheetRepository.save(ts));
+            };
+
+            // Pending item for approval/rejection flows
+            Timesheet pendingTimesheet = new Timesheet(
                 tutorUser.getId(),              // tutorId (assignee)
                 course1.getId(),                // courseId  
                 lastMonday,                     // weekStartDate (last Monday)
@@ -119,10 +132,11 @@ public class E2EDataInitializer {
                 "Tutorial sessions and marking for COMP1001", // description
                 lecturerUser.getId()            // createdBy (creator must be lecturer per test plan)
             );
-            timesheet1.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-            timesheetRepository.save(timesheet1);
+            pendingTimesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            upsert.apply(pendingTimesheet);
             
-            Timesheet timesheet2 = new Timesheet(
+            // Another pending item
+            Timesheet pendingTimesheet2 = new Timesheet(
                 tutorUser.getId(),              // tutorId (assignee)
                 course2.getId(),                // courseId
                 twoWeeksAgoMonday,              // weekStartDate (two weeks ago Monday)
@@ -131,13 +145,66 @@ public class E2EDataInitializer {
                 "Lab supervision and student consultations", // description
                 lecturerUser.getId()            // createdBy (creator must be lecturer per test plan)
             );
-            timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-            timesheetRepository.save(timesheet2);
+            pendingTimesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            upsert.apply(pendingTimesheet2);
+
+            // DRAFT timesheet (editable by tutor; used by draft -> submit flow)
+            Timesheet draftTimesheet = new Timesheet(
+                tutorUser.getId(),
+                course1.getId(),
+                twoWeeksAgoMonday.minusDays(7),
+                new BigDecimal("6.0"),
+                new BigDecimal("40.00"),
+                "Draft: preparation and materials review",
+                lecturerUser.getId()
+            );
+            draftTimesheet.setStatus(ApprovalStatus.DRAFT);
+            upsert.apply(draftTimesheet);
+
+            // REJECTED timesheet (to test rejection workflow and subsequent edit)
+            Timesheet rejectedTimesheet = new Timesheet(
+                tutorUser.getId(),
+                course2.getId(),
+                twoWeeksAgoMonday.minusDays(14),
+                new BigDecimal("7.5"),
+                new BigDecimal("42.00"),
+                "Rejected: incorrect hours; requires update",
+                lecturerUser.getId()
+            );
+            rejectedTimesheet.setStatus(ApprovalStatus.REJECTED);
+            upsert.apply(rejectedTimesheet);
+
+            // APPROVED_BY_TUTOR timesheet (in lecturer's pending queue for final approval/rejection)
+            Timesheet approvedByTutorTimesheet = new Timesheet(
+                tutorUser.getId(),
+                course1.getId(),
+                lastMonday.minusDays(14),
+                new BigDecimal("9.0"),
+                new BigDecimal("43.00"),
+                "Ready for lecturer final approval",
+                lecturerUser.getId()
+            );
+            approvedByTutorTimesheet.setStatus(ApprovalStatus.APPROVED_BY_TUTOR);
+            upsert.apply(approvedByTutorTimesheet);
+
+            // Another APPROVED_BY_TUTOR timesheet to avoid workflow test contention
+            Timesheet approvedByTutorTimesheet2 = new Timesheet(
+                tutorUser.getId(),
+                course2.getId(),
+                twoWeeksAgoMonday.minusDays(21),
+                new BigDecimal("8.5"),
+                new BigDecimal("44.00"),
+                "Second item for lecturer final approval",
+                lecturerUser.getId()
+            );
+            approvedByTutorTimesheet2.setStatus(ApprovalStatus.APPROVED_BY_TUTOR);
+            upsert.apply(approvedByTutorTimesheet2);
             
             System.out.println("✅ E2E test data initialized:");
             System.out.println("   - Users: " + userRepository.count());
             System.out.println("   - Courses: " + courseRepository.count());
             System.out.println("   - Timesheets: " + timesheetRepository.count());
+            System.out.println("   - Seeded statuses: PENDING x2, DRAFT x1, REJECTED x1");
             System.out.println("   - Admin: admin@example.com / Admin123!");
             System.out.println("   - Lecturer: lecturer@example.com / Lecturer123!");
             System.out.println("   - Tutor: tutor@example.com / Tutor123!");

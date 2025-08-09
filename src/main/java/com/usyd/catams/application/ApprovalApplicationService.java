@@ -91,6 +91,9 @@ public class ApprovalApplicationService implements ApprovalService {
             case REQUEST_MODIFICATION:
                 approval = timesheet.requestModification(requesterId, comment);
                 break;
+            case FINAL_APPROVAL:
+                approval = timesheet.finalApprove(requesterId, comment);
+                break;
             default:
                 throw new IllegalArgumentException("Unsupported approval action: " + action);
         }

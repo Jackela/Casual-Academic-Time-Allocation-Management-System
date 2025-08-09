@@ -484,7 +484,7 @@ GET_PENDING:
   get:
     tags:
       - Timesheets
-    summary: Get timesheets pending for lecturer approval
+    summary: Get timesheets pending for lecturer review (tutor-side)
     description: |
       Returns a paginated list of timesheets with the status `PENDING_LECTURER_APPROVAL` that belong to the courses managed by the currently authenticated LECTURER. ADMINs can also use this endpoint to view all pending timesheets.
       
@@ -535,7 +535,7 @@ GET_PENDING:
           format: int64
     responses:
       '200':
-        description: Pending approval timesheets retrieved successfully
+        description: Timesheets pending for tutor review retrieved successfully
         content:
           application/json:
             schema:
@@ -623,6 +623,65 @@ GET_PENDING:
                   error: "ACCESS_DENIED"
                   message: "Only LECTURER and ADMIN roles can view pending approval timesheets"
                   path: "/api/timesheets/pending-approval"
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+
+GET_PENDING_FINAL:
+  get:
+    tags:
+      - Timesheets
+    summary: Get timesheets awaiting lecturer final approval
+    description: |
+      Returns timesheets with status `APPROVED_BY_TUTOR`.
+      LECTURER sees only their courses; ADMIN sees all.
+    operationId: getPendingFinalApprovalTimesheets
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          default: "createdAt,asc"
+    responses:
+      '200':
+        description: Timesheets awaiting lecturer final approval
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetPageResponse'
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '403':
+        description: Insufficient permissions
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
       '500':
         description: Internal server error
         content:

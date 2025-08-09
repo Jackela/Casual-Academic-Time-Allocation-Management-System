@@ -269,6 +269,18 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @return page of all timesheets pending tutor review
      */
     Page<Timesheet> findByStatusOrderByCreatedAtAsc(ApprovalStatus status, Pageable pageable);
+
+    /**
+     * Find timesheets with APPROVED_BY_TUTOR status for courses taught by a specific lecturer.
+     * Used for the GET /api/timesheets/pending-final-approval endpoint.
+     *
+     * @param lecturerId the lecturer's ID
+     * @param pageable paging and sorting information
+     * @return page of timesheets approved by tutor, awaiting lecturer final approval
+     */
+    @Query("SELECT t FROM Timesheet t WHERE t.status = 'APPROVED_BY_TUTOR' AND t.courseId IN " +
+           "(SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId)")
+    Page<Timesheet> findApprovedByTutorByCourses(@Param("lecturerId") Long lecturerId, Pageable pageable);
     
     // ==================== DASHBOARD AGGREGATION QUERIES ====================
     

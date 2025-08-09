@@ -530,6 +530,27 @@ public class TimesheetApplicationService implements TimesheetService {
         return timesheetMapper.toPagedResponse(timesheetPage);
     }
 
+    @Transactional(readOnly = true)
+    public Page<Timesheet> getLecturerFinalApprovalQueue(Long requesterId, Pageable pageable) {
+        User requester = userRepository.findById(requesterId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + requesterId));
+
+        switch (requester.getRole()) {
+            case LECTURER:
+                return timesheetRepository.findApprovedByTutorByCourses(requester.getId(), pageable);
+            case ADMIN:
+                return timesheetRepository.findByStatus(ApprovalStatus.APPROVED_BY_TUTOR, pageable);
+            default:
+                throw new SecurityException("Only LECTURER or ADMIN can view lecturer final approval queue");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public PagedTimesheetResponse getLecturerFinalApprovalQueueAsDto(Long requesterId, Pageable pageable) {
+        Page<Timesheet> page = getLecturerFinalApprovalQueue(requesterId, pageable);
+        return timesheetMapper.toPagedResponse(page);
+    }
+
     private void validateCreateTimesheetPreconditions(Long tutorId, Long courseId, LocalDate weekStartDate,
                                                     BigDecimal hours, BigDecimal hourlyRate, String description, 
                                                     Long creatorId) {

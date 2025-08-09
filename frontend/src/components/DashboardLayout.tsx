@@ -46,7 +46,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     <div className="dashboard-layout">
       {/* Header */}
       <header className="dashboard-header" data-testid="layout-dashboard-header">
-        <div className="header-content">
+      <div className="header-content" data-testid="dashboard-title-anchor">
           <div className="header-left">
             <h1 className="app-title" data-testid="app-title">CATAMS</h1>
             <span className="app-subtitle" data-testid="app-subtitle">Time Allocation Management</span>

@@ -183,7 +183,9 @@ public enum ApprovalAction {
                 }
                 break;
             case REJECT:
-                if (currentStatus == ApprovalStatus.PENDING_TUTOR_REVIEW || currentStatus == ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR) {
+                if (currentStatus == ApprovalStatus.PENDING_TUTOR_REVIEW || 
+                    currentStatus == ApprovalStatus.APPROVED_BY_TUTOR ||
+                    currentStatus == ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR) {
                     return ApprovalStatus.REJECTED;
                 }
                 break;

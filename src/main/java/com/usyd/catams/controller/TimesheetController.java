@@ -417,4 +417,44 @@ public class TimesheetController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    /**
+     * Get timesheets pending lecturer final approval (APPROVED_BY_TUTOR).
+     *
+     * Access control:
+     * - LECTURER: Timesheets approved by tutor for their courses
+     * - ADMIN: All timesheets approved by tutor
+     */
+    @GetMapping("/pending-final-approval")
+    @PreAuthorize("hasRole('LECTURER') or hasRole('ADMIN')")
+    public ResponseEntity<PagedTimesheetResponse> getPendingFinalApprovalTimesheets(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @RequestParam(value = "sort", defaultValue = "createdAt,asc") String sort) {
+
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            // Validate pagination
+            if (page < 0) page = 0;
+            if (size <= 0 || size > 100) size = 20;
+
+            Pageable pageable = createPageable(page, size, sort);
+            Long requesterId = authenticationUtils.getCurrentUserId(authentication);
+
+            PagedTimesheetResponse response = timesheetApplicationService.getLecturerFinalApprovalQueueAsDto(requesterId, pageable);
+            return ResponseEntity.ok(response);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            System.err.println("Error in getPendingFinalApprovalTimesheets: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 }

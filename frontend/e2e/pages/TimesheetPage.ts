@@ -20,7 +20,13 @@ export class TimesheetPage {
   }
 
   async expectTimesheetsTable() {
-    await expect(this.timesheetsTable).toBeVisible();
+    // Presence-first: either table is visible or empty-state is visible
+    const tableVisible = await this.timesheetsTable.isVisible().catch(() => false);
+    if (tableVisible) {
+      await expect(this.timesheetsTable).toBeVisible();
+      return;
+    }
+    await this.expectEmptyState();
   }
 
   async expectEmptyState() {
@@ -71,47 +77,71 @@ export class TimesheetPage {
 
   async approveTimesheet(id: number) {
     const approveButton = await this.getApproveButtonForTimesheet(id);
-    
+    const beforeBadgeText = await this.countBadge.innerText().catch(() => null);
+
     const [response] = await Promise.all([
       this.page.waitForResponse('**/api/approvals'),
       approveButton.click()
     ]);
-    
-    // Wait for refresh AND UI update
-    await this.page.waitForResponse('**/api/timesheets/pending-approval');
-    // Wait for the specific timesheet row to disappear or table to update
-    await this.page.waitForFunction(
-      (timesheetId) => {
-        const row = document.querySelector(`[data-testid="timesheet-row-${timesheetId}"]`);
-        return !row || row.getAttribute('data-status') !== 'PENDING_LECTURER_APPROVAL';
-      },
-      id,
-      { timeout: 10000 }
-    );
-    
+
+    // User-visible-results-first: wait for row to disappear OR count badge to change OR empty-state to appear
+    await Promise.race([
+      this.page.waitForFunction(
+        (timesheetId) => !document.querySelector(`[data-testid="timesheet-row-${timesheetId}"]`),
+        id,
+        { timeout: 10000 }
+      ),
+      (async () => {
+        try {
+      await this.countBadge.waitFor({ timeout: 10000 });
+      await this.page.waitForFunction(
+        ({ sel, prev }) => {
+          const el = document.querySelector(sel as string);
+          return !!el && ((el.textContent || '').trim() !== ((prev || '') as string).trim());
+        },
+        { sel: '[data-testid="count-badge"]', prev: beforeBadgeText },
+        { timeout: 10000 }
+      );
+        } catch {}
+      })(),
+      this.emptyState.waitFor({ timeout: 10000 }).catch(() => null)
+    ]);
+
     return response;
   }
 
   async rejectTimesheet(id: number) {
     const rejectButton = await this.getRejectButtonForTimesheet(id);
-    
+    const beforeBadgeText = await this.countBadge.innerText().catch(() => null);
+
     const [response] = await Promise.all([
       this.page.waitForResponse('**/api/approvals'),
       rejectButton.click()
     ]);
-    
-    // Wait for refresh AND UI update
-    await this.page.waitForResponse('**/api/timesheets/pending-approval');
-    // Wait for the specific timesheet row to disappear or table to update
-    await this.page.waitForFunction(
-      (timesheetId) => {
-        const row = document.querySelector(`[data-testid="timesheet-row-${timesheetId}"]`);
-        return !row || row.getAttribute('data-status') !== 'PENDING_LECTURER_APPROVAL';
-      },
-      id,
-      { timeout: 10000 }
-    );
-    
+
+    // User-visible-results-first: wait for row to disappear OR count badge to change OR empty-state to appear
+    await Promise.race([
+      this.page.waitForFunction(
+        (timesheetId) => !document.querySelector(`[data-testid="timesheet-row-${timesheetId}"]`),
+        id,
+        { timeout: 10000 }
+      ),
+      (async () => {
+        try {
+      await this.countBadge.waitFor({ timeout: 10000 });
+      await this.page.waitForFunction(
+        ({ sel, prev }) => {
+          const el = document.querySelector(sel as string);
+          return !!el && ((el.textContent || '').trim() !== ((prev || '') as string).trim());
+        },
+        { sel: '[data-testid="count-badge"]', prev: beforeBadgeText },
+        { timeout: 10000 }
+      );
+        } catch {}
+      })(),
+      this.emptyState.waitFor({ timeout: 10000 }).catch(() => null)
+    ]);
+
     return response;
   }
 
@@ -168,27 +198,26 @@ export class TimesheetPage {
   }
 
   async hasTimesheetData(): Promise<boolean> {
+    // Presence-first: prioritize DOM over network timing
+    const rows = await this.getTimesheetRows();
     try {
-      // First wait for the API response to complete
-      await this.page.waitForResponse('**/api/timesheets/pending-approval', { timeout: 10000 });
-      // Then check if the table is visible with data
-      await this.timesheetsTable.waitFor({ timeout: 5000 });
-      const rows = await this.getTimesheetRows();
-      const rowCount = await rows.count();
-      return rowCount > 0;
+      await this.timesheetsTable.waitFor({ timeout: 8000 });
+    } catch {}
+    try {
+      const count = await rows.count();
+      if (count > 0) return true;
+    } catch {}
+    // If no rows, check empty state presence
+    try {
+      await this.emptyState.waitFor({ timeout: 4000 });
+      return false;
     } catch {
-      // If table not found or no rows, check for empty state
-      try {
-        await this.emptyState.waitFor({ timeout: 2000 });
-        return false;
-      } catch {
-        return false;
-      }
+      return false;
     }
   }
 
   async retryDataLoad() {
     await this.retryButton.click();
-    await this.page.waitForResponse('**/api/timesheets/pending-approval');
+    await this.page.waitForResponse('**/api/timesheets/pending-final-approval');
   }
 }

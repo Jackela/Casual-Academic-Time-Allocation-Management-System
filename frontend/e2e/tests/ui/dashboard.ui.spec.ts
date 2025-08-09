@@ -8,7 +8,7 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
       localStorage.setItem('user', JSON.stringify(authData.user));
     }, mockResponses.auth.success);
     // 1) Define the Mock BEFORE navigation
-    await page.route('**/api/timesheets/pending-approval**', route => {
+    await page.route('**/api/timesheets/pending-final-approval**', route => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -17,7 +17,7 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
     });
 
     // 2) Navigate to dashboard
-    const respPromise = page.waitForResponse(resp => resp.url().includes('/api/timesheets/pending-approval'));
+    const respPromise = page.waitForResponse(resp => resp.url().includes('/api/timesheets/pending-final-approval'));
     await page.goto('/dashboard');
 
     // 3) Wait for mocked API confirmation
@@ -56,7 +56,7 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
       localStorage.setItem('user', JSON.stringify(authData.user));
     }, mockResponses.auth.success);
     // 1) Define the Mock BEFORE navigation
-    await page.route('**/api/timesheets/pending-approval**', route => {
+    await page.route('**/api/timesheets/pending-final-approval**', route => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -65,7 +65,7 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
     });
 
     // 2) Navigate to dashboard
-    const respPromise = page.waitForResponse(resp => resp.url().includes('/api/timesheets/pending-approval'));
+    const respPromise = page.waitForResponse(resp => resp.url().includes('/api/timesheets/pending-final-approval'));
     await page.goto('/dashboard');
 
     // 3) Wait for mocked API confirmation
@@ -75,15 +75,9 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="main-dashboard-header"]')).toBeVisible();
 
-    const approveButtons = page.locator('button:has-text("Approve")');
-    const rejectButtons = page.locator('button:has-text("Reject")');
-    
+    const approveButtons = page.locator('button:has-text("Final Approve")');
     await expect(approveButtons).toHaveCount(1);
-    await expect(rejectButtons).toHaveCount(1);
-    
-    // Buttons should be enabled
     await expect(approveButtons.first()).toBeEnabled();
-    await expect(rejectButtons.first()).toBeEnabled();
   });
 
   test('should handle empty state gracefully', async ({ page }) => {
@@ -94,7 +88,7 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
     }, mockResponses.auth.success);
 
     // Mock empty response
-    await page.route('**/api/timesheets/pending-approval*', route => {
+    await page.route('**/api/timesheets/pending-final-approval*', route => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -117,7 +111,7 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
     }, mockResponses.auth.success);
 
     // Mock error response
-    await page.route('**/api/timesheets/pending-approval*', route => {
+    await page.route('**/api/timesheets/pending-final-approval*', route => {
       route.fulfill({
         status: 500,
         contentType: 'application/json',
@@ -142,7 +136,7 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
     }, mockResponses.auth.success);
 
     // Mock delayed response
-    await page.route('**/api/timesheets/pending-approval*', async route => {
+    await page.route('**/api/timesheets/pending-final-approval*', async route => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       route.fulfill({
         status: 200,

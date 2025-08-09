@@ -196,14 +196,27 @@ export const test = base.extend<TestFixtures>({
 
   // Page with tutor authentication
   tutorAuthenticatedPage: async ({ page, authAPI }, use) => {
+    const skipBackend = process.env.E2E_SKIP_BACKEND === 'true' || process.env.E2E_SKIP_BACKEND === '1';
     try {
-      const auth = await authAPI.login(testCredentials.tutor.email, testCredentials.tutor.password);
-      
-      await page.addInitScript((authData, storageKeys) => {
-        localStorage.setItem(storageKeys.TOKEN, authData.token);
-        localStorage.setItem(storageKeys.USER, JSON.stringify(authData.user));
-      }, auth, STORAGE_KEYS);
-
+      if (skipBackend) {
+        // Inject mock auth state without hitting backend
+        const mockAuth = {
+          success: true,
+          token: 'tutor-mock-token',
+          user: { id: 201, email: testCredentials.tutor.email, name: testCredentials.tutor.expectedName, role: testCredentials.tutor.expectedRole },
+          errorMessage: null
+        };
+        await page.addInitScript((authData, storageKeys) => {
+          localStorage.setItem(storageKeys.TOKEN, authData.token);
+          localStorage.setItem(storageKeys.USER, JSON.stringify(authData.user));
+        }, mockAuth, STORAGE_KEYS);
+      } else {
+        const auth = await authAPI.login(testCredentials.tutor.email, testCredentials.tutor.password);
+        await page.addInitScript((authData, storageKeys) => {
+          localStorage.setItem(storageKeys.TOKEN, authData.token);
+          localStorage.setItem(storageKeys.USER, JSON.stringify(authData.user));
+        }, auth, STORAGE_KEYS);
+      }
       await use(page);
     } catch (error) {
       console.warn('Tutor authentication failed, using unauthenticated page:', error);
@@ -376,13 +389,30 @@ export const test = base.extend<TestFixtures>({
       });
     });
 
-    // Setup mock auth state
+    // Setup mock auth state (idempotent): only set if not present
     await page.addInitScript((token, user, storageKeys) => {
-      localStorage.setItem(storageKeys.TOKEN, token);
-      localStorage.setItem(storageKeys.USER, JSON.stringify(user));
+      try {
+        const hasToken = !!localStorage.getItem(storageKeys.TOKEN);
+        const hasUser = !!localStorage.getItem(storageKeys.USER);
+        if (!hasToken || !hasUser) {
+          localStorage.setItem(storageKeys.TOKEN, token);
+          localStorage.setItem(storageKeys.USER, JSON.stringify(user));
+        }
+      } catch {}
     }, mockResponses.auth.success.token, buildUser('lecturer'), STORAGE_KEYS);
 
     await use(page);
+  }
+});
+
+// Global test hooks for all tests using this extended fixture
+test.beforeEach(async ({ page }, testInfo) => {
+  // Apply animation disabling only for mobile project to avoid affecting desktop projects
+  if (testInfo.project.name === 'mobile-tests') {
+    try { await page.emulateMedia({ reducedMotion: 'reduce' }); } catch {}
+    try {
+      await page.addStyleTag({ content: '*{transition: none !important; animation: none !important;}' });
+    } catch {}
   }
 });
 

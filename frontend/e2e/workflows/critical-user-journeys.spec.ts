@@ -64,11 +64,7 @@ test.describe('Critical User Journeys', () => {
     await loginPage.login('lecturer@example.com', 'Lecturer123!');
     await dashboardPage.waitForTimesheetData();
 
-    // Skip if no timesheet data available
-    const hasData = await dashboardPage.hasTimesheetData();
-    if (!hasData) {
-      test.skip(true, 'No timesheet data available for approval workflow testing');
-    }
+    // Data is now guaranteed by E2EDataInitializer (PENDING_TUTOR_REVIEW exists)
 
     await dashboardPage.expectTimesheetsTable();
 
@@ -101,7 +97,7 @@ test.describe('Critical User Journeys', () => {
     await dashboardPage.expectToBeLoaded();
 
     // Mock API failure to test error handling
-    await page.route('**/api/timesheets/pending-approval', async route => {
+    await page.route('**/api/timesheets/pending-final-approval', async route => {
       route.fulfill({
         status: 500,
         contentType: 'application/json',
@@ -116,7 +112,7 @@ test.describe('Critical User Journeys', () => {
     await dashboardPage.expectErrorState();
 
     // Clear the mock and test retry functionality
-    await page.unroute('**/api/timesheets/pending-approval');
+    await page.unroute('**/api/timesheets/pending-final-approval');
     
     // Test recovery workflow
     await timesheetPage.retryDataLoad();
@@ -177,11 +173,7 @@ test.describe('Critical User Journeys', () => {
     await loginPage.login('lecturer@example.com', 'Lecturer123!');
     await dashboardPage.waitForTimesheetData();
 
-    // Skip if no data available
-    const hasData = await dashboardPage.hasTimesheetData();
-    if (!hasData) {
-      test.skip(true, 'No timesheet data available for rejection workflow testing');
-    }
+    // Data is now guaranteed by E2EDataInitializer (PENDING/REJECTED present)
 
     await dashboardPage.expectTimesheetsTable();
 

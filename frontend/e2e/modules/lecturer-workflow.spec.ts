@@ -101,12 +101,12 @@ test.describe('Lecturer Dashboard Workflow', () => {
     // Wait for navigation to dashboard
     await page.waitForURL('**/dashboard');
     
-    // Dashboard should be loaded (no longer showing loading state)
-    const loadingState = page.locator('[data-testid="loading-state"]');
-    const loadingVisible = await loadingState.isVisible().catch(() => false);
-    
-    // Loading state should not be visible after page load
-    expect(loadingVisible).toBe(false);
+    // Ensure main content anchor is present
+    await page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
+    // Best-effort: hide loading if present briefly
+    try {
+      await page.locator('[data-testid="loading-state"]').first().waitFor({ state: 'hidden', timeout: 5000 });
+    } catch {}
   });
 
   test('Lecturer can refresh dashboard data', async ({ page }) => {

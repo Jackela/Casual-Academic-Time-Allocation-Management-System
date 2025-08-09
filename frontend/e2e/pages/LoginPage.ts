@@ -49,7 +49,14 @@ export class LoginPage {
       this.page.waitForURL('/dashboard', { timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.PAGE_LOAD }),
       this.submitForm()
     ]);
-    
+    // Post-navigation stabilization: ensure network is idle and main content is present
+    try {
+      await this.page.waitForLoadState('networkidle');
+    } catch {}
+    try {
+      await this.page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
+    } catch {}
+
     return response;
   }
 
