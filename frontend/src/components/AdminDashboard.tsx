@@ -164,7 +164,13 @@ const AdminDashboard: React.FC = () => {
         params.append('courseId', filters.courseId.trim());
       }
       if (filters.status) {
-        params.append('status', filters.status);
+        const statusParam = (() => {
+          const s = filters.status.toUpperCase();
+          if (s === 'PENDING') return 'PENDING_TUTOR_REVIEW';
+          if (s === 'APPROVED') return 'FINAL_APPROVED';
+          return filters.status;
+        })();
+        params.append('status', statusParam);
       }
 
       const response = await axios.get<TimesheetsResponse>(
@@ -292,7 +298,8 @@ const AdminDashboard: React.FC = () => {
 
   const getStatusBadgeClass = (status: string) => {
     switch (status.toUpperCase()) {
-      case 'PENDING':
+      case 'PENDING_TUTOR_REVIEW':
+      case 'PENDING': // alias for UI filter compatibility
         return 'status-badge status-pending';
       case 'APPROVED':
         return 'status-badge status-approved';
@@ -306,7 +313,8 @@ const AdminDashboard: React.FC = () => {
   };
 
   const canTakeAction = (status: string) => {
-    return status.toUpperCase() === 'PENDING';
+    const s = status.toUpperCase();
+    return s === 'PENDING_TUTOR_REVIEW' || s === 'PENDING';
   };
 
   if (loading) {

@@ -87,23 +87,22 @@ async function checkAuthEndpoint(): Promise<HealthCheckResult> {
   const startTime = Date.now();
   
   try {
+    // Prefer seeded E2E credentials to avoid backend WARN logs from invalid attempts
+    const email = process.env.E2E_ADMIN_EMAIL || 'admin@example.com';
+    const password = process.env.E2E_ADMIN_PASSWORD || 'Admin123!';
     const response = await fetch(API_ENDPOINTS.AUTH_LOGIN, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        email: 'test@invalid.com',
-        password: 'invalidpassword'
-      })
+      body: JSON.stringify({ email, password })
     });
     
     const responseTime = Date.now() - startTime;
     
-    // We expect 401 (Unauthorized) or 400 (Bad Request) for invalid credentials
-    // This means the endpoint is working and processing requests
-    if (response.status === 401 || response.status === 400) {
+    // Expect success for seeded credentials
+    if (response.status === 200) {
       return {
         endpoint: API_ENDPOINTS.AUTH_LOGIN,
         status: 'healthy',
@@ -115,7 +114,7 @@ async function checkAuthEndpoint(): Promise<HealthCheckResult> {
         endpoint: API_ENDPOINTS.AUTH_LOGIN,
         status: 'unhealthy',
         responseTime,
-        error: `Unexpected status ${response.status} for invalid credentials`
+        error: `Unexpected status ${response.status} when authenticating with seeded credentials`
       };
     }
   } catch (error) {

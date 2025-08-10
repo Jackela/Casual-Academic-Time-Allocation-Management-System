@@ -1,12 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 import { E2E_CONFIG } from './e2e/config/e2e.config';
 
+const useExternalWebServer = !!process.env.E2E_EXTERNAL_WEBSERVER;
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/e2e/api/**', '**/e2e/examples/**'],  /* Global setup to handle authentication */
+  testIgnore: ['**/e2e/api/**', '**/e2e/examples/**'],
+  /* Global setup to handle authentication */
   globalSetup: './e2e/global.setup.ts',
   /* Allow skipping backend readiness from env for mocked-only runs */
   /* Note: The actual bypass is implemented in global.setup.ts via E2E_SKIP_BACKEND */
@@ -59,14 +62,6 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
-    {
-      name: 'api-tests',
-      use: { 
-        ...devices['Desktop Chrome'],
-        // No storage state needed - API-first approach
-      },
-      grepInvert: /@mobile/,
-    },
 
     {
       name: 'ui-tests',
@@ -74,7 +69,8 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         // UI tests with mocked data
       },
-      grepInvert: /@mobile/,
+      grepInvert: /@(mobile|mobile-smoke)/,
+      testIgnore: ['**/e2e/mobile/**', '**/e2e/api/**', '**/e2e/examples/**', '**/e2e/tests/mobile-*.spec.ts', '**/e2e/api/*.spec.ts'],
     },
 
     // Dedicated mobile project with low concurrency
@@ -88,6 +84,7 @@ export default defineConfig({
       fullyParallel: false,
       workers: 1,
       grep: /@mobile/,
+      testMatch: ['**/e2e/mobile/**'],
     },
 
     /* Test against mobile viewports. */
@@ -111,17 +108,21 @@ export default defineConfig({
     // },
   ],
 
-  /* Auto-start dev server for E2E tests */
-  // Always cold-start the dev server in e2e mode to ensure env injection is consistent
-  webServer: {
-    command: 'npm run dev -- --mode e2e',
-    url: E2E_CONFIG.FRONTEND.URL,
-    reuseExistingServer: false,
-    timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.STARTUP,
-    // Pass-through env to Vite dev server; ensure bypass role is available at boot.
-    env: {
-      ...process.env,
-      VITE_E2E_AUTH_BYPASS_ROLE: process.env.VITE_E2E_AUTH_BYPASS_ROLE ?? 'TUTOR',
-    },
-  },
+  /* Auto-start dev server for E2E tests (disabled when external orchestrator provides it) */
+  ...(useExternalWebServer
+    ? {}
+    : {
+        webServer: {
+          command: 'npm run dev -- --mode e2e',
+          url: E2E_CONFIG.FRONTEND.URL,
+          reuseExistingServer: false,
+          timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.STARTUP,
+          env: {
+            ...process.env,
+            ...(process.env.VITE_E2E_AUTH_BYPASS_ROLE
+              ? { VITE_E2E_AUTH_BYPASS_ROLE: process.env.VITE_E2E_AUTH_BYPASS_ROLE }
+              : {}),
+          },
+        },
+      }),
 });

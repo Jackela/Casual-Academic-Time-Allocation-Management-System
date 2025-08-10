@@ -6,7 +6,6 @@ import com.usyd.catams.application.decision.dto.PermissionCheckRequest;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.entity.Timesheet;
-import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.repository.TimesheetRepository;
@@ -347,7 +346,7 @@ public class CourseApplicationService implements CourseManagementService {
             // Use 80% of budget for tutor costs (20% buffer for other expenses)
             BigDecimal availableBudget = budget.multiply(new BigDecimal("0.8"));
             
-            int maxTutors = availableBudget.divide(costPerTutor, 0, BigDecimal.ROUND_DOWN).intValue();
+            int maxTutors = availableBudget.divide(costPerTutor, 0, java.math.RoundingMode.DOWN).intValue();
             
             // Set reasonable bounds (1-10 tutors per course)
             return Math.max(1, Math.min(maxTutors, 10));

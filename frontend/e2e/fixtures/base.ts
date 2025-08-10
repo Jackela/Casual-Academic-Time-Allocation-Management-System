@@ -39,7 +39,12 @@ export const mockResponses = {
   auth: {
     success: {
       success: true,
-      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJsZWN0dXJlckBleGFtcGxlLmNvbSIsInJvbGUiOiJMRUNUVVJFUiJ9.mock-token',
+      token: (() => {
+        // Generate a minimal valid-looking JWT with near-future exp to avoid isTokenExpired()
+        const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+        const payload = btoa(JSON.stringify({ sub: 'lecturer@example.com', role: 'LECTURER', exp: Math.floor(Date.now()/1000) + 3600 }));
+        return `${header}.${payload}.signature`;
+      })(),
       user: buildUser('lecturer'),
       errorMessage: null
     },
@@ -216,7 +221,8 @@ export const test = base.extend<TestFixtures>({
           localStorage.setItem(storageKeys.TOKEN, authData.token);
           localStorage.setItem(storageKeys.USER, JSON.stringify(authData.user));
         }, auth, STORAGE_KEYS);
-      }      await use(page);
+      }
+      await use(page);
     } catch (error) {
       console.warn('Tutor authentication failed, using unauthenticated page:', error);
       await use(page);
@@ -230,13 +236,15 @@ export const test = base.extend<TestFixtures>({
       await new Promise(resolve => setTimeout(resolve, 200)); // Realistic API delay
       
       const postData = JSON.parse(await request.postData() || '{}');
-      let response = { ...mockResponses.auth.success } as any;      
+      let response = { ...mockResponses.auth.success } as any;
+      
       // Return different user data based on email
       if (postData.email === 'tutor@example.com') {
         response = {
           success: true,
           token: 'tutor-mock-token',
-          user: buildUser('tutor'),          errorMessage: null
+          user: buildUser('tutor'),
+          errorMessage: null
         };
       } else if (postData.email === 'admin@example.com') {
         response = {
@@ -249,7 +257,8 @@ export const test = base.extend<TestFixtures>({
         response = {
           success: true,
           token: 'lecturer-mock-token',
-          user: buildUser('lecturer'),          errorMessage: null
+          user: buildUser('lecturer'),
+          errorMessage: null
         };
       }
       
@@ -266,7 +275,20 @@ export const test = base.extend<TestFixtures>({
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockResponses.timesheets.withData)
+        body: JSON.stringify({
+          success: true,
+          timesheets: mockResponses.timesheets.withData.content,
+          pageInfo: {
+            currentPage: mockResponses.timesheets.withData.page.number,
+            pageSize: mockResponses.timesheets.withData.page.size,
+            totalElements: mockResponses.timesheets.withData.page.totalElements,
+            totalPages: mockResponses.timesheets.withData.page.totalPages,
+            first: mockResponses.timesheets.withData.page.first,
+            last: mockResponses.timesheets.withData.page.last,
+            numberOfElements: mockResponses.timesheets.withData.page.numberOfElements,
+            empty: mockResponses.timesheets.withData.page.empty
+          }
+        })
       });
     });
 
@@ -396,6 +418,7 @@ export const test = base.extend<TestFixtures>({
         }
       } catch {}
     }, mockResponses.auth.success.token, buildUser('lecturer'), STORAGE_KEYS);
+
     await use(page);
   }
 });

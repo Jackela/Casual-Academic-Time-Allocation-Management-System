@@ -1,6 +1,8 @@
 package com.usyd.catams.testing;
 
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import java.time.Duration;
 
 /**
  * Singleton TestContainer for PostgreSQL.
@@ -8,11 +10,17 @@ import org.testcontainers.containers.PostgreSQLContainer;
  */
 public class PostgresTestContainer extends PostgreSQLContainer<PostgresTestContainer> {
 
-    private static final String IMAGE_VERSION = "postgres:15-alpine";
+    private static final String IMAGE_VERSION = "postgres:15";
     private static PostgresTestContainer container;
 
     private PostgresTestContainer() {
         super(IMAGE_VERSION);
+        // Harden startup to reduce flakiness on Windows/Docker Desktop
+        this.withStartupAttempts(3)
+            .withStartupTimeout(Duration.ofMinutes(3))
+            .waitingFor(Wait.forLogMessage(".*database system is ready to accept connections.*\\n", 1));
+        // Allow reuse when enabled locally to speed up iterations
+        try { this.withReuse(true); } catch (Throwable ignored) {}
     }
 
     public static PostgresTestContainer getInstance() {

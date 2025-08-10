@@ -80,7 +80,6 @@ public class User {
      * @throws IllegalArgumentException if name is null or empty (fail fast)
      */
     public User(Email email, String name, String hashedPassword, UserRole role) {
-<<<<<<< HEAD
         // Validate domain invariants (fail fast)
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("User name cannot be null or empty");
@@ -94,9 +93,6 @@ public class User {
         if (role == null) {
             throw new IllegalArgumentException("User role cannot be null");
         }
-        
-=======
->>>>>>> c8486ccc9d77ad3c5893d5e2f8def3f49db6132a
         this.email = email;
         this.name = name.trim(); // Normalize the name
         this.hashedPassword = hashedPassword;

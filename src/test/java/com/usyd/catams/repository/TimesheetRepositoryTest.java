@@ -7,7 +7,7 @@ import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.common.domain.model.Money;
-import com.usyd.catams.common.domain.model.WeekPeriod;
+// import com.usyd.catams.common.domain.model.WeekPeriod;
 import com.usyd.catams.common.domain.model.Email;
 import com.usyd.catams.common.domain.model.CourseCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +18,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+// import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
@@ -115,7 +115,12 @@ class TimesheetRepositoryTest {
         
         entityManager.persistAndFlush(older);
         // Ensure createdAt timestamps differ for DESC ordering determinism
-        try { Thread.sleep(5); } catch (InterruptedException e) { }        
+        try { Thread.sleep(5); } catch (InterruptedException e) { }
+        Timesheet draft = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(2),
+                new BigDecimal("2.0"), new BigDecimal("25.00"), "Draft work", lecturer.getId());
+        Timesheet pending = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(3),
+                new BigDecimal("1.0"), new BigDecimal("25.00"), "Pending work", lecturer.getId());
+        pending.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
         entityManager.persistAndFlush(draft);
         entityManager.persistAndFlush(pending);
 
@@ -139,14 +144,16 @@ class TimesheetRepositoryTest {
         Timesheet approved = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(2),
                 new BigDecimal("4.0"), new BigDecimal("25.00"), "Approved work", lecturer.getId());
         
-        pending.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        approved.setStatus(ApprovalStatus.FINAL_APPROVED);
+        pending.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        approved.setStatus(ApprovalStatus.FINAL_APPROVED);
         
         entityManager.persistAndFlush(draft);
         entityManager.persistAndFlush(pending);
         entityManager.persistAndFlush(approved);
 
         // When
-        List<ApprovalStatus> statuses = Arrays.asList(ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_REVIEW);        List<Timesheet> found = timesheetRepository.findByStatusIn(statuses);
+        List<ApprovalStatus> statuses = Arrays.asList(ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_REVIEW);
+        List<Timesheet> found = timesheetRepository.findByStatusIn(statuses);
 
         // Then
         assertThat(found).hasSize(2);

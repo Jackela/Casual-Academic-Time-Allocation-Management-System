@@ -12,7 +12,7 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
       });
     });
 
-    await page.route('**/api/timesheets/pending-approval*', route => {
+    await page.route('**/api/timesheets/pending-final-approval*', route => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -49,7 +49,7 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
     }, mockResponses.auth.success);
 
     // Mock timesheet response
-    await page.route('**/api/timesheets/pending-approval*', route => {
+    await page.route('**/api/timesheets/pending-final-approval*', route => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -76,7 +76,7 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
     }, mockResponses.auth.success);
 
     // Mock empty timesheet response
-    await page.route('**/api/timesheets/pending-approval*', route => {
+    await page.route('**/api/timesheets/pending-final-approval*', route => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -110,8 +110,8 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
       localStorage.setItem('user', JSON.stringify(authData.user));
     }, mockResponses.auth.success);
 
-    // Mock error response
-    await page.route('**/api/timesheets/pending-approval*', route => {
+    // Mock error response (SSOT endpoint)
+    await page.route('**/api/timesheets/pending-final-approval*', route => {
       route.fulfill({
         status: 500,
         contentType: 'application/json',

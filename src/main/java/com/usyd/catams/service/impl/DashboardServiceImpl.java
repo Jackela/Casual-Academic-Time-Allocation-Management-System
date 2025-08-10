@@ -224,6 +224,7 @@ public class DashboardServiceImpl implements DashboardService {
             List<Course> allActiveCourses = courseRepository.findByIsActive(true);
             BigDecimal totalUsed = allActiveCourses.stream()
                 .map(Course::getBudgetUsed)
+                .filter(v -> v != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
             return calculateBudgetUsage(allActiveCourses, totalUsed);
         }

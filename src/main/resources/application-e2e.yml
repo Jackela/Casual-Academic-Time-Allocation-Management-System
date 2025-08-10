@@ -26,8 +26,11 @@ spring:
 logging:
   level:
     com.usyd.catams: INFO
-    org.springframework.security: INFO
+    org.springframework.security: WARN
     org.springframework.web: INFO
+    org.springframework.web.servlet.handler.HandlerMappingIntrospector: INFO
+    com.usyd.catams.security.JwtTokenProvider: ERROR
+    com.usyd.catams.exception.GlobalExceptionHandler: WARN
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 

@@ -1,6 +1,16 @@
 package com.usyd.catams.domain.service;
 
-import com.usyd.catams.domain.rules.WorkflowRulesRegistry; */
+import com.usyd.catams.domain.rules.WorkflowRulesRegistry;
+import com.usyd.catams.enums.ApprovalAction;
+import com.usyd.catams.enums.ApprovalStatus;
+import com.usyd.catams.enums.UserRole;
+import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.entity.Course;
+import com.usyd.catams.entity.User;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
 @Service
 public class ApprovalDomainService {
 
@@ -11,7 +21,8 @@ public class ApprovalDomainService {
     public boolean canRolePerformAction(UserRole role, ApprovalAction action) {
         // Check if any rule exists for this role+action combination across all statuses
         return WorkflowRulesRegistry.getAllRules().keySet().stream()
-            .anyMatch(key -> key.role() == role && key.action() == action);    }
+            .anyMatch(key -> key.role() == role && key.action() == action);
+    }
 
     /**
      * Determines if a user has permission to perform a specific action on a timesheet (domain rule).
@@ -90,7 +101,8 @@ public class ApprovalDomainService {
         public Long getId() { return user.getId(); }
         
         @Override
-        public UserRole getRole() { return user.getRole(); }    }
+        public UserRole getRole() { return user.getRole(); }
+    }
 
     /**
      * Determines if a user can view a timesheet (for approval history access control).
@@ -119,7 +131,8 @@ public class ApprovalDomainService {
     public boolean canUserActOnTimesheet(Timesheet timesheet, User user, Course course) {
         // Check if user has any valid actions for this timesheet in its current state
         List<ApprovalAction> validActions = getValidActionsForUser(timesheet, user, course);
-        return !validActions.isEmpty();    }
+        return !validActions.isEmpty();
+    }
 
     /**
      * Validates status transition for an approval action.
@@ -132,7 +145,8 @@ public class ApprovalDomainService {
             .anyMatch(key -> key.action() == action && key.fromStatus() == currentStatus);
 
         if (!validTransition) {
-            throw new IllegalArgumentException("Cannot perform " + action + " on timesheet with status " + currentStatus.name());        }
+            throw new IllegalArgumentException("Cannot perform " + action + " on timesheet with status " + currentStatus.name());
+        }
     }
 
     /**
@@ -156,7 +170,8 @@ public class ApprovalDomainService {
     public List<ApprovalAction> getValidActionsForUser(Timesheet timesheet, User user, Course course) {
         WorkflowRulesRegistry.WorkflowContext context = new WorkflowContextImpl(timesheet, course, user);
         WorkflowRulesRegistry.User workflowUser = new UserImpl(user);
-        return WorkflowRulesRegistry.getValidActions(user.getRole(), timesheet.getStatus(), workflowUser, context);    }
+        return WorkflowRulesRegistry.getValidActions(user.getRole(), timesheet.getStatus(), workflowUser, context);
+    }
 
     /**
      * Validates additional business rules for specific actions.
@@ -189,20 +204,16 @@ public class ApprovalDomainService {
         // 1. Validate current status allows this action (business validity first → 400 on failure)
         validateStatusTransition(timesheet.getStatus(), action);
 
-        // 2. Validate user role can perform this type of action (authorization → 403 on failure)        if (!canRolePerformAction(requester.getRole(), action)) {
+        // 2. Validate user role can perform this type of action (authorization → 403 on failure)
+        if (!canRolePerformAction(requester.getRole(), action)) {
             throw new SecurityException("User role " + requester.getRole() + " cannot perform action " + action);
         }
 
-        // 3. Validate user has permission for this specific timesheet (authorization → 403 on failure)        if (!hasPermissionForTimesheet(timesheet, requester, course, action)) {
+        // 3. Validate user has permission for this specific timesheet (authorization → 403 on failure)
+        if (!hasPermissionForTimesheet(timesheet, requester, course, action)) {
             throw new SecurityException("User does not have permission to perform " + action + " on this timesheet");
         }
 
-<<<<<<< HEAD
-=======
-        // 3. Validate current status allows this action
-        validateStatusTransition(timesheet.getStatus(), action);
-
->>>>>>> c8486ccc9d77ad3c5893d5e2f8def3f49db6132a
         // 4. Additional business rule validation
         validateBusinessRulesForAction(timesheet, action, requester);
     }

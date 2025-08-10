@@ -165,6 +165,46 @@ test:
 
 ## Running Tests
 
+### Node-based Orchestration (Recommended, cross-platform)
+
+Use the project's Node scripts to run tests in a layered, reproducible way (no PowerShell piping). All scripts read from Single Source of Truth configs: `scripts/test.params.json` and `frontend/scripts/e2e.params.json`.
+
+Commands (from project root):
+
+```bash
+# Preflight: Java/Gradle/Docker/ports readiness
+node scripts/preflight.js
+
+# Backend
+node scripts/test-backend-unit.js         # Unit tests only (profile=test)
+node scripts/test-backend-integration.js  # Integration tests (Testcontainers)
+
+# Frontend
+node scripts/test-frontend-unit.js        # Vitest unit/component tests
+node scripts/test-frontend-contract.js    # API/contract/schema tests
+node scripts/test-frontend-e2e.js         # Playwright E2E (desktop UI project)
+
+# Full layered pipeline (stop on first failure)
+node scripts/test-all.js
+```
+
+E2E local iteration (fast re-runs):
+
+```bash
+# Start backend once (e2e profile) and keep running
+node scripts/start-backend-e2e.js
+
+# Re-run Playwright reusing backend (desktop UI only)
+node scripts/run-e2e.js --project=ui --nostart
+
+# Cleanup when done
+node scripts/cleanup-ports.js
+```
+
+Notes:
+- E2E reports are saved under `frontend/playwright-report/` (HTML/JUnit/trace) and `frontend/test-results/` (artifacts per failure).
+- Ports, backend profile, and timeouts are read from `frontend/scripts/e2e.params.json` (no hard-coded values).
+
 ### Prerequisites
 1. **Java 17+** installed
 2. **Maven 3.6+** installed

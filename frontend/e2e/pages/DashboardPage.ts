@@ -28,7 +28,8 @@ export class DashboardPage {
       this.page.waitForResponse('**/api/timesheets/pending-final-approval').catch(() => null),
       this.timesheetPage.timesheetsTable.waitFor({ timeout: 8000 }).catch(() => null),
       this.timesheetPage.emptyState.waitFor({ timeout: 8000 }).catch(() => null),
-      this.timesheetPage.errorMessage.waitFor({ timeout: 8000 }).catch(() => null)    ]);
+      this.timesheetPage.errorMessage.waitFor({ timeout: 8000 }).catch(() => null)
+    ]);
   }
 
   async expectToBeLoaded(role: 'LECTURER' | 'ADMIN' | 'TUTOR' = 'LECTURER') {

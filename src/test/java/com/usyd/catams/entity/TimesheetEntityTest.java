@@ -18,15 +18,37 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.usyd.catams.test.config.TestConfigurationLoader;
-import com.usyd.catams.common.validation.TimesheetValidationConstants;
+// import com.usyd.catams.common.validation.TimesheetValidationConstants;
+
+public class TimesheetEntityTest {
+
+    private Long TUTOR_ID;
+    private Long COURSE_ID;
+    private LocalDate WEEK_START;
+    private BigDecimal HOURS;
+    private Money HOURLY_RATE;
+    private String DESCRIPTION;
+    private Long CREATOR_ID;
+    private Timesheet timesheet;
+
+    @BeforeEach
+    void setUp() {
+        TUTOR_ID = 1L;
+        COURSE_ID = 10L;
+        WEEK_START = LocalDate.of(2024, 3, 4);
+        HOURS = new BigDecimal("10.5");
+        HOURLY_RATE = new Money(new BigDecimal("25.00"));
+        DESCRIPTION = "Tutorial preparation and delivery";
+        CREATOR_ID = 100L;
+
         timesheet = new Timesheet(
-            TUTOR_ID,
-            COURSE_ID,
-            new WeekPeriod(WEEK_START),
-            HOURS,
-            HOURLY_RATE,
-            DESCRIPTION,
-            CREATOR_ID
+                TUTOR_ID,
+                COURSE_ID,
+                new WeekPeriod(WEEK_START),
+                HOURS,
+                HOURLY_RATE,
+                DESCRIPTION,
+                CREATOR_ID
         );
     }
 
@@ -105,9 +127,10 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
             ApprovalStatus[] nonEditableStatuses = {
                 ApprovalStatus.PENDING_TUTOR_REVIEW,
                 ApprovalStatus.PENDING_TUTOR_REVIEW,
-                ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR,
-                ApprovalStatus.FINAL_APPROVED,                ApprovalStatus.REJECTED,
-                ApprovalStatus.FINAL_APPROVED
+            ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR,
+            ApprovalStatus.FINAL_APPROVED,
+            ApprovalStatus.REJECTED,
+            ApprovalStatus.FINAL_APPROVED
             };
 
             for (ApprovalStatus status : nonEditableStatuses) {
@@ -123,7 +146,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
             timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
             assertThat(timesheet.canBeApproved()).isTrue();
 
-            timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            assertThat(timesheet.canBeApproved()).isTrue();
+            timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+            assertThat(timesheet.canBeApproved()).isTrue();
         }
 
         @Test
@@ -133,7 +157,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
                 ApprovalStatus.MODIFICATION_REQUESTED,
                 ApprovalStatus.APPROVED_BY_TUTOR,
                 ApprovalStatus.FINAL_APPROVED,
-                ApprovalStatus.REJECTED            };
+                ApprovalStatus.REJECTED
+            };
 
             for (ApprovalStatus status : nonApprovableStatuses) {
                 timesheet.setStatus(status);

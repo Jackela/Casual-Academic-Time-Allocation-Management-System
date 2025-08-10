@@ -17,12 +17,29 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.usyd.catams.test.config.TestConfigurationLoader;
-import com.usyd.catams.common.validation.TimesheetValidationConstants;
+// import com.usyd.catams.common.validation.TimesheetValidationConstants;
+
+public class TimesheetTest {
+
+    private Long tutorId;
+    private Long courseId;
+    private Long creatorId;
+    private LocalDate weekStartDate;
+    private BigDecimal hours;
+    private BigDecimal hourlyRate;
+    private String description;
+    private Timesheet timesheet;
+
+    @BeforeEach
+    void setUp() {
+        tutorId = 1L;
+        courseId = 10L;
+        creatorId = 100L;
         weekStartDate = LocalDate.of(2024, 3, 4); // Monday
         hours = new BigDecimal("5.0");
         hourlyRate = new BigDecimal("25.00");
         description = "Test timesheet work";
-        
+
         timesheet = new Timesheet(tutorId, courseId, weekStartDate, hours, hourlyRate, description, creatorId);
     }
 
@@ -44,7 +61,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         Money hourlyRateMoney = new Money(hourlyRate);
 
         // When
-        Timesheet timesheet = new Timesheet(tutorId, courseId, weekPeriod, hours, hourlyRateMoney, description, creatorId);
+        Timesheet timesheet = new Timesheet(tutorId, courseId, weekPeriod, hours, hourlyRateMoney, description,
+                creatorId);
 
         // Then
         assertThat(timesheet.getTutorId()).isEqualTo(tutorId);
@@ -60,7 +78,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
     @Test
     void testConstructorWithPrimitives() {
         // When
-        Timesheet timesheet = new Timesheet(tutorId, courseId, weekStartDate, hours, hourlyRate, description, creatorId);
+        Timesheet timesheet = new Timesheet(tutorId, courseId, weekStartDate, hours, hourlyRate, description,
+                creatorId);
 
         // Then
         assertThat(timesheet.getTutorId()).isEqualTo(tutorId);
@@ -78,7 +97,7 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         // Given
         Long newId = 123L;
         LocalDateTime now = LocalDateTime.now();
-        
+
         // When
         timesheet.setId(newId);
         timesheet.setTutorId(999L);
@@ -86,7 +105,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         timesheet.setHours(new BigDecimal("3.5"));
         timesheet.setHourlyRate(new BigDecimal("30.00"));
         timesheet.setDescription("Updated description");
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        timesheet.setCreatedAt(now);
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet.setCreatedAt(now);
         timesheet.setUpdatedAt(now);
         timesheet.setCreatedBy(777L);
 
@@ -97,7 +117,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         assertThat(timesheet.getHours()).isEqualByComparingTo(new BigDecimal("3.5"));
         assertThat(timesheet.getHourlyRate()).isEqualByComparingTo(new BigDecimal("30.00"));
         assertThat(timesheet.getDescription()).isEqualTo("Updated description");
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);        assertThat(timesheet.getCreatedAt()).isEqualTo(now);
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(timesheet.getCreatedAt()).isEqualTo(now);
         assertThat(timesheet.getUpdatedAt()).isEqualTo(now);
         assertThat(timesheet.getCreatedBy()).isEqualTo(777L);
     }
@@ -160,7 +181,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
         assertThat(timesheet.isEditable()).isFalse();
 
-        timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);        assertThat(timesheet.isEditable()).isFalse();
+        timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        assertThat(timesheet.isEditable()).isFalse();
 
         timesheet.setStatus(ApprovalStatus.FINAL_APPROVED);
         assertThat(timesheet.isEditable()).isFalse();
@@ -175,7 +197,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
         assertThat(timesheet.canBeApproved()).isTrue();
 
-        timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);        assertThat(timesheet.canBeApproved()).isTrue();
+        timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        assertThat(timesheet.canBeApproved()).isTrue();
 
         // Test non-approvable statuses
         timesheet.setStatus(ApprovalStatus.DRAFT);
@@ -237,7 +260,7 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         List<Approval> approvals = timesheet.getApprovals();
         assertThat(approvals).hasSize(1);
         assertThat(approvals.get(0)).isEqualTo(approval);
-        
+
         // Verify immutable list
         assertThatThrownBy(() -> approvals.add(new Approval()))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -258,7 +281,7 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         assertThat(approval.getAction()).isEqualTo(ApprovalAction.SUBMIT_FOR_APPROVAL);
         assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.DRAFT);
         assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
-        
+
         assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
         assertThat(timesheet.getApprovals()).hasSize(1);
     }
@@ -290,20 +313,23 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
         assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
         assertThat(approval.getComment()).isEqualTo(comment);
-        
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);    }
+
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
+    }
 
     @Test
     void testApproveFromHRReview() {
         // Given
-        timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);        Long approverId = 456L;
+        timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        Long approverId = 456L;
 
         // When
         Approval approval = timesheet.approve(approverId, "Final approval");
 
         // Then
         assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);    }
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);
+    }
 
     @Test
     void testApproveFailsWhenNotApprovable() {
@@ -319,7 +345,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
     @Test
     void testReject() {
         // Given
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        Long approverId = 456L;
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        Long approverId = 456L;
         String comment = "Needs more detail";
 
         // When
@@ -329,9 +356,10 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         assertThat(approval).isNotNull();
         assertThat(approval.getApproverId()).isEqualTo(approverId);
         assertThat(approval.getAction()).isEqualTo(ApprovalAction.REJECT);
-        assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);        assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.REJECTED);
+        assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.REJECTED);
         assertThat(approval.getComment()).isEqualTo(comment);
-        
+
         assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.REJECTED);
     }
 
@@ -367,7 +395,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
     @Test
     void testRequestModification() {
         // Given
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        Long approverId = 456L;
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        Long approverId = 456L;
         String comment = "Please add more hours detail";
 
         // When
@@ -377,9 +406,10 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         assertThat(approval).isNotNull();
         assertThat(approval.getApproverId()).isEqualTo(approverId);
         assertThat(approval.getAction()).isEqualTo(ApprovalAction.REQUEST_MODIFICATION);
-        assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);        assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
+        assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
         assertThat(approval.getComment()).isEqualTo(comment);
-        
+
         assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
     }
 
@@ -412,7 +442,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         // When - Add multiple approvals
         timesheet.setStatus(ApprovalStatus.DRAFT);
         Approval approval1 = timesheet.submitForApproval(tutorId);
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        Approval approval2 = timesheet.approve(456L, "Approved");
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        Approval approval2 = timesheet.approve(456L, "Approved");
 
         // Then
         Optional<Approval> mostRecent = timesheet.getMostRecentApproval();
@@ -425,7 +456,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         // Given
         timesheet.setStatus(ApprovalStatus.DRAFT);
         Approval approval1 = timesheet.submitForApproval(tutorId);
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        Approval approval2 = timesheet.approve(456L, "Approved");
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        Approval approval2 = timesheet.approve(456L, "Approved");
 
         // When
         List<Approval> history = timesheet.getApprovalHistory();
@@ -453,7 +485,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         // Given
         timesheet.setStatus(ApprovalStatus.DRAFT);
         Approval submit = timesheet.submitForApproval(tutorId);
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        Approval approve = timesheet.approve(456L, "Good work");
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        Approval approve = timesheet.approve(456L, "Good work");
 
         // When
         List<Approval> submits = timesheet.getApprovalsByAction(ApprovalAction.SUBMIT_FOR_APPROVAL);
@@ -463,10 +496,10 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         // Then
         assertThat(submits).hasSize(1);
         assertThat(submits.get(0)).isEqualTo(submit);
-        
+
         assertThat(approvals).hasSize(1);
         assertThat(approvals.get(0)).isEqualTo(approve);
-        
+
         assertThat(rejections).isEmpty();
     }
 
@@ -474,11 +507,11 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
     void testAddApprovalUpdatesTimestamp() {
         // Given
         LocalDateTime before = LocalDateTime.now().minusSeconds(1);
-        
+
         // When
         timesheet.setStatus(ApprovalStatus.DRAFT);
         timesheet.submitForApproval(tutorId);
-        
+
         // Then
         LocalDateTime after = LocalDateTime.now().plusSeconds(1);
         assertThat(timesheet.getUpdatedAt()).isBetween(before, after);
@@ -505,7 +538,7 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
     @Test
     void testApprovalWorkflow() {
         // Test complete approval workflow
-        
+
         // 1. Start as DRAFT
         assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
         assertThat(timesheet.isEditable()).isTrue();
@@ -524,7 +557,8 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
 
         // 3b. Lecturer final approval (moves to HR queue)
         timesheet.finalApprove(789L, "Lecturer approved");
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);        assertThat(timesheet.canBeApproved()).isTrue();
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        assertThat(timesheet.canBeApproved()).isTrue();
 
         // 4. Final approval by HR
         timesheet.approve(789L, "HR approved");
@@ -532,13 +566,15 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
         assertThat(timesheet.canBeApproved()).isFalse();
         assertThat(timesheet.isEditable()).isFalse();
 
-        // Verify all approvals recorded (submit, tutor approve, lecturer final approve, HR approve)
-        assertThat(timesheet.getApprovals()).hasSize(4);    }
+        // Verify all approvals recorded (submit, tutor approve, lecturer final approve,
+        // HR approve)
+        assertThat(timesheet.getApprovals()).hasSize(4);
+    }
 
     @Test
     void testRejectionWorkflow() {
         // Test rejection workflow
-        
+
         // 1. Submit for approval
         timesheet.setStatus(ApprovalStatus.DRAFT);
         timesheet.submitForApproval(tutorId);
@@ -555,7 +591,7 @@ import com.usyd.catams.common.validation.TimesheetValidationConstants;
     @Test
     void testModificationRequestWorkflow() {
         // Test modification request workflow
-        
+
         // 1. Submit for approval
         timesheet.setStatus(ApprovalStatus.DRAFT);
         timesheet.submitForApproval(tutorId);

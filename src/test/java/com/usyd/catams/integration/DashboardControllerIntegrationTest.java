@@ -72,9 +72,9 @@ class DashboardControllerIntegrationTest extends IntegrationTestBase {
         course1 = createCourse("COMP1001", "Introduction to Programming", lecturerUser.getId(), new BigDecimal("5000.00"));
         course2 = createCourse("COMP2001", "Data Structures", lecturerUser.getId(), new BigDecimal("7000.00"));
 
-        // Create test timesheets
-        createTimesheet(tutorUser.getId(), course1.getId(), new BigDecimal("10.5"), new BigDecimal("45.00"), ApprovalStatus.PENDING_LECTURER_APPROVAL);
-        createTimesheet(tutorUser.getId(), course2.getId(), new BigDecimal("8.0"), new BigDecimal("45.00"), ApprovalStatus.APPROVED);
+        // Create test timesheets (align with final SSOT states)
+        createTimesheet(tutorUser.getId(), course1.getId(), new BigDecimal("10.5"), new BigDecimal("45.00"), ApprovalStatus.PENDING_TUTOR_REVIEW);
+        createTimesheet(tutorUser.getId(), course2.getId(), new BigDecimal("8.0"), new BigDecimal("45.00"), ApprovalStatus.FINAL_APPROVED);
     }
 
     // ==================== TUTOR DASHBOARD TESTS ====================

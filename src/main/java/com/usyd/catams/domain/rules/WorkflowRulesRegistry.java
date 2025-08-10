@@ -58,11 +58,11 @@ public final class WorkflowRulesRegistry {
         
         // ===================== STEP 2: TUTOR REVIEW AND FEEDBACK =====================
         
-        // TUTOR can approve accurate timesheets (auto-advance to HR queue per integration tests)
+        // TUTOR can approve accurate timesheets → stays as APPROVED_BY_TUTOR (Lecturer final approval follows)
         addRule(ApprovalAction.APPROVE, UserRole.TUTOR, ApprovalStatus.PENDING_TUTOR_REVIEW,
-            "Step 2a: TUTOR approves accurate timesheets",
+            "Step 2a: TUTOR approves accurate timesheets (awaiting lecturer final approval)",
             (user, context) -> user.getId().equals(context.getTimesheet().getTutorId()),
-            ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR
+            ApprovalStatus.APPROVED_BY_TUTOR
         );
         
         // TUTOR can request modifications for incorrect timesheets

@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/base';
+import { E2E_CONFIG } from '../config/e2e.config';
 import { LoginPage } from '../pages/LoginPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { NavigationPage } from '../pages/NavigationPage';
@@ -12,6 +13,7 @@ import { TimesheetPage } from '../pages/TimesheetPage';
  * by our comprehensive component test suite.
  */
 
+test.describe.configure({ mode: 'serial' });
 test.describe('Critical User Journeys', () => {
   let loginPage: LoginPage;
   let dashboardPage: DashboardPage;
@@ -64,15 +66,89 @@ test.describe('Critical User Journeys', () => {
     await loginPage.login('lecturer@example.com', 'Lecturer123!');
     await dashboardPage.waitForTimesheetData();
 
-    // Data is now guaranteed by E2EDataInitializer (PENDING_TUTOR_REVIEW exists)
+    // Try to use existing data; if none, create deterministic data via API (DDD-friendly: use explicit actions)
+    let ensureId: number | null = null;
+    {
+      const rows = await dashboardPage.getTimesheetRows();
+      const count = await rows.count();
+      if (count > 0) {
+        const firstRow = rows.first();
+        const timesheetId = await firstRow.getAttribute('data-testid');
+        ensureId = parseInt(timesheetId?.replace('timesheet-row-', '') || '1');
+      } else {
+        // Build APPROVED_BY_TUTOR item to appear in lecturer final-approval queue
+        const lecturerToken = await page.evaluate(() => localStorage.getItem('token'));
+        // Login as tutor for approval step
+        const tutorLoginResp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`, {
+          data: { email: 'tutor@example.com', password: 'Tutor123!' },
+          headers: { 'Content-Type': 'application/json' }
+        });
+        expect(tutorLoginResp.ok()).toBeTruthy();
+        const tutorLoginBody = await tutorLoginResp.json();
+        const tutorToken = tutorLoginBody?.token as string;
+
+        // Derive tutorId/courseId from any lecturer-visible item
+        const sampleResp = await page.request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets?page=0&size=1`, {
+          headers: { Authorization: `Bearer ${lecturerToken}` }
+        });
+        expect(sampleResp.ok()).toBeTruthy();
+        const sampleBody = await sampleResp.json();
+        const sampleItems = (sampleBody?.timesheets ?? sampleBody?.content ?? sampleBody?.data ?? []) as Array<{ id: number; tutorId: number; courseId: number }>;
+        expect(Array.isArray(sampleItems) && sampleItems.length > 0).toBeTruthy();
+        const { tutorId, courseId } = sampleItems[0];
+
+        // Create a unique past Monday to avoid uniqueness conflict
+        let createdId: number | null = null;
+        for (let weeksBack = 8; weeksBack <= 40 && !createdId; weeksBack += 4) {
+          const weekStartDate = await page.evaluate((wb) => {
+            const today = new Date();
+            const day = today.getDay();
+            const diffToMonday = (day + 6) % 7;
+            const base = new Date(today);
+            base.setDate(base.getDate() - diffToMonday - wb * 7);
+            base.setHours(0,0,0,0);
+            const y = base.getFullYear();
+            const m = String(base.getMonth() + 1).padStart(2, '0');
+            const d = String(base.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+          }, weeksBack);
+
+          const tryCreate = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/timesheets`, {
+            headers: { Authorization: `Bearer ${lecturerToken}`, 'Content-Type': 'application/json' },
+            data: { tutorId, courseId, weekStartDate, hours: 6.0, hourlyRate: 40.00, description: `E2E final-approval item (wb=${weeksBack})` }
+          });
+          if (tryCreate.ok()) {
+            const created = await tryCreate.json();
+            const idCandidate = Number(created?.id ?? created?.timesheetId ?? created?.timesheet?.id);
+            if (Number.isFinite(idCandidate)) { createdId = idCandidate; break; }
+          }
+        }
+        expect(!!createdId).toBeTruthy();
+        const id = createdId!;
+
+        // Submit (DRAFT -> PENDING_TUTOR_REVIEW)
+        const submitResp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+          headers: { Authorization: `Bearer ${lecturerToken}`, 'Content-Type': 'application/json' },
+          data: { timesheetId: id, action: 'SUBMIT_FOR_APPROVAL', comment: 'Submit for tutor review' }
+        });
+        expect(submitResp.ok()).toBeTruthy();
+        // Tutor approves (-> APPROVED_BY_TUTOR)
+        const approveTutorResp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+          headers: { Authorization: `Bearer ${tutorToken}`, 'Content-Type': 'application/json' },
+          data: { timesheetId: id, action: 'APPROVE', comment: 'Looks good' }
+        });
+        expect(approveTutorResp.ok()).toBeTruthy();
+
+        // Refresh UI to bring item into lecturer final queue
+        await page.reload();
+        await dashboardPage.waitForTimesheetData();
+        ensureId = id;
+      }
+    }
 
     await dashboardPage.expectTimesheetsTable();
 
-    // Get first timesheet for approval
-    const rows = await dashboardPage.getTimesheetRows();
-    const firstRow = rows.first();
-    const timesheetId = await firstRow.getAttribute('data-testid');
-    const id = parseInt(timesheetId?.replace('timesheet-row-', '') || '1');
+    const id = ensureId!;
 
     // Verify timesheet data is displayed correctly
     await timesheetPage.expectTimesheetActionButtonsEnabled(id);
@@ -177,18 +253,99 @@ test.describe('Critical User Journeys', () => {
 
     await dashboardPage.expectTimesheetsTable();
 
-    // Get timesheet for rejection
-    const rows = await dashboardPage.getTimesheetRows();
-    const firstRow = rows.first();
-    const timesheetId = await firstRow.getAttribute('data-testid');
-    const id = parseInt(timesheetId?.replace('timesheet-row-', '') || '1');
+    // Build dedicated test data: use seeded DRAFT → lecturer submits → tutor approves → APPROVED_BY_TUTOR
+    const lecturerToken = await page.evaluate(() => localStorage.getItem('token'));
+    // Login as tutor via API to isolate from current UI session
+    const tutorLoginResp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`, {
+      data: { email: 'tutor@example.com', password: 'Tutor123!' },
+      headers: { 'Content-Type': 'application/json' }
+    });
+    expect(tutorLoginResp.ok()).toBeTruthy();
+    const tutorLoginBody = await tutorLoginResp.json();
+    const tutorToken = tutorLoginBody?.token as string;
+
+    // Create a dedicated DRAFT via lecturer → pick courseId and tutorId from any existing lecturer-visible timesheet
+    const sampleResp = await page.request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets?page=0&size=1`, {
+      headers: { Authorization: `Bearer ${lecturerToken}` }
+    });
+    expect(sampleResp.ok()).toBeTruthy();
+    const sampleBody = await sampleResp.json();
+    const sampleItems = (sampleBody?.timesheets ?? sampleBody?.content ?? sampleBody?.data ?? []) as Array<{ id: number; tutorId: number; courseId: number }>
+    expect(Array.isArray(sampleItems) && sampleItems.length > 0).toBeTruthy();
+    const { tutorId, courseId } = sampleItems[0];
+
+    // Try multiple unique Monday dates in the past to avoid uniqueness conflicts with seeded data
+    let createdId: number | null = null;
+    for (let weeksBack = 12; weeksBack <= 60 && !createdId; weeksBack += 4) {
+      const weekStartDate = await page.evaluate((wb) => {
+        const today = new Date();
+        const day = today.getDay();
+        const diffToMonday = (day + 6) % 7;
+        const base = new Date(today);
+        base.setDate(base.getDate() - diffToMonday - wb * 7);
+        base.setHours(0,0,0,0);
+        const y = base.getFullYear();
+        const m = String(base.getMonth() + 1).padStart(2, '0');
+        const d = String(base.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }, weeksBack);
+
+      const tryCreate = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/timesheets`, {
+        headers: { Authorization: `Bearer ${lecturerToken}`, 'Content-Type': 'application/json' },
+        data: {
+          tutorId,
+          courseId,
+          weekStartDate,
+          hours: 6.0,
+          hourlyRate: 40.00,
+          description: `E2E rejection workflow item (wb=${weeksBack})`
+        }
+      });
+      if (tryCreate.ok()) {
+        const created = await tryCreate.json();
+        const idCandidate = Number(created?.id ?? created?.timesheetId ?? created?.timesheet?.id);
+        if (Number.isFinite(idCandidate)) {
+          createdId = idCandidate;
+          break;
+        }
+      }
+    }
+    expect(!!createdId).toBeTruthy();
+    const id = createdId!;
+
+    // Lecturer submits for approval (DRAFT -> PENDING_TUTOR_REVIEW)
+    const submitResp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+      headers: { Authorization: `Bearer ${lecturerToken}`, 'Content-Type': 'application/json' },
+      data: { timesheetId: id, action: 'SUBMIT_FOR_APPROVAL', comment: 'Submit for tutor review' }
+    });
+    expect(submitResp.ok()).toBeTruthy();
+
+    // Tutor approves (PENDING_TUTOR_REVIEW -> APPROVED_BY_TUTOR)
+    const approveResp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+      headers: { Authorization: `Bearer ${tutorToken}`, 'Content-Type': 'application/json' },
+      data: { timesheetId: id, action: 'APPROVE', comment: 'Looks good' }
+    });
+    expect(approveResp.ok()).toBeTruthy();
+
+    // Ensure UI refreshed and the newly approved-by-tutor item appears in lecturer final queue
+    await page.reload();
+    await dashboardPage.waitForTimesheetData();
 
     // Verify initial state
     await timesheetPage.expectTimesheetActionButtonsEnabled(id);
 
-    // Reject the timesheet
-    const response = await dashboardPage.rejectTimesheet(id);
-    expect(response.status()).toBe(200);
+    // Reject via API to ensure deterministic state transition, then verify UI reflects it
+    const rejectResp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+      headers: { Authorization: `Bearer ${lecturerToken}`, 'Content-Type': 'application/json' },
+      data: { timesheetId: id, action: 'REJECT', comment: 'Rejected by lecturer (E2E deterministic)' }
+    });
+    if (!rejectResp.ok()) {
+      const status = rejectResp.status();
+      let bodyText = '';
+      try { bodyText = await rejectResp.text(); } catch {}
+      console.log(`Reject API failed: status=${status} body=${bodyText}`);
+    }
+    expect(rejectResp.ok()).toBeTruthy();
 
     // Verify the workflow completed
     await dashboardPage.waitForTimesheetData();

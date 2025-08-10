@@ -1,10 +1,9 @@
 plugins {
     java
     id("org.springframework.boot") version "3.2.0"
-    id("io.spring.dependency-management") version "1.1.4"
-    id("org.openapi.generator") version "7.5.0" // Core: Add OpenAPI Generator plugin
+    id("org.openapi.generator") version "7.7.0" // Core: Add OpenAPI Generator plugin (Gradle 9-ready)
     jacoco
-    id("com.github.node-gradle.node") version "7.0.2" // 1. Introduce node-gradle plugin
+    id("com.github.node-gradle.node") version "7.1.0" // 1. Introduce node-gradle plugin (Gradle 9 compat)
 }
 
 group = "com.usyd"
@@ -217,8 +216,8 @@ jacoco {
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
     reports {
-        xml.required = true
-        html.required = true
+        xml.required.set(true)
+        html.required.set(true)
     }
 }
 

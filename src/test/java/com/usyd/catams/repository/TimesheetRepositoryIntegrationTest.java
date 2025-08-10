@@ -8,17 +8,12 @@ import com.usyd.catams.common.domain.model.WeekPeriod;
 import com.usyd.catams.integration.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
-import org.springframework.beans.factory.annotation.Autowired;import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-=======
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
->>>>>>> c8486ccc9d77ad3c5893d5e2f8def3f49db6132a
+// Removed merge conflict remnants
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -27,8 +22,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-<<<<<<< HEAD
-class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
+public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
+
     @Autowired
     private TimesheetRepository timesheetRepository;
 

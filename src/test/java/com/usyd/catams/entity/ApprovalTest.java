@@ -4,8 +4,13 @@ import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;class ApprovalTest {
+
+import java.time.LocalDateTime;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class ApprovalTest {
 
     private Approval approval;
     private Long timesheetId;
@@ -21,7 +26,8 @@ import org.springframework.test.context.ActiveProfiles;class ApprovalTest {
         approverId = 456L;
         action = ApprovalAction.SUBMIT_FOR_APPROVAL;
         previousStatus = ApprovalStatus.DRAFT;
-        newStatus = ApprovalStatus.PENDING_TUTOR_REVIEW;        comment = "Submitting timesheet for approval";
+        newStatus = ApprovalStatus.PENDING_TUTOR_REVIEW;
+        comment = "Submitting timesheet for approval";
         
         approval = new Approval(timesheetId, approverId, action, previousStatus, newStatus, comment);
     }
@@ -67,7 +73,8 @@ import org.springframework.test.context.ActiveProfiles;class ApprovalTest {
         Long newApproverId = 888L;
         ApprovalAction newAction = ApprovalAction.APPROVE;
         ApprovalStatus newPreviousStatus = ApprovalStatus.PENDING_TUTOR_REVIEW;
-        ApprovalStatus newNewStatus = ApprovalStatus.APPROVED_BY_TUTOR;        String newComment = "Updated comment";
+        ApprovalStatus newNewStatus = ApprovalStatus.APPROVED_BY_TUTOR;
+        String newComment = "Updated comment";
         LocalDateTime timestamp = LocalDateTime.now();
         Boolean isActive = false;
 
@@ -281,29 +288,33 @@ import org.springframework.test.context.ActiveProfiles;class ApprovalTest {
     @Test
     void testDifferentApprovalActions() {
         // Test SUBMIT_FOR_APPROVAL
-        Approval submission = new Approval(1L, 100L, ApprovalAction.SUBMIT_FOR_APPROVAL, 
-                ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_REVIEW, "Submitting");        assertThat(submission.isSubmission()).isTrue();
+        Approval submission = new Approval(1L, 100L, ApprovalAction.SUBMIT_FOR_APPROVAL,
+                ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_REVIEW, "Submitting");
+        assertThat(submission.isSubmission()).isTrue();
         assertThat(submission.isApproval()).isFalse();
         assertThat(submission.isRejection()).isFalse();
         assertThat(submission.isModificationRequest()).isFalse();
 
         // Test APPROVE
-        Approval approvalAction = new Approval(1L, 200L, ApprovalAction.APPROVE, 
-                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.APPROVED_BY_TUTOR, "Approved");        assertThat(approvalAction.isSubmission()).isFalse();
+        Approval approvalAction = new Approval(1L, 200L, ApprovalAction.APPROVE,
+                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.APPROVED_BY_TUTOR, "Approved");
+        assertThat(approvalAction.isSubmission()).isFalse();
         assertThat(approvalAction.isApproval()).isTrue();
         assertThat(approvalAction.isRejection()).isFalse();
         assertThat(approvalAction.isModificationRequest()).isFalse();
 
         // Test REJECT
-        Approval rejection = new Approval(1L, 300L, ApprovalAction.REJECT, 
-                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.REJECTED, "Rejected");        assertThat(rejection.isSubmission()).isFalse();
+        Approval rejection = new Approval(1L, 300L, ApprovalAction.REJECT,
+                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.REJECTED, "Rejected");
+        assertThat(rejection.isSubmission()).isFalse();
         assertThat(rejection.isApproval()).isFalse();
         assertThat(rejection.isRejection()).isTrue();
         assertThat(rejection.isModificationRequest()).isFalse();
 
         // Test REQUEST_MODIFICATION
-        Approval modRequest = new Approval(1L, 400L, ApprovalAction.REQUEST_MODIFICATION, 
-                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.MODIFICATION_REQUESTED, "Needs changes");        assertThat(modRequest.isSubmission()).isFalse();
+        Approval modRequest = new Approval(1L, 400L, ApprovalAction.REQUEST_MODIFICATION,
+                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.MODIFICATION_REQUESTED, "Needs changes");
+        assertThat(modRequest.isSubmission()).isFalse();
         assertThat(modRequest.isApproval()).isFalse();
         assertThat(modRequest.isRejection()).isFalse();
         assertThat(modRequest.isModificationRequest()).isTrue();
@@ -312,30 +323,33 @@ import org.springframework.test.context.ActiveProfiles;class ApprovalTest {
     @Test
     void testApprovalWorkflowScenarios() {
         // Scenario 1: Initial submission (now goes to PENDING_TUTOR_REVIEW)
-        Approval submission = new Approval(1L, 100L, ApprovalAction.SUBMIT_FOR_APPROVAL, 
+        Approval submission = new Approval(1L, 100L, ApprovalAction.SUBMIT_FOR_APPROVAL,
                 ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_REVIEW, null);
         submission.validateBusinessRules();
         assertThat(submission.isSubmission()).isTrue();
 
         // Scenario 2: Tutor approval (moves to APPROVED_BY_TUTOR)
-        Approval tutorApproval = new Approval(1L, 200L, ApprovalAction.APPROVE, 
+        Approval tutorApproval = new Approval(1L, 200L, ApprovalAction.APPROVE,
                 ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.APPROVED_BY_TUTOR, "Looks good");
         tutorApproval.validateBusinessRules();
         assertThat(tutorApproval.isApproval()).isTrue();
 
         // Scenario 3: HR final approval
-        Approval hrApproval = new Approval(1L, 300L, ApprovalAction.APPROVE, 
-                ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalStatus.FINAL_APPROVED, "Final approval");        hrApproval.validateBusinessRules();
+        Approval hrApproval = new Approval(1L, 300L, ApprovalAction.APPROVE,
+                ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalStatus.FINAL_APPROVED, "Final approval");
+        hrApproval.validateBusinessRules();
         assertThat(hrApproval.isApproval()).isTrue();
 
         // Scenario 4: Rejection at any stage
-        Approval rejection = new Approval(1L, 200L, ApprovalAction.REJECT, 
-                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.REJECTED, "Insufficient detail");        rejection.validateBusinessRules();
+        Approval rejection = new Approval(1L, 200L, ApprovalAction.REJECT,
+                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.REJECTED, "Insufficient detail");
+        rejection.validateBusinessRules();
         assertThat(rejection.isRejection()).isTrue();
 
         // Scenario 5: Modification request
-        Approval modRequest = new Approval(1L, 200L, ApprovalAction.REQUEST_MODIFICATION, 
-                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.MODIFICATION_REQUESTED, "Add more hours breakdown");        modRequest.validateBusinessRules();
+        Approval modRequest = new Approval(1L, 200L, ApprovalAction.REQUEST_MODIFICATION,
+                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.MODIFICATION_REQUESTED, "Add more hours breakdown");
+        modRequest.validateBusinessRules();
         assertThat(modRequest.isModificationRequest()).isTrue();
     }
 
@@ -401,46 +415,50 @@ import org.springframework.test.context.ActiveProfiles;class ApprovalTest {
         Long hrId = 300L;
 
         // 1. Initial submission by lecturer (now goes to PENDING_TUTOR_REVIEW)
-        Approval submission = new Approval(timesheetId, lecturerId, ApprovalAction.SUBMIT_FOR_APPROVAL, 
+        Approval submission = new Approval(timesheetId, lecturerId, ApprovalAction.SUBMIT_FOR_APPROVAL,
                 ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_REVIEW, "Initial submission");
         submission.validateBusinessRules();
         assertThat(submission.isSubmission()).isTrue();
 
         // 2. Tutor requests modification
-        Approval modRequest = new Approval(timesheetId, tutorId, ApprovalAction.REQUEST_MODIFICATION, 
-                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.MODIFICATION_REQUESTED,                 "Please provide more detail on the 5-hour session");
+        Approval modRequest = new Approval(timesheetId, tutorId, ApprovalAction.REQUEST_MODIFICATION,
+                ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.MODIFICATION_REQUESTED,
+                "Please provide more detail on the 5-hour session");
         modRequest.validateBusinessRules();
         assertThat(modRequest.isModificationRequest()).isTrue();
 
         // 3. Lecturer resubmits after changes
-        Approval resubmission = new Approval(timesheetId, lecturerId, ApprovalAction.SUBMIT_FOR_APPROVAL, 
+        Approval resubmission = new Approval(timesheetId, lecturerId, ApprovalAction.SUBMIT_FOR_APPROVAL,
                 ApprovalStatus.MODIFICATION_REQUESTED, ApprovalStatus.PENDING_TUTOR_REVIEW, "Resubmitting with requested changes");
         resubmission.validateBusinessRules();
         assertThat(resubmission.isSubmission()).isTrue();
 
         // 4. Tutor approves (goes to APPROVED_BY_TUTOR)
-        Approval tutorApproval = new Approval(timesheetId, tutorId, ApprovalAction.APPROVE, 
+        Approval tutorApproval = new Approval(timesheetId, tutorId, ApprovalAction.APPROVE,
                 ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.APPROVED_BY_TUTOR, "Approved");
         tutorApproval.validateBusinessRules();
         assertThat(tutorApproval.isApproval()).isTrue();
 
         // 5. HR gives final approval
-        Approval finalApproval = new Approval(timesheetId, hrId, ApprovalAction.APPROVE, 
-                ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalStatus.FINAL_APPROVED, "Final approval granted");        finalApproval.validateBusinessRules();
+        Approval finalApproval = new Approval(timesheetId, hrId, ApprovalAction.APPROVE,
+                ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalStatus.FINAL_APPROVED, "Final approval granted");
+        finalApproval.validateBusinessRules();
         assertThat(finalApproval.isApproval()).isTrue();
 
         // Verify all approvals are for the same timesheet
         assertThat(submission.getTimesheetId()).isEqualTo(timesheetId);
         assertThat(modRequest.getTimesheetId()).isEqualTo(timesheetId);
         assertThat(resubmission.getTimesheetId()).isEqualTo(timesheetId);
-        assertThat(tutorApproval.getTimesheetId()).isEqualTo(timesheetId);        assertThat(finalApproval.getTimesheetId()).isEqualTo(timesheetId);
+        assertThat(tutorApproval.getTimesheetId()).isEqualTo(timesheetId);
+        assertThat(finalApproval.getTimesheetId()).isEqualTo(timesheetId);
     }
 
     @Test
     void testEdgeCaseValidation() {
         // Test with minimum valid values
-        Approval minimalApproval = new Approval(1L, 1L, ApprovalAction.SUBMIT_FOR_APPROVAL, 
-                ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_REVIEW, null);        minimalApproval.validateBusinessRules();
+        Approval minimalApproval = new Approval(1L, 1L, ApprovalAction.SUBMIT_FOR_APPROVAL,
+                ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_REVIEW, null);
+        minimalApproval.validateBusinessRules();
         assertThat(minimalApproval.getComment()).isNull();
 
         // Test with maximum comment length (500 characters)

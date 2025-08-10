@@ -3,19 +3,18 @@ post:
     - Approvals
   summary: Perform approval action
   description: |
-    Perform an approval action on a timesheet (approve, reject, or request modification).
+    Perform an approval action on a timesheet (approve, reject, request modification, final approval).
     
-    **Access rules**:
-    - **LECTURER**: Can approve/reject timesheets for their courses
-    - **TUTOR**: Can request modifications to their own timesheets
-    - **ADMIN**: Can perform any approval action
+    **Access rules (SSOT aligned)**:
+    - **TUTOR**: Can APPROVE / REJECT / REQUEST_MODIFICATION on `PENDING_TUTOR_REVIEW` (owns the timesheet)
+    - **LECTURER**: Can FINAL_APPROVAL / REJECT on `APPROVED_BY_TUTOR` (their courses)
+    - **HR/ADMIN**: Can HR_APPROVE / HR_REJECT on `APPROVED_BY_LECTURER_AND_TUTOR`; ADMIN may perform any action
     
-    **Workflow states**:
-    - DRAFT -> PENDING_LECTURER_APPROVAL (submit for approval)
-    - PENDING_LECTURER_APPROVAL -> APPROVED or REJECTED or MODIFICATION_REQUESTED
-    - MODIFICATION_REQUESTED -> PENDING_LECTURER_APPROVAL (after tutor addresses)
-    - APPROVED -> PENDING_HR_REVIEW (auto-transition)
-    - PENDING_HR_REVIEW -> FINAL_APPROVED or REJECTED (ADMIN/HR only)
+    **Workflow states (enhanced path)**:
+    - DRAFT -> PENDING_TUTOR_REVIEW (SUBMIT_FOR_APPROVAL)
+    - PENDING_TUTOR_REVIEW -> APPROVED_BY_TUTOR (APPROVE) | REJECTED (REJECT) | MODIFICATION_REQUESTED (REQUEST_MODIFICATION)
+    - APPROVED_BY_TUTOR -> APPROVED_BY_LECTURER_AND_TUTOR (FINAL_APPROVAL) | REJECTED (REJECT by LECTURER)
+    - APPROVED_BY_LECTURER_AND_TUTOR -> FINAL_APPROVED (HR_APPROVE) | REJECTED (HR_REJECT)
   operationId: performApprovalAction
   security:
     - bearerAuth: []
@@ -56,14 +55,14 @@ post:
               summary: Successful approval action
               value:
                 timesheetId: 789
-                action: "APPROVE"
-                newStatus: "APPROVED"
+                action: "FINAL_APPROVAL"
+                newStatus: "APPROVED_BY_LECTURER_AND_TUTOR"
                 approverId: 999
-                approverName: "Dr. John Smith"
-                comment: "Approved - hours and description look correct"
+                approverName: "Dr. Jane Smith"
+                comment: "Final academic approval"
                 timestamp: "2025-08-01T16:30:00Z"
                 nextSteps:
-                  - "Timesheet automatically submitted to HR for final review"
+                  - "Timesheet is ready for HR final review"
     '400':
       description: Invalid approval action or business rule violation
       content:

@@ -1,6 +1,5 @@
 package com.usyd.catams.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.usyd.catams.dto.request.ApprovalActionRequest;
 import com.usyd.catams.dto.request.TimesheetCreateRequest;
 import com.usyd.catams.dto.request.TimesheetUpdateRequest;
@@ -15,18 +14,12 @@ import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
-import com.usyd.catams.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -66,12 +58,12 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
     private User lecturer;
     private User tutor;
-    private User admin;
+    private User admin; // kept for completeness of seeded roles
     private Course course;
     private LocalDate mondayDate;
     private String localTutorToken;
     private String localLecturerToken;
-    private String localAdminToken;
+    
 
     @BeforeEach
     void setUp() {
@@ -97,7 +89,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         // Generate JWT tokens for testing
         localTutorToken = jwtTokenProvider.generateToken(tutor.getId(), tutor.getEmail(), tutor.getRole().name());
         localLecturerToken = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
-        localAdminToken = jwtTokenProvider.generateToken(admin.getId(), admin.getEmail(), admin.getRole().name());
+        // Admin token not needed for current tests
     }
 
     /**
@@ -121,8 +113,8 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         PagedTimesheetResponse response = objectMapper.readValue(
             result.getResponse().getContentAsString(), PagedTimesheetResponse.class);
 
-        assertThat(response.getContent()).hasSize(3);
-        assertThat(response.getContent()).extracting("id")
+        assertThat(response.getTimesheets()).hasSize(3);
+        assertThat(response.getTimesheets()).extracting("id")
             .containsExactlyInAnyOrder(draftTimesheet.getId(), rejectedTimesheet.getId(), approvedTimesheet.getId());
     }
 
@@ -147,9 +139,9 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         PagedTimesheetResponse response = objectMapper.readValue(
             result.getResponse().getContentAsString(), PagedTimesheetResponse.class);
 
-        assertThat(response.getContent()).hasSize(1);
-        assertThat(response.getContent().get(0).getId()).isEqualTo(rejectedTimesheet.getId());
-        assertThat(response.getContent().get(0).getStatus()).isEqualTo(ApprovalStatus.REJECTED);
+        assertThat(response.getTimesheets()).hasSize(1);
+        assertThat(response.getTimesheets().get(0).getId()).isEqualTo(rejectedTimesheet.getId());
+        assertThat(response.getTimesheets().get(0).getStatus()).isEqualTo(ApprovalStatus.REJECTED);
     }
 
     /**
@@ -171,8 +163,8 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         PagedTimesheetResponse response = objectMapper.readValue(
             result.getResponse().getContentAsString(), PagedTimesheetResponse.class);
 
-        assertThat(response.getContent()).hasSize(1);
-        TimesheetResponse timesheetResponse = response.getContent().get(0);
+        assertThat(response.getTimesheets()).hasSize(1);
+        TimesheetResponse timesheetResponse = response.getTimesheets().get(0);
         assertThat(timesheetResponse.getStatus()).isEqualTo(ApprovalStatus.REJECTED);
         assertThat(timesheetResponse.getId()).isEqualTo(rejectedTimesheet.getId());
     }
@@ -358,8 +350,8 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
         PagedTimesheetResponse viewResponse = objectMapper.readValue(
             viewResult.getResponse().getContentAsString(), PagedTimesheetResponse.class);
-        assertThat(viewResponse.getContent()).hasSize(1);
-        assertThat(viewResponse.getContent().get(0).getStatus()).isEqualTo(ApprovalStatus.REJECTED);
+        assertThat(viewResponse.getTimesheets()).hasSize(1);
+        assertThat(viewResponse.getTimesheets().get(0).getStatus()).isEqualTo(ApprovalStatus.REJECTED);
 
         // Step 5: TUTOR edits rejected timesheet
         TimesheetUpdateRequest updateRequest = new TimesheetUpdateRequest();
@@ -412,7 +404,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         // Then: Only own timesheets are returned
         PagedTimesheetResponse response = objectMapper.readValue(
             result.getResponse().getContentAsString(), PagedTimesheetResponse.class);
-        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTimesheets()).isEmpty();
     }
 
     // Helper methods
@@ -435,11 +427,5 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         return timesheetRepository.save(timesheet);
     }
 
-    private LocalDate getNextMonday() {
-        LocalDate date = LocalDate.now();
-        while (date.getDayOfWeek() != DayOfWeek.MONDAY) {
-            date = date.plusDays(1);
-        }
-        return date;
-    }
+    
 }

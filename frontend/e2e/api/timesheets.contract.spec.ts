@@ -4,17 +4,18 @@
  * Validates backend contract behavior and response schemas
  */
 
-import { describe, beforeAll, beforeEach, afterEach, test, expect } from 'vitest';
+// Converted to Playwright-style test to avoid Vitest expect collision under E2E
+import { test, expect } from '@playwright/test';
 import { CatamsAPIClient, type Credentials, type TimesheetPage, type Timesheet, type ApprovalRequest, type ApprovalResponse } from '../../src/api/ApiClient';
 import { waitForBackendReady } from '../utils/health-checker';
 import { testCredentials } from '../fixtures/base';
 
-describe('Timesheet API Contract', () => {
+test.describe('Timesheet API Contract', () => {
   let lecturerClient: CatamsAPIClient;
   let tutorClient: CatamsAPIClient;
   let authenticatedLecturerToken: string;
 
-  beforeAll(async () => {
+  test.beforeAll(async () => {
     // Wait for backend to be ready
     await waitForBackendReady();
     console.log('✅ Backend ready - starting timesheet API contract tests');
@@ -37,14 +38,14 @@ describe('Timesheet API Contract', () => {
     expect(tutorAuth.success).toBe(true);
   });
 
-  afterEach(() => {
+  test.afterEach(() => {
     // Reset any modifications between tests
     if (lecturerClient) {
       lecturerClient.setAuthToken(authenticatedLecturerToken);
     }
   });
 
-  describe('GET /api/timesheets/pending-approval', () => {
+  test.describe('GET /api/timesheets/pending-final-approval', () => {
     test('should return paginated pending timesheets for lecturer', async () => {
       const response: TimesheetPage = await lecturerClient.getPendingTimesheets();
 
@@ -96,7 +97,7 @@ describe('Timesheet API Contract', () => {
     });
   });
 
-  describe('GET /api/timesheets (user timesheets)', () => {
+  test.describe('GET /api/timesheets (user timesheets)', () => {
     test('should return user timesheets with pagination', async () => {
       const response: TimesheetPage = await tutorClient.getUserTimesheets();
 
@@ -121,7 +122,7 @@ describe('Timesheet API Contract', () => {
     });
   });
 
-  describe('POST /api/approvals', () => {
+  test.describe('POST /api/approvals', () => {
     test('should validate approval request structure', async () => {
       // First get a pending timesheet to approve
       const pendingTimesheets = await lecturerClient.getPendingTimesheets(0, 1);
@@ -188,7 +189,7 @@ describe('Timesheet API Contract', () => {
     });
   });
 
-  describe('Convenience Approval Methods', () => {
+  test.describe('Convenience Approval Methods', () => {
     test('should provide approve convenience method', async () => {
       const pendingTimesheets = await lecturerClient.getPendingTimesheets(0, 1);
       
@@ -236,7 +237,7 @@ describe('Timesheet API Contract', () => {
     });
   });
 
-  describe('Error Handling', () => {
+  test.describe('Error Handling', () => {
     test('should handle non-existent timesheet IDs gracefully', async () => {
       const nonExistentId = 999999;
 
@@ -290,8 +291,16 @@ function validateTimesheetStructure(timesheet: Timesheet): void {
   expect(typeof timesheet.description).toBe('string');
   expect(typeof timesheet.status).toBe('string');
   
-  // Validate status is one of expected values
-  expect(['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'PENDING_LECTURER_APPROVAL']).toContain(timesheet.status);
+  // Validate status is one of SSOT values
+  expect([
+    'DRAFT',
+    'PENDING_TUTOR_REVIEW',
+    'APPROVED_BY_TUTOR',
+    'APPROVED_BY_LECTURER_AND_TUTOR',
+    'FINAL_APPROVED',
+    'REJECTED',
+    'MODIFICATION_REQUESTED'
+  ]).toContain(timesheet.status);
   
   // Optional fields
   if (timesheet.tutorName !== undefined) {

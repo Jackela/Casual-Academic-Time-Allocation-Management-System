@@ -37,9 +37,10 @@ async function main() {
       console.log('ℹ️  Skipping backend start (nostart)');
     }
 
-    const base = ['playwright', 'test', '--reporter=json'];
+    // Use reporters defined in frontend/playwright.config.ts (writes JSON to playwright-report/results.json)
+    const base = ['playwright', 'test', '--workers=1', '--retries=0'];
     let runArgs = base;
-    if (args.project === 'ui') runArgs = [...base, '--project=ui-tests'];
+    if (args.project === 'ui') runArgs = [...base, '--project=ui-tests', '--grep-invert=@mobile'];
     else if (args.project === 'mobile') runArgs = [...base, '--project=mobile-tests'];
     // else 'all' runs default (all projects)
 

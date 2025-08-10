@@ -48,11 +48,12 @@ The workflow follows a clear sequential approval process:
 - **LECTURER** resubmits for approval → status returns to `PENDING_TUTOR_REVIEW`
 - Process repeats until tutor accepts
 
-#### Step 4: Lecturer Final Approval and HR Submission
+#### Step 4: Lecturer Final Review (Final Approval or Rejection)
 - After tutor approval (status: `APPROVED_BY_TUTOR`), system notifies **LECTURER**
-- **LECTURER** provides final approval → status changes to `APPROVED_BY_LECTURER_AND_TUTOR`
-- **LECTURER** may also reject at this stage with reason → status changes to `REJECTED`
-- System automatically notifies **HR team** when entering `APPROVED_BY_LECTURER_AND_TUTOR`
+- **LECTURER** performs one of the following:
+  - Final approval → status changes to `APPROVED_BY_LECTURER_AND_TUTOR`
+  - Reject with reason → status changes to `REJECTED`
+- On final approval, system automatically notifies **HR team**
 
 #### Step 5: HR Final Review and Processing
 - **HR team** receives notification and conducts final review
@@ -72,7 +73,7 @@ The workflow follows a clear sequential approval process:
 |--------|-------------|-----------------|-------------|
 | `DRAFT` | Initial state when lecturer creates timesheet | • Submit for approval<br>• Edit<br>• Delete | LECTURER (creator) |
 | `PENDING_TUTOR_REVIEW` | Submitted by lecturer, awaiting tutor verification | • Approve (confirm accuracy)<br>• Request modification | TUTOR (timesheet owner) |
-| `APPROVED_BY_TUTOR` | Tutor has confirmed accuracy | • Final approval<br>• Edit if needed | LECTURER (creator) |
+| `APPROVED_BY_TUTOR` | Tutor has confirmed accuracy | • Final approval<br>• Reject (with reason)<br>• Edit if needed | LECTURER (creator) |
 | `MODIFICATION_REQUESTED` | Tutor has requested changes | • Edit and resubmit<br>• Cancel modification | LECTURER (creator) |
 | `APPROVED_BY_LECTURER_AND_TUTOR` | Both lecturer and tutor have approved | • Final HR approval<br>• HR rejection | HR |
 | `FINAL_APPROVED` | HR has given final approval for payroll | None (terminal state) | None |
@@ -92,6 +93,7 @@ stateDiagram-v2
     MODIFICATION_REQUESTED --> PENDING_TUTOR_REVIEW: Lecturer resubmits after edits
     
     APPROVED_BY_TUTOR --> APPROVED_BY_LECTURER_AND_TUTOR: Lecturer gives final approval
+    APPROVED_BY_TUTOR --> REJECTED: Lecturer rejects with reason
     
     APPROVED_BY_LECTURER_AND_TUTOR --> FINAL_APPROVED: HR approves for payroll
     APPROVED_BY_LECTURER_AND_TUTOR --> REJECTED: HR rejects with reason
@@ -112,6 +114,7 @@ stateDiagram-v2
 | `PENDING_TUTOR_REVIEW` | REQUEST_MODIFICATION | `MODIFICATION_REQUESTED` | TUTOR | Tutor can request changes with mandatory comment |
 | `MODIFICATION_REQUESTED` | SUBMIT_FOR_APPROVAL | `PENDING_TUTOR_REVIEW` | LECTURER | Lecturer resubmits after making changes |
 | `APPROVED_BY_TUTOR` | FINAL_APPROVAL | `APPROVED_BY_LECTURER_AND_TUTOR` | LECTURER | Lecturer gives final academic approval |
+| `APPROVED_BY_TUTOR` | REJECT | `REJECTED` | LECTURER | Lecturer can reject with reason at final review stage |
 | `APPROVED_BY_LECTURER_AND_TUTOR` | HR_APPROVE | `FINAL_APPROVED` | HR | HR gives final approval for payroll |
 | `APPROVED_BY_LECTURER_AND_TUTOR` | HR_REJECT | `REJECTED` | HR | HR can reject with mandatory reason |
 | `REJECTED` | SUBMIT_FOR_APPROVAL | `PENDING_TUTOR_REVIEW` | TUTOR | Tutor (owner) edits and resubmits |
@@ -157,6 +160,7 @@ stateDiagram-v2
 - `APPROVE` (TUTOR on PENDING_TUTOR_REVIEW)
 - `REQUEST_MODIFICATION` (TUTOR on PENDING_TUTOR_REVIEW)
 - `FINAL_APPROVAL` (LECTURER on APPROVED_BY_TUTOR)
+- `REJECT` (LECTURER on APPROVED_BY_TUTOR; TUTOR on PENDING_TUTOR_REVIEW)
 - `HR_APPROVE` (HR on APPROVED_BY_LECTURER_AND_TUTOR)
 - `HR_REJECT` (HR on APPROVED_BY_LECTURER_AND_TUTOR)
 

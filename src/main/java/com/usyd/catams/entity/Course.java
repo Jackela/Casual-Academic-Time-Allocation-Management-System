@@ -37,21 +37,17 @@ public class Course {
     @NotNull
     @Column(nullable = false, name = "lecturer_id")
     private Long lecturerId;
-    
-=======
-    @NotNull
->>>>>>> c8486ccc9d77ad3c5893d5e2f8def3f49db6132a
     @Embedded
     @AttributeOverrides({
-        @AttributeOverride(name = "amount", column = @Column(name = "budget_allocated", precision = 12, scale = 2)),
-        @AttributeOverride(name = "currencyCode", column = @Column(name = "budget_allocated_currency"))
+        @AttributeOverride(name = "amount", column = @Column(name = "budget_allocated", precision = 12, scale = 2, nullable = false)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "budget_allocated_currency", length = 3, nullable = false))
     })
     private Money budgetAllocated;
     
-<<<<<<< HEAD    @Embedded
+    @Embedded
     @AttributeOverrides({
-        @AttributeOverride(name = "amount", column = @Column(name = "budget_used", precision = 12, scale = 2)),
-        @AttributeOverride(name = "currencyCode", column = @Column(name = "budget_used_currency"))
+        @AttributeOverride(name = "amount", column = @Column(name = "budget_used", precision = 12, scale = 2, nullable = false)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "budget_used_currency", length = 3, nullable = false))
     })
     private Money budgetUsed;    
     @NotNull
@@ -86,6 +82,16 @@ public class Course {
     
     @PrePersist
     protected void onCreate() {
+        // Enforce non-null invariants for monetary fields
+        if (this.budgetAllocated == null) {
+            this.budgetAllocated = Money.zero();
+        }
+        if (this.budgetUsed == null) {
+            this.budgetUsed = Money.zero();
+        }
+        if (this.isActive == null) {
+            this.isActive = true;
+        }
         LocalDateTime now = LocalDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
@@ -93,7 +99,28 @@ public class Course {
     
     @PreUpdate
     protected void onUpdate() {
+        // Keep invariants stable across updates
+        if (this.budgetAllocated == null) {
+            this.budgetAllocated = Money.zero();
+        }
+        if (this.budgetUsed == null) {
+            this.budgetUsed = Money.zero();
+        }
         this.updatedAt = LocalDateTime.now();
+    }
+
+    @PostLoad
+    protected void onLoad() {
+        // Normalize potentially-null DB values to domain defaults to avoid NPEs
+        if (this.budgetAllocated == null) {
+            this.budgetAllocated = Money.zero();
+        }
+        if (this.budgetUsed == null) {
+            this.budgetUsed = Money.zero();
+        }
+        if (this.isActive == null) {
+            this.isActive = true;
+        }
     }
     
     // Getters and Setters
@@ -180,14 +207,14 @@ public class Course {
      * Get budget allocated as BigDecimal (for backward compatibility)
      */
     public BigDecimal getBudgetAllocated() {
-        return budgetAllocated != null ? budgetAllocated.getAmount() : null;
+        return budgetAllocated != null ? budgetAllocated.getAmount() : BigDecimal.ZERO;
     }
     
     /**
      * Get budget used as BigDecimal (for backward compatibility)
      */
     public BigDecimal getBudgetUsed() {
-        return budgetUsed != null ? budgetUsed.getAmount() : null;
+        return budgetUsed != null ? budgetUsed.getAmount() : BigDecimal.ZERO;
     }
     
     public Boolean getIsActive() {
@@ -216,7 +243,9 @@ public class Course {
     
     // Business methods
     public Money getBudgetRemaining() {
-        return budgetAllocated.subtractAllowingNegative(budgetUsed);
+        Money allocated = (budgetAllocated != null) ? budgetAllocated : Money.zero();
+        Money used = (budgetUsed != null) ? budgetUsed : Money.zero();
+        return allocated.subtractAllowingNegative(used);
     }
     
     public BigDecimal getBudgetRemainingAmount() {
@@ -239,6 +268,9 @@ public class Course {
         if (amount == null) {
             throw new IllegalArgumentException("Amount cannot be null");
         }
+        if (this.budgetUsed == null) {
+            this.budgetUsed = Money.zero();
+        }
         this.budgetUsed = this.budgetUsed.add(amount);
     }
     
@@ -249,6 +281,9 @@ public class Course {
     public void subtractFromBudgetUsed(Money amount) {
         if (amount == null) {
             throw new IllegalArgumentException("Amount cannot be null");
+        }
+        if (this.budgetUsed == null) {
+            this.budgetUsed = Money.zero();
         }
         this.budgetUsed = this.budgetUsed.subtractAllowingNegative(amount);
     }

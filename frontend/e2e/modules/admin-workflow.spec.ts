@@ -161,11 +161,9 @@ test.describe('Admin Dashboard Workflow', () => {
     const optionTexts = await statusFilter.locator('option').allTextContents();
     expect(optionTexts.map(t => t.trim())).toEqual(
       expect.arrayContaining(['All Statuses', 'Draft', 'Pending', 'Approved', 'Rejected'])
-    );    
-    // Try filtering by status
+    );
+    // Try filtering by status (UI shows alias values, backend expects SSOT)
     await statusFilter.selectOption('PENDING');
-    
-    // Filter should retain the selected value
     await expect(statusFilter).toHaveValue('PENDING');
   });
 

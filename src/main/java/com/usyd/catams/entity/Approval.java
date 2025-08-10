@@ -272,8 +272,9 @@ public class Approval {
             throw new IllegalArgumentException("New status cannot be null");
         }
         
-        // Validate that the status transition is valid
-        if (!previousStatus.canTransitionTo(newStatus)) {
+        // Validate that the status transition is valid via SSOT state machine
+        // Use SSOT state machine without relying on exception control flow
+        if (!com.usyd.catams.common.application.ApprovalStateMachineHolder.canTransition(previousStatus, action, newStatus)) {
             throw new IllegalArgumentException("Invalid status transition from " + previousStatus + " to " + newStatus);
         }
         

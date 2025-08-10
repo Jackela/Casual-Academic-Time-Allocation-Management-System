@@ -22,8 +22,12 @@ interface Timesheet {
 }
 
 interface PendingTimesheetsResponse {
-  content: Timesheet[];  // 修正：后端返回content字段
-  page: {
+  // Backend canonical field name per SSOT DTO
+  timesheets?: Timesheet[];
+  // Backward-compat legacy field names accepted during transition
+  content?: Timesheet[];
+  data?: Timesheet[];
+  pageInfo?: {
     number: number;
     size: number;
     totalElements: number;
@@ -33,6 +37,7 @@ interface PendingTimesheetsResponse {
     numberOfElements: number;
     empty: boolean;
   };
+  page?: PendingTimesheetsResponse['pageInfo'];
 }
 
 const LecturerDashboard: React.FC = () => {
@@ -67,7 +72,9 @@ const LecturerDashboard: React.FC = () => {
       console.log('API Response:', response.data);
       console.log('Timesheets received:', response.data.content?.length || 0);
       
-      setTimesheets(response.data.content || []);
+      const body = response.data || ({} as PendingTimesheetsResponse);
+      const items = body.timesheets ?? body.content ?? body.data ?? [];
+      setTimesheets(items);
     } catch (err) {
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 401) {
