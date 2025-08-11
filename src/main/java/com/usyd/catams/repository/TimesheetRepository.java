@@ -282,6 +282,12 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
            "(SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId)")
     Page<Timesheet> findApprovedByTutorByCourses(@Param("lecturerId") Long lecturerId, Pageable pageable);
     
+    /**
+     * Load a timesheet with its approvals using fetch join to avoid N+1 when history is required.
+     */
+    @Query("select t from Timesheet t left join fetch t.approvals where t.id = :id")
+    Optional<Timesheet> findWithApprovalsById(@Param("id") Long id);
+    
     // ==================== DASHBOARD AGGREGATION QUERIES ====================
     
     /**
@@ -326,7 +332,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * Get timesheet aggregation data for dashboard - LECTURER scope.
      * Returns summary metrics for courses managed by a lecturer.
      *
-_     * @param courseIds list of course IDs managed by the lecturer
+     * @param courseIds list of course IDs managed by the lecturer
      * @param startDate start date for filtering (inclusive)
      * @param endDate end date for filtering (inclusive)
      * @return aggregated timesheet summary data

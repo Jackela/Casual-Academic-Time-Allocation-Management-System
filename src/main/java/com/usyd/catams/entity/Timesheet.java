@@ -88,7 +88,8 @@ public class Timesheet {
      * Approval history for this timesheet - managed as part of the aggregate.
      * DbC: when modifying the approvals list, aggregate invariants must hold.
      */
-    @OneToMany(mappedBy = "timesheetId", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JoinColumn(name = "timesheet_id", referencedColumnName = "id", insertable = false, updatable = false)
     @OrderBy("timestamp ASC")
     private List<Approval> approvals = new ArrayList<>();
     
