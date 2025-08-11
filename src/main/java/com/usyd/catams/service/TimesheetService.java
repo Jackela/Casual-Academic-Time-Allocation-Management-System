@@ -269,4 +269,9 @@ public interface TimesheetService {
      * @return true if user can edit the timesheet
      */
     boolean canUserEditTimesheetAuth(Long timesheetId, org.springframework.security.core.Authentication authentication);
+
+    /**
+     * Retrieve timesheets pending lecturer final approval using interface abstraction.
+     */
+    Page<Timesheet> getLecturerFinalApprovalQueue(Long requesterId, Pageable pageable);
 }

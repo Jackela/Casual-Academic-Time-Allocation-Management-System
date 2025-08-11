@@ -547,6 +547,7 @@ public class TimesheetApplicationService implements TimesheetService {
     }
 
     @Transactional(readOnly = true)
+    @Override
     public Page<Timesheet> getLecturerFinalApprovalQueue(Long requesterId, Pageable pageable) {
         User requester = userRepository.findById(requesterId)
             .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + requesterId));

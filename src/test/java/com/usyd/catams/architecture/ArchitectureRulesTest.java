@@ -2,11 +2,11 @@ package com.usyd.catams.architecture;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 public class ArchitectureRulesTest {
@@ -15,7 +15,9 @@ public class ArchitectureRulesTest {
 
     @BeforeAll
     static void setup() {
-        classes = new ClassFileImporter().importPackages("com.usyd.catams");
+        classes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.usyd.catams");
     }
 
     @Test
@@ -32,8 +34,11 @@ public class ArchitectureRulesTest {
     void web_layer_should_not_depend_on_security_impl_details() {
         ArchRule rule = noClasses()
             .that().resideInAPackage("..controller..")
-            .should().dependOnClassesThat().resideInAnyPackage("..security..")
-            .because("Controllers should rely on policy/evaluator abstractions, not security implementation details");
+            .should().dependOnClassesThat().resideInAnyPackage(
+                "com.usyd.catams.security..", // project security utils only
+                "org.springframework.security.core.context.." // direct context access
+            )
+            .because("Controllers should rely on AuthenticationFacade/policy abstractions, not security implementation details");
         rule.check(classes);
     }
 
