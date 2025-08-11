@@ -103,7 +103,9 @@ dependencies {
     testImplementation(libs.org.testcontainers.postgresql)
     testImplementation(libs.org.testcontainers.testcontainers)
     testImplementation("com.h2database:h2:2.2.224")
-    
+    // ArchUnit for architecture rules
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.2.1")
+
     // Performance Testing
     testImplementation(libs.org.apache.httpcomponents.client5.httpclient5)
     testImplementation(libs.org.junit.platform.junit.platform.launcher)
