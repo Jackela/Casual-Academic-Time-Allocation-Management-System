@@ -52,6 +52,7 @@ public class Timesheet {
     
     @NotNull
     @Digits(integer = 2, fraction = 1)
+    @com.usyd.catams.common.validation.annotations.ValidHours
     @Column(nullable = false, precision = 3, scale = 1)
     private BigDecimal hours;
     
@@ -61,6 +62,7 @@ public class Timesheet {
         @AttributeOverride(name = "amount", column = @Column(name = "hourly_rate", precision = 5, scale = 2)),
         @AttributeOverride(name = "currencyCode", column = @Column(name = "hourly_rate_currency"))
     })
+    @com.usyd.catams.common.validation.annotations.ValidHourlyRate
     private Money hourlyRate;
     
     @NotBlank
