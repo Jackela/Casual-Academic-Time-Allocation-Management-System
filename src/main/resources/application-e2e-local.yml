@@ -25,7 +25,8 @@ spring:
   # Security Configuration (use default JWT from application.yml)
   security:
     jwt:
-      secret: ${JWT_SECRET:local-e2e-secret-for-testing-purposes-only}
+      # Default secret is base64 of "0123456789abcdef0123456789abcdef"
+      secret: ${JWT_SECRET:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
       expiration: 86400000
 
 # CORS Configuration (E2E frontend port)
