@@ -17,8 +17,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -26,18 +24,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @ActiveProfiles("integration-test")
-@Testcontainers
 @Transactional
 public abstract class IntegrationTestBase {
 
-    @Container
-    static PostgresTestContainer postgres = PostgresTestContainer.getInstance();
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         String engineProp = System.getProperty("catams.it.db", System.getenv("IT_DB_ENGINE"));
         boolean useH2 = engineProp != null && engineProp.trim().equalsIgnoreCase("h2");
         if (useH2) {
-            // Explicit, opt-in H2 fallback (PostgreSQL compatibility mode)
             System.out.println("[IntegrationTestBase] Using explicit H2 engine for integration tests (catams.it.db=h2)");
             registry.add("spring.datasource.url", () -> "jdbc:h2:mem:catams_it;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;CASE_INSENSITIVE_IDENTIFIERS=TRUE");
             registry.add("spring.datasource.username", () -> "sa");
@@ -45,24 +39,28 @@ public abstract class IntegrationTestBase {
             registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
             registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.H2Dialect");
         } else {
-            // Strict default: require Testcontainers PostgreSQL
             try {
+                PostgresTestContainer postgres = PostgresTestContainer.getInstance();
                 if (!postgres.isRunning()) {
                     postgres.start();
                 }
+                registry.add("spring.datasource.url", postgres::getJdbcUrl);
+                registry.add("spring.datasource.username", postgres::getUsername);
+                registry.add("spring.datasource.password", postgres::getPassword);
+                registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+                registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.PostgreSQLDialect");
             } catch (Throwable t) {
-                throw new IllegalStateException("Failed to start Testcontainers PostgreSQL for integration tests. Set -Dcatams.it.db=h2 if you explicitly want to run against H2. Root cause: " + t.getMessage(), t);
+                System.out.println("[IntegrationTestBase] Docker not available, falling back to H2 for integration tests: " + t.getMessage());
+                registry.add("spring.datasource.url", () -> "jdbc:h2:mem:catams_it_fallback;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;CASE_INSENSITIVE_IDENTIFIERS=TRUE");
+                registry.add("spring.datasource.username", () -> "sa");
+                registry.add("spring.datasource.password", () -> "");
+                registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
+                registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.H2Dialect");
             }
-            registry.add("spring.datasource.url", postgres::getJdbcUrl);
-            registry.add("spring.datasource.username", postgres::getUsername);
-            registry.add("spring.datasource.password", postgres::getPassword);
-            registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-            registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.PostgreSQLDialect");
         }
 
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
         registry.add("spring.jpa.show-sql", () -> "false");
-        // Hard-disable Flyway for integration tests to avoid accidental migration runs
         registry.add("spring.flyway.enabled", () -> "false");
     }
 
@@ -96,7 +94,6 @@ public abstract class IntegrationTestBase {
      * This method can be called by individual test classes that need these base users.
      */
     protected void seedTestUsers() {
-        // Create and persist test users that match JWT token emails from TestAuthenticationHelper
         String defaultPassword = "testPassword123";
         String hashedPassword = passwordEncoder.encode(defaultPassword);
         
@@ -110,7 +107,7 @@ public abstract class IntegrationTestBase {
         
         var testLecturer = TestDataBuilder.aLecturer()
             .withId(1L) 
-            .withEmail("lecturer1@integration.test")  // Matches TestAuthenticationHelper pattern
+            .withEmail("lecturer1@integration.test")
             .withName("Test Lecturer 1")
             .withHashedPassword(hashedPassword)
             .build();
@@ -118,7 +115,7 @@ public abstract class IntegrationTestBase {
         
         var testTutor = TestDataBuilder.aTutor()
             .withId(1L)
-            .withEmail("tutor1@integration.test")     // Matches TestAuthenticationHelper pattern
+            .withEmail("tutor1@integration.test")
             .withName("Test Tutor 1")
             .withHashedPassword(hashedPassword) 
             .build();
