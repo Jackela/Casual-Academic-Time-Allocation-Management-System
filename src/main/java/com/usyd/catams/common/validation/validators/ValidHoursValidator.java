@@ -1,9 +1,11 @@
 package com.usyd.catams.common.validation.validators;
 
 import com.usyd.catams.common.validation.TimesheetValidationProperties;
+import com.usyd.catams.common.validation.ValidationSSOT;
 import com.usyd.catams.common.validation.annotations.ValidHours;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
 
@@ -13,17 +15,16 @@ import java.math.BigDecimal;
  */
 public class ValidHoursValidator implements ConstraintValidator<ValidHours, BigDecimal> {
 
-    private final TimesheetValidationProperties props;
-
-    public ValidHoursValidator(TimesheetValidationProperties props) {
-        this.props = props;
-    }
+    @Autowired(required = false)
+    private TimesheetValidationProperties props;
 
     @Override
     public boolean isValid(BigDecimal value, ConstraintValidatorContext context) {
         if (value == null) return true;
-        BigDecimal min = props.getMinHours();
-        BigDecimal max = props.getHours().getMax();
+        TimesheetValidationProperties ssot = (props != null) ? props : ValidationSSOT.get();
+        if (ssot == null) return true;
+        BigDecimal min = ssot.getMinHours();
+        BigDecimal max = ssot.getHours().getMax();
         return (min == null || value.compareTo(min) >= 0) && (max == null || value.compareTo(max) <= 0);
     }
 }
