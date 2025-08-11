@@ -7,6 +7,9 @@ import org.springframework.context.annotation.Profile;
 
 import javax.sql.DataSource;
 import com.zaxxer.hikari.HikariDataSource;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
  * Embedded PostgreSQL configuration for local E2E profile.
@@ -23,10 +26,12 @@ public class EmbeddedPostgresConfig {
      */
     @Bean(destroyMethod = "close")
     public DataSource dataSource() throws Exception {
-        // Start embedded PostgreSQL; default port is random free port
         EmbeddedPostgres pg = EmbeddedPostgres.start();
-        String jdbcUrl = pg.getJdbcUrl("postgres", "catams_e2e");
 
+        // Ensure target database exists
+        createDatabaseIfMissing(pg, "catams_e2e");
+
+        String jdbcUrl = pg.getJdbcUrl("postgres", "catams_e2e");
         HikariDataSource ds = new HikariDataSource();
         ds.setJdbcUrl(jdbcUrl);
         ds.setUsername("postgres");
@@ -34,5 +39,17 @@ public class EmbeddedPostgresConfig {
         ds.setMaximumPoolSize(10);
         ds.setAutoCommit(true);
         return ds;
+    }
+
+    private void createDatabaseIfMissing(EmbeddedPostgres pg, String dbName) throws SQLException {
+        try (Connection c = pg.getPostgresDatabase().getConnection();
+             Statement st = c.createStatement()) {
+            st.execute("CREATE DATABASE " + dbName);
+        } catch (SQLException e) {
+            // If already exists, ignore; else rethrow
+            if (e.getMessage() == null || !e.getMessage().toLowerCase().contains("already exists")) {
+                throw e;
+            }
+        }
     }
 }

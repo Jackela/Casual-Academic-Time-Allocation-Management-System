@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Start Spring Boot backend in e2e profile and wait for health with timeout.
+ * Start Spring Boot backend in e2e or e2e-local profile and wait for health.
+ * - Chooses profile based on Docker availability: e2e (Testcontainers) if Docker OK, else e2e-local (Embedded Postgres)
  * - Reads port and health path from frontend/scripts/e2e.params.json
  * - Kills any existing process holding the target port before start
  * - Provides a clean stop() method to terminate the server
@@ -48,6 +49,18 @@ function waitForExit(child, timeoutMs) {
   });
 }
 
+async function dockerAvailable(timeoutMs = 4000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      execSync('docker info --format \"{{.ServerVersion}}\"', { stdio: ['ignore', 'pipe', 'ignore'] });
+      return true;
+    } catch {}
+    await sleep(500);
+  }
+  return false;
+}
+
 async function waitForHealth(url, timeoutMs) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -60,16 +73,19 @@ async function waitForHealth(url, timeoutMs) {
   return false;
 }
 
-async function startBackendE2E({ timeoutMs = 120000, stream = true } = {}) {
+async function startBackendE2E({ timeoutMs = 180000, stream = true } = {}) {
   const params = readParams();
   const port = params.backendPort || 8084;
   const healthPath = params.backendHealthCheckPath || '/actuator/health';
-  const healthUrl = `http://localhost:${port}${healthPath}`;
+  const healthUrl = `http://127.0.0.1:${port}${healthPath}`;
 
   killPortWindows(port);
 
+  const useDocker = await dockerAvailable();
+  const activeProfile = useDocker ? 'e2e' : 'e2e-local';
+  console.log(`ℹ️  Backend profile selected: ${activeProfile} (${useDocker ? 'Testcontainers' : 'Embedded Postgres'})`);
+
   const args = ['bootRun', '-x', 'test'];
-  // Ensure JWT secret is present for e2e profile; generate ephemeral if missing
   const envJwtSecret = process.env.JWT_SECRET || crypto.randomBytes(64).toString('base64');
   const proc = spawn(process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew', args, {
     cwd: join(__dirname, '..'),
@@ -78,7 +94,7 @@ async function startBackendE2E({ timeoutMs = 120000, stream = true } = {}) {
     env: {
       ...process.env,
       JWT_SECRET: envJwtSecret,
-      SPRING_PROFILES_ACTIVE: 'e2e',
+      SPRING_PROFILES_ACTIVE: activeProfile,
       SERVER_PORT: String(port),
       SPRING_DEVTOOLS_ADD_PROPERTIES: 'false',
       SPRING_DEVTOOLS_RESTART_ENABLED: 'false',
@@ -99,7 +115,6 @@ async function startBackendE2E({ timeoutMs = 120000, stream = true } = {}) {
     throw new Error(`Backend not ready within ${effectiveTimeout}ms at ${healthUrl}`);
   }
 
-  // Stability window: ensure the process does not crash immediately after readiness
   const crashedSoon = await waitForExit(proc, 3000);
   if (crashedSoon) {
     throw new Error('Backend terminated shortly after becoming healthy. Check startup runners/initializers.');
@@ -108,14 +123,11 @@ async function startBackendE2E({ timeoutMs = 120000, stream = true } = {}) {
   const stop = () => {
     return (async () => {
       try { proc.kill('SIGTERM'); } catch {}
-      // Wait up to 10s for graceful shutdown
       const closed = await waitForExit(proc, 10000);
       if (!closed) {
-        // Escalate only if still alive
         try { proc.kill('SIGKILL'); } catch {}
         await waitForExit(proc, 3000);
       }
-      // Best-effort port cleanup
       killPortWindows(port);
       return true;
     })();
@@ -127,7 +139,7 @@ async function startBackendE2E({ timeoutMs = 120000, stream = true } = {}) {
 if (require.main === module) {
   (async () => {
     const timeoutArg = process.argv.find(a => a.startsWith('--timeout='));
-    const timeoutMs = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 120000;
+    const timeoutMs = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 180000;
     try {
       const { port, healthUrl } = await startBackendE2E({ timeoutMs });
       console.log(`Backend ready on port ${port} (${healthUrl})`);

@@ -1,5 +1,5 @@
 # Local E2E Test Profile Configuration
-# Uses H2 in-memory database for local E2E testing (faster startup)
+# Uses Embedded PostgreSQL (Zonky) for local E2E testing when Docker is unavailable
 
 spring:
   # Database Configuration (Embedded PostgreSQL for local E2E)

@@ -6,7 +6,7 @@
 export const E2E_CONFIG = {
   // Backend configuration
   BACKEND: {
-    URL: 'http://localhost:8084',
+    URL: 'http://127.0.0.1:8084',
     ENDPOINTS: {
       HEALTH: '/actuator/health',
       AUTH_LOGIN: '/api/auth/login',
