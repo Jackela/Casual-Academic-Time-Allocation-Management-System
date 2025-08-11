@@ -98,8 +98,9 @@ public class User {
         this.hashedPassword = hashedPassword;
         this.role = role;
         this.isActive = true;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
     }
     
     /**

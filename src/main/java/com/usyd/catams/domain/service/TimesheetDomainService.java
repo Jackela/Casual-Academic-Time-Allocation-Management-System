@@ -91,7 +91,7 @@ public class TimesheetDomainService {
         if (hours == null || hourlyRate == null) {
             throw new IllegalArgumentException("Hours and hourly rate cannot be null");
         }
-        return hours.multiply(hourlyRate);
+        return hours.multiply(hourlyRate).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     /**

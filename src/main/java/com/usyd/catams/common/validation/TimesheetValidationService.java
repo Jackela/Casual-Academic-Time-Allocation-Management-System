@@ -81,6 +81,8 @@ public class TimesheetValidationService {
     public BigDecimal getMaxHours() {
         return maxHours;
     }
+
+    // duplicate accessors removed; keep single definitions below
     
     /**
      * Get the minimum hourly rate value.

@@ -171,7 +171,8 @@ public class Timesheet {
     }
     
     public void setWeekStartDate(LocalDate weekStartDate) {
-        this.weekPeriod = new WeekPeriod(weekStartDate);
+        // Use unsafe factory to allow setter staging; validation enforced in validateBusinessRules()
+        this.weekPeriod = WeekPeriod.unsafe(weekStartDate);
     }
     
     public BigDecimal getHours() {
@@ -273,23 +274,29 @@ public class Timesheet {
         com.usyd.catams.common.validation.TimesheetValidationService svc =
                 com.usyd.catams.common.validation.ValidationSSOT.get() != null
                         ? new com.usyd.catams.common.validation.TimesheetValidationService() {
-                            // Bridge: delegate getters to the injected properties in ValidationSSOT
                             private final com.usyd.catams.common.validation.TimesheetValidationProperties p = com.usyd.catams.common.validation.ValidationSSOT.get();
                             @Override public java.math.BigDecimal getMaxHours(){ return p.getHours().getMax(); }
+                            @Override public java.math.BigDecimal getMinHours(){ return p.getMinHours(); }
+                            @Override public java.math.BigDecimal getMinHourlyRate(){ return p.getMinHourlyRate(); }
+                            @Override public java.math.BigDecimal getMaxHourlyRate(){ return p.getMaxHourlyRate(); }
+                            @Override public String getHoursValidationMessage(){ return String.format("Hours must be between %s and %s", p.getMinHours(), p.getHours().getMax()); }
                         }
                         : null;
-        if (svc != null) {
-            if (hours != null) {
-                if (hours.compareTo(svc.getMinHours()) < 0 || hours.compareTo(svc.getMaxHours()) > 0) {
-                    throw new IllegalArgumentException(svc.getHoursValidationMessage());
-                }
+        BigDecimal minHours = svc != null ? svc.getMinHours() : new BigDecimal("0.1");
+        BigDecimal maxHours = svc != null ? svc.getMaxHours() : new BigDecimal("38.0");
+        BigDecimal minHourlyRate = svc != null ? svc.getMinHourlyRate() : new BigDecimal("10.00");
+        BigDecimal maxHourlyRate = svc != null ? svc.getMaxHourlyRate() : new BigDecimal("200.00");
+        if (hours != null) {
+            if (hours.compareTo(minHours) < 0 || hours.compareTo(maxHours) > 0) {
+                String msg = svc != null ? svc.getHoursValidationMessage() : String.format("Hours must be between %s and %s", minHours, maxHours);
+                throw new IllegalArgumentException(msg);
             }
-            if (hourlyRate != null && hourlyRate.getAmount() != null) {
-                BigDecimal rate = hourlyRate.getAmount();
-                if (rate.compareTo(svc.getMinHourlyRate()) < 0 || rate.compareTo(svc.getMaxHourlyRate()) > 0) {
-                    throw new IllegalArgumentException(String.format(
-                            "Hourly rate must be between %s and %s", svc.getMinHourlyRate(), svc.getMaxHourlyRate()));
-                }
+        }
+        if (hourlyRate != null && hourlyRate.getAmount() != null) {
+            BigDecimal rate = hourlyRate.getAmount();
+            if (rate.compareTo(minHourlyRate) < 0 || rate.compareTo(maxHourlyRate) > 0) {
+                throw new IllegalArgumentException(String.format(
+                        "Hourly rate must be between %s and %s", minHourlyRate, maxHourlyRate));
             }
         }
     }
