@@ -1,6 +1,19 @@
 spring:
   application:
     name: catams
+  
+  # Default JPA configuration (can be overridden by profiles)
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  
+  # Default Flyway configuration (enabled by default, disabled in test profiles)
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
 
 logging:
   pattern:
@@ -10,3 +23,11 @@ logging:
 timesheet:
   hours:
     max: 38.0
+
+app:
+  cors:
+    allowed-origins: "http://localhost:5173"
+
+# Default server configuration
+server:
+  port: 8080

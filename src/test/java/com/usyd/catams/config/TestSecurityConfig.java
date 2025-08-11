@@ -18,10 +18,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
 
-@TestConfiguration
+@TestConfiguration(proxyBeanMethods = false)
 @Profile("test")
 public class TestSecurityConfig {
 
+    /**
+     * 注意：此配置仅用于 "test" profile，不影响 "integration-test" profile。
+     * integration-test 使用真实的JWT认证，test 使用简化的header认证。
+     */
     @Bean
     @Primary
     public JwtAuthenticationFilter testJwtAuthenticationFilter() {

@@ -1,9 +1,15 @@
+# E2E Test Profile Configuration
+# Uses Testcontainers PostgreSQL for E2E testing
+
 spring:
+  # Database Configuration (Testcontainers)
   datasource:
     url: jdbc:tc:postgresql:15:///catams_e2e
     driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
     username: ""
     password: ""
+    
+  # JPA Configuration (E2E-specific)
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -11,18 +17,32 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        
+  # Disable Flyway for E2E tests (schema managed by Hibernate)
+  flyway:
+    enabled: false
+    
+  # Disable Spring Boot DevTools
   devtools:
     restart:
       enabled: false
-  application:
-    cors:
-      allowed-origins: "http://localhost:5174"
+      
+  # Security Configuration
   security:
     jwt:
-      secret: YXJjaGl0ZWN0dXJlLXNlY3JldC1rZXktZm9yLXRlc3RpbmctcHVycG9zZXMtb25seQ==
+      secret: ${JWT_SECRET}
       expiration: 86400000
 
+# CORS Configuration (E2E frontend port)
+app:
+  cors:
+    allowed-origins: "http://localhost:5174"
 
+# Server Configuration (E2E port)
+server:
+  port: 8084
+
+# Logging Configuration (E2E-appropriate)
 logging:
   level:
     com.usyd.catams: INFO
@@ -33,8 +53,3 @@ logging:
     com.usyd.catams.exception.GlobalExceptionHandler: WARN
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-
-server:
-  port: 8084
-  servlet:
-    context-path: ""

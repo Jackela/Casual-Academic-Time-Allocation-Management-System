@@ -78,6 +78,17 @@ async function cleanupPort(port) {
   }
 }
 
+async function stopGradleDaemons() {
+  try {
+    const { spawnSync } = require('child_process');
+    if (process.platform === 'win32') {
+      spawnSync('cmd.exe', ['/d', '/s', '/c', '.\\gradlew.bat --stop'], { stdio: 'inherit' });
+    } else {
+      spawnSync('./gradlew', ['--stop'], { stdio: 'inherit' });
+    }
+  } catch {}
+}
+
 (async () => {
   const args = parseArgs();
   let ports = args.ports;
@@ -97,6 +108,7 @@ async function cleanupPort(port) {
   for (const port of ports) {
     await cleanupPort(port);
   }
+  await stopGradleDaemons();
   console.log('[cleanup] Done.');
 })();
 

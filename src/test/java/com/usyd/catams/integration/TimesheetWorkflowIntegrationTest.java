@@ -122,7 +122,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .andExpect(jsonPath("$.hours").value(15.5))
             .andExpect(jsonPath("$.hourlyRate").value(45.00))
             .andExpect(jsonPath("$.description").value("Full integration test timesheet - database persistence verified"))
-            .andExpect(jsonPath("$.status").value("DRAFT"))
+            .andExpect(jsonPath("$.status").value(com.usyd.catams.enums.ApprovalStatus.DRAFT.name()))
             .andExpect(jsonPath("$.weekStartDate").value(nextMonday.toString()));
 
         // Verify database persistence

@@ -324,7 +324,7 @@ export const test = base.extend<TestFixtures>({
               hours: 8,
               hourlyRate: 42.00,
               description: 'Lab assistance and student support',
-              status: 'APPROVED',
+              status: 'FINAL_APPROVED',
               createdAt: '2025-01-26T14:30:00Z',
               updatedAt: '2025-01-27T11:15:00Z',
               tutorName: 'Jane Smith',

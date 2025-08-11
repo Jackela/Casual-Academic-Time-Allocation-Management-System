@@ -90,6 +90,23 @@ public class DashboardController {
     }
 
     /**
+     * GET /api/dashboard (root endpoint)
+     *
+     * Provides a sensible default for clients requesting the dashboard root path
+     * without the explicit "/summary" suffix. Delegates to {@link #getDashboardSummary(Long, String, LocalDate, LocalDate, Authentication)}
+     * with default parameters, following the Single Source of Truth principle for controller logic.
+     *
+     * Design by Contract:
+     * - Precondition: Caller is authenticated with a valid role (enforced by security configuration and class-level PreAuthorize)
+     * - Postcondition: Returns HTTP 200 with a dashboard summary suitable for the authenticated role
+     * - Invariant: No business logic duplication; this method strictly delegates to the summary method
+     */
+    @GetMapping
+    public ResponseEntity<DashboardSummaryResponse> getDashboardRoot(Authentication authentication) {
+        return getDashboardSummary(null, null, null, null, authentication);
+    }
+
+    /**
      * Extract user ID from Spring Security authentication
      */
     private Long extractUserId(Authentication authentication) {

@@ -40,7 +40,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
         timesheet1 = new Timesheet(
             1L, // casualStaffId (tutor/teaching assistant)
             1L, // courseId
-            new WeekPeriod(LocalDate.of(2024, 1, 1)),
+            new WeekPeriod(com.usyd.catams.testutils.TestDates.mondayOf(LocalDate.of(2024, 1, 1))),
             new BigDecimal("10.5"), // hours worked
             new Money(new BigDecimal("25.00")), // hourly rate for casual academic staff
             "Tutorial preparation and delivery for COMP2022",
@@ -51,7 +51,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
         timesheet2 = new Timesheet(
             2L, // casualStaffId (different tutor)
             1L, // courseId (same course)
-            new WeekPeriod(LocalDate.of(2024, 1, 8)),
+            new WeekPeriod(com.usyd.catams.testutils.TestDates.mondayOf(LocalDate.of(2024, 1, 8))),
             new BigDecimal("8.0"), // hours worked
             new Money(new BigDecimal("30.00")), // higher rate for senior tutor
             "Lab supervision and student assistance",
@@ -62,7 +62,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
         timesheet3 = new Timesheet(
             1L, // casualStaffId (same tutor as timesheet1)
             2L, // courseId (different course)
-            new WeekPeriod(LocalDate.of(2024, 1, 15)),
+            new WeekPeriod(com.usyd.catams.testutils.TestDates.mondayOf(LocalDate.of(2024, 1, 15))),
             new BigDecimal("5.5"), // hours for marking work
             new Money(new BigDecimal("25.00")), // standard marking rate
             "Assignment marking and feedback provision",

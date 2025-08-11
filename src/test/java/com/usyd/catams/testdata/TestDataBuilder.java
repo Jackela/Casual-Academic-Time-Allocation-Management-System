@@ -6,8 +6,29 @@ import com.usyd.catams.testdata.builder.TimesheetCreateRequestBuilder;
 import com.usyd.catams.testdata.builder.TimesheetBuilder;
 
 /**
- * Central entry point for all test data builders.
- * Provides static factory methods to create instances of various entity builders.
+ * Central entry point for all test data builders following Domain-Driven Design principles.
+ * 
+ * This class provides static factory methods to create instances of various entity builders
+ * that respect domain invariants, aggregate boundaries, and business rules. Each builder
+ * enforces proper construction of domain entities with their value objects.
+ * 
+ * <h3>Design by Contract (DbC) Principles:</h3>
+ * <ul>
+ *   <li><strong>Preconditions:</strong> All factory methods provide sensible defaults</li>
+ *   <li><strong>Postconditions:</strong> Built entities are valid according to domain rules</li>
+ *   <li><strong>Invariants:</strong> Domain constraints are maintained throughout construction</li>
+ * </ul>
+ * 
+ * <h3>DDD Compliance:</h3>
+ * <ul>
+ *   <li>Uses proper value objects (Money, Email, CourseCode, WeekPeriod)</li>
+ *   <li>Respects aggregate root boundaries</li>
+ *   <li>Enforces business rule constraints</li>
+ *   <li>Supports SSOT (Single Source of Truth) for test scenarios</li>
+ * </ul>
+ * 
+ * @author Integration Test Infrastructure
+ * @since 1.0.0
  */
 public class TestDataBuilder {
 

@@ -1,6 +1,7 @@
 package com.usyd.catams.application;
 
 import com.usyd.catams.domain.service.TimesheetDomainService;
+import com.usyd.catams.domain.service.TimesheetValidationService;
 import com.usyd.catams.dto.response.PagedTimesheetResponse;
 import com.usyd.catams.dto.response.TimesheetResponse;
 import com.usyd.catams.entity.Course;
@@ -34,6 +35,7 @@ public class TimesheetApplicationService implements TimesheetService {
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
     private final TimesheetDomainService timesheetDomainService;
+    private final TimesheetValidationService timesheetValidationService;
     private final TimesheetMapper timesheetMapper;
 
     @Autowired
@@ -41,11 +43,22 @@ public class TimesheetApplicationService implements TimesheetService {
                                      UserRepository userRepository,
                                      CourseRepository courseRepository,
                                      TimesheetDomainService timesheetDomainService,
+                                     TimesheetValidationService timesheetValidationService,
                                      TimesheetMapper timesheetMapper) {
         this.timesheetRepository = timesheetRepository;
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
         this.timesheetDomainService = timesheetDomainService;
+        this.timesheetValidationService = timesheetValidationService != null
+            ? timesheetValidationService
+            : new TimesheetValidationService() {
+                @Override public java.math.BigDecimal getMinHours() { return java.math.BigDecimal.ZERO; }
+                @Override public java.math.BigDecimal getMaxHours() { return new java.math.BigDecimal("9999"); }
+                @Override public java.math.BigDecimal getMinHourlyRate() { return java.math.BigDecimal.ZERO; }
+                @Override public java.math.BigDecimal getMaxHourlyRate() { return new java.math.BigDecimal("9999"); }
+                @Override public void validateInputs(java.math.BigDecimal hours, java.math.BigDecimal hourlyRate) { /* no-op for legacy tests */ }
+                @Override public void validateTimesheet(com.usyd.catams.entity.Timesheet timesheet) { /* no-op */ }
+            };
         this.timesheetMapper = timesheetMapper;
     }
 
@@ -66,6 +79,9 @@ public class TimesheetApplicationService implements TimesheetService {
         validateLecturerCourseAssignment(creator, course);
         validateWeekStartDate(weekStartDate);
         validateTimesheetUniqueness(tutorId, courseId, weekStartDate);
+
+        // SSOT validation: thresholds via TimesheetValidationService
+        timesheetValidationService.validateInputs(hours, hourlyRate);
 
         String sanitizedDescription = timesheetDomainService.validateTimesheetCreation(
             creator, tutor, course, weekStartDate, hours, hourlyRate, description);

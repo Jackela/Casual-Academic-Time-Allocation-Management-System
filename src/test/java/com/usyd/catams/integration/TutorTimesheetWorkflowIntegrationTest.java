@@ -42,8 +42,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - AC4: TUTOR can delete REJECTED timesheets
  * - AC5: TUTOR can resubmit edited timesheets via POST /api/approvals
  */
-@ActiveProfiles("integration-test")
-@Transactional(propagation = Propagation.NOT_SUPPORTED)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
@@ -188,7 +186,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.status").value(com.usyd.catams.enums.ApprovalStatus.DRAFT.name()))
                 .andExpect(jsonPath("$.hours").value(8.0))
                 .andExpect(jsonPath("$.description").value("Updated work description after rejection feedback"));
 
@@ -364,7 +362,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("DRAFT"));
+                .andExpect(jsonPath("$.status").value(com.usyd.catams.enums.ApprovalStatus.DRAFT.name()));
 
         // Step 6: TUTOR resubmits
         ApprovalActionRequest resubmitRequest = new ApprovalActionRequest();

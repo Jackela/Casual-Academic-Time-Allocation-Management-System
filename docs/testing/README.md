@@ -206,7 +206,7 @@ Notes:
 - Ports, backend profile, and timeouts are read from `frontend/scripts/e2e.params.json` (no hard-coded values).
 
 ### Prerequisites
-1. **Java 17+** installed
+1. **Java 21+** installed
 2. **Maven 3.6+** installed
 3. **Docker** installed and running (for integration and performance tests)
 
@@ -250,7 +250,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
       - run: mvn test -Dtest="*UnitTest"
 
   integration-tests:
@@ -262,7 +262,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
       - run: mvn test -Dtest="*IntegrationTest"
 
   performance-tests:
@@ -275,7 +275,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
       - run: mvn test -Dtest="*PerformanceTest"
       - uses: actions/upload-artifact@v3
         with:

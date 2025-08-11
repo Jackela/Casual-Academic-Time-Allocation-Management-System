@@ -239,4 +239,29 @@ nul
 *.pid
 *.seed
 *.pid.lock
-node_modules
+node_modules/
+**/node_modules/
+
+# Additional VCS ignore rules (baseline v1)
+# Avoid committing large or generated artifacts and local AI/IDE caches
+.gradle/
+target/
+build/
+dist/
+**/dist/
+frontend/dist/
+frontend/node_modules/
+.cache/
+**/.cache/
+generated/
+**/generated/
+out/
+coverage/
+logs/
+
+# Local AI/assistant tooling caches
+.cursor/
+.claude/
+.gemini/
+.bamd
+.bamd/

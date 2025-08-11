@@ -94,7 +94,7 @@ public class TimesheetIntegrationTest extends IntegrationTestBase {
         assertThat(savedTimesheet.getCourseId()).isEqualTo(course.getId());
         assertThat(savedTimesheet.getWeekStartDate()).isEqualTo(mondayDate);
         assertThat(savedTimesheet.getHours()).isEqualTo(BigDecimal.valueOf(10.5));
-        assertThat(savedTimesheet.getHourlyRate()).isEqualTo(BigDecimal.valueOf(45.00));
+        assertThat(savedTimesheet.getHourlyRate()).isEqualByComparingTo(BigDecimal.valueOf(45.00));
         assertThat(savedTimesheet.getDescription()).isEqualTo("Tutorial assistance and marking");
         assertThat(savedTimesheet.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
         assertThat(savedTimesheet.getCreatedBy()).isEqualTo(lecturer.getId());
@@ -172,19 +172,17 @@ public class TimesheetIntegrationTest extends IntegrationTestBase {
         // ARRANGE: Try to create timesheet with non-Monday date
         LocalDate tuesday = mondayDate.plusDays(1);
         
-        Timesheet timesheet = new Timesheet(
+        // ACT & ASSERT: Should throw at construction due to WeekPeriod validation
+        assertThatThrownBy(() -> new Timesheet(
                 tutor.getId(),
                 course.getId(),
-                tuesday, // This should fail validation
+                tuesday,
                 BigDecimal.valueOf(10.0),
                 BigDecimal.valueOf(45.00),
                 "Tutorial work",
                 lecturer.getId()
-        );
-
-        // ACT & ASSERT: Should throw exception
-        assertThatThrownBy(() -> timesheetRepository.save(timesheet))
-                .isInstanceOf(Exception.class)
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Monday");
     }
 

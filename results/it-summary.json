@@ -1,0 +1,1142 @@
+{
+  "generatedAt": "2025-08-11T08:13:09.777Z",
+  "total": {
+    "tests": 130,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "time": 124.52299999999998
+  },
+  "suites": [
+    {
+      "name": "Edge Cases Implementation Tests",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 5.37,
+      "file": "TEST-com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$EdgeCasesImplementationTests.xml",
+      "cases": [
+        {
+          "name": "Should handle null role gracefully",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$EdgeCasesImplementationTests",
+          "time": 5.315,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should handle null email gracefully",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$EdgeCasesImplementationTests",
+          "time": 0.039,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should handle null user ID gracefully",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$EdgeCasesImplementationTests",
+          "time": 0.005,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "Permission Checking Implementation Tests",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.022,
+      "file": "TEST-com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$PermissionCheckingImplementationTests.xml",
+      "cases": [
+        {
+          "name": "Should check user role correctly",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$PermissionCheckingImplementationTests",
+          "time": 0.006,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Admin should have all permissions",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$PermissionCheckingImplementationTests",
+          "time": 0.007,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should check permissions based on role",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$PermissionCheckingImplementationTests",
+          "time": 0.005,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "Status and Profile Implementation Tests",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.132,
+      "file": "TEST-com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$StatusProfileImplementationTests.xml",
+      "cases": [
+        {
+          "name": "Should get approval users (HR and ADMIN)",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$StatusProfileImplementationTests",
+          "time": 0.112,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should return false for inactive user",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$StatusProfileImplementationTests",
+          "time": 0.01,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should check user active status",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$StatusProfileImplementationTests",
+          "time": 0.006,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "User Retrieval Implementation Tests",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.057,
+      "file": "TEST-com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$UserRetrievalImplementationTests.xml",
+      "cases": [
+        {
+          "name": "Should retrieve users by role",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$UserRetrievalImplementationTests",
+          "time": 0.023,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should retrieve user by ID and map to DTO correctly",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$UserRetrievalImplementationTests",
+          "time": 0.021,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should retrieve user by email",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$UserRetrievalImplementationTests",
+          "time": 0.005,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should return empty for non-existent user ID",
+          "classname": "com.usyd.catams.application.user.UserApplicationServiceIntegrationTest$UserRetrievalImplementationTests",
+          "time": 0.004,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 47.873,
+      "file": "TEST-com.usyd.catams.integration.ApprovalSubmissionIntegrationTest.xml",
+      "cases": [
+        {
+          "name": "Submit approval with comment exceeding limit returns 400",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 2.07,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC3: Cannot submit non-DRAFT timesheet - returns 400",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 0.705,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC4: LECTURER can submit timesheets (lecturers are creators per SSOT)",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 0.72,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Submit approval without authentication returns 401",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 0.379,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC4: LECTURER cannot approve timesheets (only tutors can approve per SSOT)",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 0.429,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Get approval history for accessible timesheet",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 0.461,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC5: Approval submission response matches OpenAPI schema",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 0.393,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC4: TUTOR cannot submit other users' timesheets - returns 403",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 0.461,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC3: TUTOR can successfully submit their own DRAFT timesheet for approval",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 0.46,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC3: ADMIN can submit any DRAFT timesheet for approval",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 0.391,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Submit approval for non-existent timesheet returns 404",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 0.389,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Submit approval with invalid data returns 400",
+          "classname": "com.usyd.catams.integration.ApprovalSubmissionIntegrationTest",
+          "time": 0.339,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "JWT Authentication Integration Tests",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.304,
+      "file": "TEST-com.usyd.catams.integration.AuthenticationIntegrationTest.xml",
+      "cases": [
+        {
+          "name": "Should reject unauthenticated requests",
+          "classname": "com.usyd.catams.integration.AuthenticationIntegrationTest",
+          "time": 0.017,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should reject requests with invalid JWT tokens",
+          "classname": "com.usyd.catams.integration.AuthenticationIntegrationTest",
+          "time": 0.015,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should validate JWT token provider bean availability",
+          "classname": "com.usyd.catams.integration.AuthenticationIntegrationTest",
+          "time": 0.013,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should accept valid tutor JWT tokens",
+          "classname": "com.usyd.catams.integration.AuthenticationIntegrationTest",
+          "time": 0.099,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should verify seeded users exist in database",
+          "classname": "com.usyd.catams.integration.AuthenticationIntegrationTest",
+          "time": 0.019,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should accept valid lecturer JWT tokens",
+          "classname": "com.usyd.catams.integration.AuthenticationIntegrationTest",
+          "time": 0.085,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should generate proper Bearer tokens with TestAuthenticationHelper",
+          "classname": "com.usyd.catams.integration.AuthenticationIntegrationTest",
+          "time": 0.006,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should accept valid admin JWT tokens",
+          "classname": "com.usyd.catams.integration.AuthenticationIntegrationTest",
+          "time": 0.046,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "Dashboard Controller Integration Tests",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.859,
+      "file": "TEST-com.usyd.catams.integration.DashboardControllerIntegrationTest.xml",
+      "cases": [
+        {
+          "name": "LECTURER can filter by specific course they manage",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.367,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should require authentication",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.024,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "LECTURER can retrieve course-level dashboard summary",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.099,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should accept valid custom date range",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.059,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should reject invalid semester format",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.042,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "TUTOR can retrieve dashboard summary",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.043,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "TUTOR cannot filter by course",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.028,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should accept valid semester parameter",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.05,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "ADMIN can retrieve system-wide dashboard summary",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.048,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should reject invalid date range",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.021,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should reject invalid JWT token",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.014,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "ADMIN can filter by any course",
+          "classname": "com.usyd.catams.integration.DashboardControllerIntegrationTest",
+          "time": 0.058,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "Course Entity Validation",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.035,
+      "file": "TEST-com.usyd.catams.integration.TestDataBuilderIntegrationTest$CourseEntityValidation.xml",
+      "cases": [
+        {
+          "name": "Should create valid Course with domain invariants",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$CourseEntityValidation",
+          "time": 0.019,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should enforce CourseCode value object validation",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$CourseEntityValidation",
+          "time": 0.015,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "Data Isolation Validation",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.114,
+      "file": "TEST-com.usyd.catams.integration.TestDataBuilderIntegrationTest$DataIsolationValidation.xml",
+      "cases": [
+        {
+          "name": "Test 3 - Should confirm clean state continues",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$DataIsolationValidation",
+          "time": 0.051,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Test 2 - Should not see data from previous test",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$DataIsolationValidation",
+          "time": 0.036,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Test 1 - Should start with empty database",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$DataIsolationValidation",
+          "time": 0.024,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "Domain Invariant Validation",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.08,
+      "file": "TEST-com.usyd.catams.integration.TestDataBuilderIntegrationTest$DomainInvariantValidation.xml",
+      "cases": [
+        {
+          "name": "Should enforce Course domain invariants",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$DomainInvariantValidation",
+          "time": 0.029,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should enforce Timesheet domain invariants",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$DomainInvariantValidation",
+          "time": 0.031,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should enforce User domain invariants",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$DomainInvariantValidation",
+          "time": 0.018,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "Repository Layer Testing",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.09,
+      "file": "TEST-com.usyd.catams.integration.TestDataBuilderIntegrationTest$RepositoryLayerTesting.xml",
+      "cases": [
+        {
+          "name": "Should perform User repository operations correctly",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$RepositoryLayerTesting",
+          "time": 0.043,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should perform Course repository operations correctly",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$RepositoryLayerTesting",
+          "time": 0.016,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should perform Timesheet repository operations correctly",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$RepositoryLayerTesting",
+          "time": 0.029,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "Timesheet Entity Validation",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.088,
+      "file": "TEST-com.usyd.catams.integration.TestDataBuilderIntegrationTest$TimesheetEntityValidation.xml",
+      "cases": [
+        {
+          "name": "Should enforce WeekPeriod value object Monday constraint",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$TimesheetEntityValidation",
+          "time": 0.023,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should create valid Draft Timesheet with domain invariants",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$TimesheetEntityValidation",
+          "time": 0.029,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should support approval status transitions",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$TimesheetEntityValidation",
+          "time": 0.033,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "User Entity Validation",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.094,
+      "file": "TEST-com.usyd.catams.integration.TestDataBuilderIntegrationTest$UserEntityValidation.xml",
+      "cases": [
+        {
+          "name": "Should create valid Lecturer user with domain invariants",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$UserEntityValidation",
+          "time": 0.013,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should enforce unique email constraint",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$UserEntityValidation",
+          "time": 0.037,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should create valid Tutor user with domain invariants",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$UserEntityValidation",
+          "time": 0.02,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should create valid Admin user with domain invariants",
+          "classname": "com.usyd.catams.integration.TestDataBuilderIntegrationTest$UserEntityValidation",
+          "time": 0.021,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "com.usyd.catams.integration.TestDataBuilderIntegrationTest",
+      "tests": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0,
+      "file": "TEST-com.usyd.catams.integration.TestDataBuilderIntegrationTest.xml",
+      "cases": []
+    },
+    {
+      "name": "com.usyd.catams.integration.TestDataBuilderRepositoryTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.216,
+      "file": "TEST-com.usyd.catams.integration.TestDataBuilderRepositoryTest.xml",
+      "cases": [
+        {
+          "name": "Should handle approval status transitions properly",
+          "classname": "com.usyd.catams.integration.TestDataBuilderRepositoryTest",
+          "time": 0.042,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should create and persist Course entities via TestDataBuilder",
+          "classname": "com.usyd.catams.integration.TestDataBuilderRepositoryTest",
+          "time": 0.023,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should support complex entity relationships",
+          "classname": "com.usyd.catams.integration.TestDataBuilderRepositoryTest",
+          "time": 0.039,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should create and persist Timesheet entities via TestDataBuilder",
+          "classname": "com.usyd.catams.integration.TestDataBuilderRepositoryTest",
+          "time": 0.023,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should enforce unique constraints properly",
+          "classname": "com.usyd.catams.integration.TestDataBuilderRepositoryTest",
+          "time": 0.019,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should maintain data isolation between tests",
+          "classname": "com.usyd.catams.integration.TestDataBuilderRepositoryTest",
+          "time": 0.016,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should create and persist User entities via TestDataBuilder",
+          "classname": "com.usyd.catams.integration.TestDataBuilderRepositoryTest",
+          "time": 0.032,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should handle domain invariant validation through TestDataBuilder",
+          "classname": "com.usyd.catams.integration.TestDataBuilderRepositoryTest",
+          "time": 0.015,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "com.usyd.catams.integration.TimesheetIntegrationTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.639,
+      "file": "TEST-com.usyd.catams.integration.TimesheetIntegrationTest.xml",
+      "cases": [
+        {
+          "name": "testTimesheetRepository_ExistsCheck()",
+          "classname": "com.usyd.catams.integration.TimesheetIntegrationTest",
+          "time": 0.101,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testTimesheetRepository_FindByCourseId()",
+          "classname": "com.usyd.catams.integration.TimesheetIntegrationTest",
+          "time": 0.065,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testTimesheetCRUD_ShouldFailInitially()",
+          "classname": "com.usyd.catams.integration.TimesheetIntegrationTest",
+          "time": 0.073,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testTimesheetValidation_MondayConstraint()",
+          "classname": "com.usyd.catams.integration.TimesheetIntegrationTest",
+          "time": 0.075,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testTimesheetRepository_FindByTutorAndCourseAndWeek()",
+          "classname": "com.usyd.catams.integration.TimesheetIntegrationTest",
+          "time": 0.082,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testTimesheetBusinessMethods()",
+          "classname": "com.usyd.catams.integration.TimesheetIntegrationTest",
+          "time": 0.059,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testTimesheetValidation_HoursRange()",
+          "classname": "com.usyd.catams.integration.TimesheetIntegrationTest",
+          "time": 0.054,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testTimesheetValidation_HourlyRateRange()",
+          "classname": "com.usyd.catams.integration.TimesheetIntegrationTest",
+          "time": 0.05,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testTimesheetRepository_FindByTutorId()",
+          "classname": "com.usyd.catams.integration.TimesheetIntegrationTest",
+          "time": 0.066,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 36.384,
+      "file": "TEST-com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest.xml",
+      "cases": [
+        {
+          "name": "AC4: LECTURER cannot delete timesheet for course they don't teach - returns 403",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.437,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC4: LECTURER cannot update timesheet for course they don't teach - returns 403",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.394,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Update non-existent timesheet returns 404",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.482,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Update timesheet without authentication returns 401",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.49,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC1: Cannot update non-DRAFT timesheet - returns 400",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.374,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC1: ADMIN can successfully update any DRAFT timesheet",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.376,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Update timesheet with invalid data returns 400",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.439,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Delete non-existent timesheet returns 404",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.353,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC1: LECTURER can successfully update DRAFT timesheet for their course",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.326,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Delete timesheet without authentication returns 401",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.458,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC2: ADMIN can successfully delete any DRAFT timesheet",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.306,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC2: Cannot delete non-DRAFT timesheet - returns 400",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.337,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC2: LECTURER can successfully delete DRAFT timesheet for their course",
+          "classname": "com.usyd.catams.integration.TimesheetUpdateDeleteIntegrationTest",
+          "time": 0.373,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "Timesheet Workflow Integration Tests",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 1.77,
+      "file": "TEST-com.usyd.catams.integration.TimesheetWorkflowIntegrationTest.xml",
+      "cases": [
+        {
+          "name": "End-to-end timesheet retrieval workflow",
+          "classname": "com.usyd.catams.integration.TimesheetWorkflowIntegrationTest",
+          "time": 0.391,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Business rule validation - invalid hours should be rejected",
+          "classname": "com.usyd.catams.integration.TimesheetWorkflowIntegrationTest",
+          "time": 0.213,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Database transaction rollback - invalid data should not persist",
+          "classname": "com.usyd.catams.integration.TimesheetWorkflowIntegrationTest",
+          "time": 0.208,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Authentication workflow - should enforce security",
+          "classname": "com.usyd.catams.integration.TimesheetWorkflowIntegrationTest",
+          "time": 0.209,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Authorization workflow - tutor cannot create timesheets",
+          "classname": "com.usyd.catams.integration.TimesheetWorkflowIntegrationTest",
+          "time": 0.204,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Cross-lecturer security - lecturer cannot access other lecturer's course timesheets",
+          "classname": "com.usyd.catams.integration.TimesheetWorkflowIntegrationTest",
+          "time": 0.319,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Complete timesheet creation workflow - should succeed",
+          "classname": "com.usyd.catams.integration.TimesheetWorkflowIntegrationTest",
+          "time": 0.218,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "com.usyd.catams.integration.TutorApprovalWorkflowIntegrationTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.47,
+      "file": "TEST-com.usyd.catams.integration.TutorApprovalWorkflowIntegrationTest.xml",
+      "cases": [
+        {
+          "name": "AC1: LECTURER cannot access pending approval endpoint (lecturers are creators, not approvers)",
+          "classname": "com.usyd.catams.integration.TutorApprovalWorkflowIntegrationTest",
+          "time": 0.024,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC2: TUTOR APPROVE moves to APPROVED_BY_TUTOR (lecturer final approval pending)",
+          "classname": "com.usyd.catams.integration.TutorApprovalWorkflowIntegrationTest",
+          "time": 0.056,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Unauthorized access returns 401",
+          "classname": "com.usyd.catams.integration.TutorApprovalWorkflowIntegrationTest",
+          "time": 0.013,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC1: ADMIN can retrieve all pending approval timesheets",
+          "classname": "com.usyd.catams.integration.TutorApprovalWorkflowIntegrationTest",
+          "time": 0.043,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "ADMIN can approve pending tutor review; first step results in tutor-approved state",
+          "classname": "com.usyd.catams.integration.TutorApprovalWorkflowIntegrationTest",
+          "time": 0.039,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC3: TUTOR can successfully REJECT pending timesheet",
+          "classname": "com.usyd.catams.integration.TutorApprovalWorkflowIntegrationTest",
+          "time": 0.042,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC1: TUTOR can retrieve pending approval timesheets for themselves",
+          "classname": "com.usyd.catams.integration.TutorApprovalWorkflowIntegrationTest",
+          "time": 0.034,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "AC5: Cannot reject already approved timesheet",
+          "classname": "com.usyd.catams.integration.TutorApprovalWorkflowIntegrationTest",
+          "time": 0.031,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Pending approval endpoint denies lecturer access with 403 (ADR-001)",
+          "classname": "com.usyd.catams.integration.TutorApprovalWorkflowIntegrationTest",
+          "time": 0.018,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 29.668,
+      "file": "TEST-com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest.xml",
+      "cases": [
+        {
+          "name": "testCompleteFeedbackLoopWorkflow()",
+          "classname": "com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest",
+          "time": 0.303,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testAC5_TutorCanResubmitEditedTimesheets()",
+          "classname": "com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest",
+          "time": 0.146,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testAC2_TutorCanSeeRejectedStatus()",
+          "classname": "com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest",
+          "time": 0.17,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testAC1_TutorCanFilterTimesheetsByStatus()",
+          "classname": "com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest",
+          "time": 0.223,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testSecurityTutorCannotAccessOtherTutorTimesheets()",
+          "classname": "com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest",
+          "time": 0.178,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testAC3_TutorCannotEditNonRejectedTimesheets()",
+          "classname": "com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest",
+          "time": 0.148,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testAC3_TutorCanEditRejectedTimesheetsAndStatusResetsToDraft()",
+          "classname": "com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest",
+          "time": 0.156,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testAC4_TutorCanDeleteRejectedTimesheets()",
+          "classname": "com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest",
+          "time": 0.128,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testAC4_TutorCannotDeleteNonRejectedTimesheets()",
+          "classname": "com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest",
+          "time": 0.156,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "testAC1_TutorCanViewAllOwnTimesheets()",
+          "classname": "com.usyd.catams.integration.TutorTimesheetWorkflowIntegrationTest",
+          "time": 0.193,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "com.usyd.catams.repository.CourseRepositoryIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.065,
+      "file": "TEST-com.usyd.catams.repository.CourseRepositoryIntegrationTest.xml",
+      "cases": [
+        {
+          "name": "findByCode_ShouldReturnCourseWhenExists()",
+          "classname": "com.usyd.catams.repository.CourseRepositoryIntegrationTest",
+          "time": 0.065,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    },
+    {
+      "name": "JWT Authentication Infrastructure Integration Tests",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": 0.193,
+      "file": "TEST-com.usyd.catams.security.JwtAuthenticationIntegrationTest.xml",
+      "cases": [
+        {
+          "name": "Should reject requests with invalid token",
+          "classname": "com.usyd.catams.security.JwtAuthenticationIntegrationTest",
+          "time": 0.052,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should extract correct user information from valid token",
+          "classname": "com.usyd.catams.security.JwtAuthenticationIntegrationTest",
+          "time": 0.019,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should reject token for non-existent user",
+          "classname": "com.usyd.catams.security.JwtAuthenticationIntegrationTest",
+          "time": 0.026,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should reject requests without authentication",
+          "classname": "com.usyd.catams.security.JwtAuthenticationIntegrationTest",
+          "time": 0.011,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should validate JwtTokenProvider bean is available",
+          "classname": "com.usyd.catams.security.JwtAuthenticationIntegrationTest",
+          "time": 0.014,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should accept requests with valid JWT token",
+          "classname": "com.usyd.catams.security.JwtAuthenticationIntegrationTest",
+          "time": 0.036,
+          "status": "passed",
+          "failure": null
+        },
+        {
+          "name": "Should validate JWT secret configuration",
+          "classname": "com.usyd.catams.security.JwtAuthenticationIntegrationTest",
+          "time": 0.029,
+          "status": "passed",
+          "failure": null
+        }
+      ]
+    }
+  ]
+}

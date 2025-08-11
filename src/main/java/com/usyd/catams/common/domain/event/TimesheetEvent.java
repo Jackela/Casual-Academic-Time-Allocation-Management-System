@@ -26,6 +26,7 @@ import java.util.Objects;
  * @since 2.0 - Microservices-Ready Architecture
  */
 public abstract class TimesheetEvent extends AbstractDomainEvent {
+    private static final long serialVersionUID = 1L;
     
     private static final String AGGREGATE_TYPE = "TIMESHEET";
     
@@ -48,7 +49,8 @@ public abstract class TimesheetEvent extends AbstractDomainEvent {
     /**
      * Event fired when a new timesheet is created
      */
-    public static class TimesheetCreatedEvent extends TimesheetEvent {
+        public static class TimesheetCreatedEvent extends TimesheetEvent {
+            private static final long serialVersionUID = 1L;
         
         private final BigDecimal hours;
         private final BigDecimal hourlyRate;
@@ -80,7 +82,8 @@ public abstract class TimesheetEvent extends AbstractDomainEvent {
     /**
      * Event fired when a timesheet is updated
      */
-    public static class TimesheetUpdatedEvent extends TimesheetEvent {
+        public static class TimesheetUpdatedEvent extends TimesheetEvent {
+            private static final long serialVersionUID = 1L;
         
         private final BigDecimal previousHours;
         private final BigDecimal newHours;
@@ -121,7 +124,8 @@ public abstract class TimesheetEvent extends AbstractDomainEvent {
     /**
      * Event fired when a timesheet is submitted for approval
      */
-    public static class TimesheetSubmittedEvent extends TimesheetEvent {
+        public static class TimesheetSubmittedEvent extends TimesheetEvent {
+            private static final long serialVersionUID = 1L;
         
         private final ApprovalStatus previousStatus;
         private final ApprovalStatus newStatus;
@@ -158,7 +162,8 @@ public abstract class TimesheetEvent extends AbstractDomainEvent {
     /**
      * Event fired when an approval action is processed on a timesheet
      */
-    public static class TimesheetApprovalProcessedEvent extends TimesheetEvent {
+        public static class TimesheetApprovalProcessedEvent extends TimesheetEvent {
+            private static final long serialVersionUID = 1L;
         
         private final Long approverId;
         private final ApprovalAction action;
@@ -217,7 +222,8 @@ public abstract class TimesheetEvent extends AbstractDomainEvent {
     /**
      * Event fired when a timesheet is deleted
      */
-    public static class TimesheetDeletedEvent extends TimesheetEvent {
+        public static class TimesheetDeletedEvent extends TimesheetEvent {
+            private static final long serialVersionUID = 1L;
         
         private final ApprovalStatus previousStatus;
         private final BigDecimal hours;
@@ -250,8 +256,8 @@ public abstract class TimesheetEvent extends AbstractDomainEvent {
         }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("deletionReason", reason);
             metadata.put("lostAmount", getLostAmount());
             return metadata;
@@ -261,7 +267,8 @@ public abstract class TimesheetEvent extends AbstractDomainEvent {
     /**
      * Event fired when timesheet deadlines are approaching or exceeded
      */
-    public static class TimesheetDeadlineEvent extends TimesheetEvent {
+        public static class TimesheetDeadlineEvent extends TimesheetEvent {
+            private static final long serialVersionUID = 1L;
         
         private final java.time.LocalDateTime deadline;
         private final long daysOverdue;

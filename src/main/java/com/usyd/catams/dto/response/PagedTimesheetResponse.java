@@ -57,29 +57,7 @@ public class PagedTimesheetResponse {
         this.timesheets = timesheets;
     }
 
-    // Keep legacy getter for backward compatibility during transition
-    @Deprecated
-    public List<TimesheetResponse> getContent() {
-        return timesheets;
-    }
-
-    // Keep legacy setter for backward compatibility during transition
-    @Deprecated
-    public void setContent(List<TimesheetResponse> content) {
-        this.timesheets = content;
-    }
-
-    // Keep data getter for backward compatibility during transition
-    @Deprecated
-    public List<TimesheetResponse> getData() {
-        return timesheets;
-    }
-
-    // Keep data setter for backward compatibility during transition
-    @Deprecated
-    public void setData(List<TimesheetResponse> data) {
-        this.timesheets = data;
-    }
+    // Legacy aliases removed to enforce single-source response shape (timesheets/pageInfo)
 
     public PageInfo getPageInfo() {
         return pageInfo;
@@ -89,17 +67,7 @@ public class PagedTimesheetResponse {
         this.pageInfo = pageInfo;
     }
 
-    // Keep legacy getter for backward compatibility during transition
-    @Deprecated
-    public PageInfo getPage() {
-        return pageInfo;
-    }
-
-    // Keep legacy setter for backward compatibility during transition
-    @Deprecated
-    public void setPage(PageInfo page) {
-        this.pageInfo = page;
-    }
+    // Legacy aliases removed to enforce single-source response shape (timesheets/pageInfo)
 
     /**
      * Inner class for pagination metadata.

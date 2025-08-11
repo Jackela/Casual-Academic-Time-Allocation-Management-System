@@ -3,7 +3,7 @@
  * Implements API-First testing architecture with comprehensive endpoint coverage
  */
 
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
 import { API_CONFIG, getApiBaseUrl } from '../config/api.config';
 
 // ========================================
@@ -37,7 +37,7 @@ export interface Timesheet {
   hours: number;
   hourlyRate: number;
   description: string;
-  status: 'DRAFT' | 'PENDING_TUTOR_REVIEW' | 'TUTOR_APPROVED' | 'PENDING_HR_REVIEW' | 'HR_APPROVED' | 'FINAL_APPROVED' | 'REJECTED' | 'MODIFICATION_REQUESTED';
+  status: 'DRAFT' | 'PENDING_TUTOR_REVIEW' | 'APPROVED_BY_TUTOR' | 'APPROVED_BY_LECTURER_AND_TUTOR' | 'FINAL_APPROVED' | 'REJECTED' | 'MODIFICATION_REQUESTED';
   tutorName: string;
   courseName: string;
   courseCode: string;

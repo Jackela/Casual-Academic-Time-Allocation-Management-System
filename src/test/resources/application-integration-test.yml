@@ -1,84 +1,39 @@
-# Integration Test Configuration
-# Used with TestContainers for realistic database testing
+# Integration Test Profile (test-only overrides)
+# Purpose: Minimal configuration overrides for integration tests using Testcontainers
+# Database configuration is handled via @DynamicPropertySource in IntegrationTestBase
 
 spring:
-  # H2 In-Memory Database Configuration for Integration Tests
-  datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    username: sa
-    password: 
-    driver-class-name: org.h2.Driver
-  
+  # Disable Flyway for integration tests (schema managed by Hibernate)
+  flyway:
+    enabled: false
+    
+  # JPA Configuration for integration tests
   jpa:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
-        format_sql: false
-        
-  # Security Configuration
+    
+  # Security Configuration (test JWT secret)
   security:
     jwt:
       secret: dGVzdC1zZWNyZXQtZm9yLWludGVncmF0aW9uLXRlc3RzLW11c3QtYmUtYXQtbGVhc3QtMjU2LWJpdHM=
-      expiration: 3600000 # 1 hour for testing
+      expiration: 3600000
       
-  # Logging Configuration
-  logging:
-    level:
-      com.usyd.catams: DEBUG
-      org.springframework.security: WARN
-      org.hibernate: WARN
-      com.zaxxer.hikari: WARN
-      org.testcontainers: INFO
-      
-  # Disable DevTools for integration tests
+  # Disable Spring Boot DevTools for tests
   devtools:
     restart:
       enabled: false
-      
-# Test-specific configuration
-test:
-  performance:
-    # Performance test thresholds (milliseconds)
-    response-time:
-      auth: 500        # Authentication endpoints
-      crud: 200        # CRUD operations
-      list: 300        # List operations with pagination
-      search: 400      # Search operations
-    
-    # Load testing configuration
-    concurrent-users: 10
-    test-duration: 30s
-    warmup-duration: 5s
-    
-  database:
-    # Reset database between test classes
-    cleanup: true
-    
-  security:
-    # Test-specific security settings
-    disable-csrf: true
-    allow-test-tokens: true
 
-# E2E test user configuration
-e2e:
-  admin:
-    email: "admin.e2e@test.com"
-    password: "e2eAdminPassword"
-    name: "E2E Admin"
-  lecturer:
-    email: "lecturer.e2e@test.com"
-    password: "e2eLecturerPassword"
-    name: "E2E Lecturer"
-  tutor:
-    email: "tutor.e2e@test.com"
-    password: "e2eTutorPassword"
-    name: "E2E Tutor"
+# Logging Configuration (test-appropriate levels)
+logging:
+  level:
+    com.usyd.catams: DEBUG
+    org.springframework.security: WARN
+    org.hibernate: WARN
+    com.zaxxer.hikari: WARN
+    org.testcontainers: INFO
 
-
-# Management and Monitoring
+# Management endpoints (minimal for testing)
 management:
   endpoints:
     web:
@@ -87,7 +42,3 @@ management:
   endpoint:
     health:
       show-details: when-authorized
-  metrics:
-    export:
-      simple:
-        enabled: true

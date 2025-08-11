@@ -34,7 +34,7 @@ export const TimesheetResponseSchema = z.object({
   hours: z.number().min(0),
   hourlyRate: z.number().min(0),
   description: z.string(),
-  status: z.enum(['DRAFT', 'PENDING_TUTOR_REVIEW', 'TUTOR_APPROVED', 'PENDING_HR_REVIEW', 'HR_APPROVED', 'FINAL_APPROVED', 'REJECTED', 'MODIFICATION_REQUESTED']),
+  status: z.enum(['DRAFT', 'PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', 'FINAL_APPROVED', 'REJECTED', 'MODIFICATION_REQUESTED']),
   tutorName: z.string(),
   courseName: z.string(),
   courseCode: z.string(),
@@ -81,7 +81,7 @@ export const ApprovalActionResponseSchema = z.object({
   success: z.boolean(),
   message: z.string(),
   timesheetId: z.number().int().positive().optional(),
-  newStatus: z.enum(['APPROVED', 'REJECTED']).optional(),
+  newStatus: z.enum(['APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', 'FINAL_APPROVED', 'REJECTED']).optional(),
 });
 
 export const ErrorResponseSchema = z.object({
@@ -267,7 +267,7 @@ export class OpenAPIMockGenerator {
     action: 'APPROVE' | 'REJECT',
     timesheetId: number
   ): ApprovalActionResponse {
-    const newStatus = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
+    const newStatus = action === 'APPROVE' ? 'APPROVED_BY_TUTOR' : 'REJECTED';
     
     return {
       success: true,

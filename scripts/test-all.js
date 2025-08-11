@@ -7,8 +7,16 @@ function runNode(script) {
   return runCommand('node', [script], { cwd: path.join(__dirname, '..') });
 }
 
+function cleanExit(code) {
+  try { process.stdout.write('\n\n[TASK_DONE]\n\n'); } catch {}
+  process.exit(code);
+}
+
 async function main() {
   console.log('\n=== CATAMS Layered Test Orchestrator ===');
+  process.on('SIGINT', () => cleanExit(130));
+  process.on('SIGTERM', () => cleanExit(143));
+  let exitCode = 0;
   try {
     await runNode('scripts/preflight.js');
     await runNode('scripts/test-backend-unit.js');
@@ -23,7 +31,9 @@ async function main() {
   } catch (err) {
     console.error('\n❌ Test pipeline halted due to failure in a lower layer.');
     console.error(String(err?.message || err));
-    process.exit(1);
+    exitCode = 1;
+  } finally {
+    cleanExit(exitCode);
   }
 }
 

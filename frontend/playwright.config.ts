@@ -21,14 +21,8 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 1, // Retry once locally for flaky tests
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : 4, // Limit workers for better stability
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: [
-    ['html', { open: 'never' }], // Prevent HTML report from auto-opening and blocking shell
-    ['json', { outputFile: 'playwright-report/results.json' }],
-    ['junit', { outputFile: 'playwright-report/junit.xml' }], // For CI integration
-    ['list'],
-    ['github'] // GitHub Actions integration
-  ],
+  /* Reporter to use. JSON-only for machine readability */
+  reporter: [ ['json', { outputFile: 'playwright-report/results.json' }] ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */

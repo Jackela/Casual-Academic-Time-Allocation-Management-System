@@ -49,8 +49,11 @@ public class WeekPeriod implements Serializable, Comparable<WeekPeriod> {
      */
     public WeekPeriod(LocalDate startDate) {
         validateStartDate(startDate);
-        // Store as provided; business validation occurs at entity lifecycle
-        setWeekStartDate(startDate);    }
+        if (startDate.getDayOfWeek() != DayOfWeek.MONDAY) {
+            throw new IllegalArgumentException("Date must be a Monday");
+        }
+        setWeekStartDate(startDate);
+    }
     
     /**
      * Sets the week start date (for JPA)

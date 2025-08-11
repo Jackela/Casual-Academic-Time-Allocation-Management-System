@@ -37,7 +37,7 @@ async function main() {
       console.log('ℹ️  Skipping backend start (nostart)');
     }
 
-    // Use reporters defined in frontend/playwright.config.ts (writes JSON to playwright-report/results.json)
+    // Use reporters from Playwright config to ensure JSON is written to file
     const base = ['playwright', 'test', '--workers=1', '--retries=0'];
     let runArgs = base;
     if (args.project === 'ui') runArgs = [...base, '--project=ui-tests', '--grep-invert=@mobile'];
@@ -54,6 +54,7 @@ async function main() {
     } else {
       console.log('ℹ️  Keeping backend process alive as requested (--keep)');
     }
+    process.stdout.write('\n\n[TASK_DONE]\n\n');
   }
 }
 

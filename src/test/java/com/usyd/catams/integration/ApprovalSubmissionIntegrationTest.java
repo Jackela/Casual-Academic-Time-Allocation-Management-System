@@ -46,15 +46,8 @@ import static org.hamcrest.Matchers.containsString;
  * - AC4: Permission validation for approval operations
  * - AC5: API response compliance with OpenAPI specification
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureMockMvc
-@ActiveProfiles("integration-test")
-@Transactional(propagation = Propagation.NOT_SUPPORTED)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
-
-    @Autowired
-    private MockMvc mockMvc;
 
     @Autowired
     private UserRepository userRepository;
@@ -64,16 +57,6 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private TimesheetRepository timesheetRepository;
-
-
-    @Autowired
-    private JwtTokenProvider jwtTokenProvider;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     private User lecturer;
     private User tutor;

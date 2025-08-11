@@ -34,7 +34,7 @@ export const getApiBaseUrl = (): string => {
     if (import.meta?.env?.MODE === 'e2e') {
       return API_CONFIG.BACKEND.E2E_URL;
     }
-    // Production/development environment  
+    // Production/development environment
     if (import.meta?.env?.VITE_API_BASE_URL) {
       return import.meta.env.VITE_API_BASE_URL;
     }

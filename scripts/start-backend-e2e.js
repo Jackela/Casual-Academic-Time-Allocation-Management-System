@@ -9,6 +9,7 @@
 const { spawn, execSync } = require('child_process');
 const { join } = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 function readParams() {
   const paramsPath = join(__dirname, '..', 'frontend', 'scripts', 'e2e.params.json');
@@ -68,12 +69,15 @@ async function startBackendE2E({ timeoutMs = 120000, stream = true } = {}) {
   killPortWindows(port);
 
   const args = ['bootRun', '-x', 'test'];
+  // Ensure JWT secret is present for e2e profile; generate ephemeral if missing
+  const envJwtSecret = process.env.JWT_SECRET || crypto.randomBytes(64).toString('base64');
   const proc = spawn(process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew', args, {
     cwd: join(__dirname, '..'),
     stdio: stream ? 'inherit' : 'pipe',
     shell: true,
     env: {
       ...process.env,
+      JWT_SECRET: envJwtSecret,
       SPRING_PROFILES_ACTIVE: 'e2e',
       SERVER_PORT: String(port),
       SPRING_DEVTOOLS_ADD_PROPERTIES: 'false',

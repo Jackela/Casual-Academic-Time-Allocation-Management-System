@@ -147,11 +147,11 @@ describe('OpenAPI Schema Validation', () => {
       expect(timesheet.id).toBeGreaterThan(0);
       expect(timesheet.hours).toBeGreaterThanOrEqual(0);
       expect(timesheet.hourlyRate).toBeGreaterThanOrEqual(0);
-      expect(['DRAFT', 'PENDING_TUTOR_REVIEW', 'TUTOR_APPROVED', 'PENDING_HR_REVIEW', 'HR_APPROVED', 'FINAL_APPROVED', 'REJECTED', 'MODIFICATION_REQUESTED']).toContain(timesheet.status);
+      expect(['DRAFT', 'PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', 'FINAL_APPROVED', 'REJECTED', 'MODIFICATION_REQUESTED']).toContain(timesheet.status);
     });
 
     test('should validate status enum values', () => {
-      const validStatuses = ['DRAFT', 'PENDING_TUTOR_REVIEW', 'TUTOR_APPROVED', 'PENDING_HR_REVIEW', 'HR_APPROVED', 'FINAL_APPROVED', 'REJECTED', 'MODIFICATION_REQUESTED'];
+    const validStatuses = ['DRAFT', 'PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', 'FINAL_APPROVED', 'REJECTED', 'MODIFICATION_REQUESTED'];
       
       validStatuses.forEach(status => {
         const timesheet = OpenAPIMockGenerator.generateTimesheetResponse({ 
@@ -248,7 +248,7 @@ describe('OpenAPI Schema Validation', () => {
 
         expect(response.success).toBe(true);
         expect(response.timesheetId).toBe(123);
-        expect(response.newStatus).toBe(action === 'APPROVE' ? 'APPROVED' : 'REJECTED');
+        expect(response.newStatus).toBe(action === 'APPROVE' ? 'APPROVED_BY_TUTOR' : 'REJECTED');
       });
     });
   });

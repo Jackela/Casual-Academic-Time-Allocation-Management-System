@@ -181,7 +181,7 @@ public class WorkflowEvaluationRequest {
      */
     public WorkflowEvaluationRequest withAdditionalContext(Map<String, Object> additionalContext) {
         Map<String, Object> newContext = Map.copyOf(workflowContext);
-        ((Map<String, Object>) newContext).putAll(additionalContext);
+        newContext.putAll(additionalContext);
         
         return new WorkflowEvaluationRequest(userId, userRole, timesheetId, currentStatus,
                                            proposedAction, courseId, newContext, timestamp, comment);

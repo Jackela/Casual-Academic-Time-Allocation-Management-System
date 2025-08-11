@@ -12,19 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * Legacy implementation of ApprovalService that delegates to ApprovalApplicationService.
- * 
- * This class serves as a bridge during the DDD refactoring transition.
- * Controllers and other services that still reference ApprovalServiceImpl
- * will continue to work while we gradually migrate to direct usage of
- * ApprovalApplicationService in the application layer.
- * 
- * @deprecated Use ApprovalApplicationService directly instead
- */
 @Service
 @Primary
-@Deprecated
 public class ApprovalServiceImpl implements ApprovalService {
 
     private final ApprovalApplicationService approvalApplicationService;

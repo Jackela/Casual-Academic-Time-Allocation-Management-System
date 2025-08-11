@@ -51,6 +51,7 @@ public final class SchemaValidator {
     }
 
     public static class SchemaValidationException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
         public SchemaValidationException(String message) {
             super(message);
         }

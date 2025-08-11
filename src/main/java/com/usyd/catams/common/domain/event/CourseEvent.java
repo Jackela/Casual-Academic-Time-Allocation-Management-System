@@ -23,6 +23,7 @@ import java.util.Map;
  * @since 2.0 - Microservices-Ready Architecture
  */
 public abstract class CourseEvent extends AbstractDomainEvent {
+    private static final long serialVersionUID = 1L;
     
     private static final String AGGREGATE_TYPE = "COURSE";
     
@@ -48,7 +49,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
     /**
      * Event fired when a new course is created
      */
-    public static class CourseCreatedEvent extends CourseEvent {
+        public static class CourseCreatedEvent extends CourseEvent {
+            private static final long serialVersionUID = 1L;
         
         private final BigDecimal budgetAllocated;
         private final boolean isActive;
@@ -70,8 +72,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
         public boolean isActive() { return isActive; }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("budgetAllocated", budgetAllocated);
             metadata.put("isActive", isActive);
             metadata.put("setupRequired", true);
@@ -82,7 +84,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
     /**
      * Event fired when course information is updated
      */
-    public static class CourseUpdatedEvent extends CourseEvent {
+        public static class CourseUpdatedEvent extends CourseEvent {
+            private static final long serialVersionUID = 1L;
         
         private final String previousCourseName;
         private final String previousSemester;
@@ -121,8 +124,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
         }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("nameChanged", hasNameChanged());
             metadata.put("semesterChanged", hasSemesterChanged());
             metadata.put("lecturerChanged", hasLecturerChanged());
@@ -136,7 +139,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
     /**
      * Event fired when a course is activated
      */
-    public static class CourseActivatedEvent extends CourseEvent {
+        public static class CourseActivatedEvent extends CourseEvent {
+            private static final long serialVersionUID = 1L;
         
         private final String activationReason;
         
@@ -155,8 +159,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
         public String getActivationReason() { return activationReason; }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("activationReason", activationReason);
             metadata.put("timesheetCreationEnabled", true);
             return metadata;
@@ -166,7 +170,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
     /**
      * Event fired when a course is deactivated
      */
-    public static class CourseDeactivatedEvent extends CourseEvent {
+        public static class CourseDeactivatedEvent extends CourseEvent {
+            private static final long serialVersionUID = 1L;
         
         private final String deactivationReason;
         private final boolean hasPendingTimesheets;
@@ -188,8 +193,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
         public boolean hasPendingTimesheets() { return hasPendingTimesheets; }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("deactivationReason", deactivationReason);
             metadata.put("hasPendingTimesheets", hasPendingTimesheets);
             if (hasPendingTimesheets) {
@@ -202,7 +207,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
     /**
      * Event fired when course budget is updated
      */
-    public static class CourseBudgetUpdatedEvent extends CourseEvent {
+        public static class CourseBudgetUpdatedEvent extends CourseEvent {
+            private static final long serialVersionUID = 1L;
         
         private final BigDecimal previousBudgetAllocated;
         private final BigDecimal newBudgetAllocated;
@@ -255,8 +261,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
         }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("previousBudgetAllocated", previousBudgetAllocated);
             metadata.put("newBudgetAllocated", newBudgetAllocated);
             metadata.put("budgetChange", getBudgetChange());
@@ -274,7 +280,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
     /**
      * Event fired when a tutor is assigned to work on a course
      */
-    public static class CourseTutorAssignedEvent extends CourseEvent {
+        public static class CourseTutorAssignedEvent extends CourseEvent {
+            private static final long serialVersionUID = 1L;
         
         private final Long tutorId;
         private final String tutorName;
@@ -300,8 +307,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
         public String getAssignmentReason() { return assignmentReason; }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("tutorId", tutorId);
             metadata.put("tutorName", tutorName);
             metadata.put("assignmentReason", assignmentReason);
@@ -314,7 +321,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
     /**
      * Event fired when a tutor is removed from a course
      */
-    public static class CourseTutorUnassignedEvent extends CourseEvent {
+        public static class CourseTutorUnassignedEvent extends CourseEvent {
+            private static final long serialVersionUID = 1L;
         
         private final Long tutorId;
         private final String tutorName;
@@ -343,8 +351,8 @@ public abstract class CourseEvent extends AbstractDomainEvent {
         public boolean hasPendingTimesheets() { return hasPendingTimesheets; }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("tutorId", tutorId);
             metadata.put("tutorName", tutorName);
             metadata.put("unassignmentReason", unassignmentReason);

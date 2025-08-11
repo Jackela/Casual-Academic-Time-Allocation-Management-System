@@ -3,7 +3,6 @@ package com.usyd.catams.config;
 import com.usyd.catams.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -35,6 +34,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
+    
+    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:5173}")
+    private String allowedOrigins;
     
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
                          JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint) {
@@ -88,37 +90,23 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        
-        // Allow specific origins (update these for production environments)
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",    // React development server
-            "http://localhost:3001",    // Alternative React port
-            "http://localhost:5174",    // Vite development server (E2E tests)
-            "http://localhost:5175",    // Alternative Vite port
-            "https://catams.edu.au"     // Production frontend (when deployed)
-        ));
-        
-        // Allow specific HTTP methods
+        configuration.setAllowedOrigins(Arrays.asList(this.allowedOrigins.split(",")));
+
         configuration.setAllowedMethods(Arrays.asList(
             "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
         ));
-        
-        // Allow specific headers
+
         configuration.setAllowedHeaders(Arrays.asList(
-            "Authorization", "Content-Type", "X-Requested-With", 
+            "Authorization", "Content-Type", "X-Requested-With",
             "Accept", "Origin", "Access-Control-Request-Method",
             "Access-Control-Request-Headers"
         ));
-        
-        // Allow credentials for JWT token transmission
+
         configuration.setAllowCredentials(true);
-        
-        // Configure how long preflight responses can be cached
         configuration.setMaxAge(3600L);
-        
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration);
-        
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 }

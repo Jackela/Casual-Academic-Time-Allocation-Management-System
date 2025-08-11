@@ -1,9 +1,15 @@
+# Local E2E Test Profile Configuration
+# Uses H2 in-memory database for local E2E testing (faster startup)
+
 spring:
+  # Database Configuration (H2 for local E2E)
   datasource:
     url: jdbc:h2:mem:catams_e2e;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
+    
+  # JPA Configuration (local E2E-specific)
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -11,10 +17,29 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
-  application:
-    cors:
-      allowed-origins: "http://localhost:5174"
+        
+  # Disable Flyway for local E2E tests
+  flyway:
+    enabled: false
+    
+  # Security Configuration (use default JWT from application.yml)
+  security:
+    jwt:
+      secret: ${JWT_SECRET:local-e2e-secret-for-testing-purposes-only}
+      expiration: 86400000
 
+# CORS Configuration (E2E frontend port)
+app:
+  cors:
+    allowed-origins: "http://localhost:5174"
+
+# Server Configuration (E2E port)
+server:
+  port: 8084
+  servlet:
+    context-path: ""
+
+# Logging Configuration (local E2E-appropriate)
 logging:
   level:
     com.usyd.catams: INFO
@@ -22,10 +47,5 @@ logging:
     org.springframework.web: INFO
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-
-server:
-  port: 8084
-  servlet:
-    context-path: ""
 
 

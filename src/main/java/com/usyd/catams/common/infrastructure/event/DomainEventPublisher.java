@@ -272,6 +272,7 @@ public class DomainEventPublisher {
  * Exception thrown when event publishing fails
  */
 class EventPublishingException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
     
     public EventPublishingException(String message) {
         super(message);

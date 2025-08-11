@@ -248,11 +248,11 @@ async function runPlaywrightTests() {
     // Clear previous report to avoid legacy/preamble contamination
     try { if (fs.existsSync(resultsPath)) fs.unlinkSync(resultsPath); } catch {}
 
-    // Use reporters as configured in playwright.config.ts (includes JSON output)
+    // Enforce JSON-only reporter for machine readability
     // Instruct Playwright to reuse externally managed web server
     process.env.E2E_EXTERNAL_WEBSERVER = 'true';
     // Limit projects to desktop runs by default (api-tests + ui-tests). Mobile can be enabled explicitly via CLI if needed.
-    const pwArgs = ['playwright', 'test'];
+    const pwArgs = ['playwright', 'test', '--reporter=json'];
     const hasProjectArg = process.argv.some(a => a.startsWith('--project='));
     if (!hasProjectArg) {
       pwArgs.push('--project=api-tests', '--project=ui-tests');

@@ -1,9 +1,11 @@
 package com.usyd.catams.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.security.JwtTokenProvider;
 import com.usyd.catams.testdata.TestDataBuilder;
 import com.usyd.catams.testing.PostgresTestContainer;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -32,19 +34,37 @@ public abstract class IntegrationTestBase {
     static PostgresTestContainer postgres = PostgresTestContainer.getInstance();
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        // Ensure container is started
-        if (!postgres.isRunning()) {
-            postgres.start();
+        String engineProp = System.getProperty("catams.it.db", System.getenv("IT_DB_ENGINE"));
+        boolean useH2 = engineProp != null && engineProp.trim().equalsIgnoreCase("h2");
+        if (useH2) {
+            // Explicit, opt-in H2 fallback (PostgreSQL compatibility mode)
+            System.out.println("[IntegrationTestBase] Using explicit H2 engine for integration tests (catams.it.db=h2)");
+            registry.add("spring.datasource.url", () -> "jdbc:h2:mem:catams_it;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;CASE_INSENSITIVE_IDENTIFIERS=TRUE");
+            registry.add("spring.datasource.username", () -> "sa");
+            registry.add("spring.datasource.password", () -> "");
+            registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
+            registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.H2Dialect");
+        } else {
+            // Strict default: require Testcontainers PostgreSQL
+            try {
+                if (!postgres.isRunning()) {
+                    postgres.start();
+                }
+            } catch (Throwable t) {
+                throw new IllegalStateException("Failed to start Testcontainers PostgreSQL for integration tests. Set -Dcatams.it.db=h2 if you explicitly want to run against H2. Root cause: " + t.getMessage(), t);
+            }
+            registry.add("spring.datasource.url", postgres::getJdbcUrl);
+            registry.add("spring.datasource.username", postgres::getUsername);
+            registry.add("spring.datasource.password", postgres::getPassword);
+            registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+            registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.PostgreSQLDialect");
         }
-        
-        // Database connection properties
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
         registry.add("spring.jpa.show-sql", () -> "false");
-        registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.PostgreSQLDialect");    }
+        // Hard-disable Flyway for integration tests to avoid accidental migration runs
+        registry.add("spring.flyway.enabled", () -> "false");
+    }
 
     @Autowired
     protected MockMvc mockMvc;
@@ -54,6 +74,12 @@ public abstract class IntegrationTestBase {
 
     @Autowired
     protected JwtTokenProvider jwtTokenProvider;
+    
+    @Autowired
+    protected UserRepository userRepository;
+    
+    @Autowired
+    protected PasswordEncoder passwordEncoder;
 
     protected String lecturerToken;
     protected String tutorToken;
@@ -62,6 +88,41 @@ public abstract class IntegrationTestBase {
     @BeforeEach
     void setupIntegrationTest() {
         setupAuthTokens();
+    }
+
+    /**
+     * Seeds test users in the database to support JWT authentication validation.
+     * Creates users that match the JWT token emails from TestAuthenticationHelper.
+     * This method can be called by individual test classes that need these base users.
+     */
+    protected void seedTestUsers() {
+        // Create and persist test users that match JWT token emails from TestAuthenticationHelper
+        String defaultPassword = "testPassword123";
+        String hashedPassword = passwordEncoder.encode(defaultPassword);
+        
+        var testAdmin = TestDataBuilder.anAdmin()
+            .withId(1L)
+            .withEmail("admin@integration.test")
+            .withName("Test Admin")
+            .withHashedPassword(hashedPassword)
+            .build();
+        userRepository.save(testAdmin);
+        
+        var testLecturer = TestDataBuilder.aLecturer()
+            .withId(1L) 
+            .withEmail("lecturer1@integration.test")  // Matches TestAuthenticationHelper pattern
+            .withName("Test Lecturer 1")
+            .withHashedPassword(hashedPassword)
+            .build();
+        userRepository.save(testLecturer);
+        
+        var testTutor = TestDataBuilder.aTutor()
+            .withId(1L)
+            .withEmail("tutor1@integration.test")     // Matches TestAuthenticationHelper pattern
+            .withName("Test Tutor 1")
+            .withHashedPassword(hashedPassword) 
+            .build();
+        userRepository.save(testTutor);
     }
 
     private void setupAuthTokens() {

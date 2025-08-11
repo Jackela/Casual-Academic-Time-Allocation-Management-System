@@ -22,7 +22,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.usyd.catams.test.config.TestConfigurationLoader;
-import com.usyd.catams.common.validation.TimesheetValidationConstants;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -96,9 +95,7 @@ class TimesheetServiceUnitTest {
             .withCourseId(course.getId())
             .build();
             
-        // Set the maxHours configuration value for testing
-        // Following DDD: validation constants belong in the domain layer
-        TimesheetValidationConstants.setMaxHoursForTesting(TestConfigurationLoader.getMaxHours());
+        // No static hooks; using TestConfigurationLoader for expectation building only.
     }
 
     @Test

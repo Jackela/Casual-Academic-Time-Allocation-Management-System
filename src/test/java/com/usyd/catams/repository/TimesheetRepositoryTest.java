@@ -63,7 +63,7 @@ class TimesheetRepositoryTest {
         // Persist course
         course = entityManager.persistAndFlush(course);
         
-        weekStartDate = LocalDate.of(2024, 3, 4); // Monday
+        weekStartDate = com.usyd.catams.testutils.TestDates.mondayOf(LocalDate.of(2024, 3, 4));
     }
 
     @Test
@@ -128,11 +128,13 @@ class TimesheetRepositoryTest {
         List<Timesheet> draftTimesheets = timesheetRepository.findByStatus(ApprovalStatus.DRAFT);
         List<Timesheet> pendingTimesheets = timesheetRepository.findByStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
         // Then
-        assertThat(draftTimesheets).hasSize(1);
-        assertThat(draftTimesheets.get(0).getStatus()).isEqualTo(ApprovalStatus.DRAFT);
-        
+        assertThat(draftTimesheets).hasSize(2);
+        assertThat(draftTimesheets).extracting(Timesheet::getStatus)
+            .containsOnly(ApprovalStatus.DRAFT);
+
         assertThat(pendingTimesheets).hasSize(1);
-        assertThat(pendingTimesheets.get(0).getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);    }
+        assertThat(pendingTimesheets.get(0).getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+    }
 
     @Test
     void testFindByStatusIn() {

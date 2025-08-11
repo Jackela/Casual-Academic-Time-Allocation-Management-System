@@ -9,6 +9,7 @@ package com.usyd.catams.exception;
  * @since 1.0
  */
 public class BusinessException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
     
     private final String errorCode;
     

@@ -67,6 +67,7 @@ function run(cmd, args, opts = {}) {
     exitCode = 1;
   } finally {
     try { await backend?.stop?.(); } catch {}
+    try { process.stdout.write('\n\n[TASK_DONE]\n\n'); } catch {}
     process.exit(exitCode);
   }
 })();

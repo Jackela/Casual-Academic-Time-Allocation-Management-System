@@ -8,7 +8,8 @@ const path = require('path');
 const projectRoot = path.join(__dirname, '..', '..');
 
 function getGradleCommand() {
-  return process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+  // PowerShell does not resolve commands from current directory without explicit .\ prefix
+  return process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew';
 }
 
 function runCommand(command, args, options = {}) {
@@ -25,19 +26,23 @@ function runCommand(command, args, options = {}) {
 
 function runGradleTests(testPatterns, javaProps = {}, extraArgs = []) {
   const gradleCmd = getGradleCommand();
-  const args = ['test'];
-  // Map test patterns
+  const baseArgs = ['test', '--no-daemon', '--stacktrace', '--info', `-Dorg.gradle.logging.level=info`];
   (testPatterns || []).forEach((p) => {
-    args.push('--tests');
-    args.push(p);
+    baseArgs.push('--tests');
+    baseArgs.push(p);
   });
-  // Map -D system properties
   Object.entries(javaProps || {}).forEach(([key, value]) => {
-    args.push(`-D${key}=${value}`);
+    baseArgs.push(`-D${key}=${value}`);
   });
-  // Extra args (if any)
-  args.push(...(extraArgs || []));
-  return runCommand(gradleCmd, args, { cwd: projectRoot });
+  baseArgs.push(...(extraArgs || []));
+
+  if (process.platform === 'win32') {
+    // Use `call` to safely invoke a .bat from within cmd without leaving a lingering batch job
+    // and to avoid the "Terminate batch job (Y/N)?" prompt in nested invocations.
+    const args = ['/d', '/s', '/c', 'call', gradleCmd, ...baseArgs];
+    return runCommand('cmd.exe', args, { cwd: projectRoot });
+  }
+  return runCommand(gradleCmd, baseArgs, { cwd: projectRoot });
 }
 
 function runNpmScript(frontendDirRelative, scriptName, scriptArgs = []) {

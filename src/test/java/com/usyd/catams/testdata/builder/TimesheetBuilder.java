@@ -11,12 +11,34 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * Builder for {@link Timesheet} entities for testing purposes.
- * Provides sensible defaults and fluent API for customization.
+ * Builder for {@link Timesheet} aggregate roots following Domain-Driven Design principles.
+ * 
+ * This builder constructs Timesheet entities with proper value objects (Money, WeekPeriod)
+ * and enforces business rules around time tracking, approval workflows, and payment
+ * calculations. Supports SSOT approval state transitions.
+ * 
+ * <h3>Design by Contract (DbC):</h3>
+ * <ul>
+ *   <li><strong>Precondition:</strong> Hours and rates must be positive values</li>
+ *   <li><strong>Postcondition:</strong> Timesheet entities respect workflow states</li>
+ *   <li><strong>Invariant:</strong> Week periods align with Monday start dates</li>
+ * </ul>
+ * 
+ * <h3>Domain Rules Enforced:</h3>
+ * <ul>
+ *   <li>Work hours must be between 0.5 and 40.0 per week</li>
+ *   <li>Hourly rates must align with institutional pay scales</li>
+ *   <li>Week start dates must be Mondays (WeekPeriod enforcement)</li>
+ *   <li>Approval status transitions follow SSOT workflow</li>
+ *   <li>Created by user must be same as tutor for new timesheets</li>
+ * </ul>
+ * 
+ * @author Integration Test Infrastructure
+ * @since 1.0.0
  */
 public class TimesheetBuilder {
 
-    private Long id = 1L;
+    private Long id = null; // Let JPA generate ID by default to avoid collisions across builds
     private Long tutorId = 2L;
     private Long courseId = 100L;
     private LocalDate weekStartDate = LocalDate.now().minusWeeks(1).with(java.time.DayOfWeek.MONDAY);

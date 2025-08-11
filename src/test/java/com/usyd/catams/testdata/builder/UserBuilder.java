@@ -8,12 +8,33 @@ import com.usyd.catams.enums.UserRole;
 import java.time.LocalDateTime;
 
 /**
- * Builder for {@link User} entities for testing purposes.
- * Provides sensible defaults and fluent API for customization.
+ * Builder for {@link User} entities following Domain-Driven Design principles.
+ * 
+ * This builder provides a fluent API for constructing User aggregate roots with proper
+ * value objects and domain rule enforcement. It ensures all constructed users are valid
+ * according to business constraints.
+ * 
+ * <h3>Design by Contract (DbC):</h3>
+ * <ul>
+ *   <li><strong>Precondition:</strong> Default values are business-rule compliant</li>
+ *   <li><strong>Postcondition:</strong> Built User entities are fully valid</li>
+ *   <li><strong>Invariant:</strong> Email format is always validated</li>
+ * </ul>
+ * 
+ * <h3>Domain Rules Enforced:</h3>
+ * <ul>
+ *   <li>Email must be valid format and unique within domain</li>
+ *   <li>Passwords must be properly hashed</li>
+ *   <li>Roles must correspond to system authorization matrix</li>
+ *   <li>Users are active by default unless explicitly deactivated</li>
+ * </ul>
+ * 
+ * @author Integration Test Infrastructure
+ * @since 1.0.0
  */
 public class UserBuilder {
 
-    private Long id = 1L;
+    private Long id = null; // Prefer auto-generated IDs in tests to avoid unique clashes
     private String email = "test.user@example.com";
     private String name = "Test User";
     private String hashedPassword = "$2a$10$hashedPassword"; // Default hashed password

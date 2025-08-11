@@ -1,3 +1,10 @@
+CREATE TABLE IF NOT EXISTS courses (
+  id BIGSERIAL PRIMARY KEY,
+  code VARCHAR(50) NOT NULL UNIQUE,
+  title VARCHAR(255) NOT NULL,
+  lecturer_id BIGINT NOT NULL REFERENCES users(id)
+);
+
 -- Create courses table
 -- Migration V3: Add courses table for timesheet management
 -- Created: 2025-08-01

@@ -31,11 +31,13 @@ try {
   } catch {}
 } catch {}
 
-// Start MSW in e2e mode to mock auth and timesheets endpoints
+// Start MSW only when explicitly enabled via VITE_E2E_USE_MSW in e2e mode
 try {
   // @ts-ignore
   const isE2E = typeof import.meta !== 'undefined' && import.meta?.env?.MODE === 'e2e'
-  if (isE2E) {
+  // @ts-ignore
+  const useMsw = (() => { try { return String(import.meta?.env?.VITE_E2E_USE_MSW || '').toLowerCase() } catch { return '' } })()
+  if (isE2E && (useMsw === 'true' || useMsw === '1')) {
     worker.start({ quiet: true })
   }
 } catch {}

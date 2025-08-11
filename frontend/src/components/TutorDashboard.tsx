@@ -242,11 +242,10 @@ const TutorDashboard: React.FC = () => {
         return 'status-badge draft';
       case 'PENDING_TUTOR_REVIEW':
         return 'status-badge pending';
-      case 'TUTOR_APPROVED':
+      case 'APPROVED_BY_TUTOR':
         return 'status-badge approved';
-      case 'PENDING_HR_REVIEW':
+      case 'APPROVED_BY_LECTURER_AND_TUTOR':
         return 'status-badge pending';
-      case 'HR_APPROVED':
       case 'FINAL_APPROVED':
         return 'status-badge approved';
       case 'REJECTED':
@@ -264,12 +263,10 @@ const TutorDashboard: React.FC = () => {
         return 'Draft';
       case 'PENDING_TUTOR_REVIEW':
         return 'Pending Tutor Review';
-      case 'TUTOR_APPROVED':
-        return 'Tutor Approved';
-      case 'PENDING_HR_REVIEW':
-        return 'Pending HR Review';
-      case 'HR_APPROVED':
-        return 'HR Approved';
+      case 'APPROVED_BY_TUTOR':
+        return 'Approved by Tutor';
+      case 'APPROVED_BY_LECTURER_AND_TUTOR':
+        return 'Approved by Lecturer & Tutor';
       case 'FINAL_APPROVED':
         return 'Final Approved';
       case 'REJECTED':

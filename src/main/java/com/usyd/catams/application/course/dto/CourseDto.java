@@ -234,8 +234,9 @@ public class CourseDto {
         if (budgetUsed == null) {
             return BigDecimal.ZERO;
         }
-        return budgetUsed.divide(budgetLimit, 4, BigDecimal.ROUND_HALF_UP)
-                        .multiply(new BigDecimal("100"));
+        return budgetUsed
+                .divide(budgetLimit, 4, java.math.RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
     }
     
     /**

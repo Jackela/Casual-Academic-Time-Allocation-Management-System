@@ -429,7 +429,7 @@ export class EnhancedMockService {
     }
 
     // Update timesheet status
-    const newStatus = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
+    const newStatus = action === 'APPROVE' ? 'APPROVED_BY_TUTOR' : 'REJECTED';
     timesheet.status = newStatus;
     this.mockTimesheets.set(timesheetId, timesheet);
 

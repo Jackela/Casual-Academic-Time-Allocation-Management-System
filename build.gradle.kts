@@ -9,16 +9,31 @@ plugins {
 group = "com.usyd"
 version = "1.0.0"
 description = "CATAMS"
-java.sourceCompatibility = JavaVersion.VERSION_17
+java.sourceCompatibility = JavaVersion.VERSION_21
 
-// Suppress deprecation warnings for intentional @Deprecated usage
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
+// Enforce modern API usage and fail on warnings to keep the codebase clean
 tasks.withType<JavaCompile> {
     options.compilerArgs.addAll(listOf(
-        "-Xlint:all",
-        "-Xlint:-deprecation",  // Suppress deprecation warnings
-        "-Xlint:-unchecked",    // Suppress unchecked warnings
-        "-Xlint:-serial"        // Suppress serialization warnings
+        "-Xlint:all"
     ))
+    // Ensure target bytecode level is Java 21
+    options.release.set(21)
+}
+
+// Improve test visibility in CI/terminal
+tasks.withType<Test> {
+    useJUnitPlatform()
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }
 
 repositories {
@@ -44,6 +59,9 @@ dependencies {
 
     // Database
     runtimeOnly(libs.org.postgresql.postgresql)
+    // Flyway for database migrations in dev/docker environments (Flyway 10 modular DB support)
+    implementation("org.flywaydb:flyway-core:10.17.0")
+    implementation("org.flywaydb:flyway-database-postgresql:10.17.0")
     // E2E runtime Testcontainers (self-managed DB for e2e profile)
     implementation(libs.org.testcontainers.testcontainers)
     implementation(libs.org.testcontainers.postgresql)
@@ -84,6 +102,7 @@ dependencies {
     testImplementation(libs.org.testcontainers.junit.jupiter)
     testImplementation(libs.org.testcontainers.postgresql)
     testImplementation(libs.org.testcontainers.testcontainers)
+    testImplementation("com.h2database:h2:2.2.224")
     
     // Performance Testing
     testImplementation(libs.org.apache.httpcomponents.client5.httpclient5)

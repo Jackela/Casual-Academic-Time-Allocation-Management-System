@@ -23,6 +23,7 @@ import java.util.Map;
  * @since 2.0 - Microservices-Ready Architecture
  */
 public abstract class UserEvent extends AbstractDomainEvent {
+    private static final long serialVersionUID = 1L;
     
     private static final String AGGREGATE_TYPE = "USER";
     
@@ -45,7 +46,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
     /**
      * Event fired when a new user account is created
      */
-    public static class UserCreatedEvent extends UserEvent {
+        public static class UserCreatedEvent extends UserEvent {
+            private static final long serialVersionUID = 1L;
         
         private final boolean isActive;
         
@@ -63,8 +65,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
         public boolean isActive() { return isActive; }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("welcomeEmailRequired", true);
             metadata.put("accountSetupRequired", true);
             return metadata;
@@ -74,7 +76,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
     /**
      * Event fired when user profile information is updated
      */
-    public static class UserUpdatedEvent extends UserEvent {
+        public static class UserUpdatedEvent extends UserEvent {
+            private static final long serialVersionUID = 1L;
         
         private final String previousName;
         private final String previousEmail;
@@ -104,8 +107,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
         }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("emailChanged", hasEmailChanged());
             metadata.put("nameChanged", hasNameChanged());
             if (hasEmailChanged()) {
@@ -118,7 +121,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
     /**
      * Event fired when a user account is activated
      */
-    public static class UserActivatedEvent extends UserEvent {
+        public static class UserActivatedEvent extends UserEvent {
+            private static final long serialVersionUID = 1L;
         
         private final String activationReason;
         
@@ -136,8 +140,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
         public String getActivationReason() { return activationReason; }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("activationReason", activationReason);
             metadata.put("welcomeBackEmailRequired", true);
             return metadata;
@@ -147,7 +151,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
     /**
      * Event fired when a user account is deactivated
      */
-    public static class UserDeactivatedEvent extends UserEvent {
+        public static class UserDeactivatedEvent extends UserEvent {
+            private static final long serialVersionUID = 1L;
         
         private final String deactivationReason;
         private final boolean isTemporary;
@@ -169,8 +174,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
         public boolean isTemporary() { return isTemporary; }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("deactivationReason", deactivationReason);
             metadata.put("isTemporary", isTemporary);
             metadata.put("cleanupRequired", true);
@@ -181,7 +186,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
     /**
      * Event fired when a user's role is changed
      */
-    public static class UserRoleChangedEvent extends UserEvent {
+        public static class UserRoleChangedEvent extends UserEvent {
+            private static final long serialVersionUID = 1L;
         
         private final UserRole previousRole;
         private final String changeReason;
@@ -227,8 +233,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
         }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("previousRole", previousRole.toString());
             metadata.put("newRole", role.toString());
             metadata.put("changeReason", changeReason);
@@ -242,7 +248,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
     /**
      * Event fired when a user successfully logs in
      */
-    public static class UserLoginEvent extends UserEvent {
+        public static class UserLoginEvent extends UserEvent {
+            private static final long serialVersionUID = 1L;
         
         private final java.time.LocalDateTime loginTime;
         private final String ipAddress;
@@ -267,8 +274,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
         public String getUserAgent() { return userAgent; }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("loginTime", loginTime);
             metadata.put("ipAddress", ipAddress);
             metadata.put("userAgent", userAgent);
@@ -291,7 +298,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
     /**
      * Event fired when a user's password is changed
      */
-    public static class UserPasswordChangedEvent extends UserEvent {
+        public static class UserPasswordChangedEvent extends UserEvent {
+            private static final long serialVersionUID = 1L;
         
         private final boolean wasReset;
         private final String changeReason;
@@ -313,8 +321,8 @@ public abstract class UserEvent extends AbstractDomainEvent {
         public String getChangeReason() { return changeReason; }
         
         @Override
-        public Map<String, Object> getMetadata() {
-            Map<String, Object> metadata = new java.util.HashMap<>(super.getMetadata());
+        public Map<String, java.io.Serializable> getMetadata() {
+            Map<String, java.io.Serializable> metadata = new java.util.HashMap<>(super.getMetadata());
             metadata.put("wasReset", wasReset);
             metadata.put("changeReason", changeReason);
             metadata.put("securityNotificationRequired", true);

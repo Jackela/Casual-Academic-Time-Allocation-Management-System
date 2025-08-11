@@ -9,8 +9,30 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Builder for {@link Course} entities for testing purposes.
- * Provides sensible defaults and fluent API for customization.
+ * Builder for {@link Course} aggregate roots following Domain-Driven Design principles.
+ * 
+ * This builder constructs Course entities with proper value objects (Money, CourseCode)
+ * and enforces business rules around course management, budget allocation, and lecturer
+ * assignment. All built courses respect domain invariants.
+ * 
+ * <h3>Design by Contract (DbC):</h3>
+ * <ul>
+ *   <li><strong>Precondition:</strong> Budget values are non-negative</li>
+ *   <li><strong>Postcondition:</strong> Course entities are business-rule compliant</li>
+ *   <li><strong>Invariant:</strong> Budget allocation >= budget used</li>
+ * </ul>
+ * 
+ * <h3>Domain Rules Enforced:</h3>
+ * <ul>
+ *   <li>Course codes must follow institutional format (e.g., COMP1001)</li>
+ *   <li>Budget allocated must be positive value</li>
+ *   <li>Budget used cannot exceed budget allocated</li>
+ *   <li>Lecturer must exist and have LECTURER role</li>
+ *   <li>Courses are active by default for current semester</li>
+ * </ul>
+ * 
+ * @author Integration Test Infrastructure
+ * @since 1.0.0
  */
 public class CourseBuilder {
 

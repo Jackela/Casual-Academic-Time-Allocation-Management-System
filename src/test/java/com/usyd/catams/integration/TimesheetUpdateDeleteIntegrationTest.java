@@ -2,6 +2,7 @@ package com.usyd.catams.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.usyd.catams.dto.request.TimesheetUpdateRequest;
+import com.usyd.catams.common.validation.TimesheetValidationProperties;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
@@ -42,10 +43,6 @@ import static org.hamcrest.Matchers.containsString;
  * - AC2: Users can delete DRAFT timesheets with proper permissions
  * - AC4: Permission validation for cross-user operations
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureMockMvc
-@ActiveProfiles("integration-test")
-@Transactional(propagation = Propagation.NOT_SUPPORTED)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
 
@@ -76,6 +73,9 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
     private Course course;
     private Timesheet draftTimesheet;
     private Timesheet approvedTimesheet;
+
+    @Autowired
+    private TimesheetValidationProperties validationProperties;
 
     @BeforeEach
     void setUp() {
@@ -167,12 +167,12 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.hours").value(12.0))
                 .andExpect(jsonPath("$.hourlyRate").value(30.0))
                 .andExpect(jsonPath("$.description").value("Updated: Tutorial sessions, grading, and consultation hours"))
-                .andExpect(jsonPath("$.status").value("DRAFT"));
+                .andExpect(jsonPath("$.status").value(ApprovalStatus.DRAFT.name()));
 
         // Verify database was updated
         Timesheet updated = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
-        assertEquals(BigDecimal.valueOf(12.0), updated.getHours());
-        assertEquals(BigDecimal.valueOf(30.0), updated.getHourlyRate());
+        assertEquals(0, updated.getHours().compareTo(BigDecimal.valueOf(12.0)));
+        assertEquals(0, updated.getHourlyRate().compareTo(BigDecimal.valueOf(30.0)));
         assertEquals("Updated: Tutorial sessions, grading, and consultation hours", updated.getDescription());
         assertEquals(ApprovalStatus.DRAFT, updated.getStatus());
     }
@@ -195,7 +195,7 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hours").value(15.0))
                 .andExpect(jsonPath("$.hourlyRate").value(35.00))
-                .andExpect(jsonPath("$.status").value("DRAFT"));
+                .andExpect(jsonPath("$.status").value(ApprovalStatus.DRAFT.name()));
     }
 
     @Test
@@ -369,9 +369,10 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
     void testUpdateTimesheetWithInvalidData() throws Exception {
         String token = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
         
-        // Invalid hours (too high)
+        // Invalid hours (too high): derive from SSOT validation properties to avoid magic numbers
+        BigDecimal maxHours = validationProperties.getHours().getMax();
         TimesheetUpdateRequest invalidRequest = new TimesheetUpdateRequest(
-            BigDecimal.valueOf(50.0), // Exceeds maximum of 40.0
+            maxHours.add(BigDecimal.ONE),
             BigDecimal.valueOf(30.00),
             "Invalid hours"
         );

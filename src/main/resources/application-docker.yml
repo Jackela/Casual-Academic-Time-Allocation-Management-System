@@ -1,0 +1,46 @@
+# Docker/Production Profile Configuration
+# Inherits defaults from application.yml, overrides for containerized deployment
+
+spring:
+  # Database Configuration (environment-driven)
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db:5432/catams}
+    username: ${SPRING_DATASOURCE_USERNAME:catams_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:catams_password}
+    driver-class-name: org.postgresql.Driver
+
+  # JPA Configuration (production settings)
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Flyway Configuration (production-safe settings)
+  flyway:
+    baseline-on-migrate: false
+    clean-disabled: true
+
+  # Security Configuration
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      expiration: 28800000
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8080}
+
+# Logging Configuration (production-appropriate)
+logging:
+  level:
+    com.usyd.catams: INFO
+    org.springframework.security: WARN
+
+# CORS Configuration
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+

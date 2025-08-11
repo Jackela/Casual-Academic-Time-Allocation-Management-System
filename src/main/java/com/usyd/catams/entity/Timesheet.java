@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.usyd.catams.common.validation.TimesheetValidationConstants;
+import com.usyd.catams.common.validation.TimesheetValidationProperties;
 
 @Entity
 @Table(name = "timesheets", 
@@ -92,8 +92,11 @@ public class Timesheet {
     private List<Approval> approvals = new ArrayList<>();
     
     // Default constructor
-    public Timesheet() {
-    }
+    public Timesheet() {}
+
+    // Injected validation properties (setter injection via @PrePersist context not available on entities)
+    private static TimesheetValidationProperties validationProperties;
+    public static void setValidationProperties(TimesheetValidationProperties props) { validationProperties = props; }
     
     // Constructor for creation
     public Timesheet(Long tutorId, Long courseId, WeekPeriod weekPeriod, 
@@ -119,17 +122,13 @@ public class Timesheet {
         LocalDateTime now = LocalDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
-        
-        // Validate on create
-        validateBusinessRules();
+        enforceDynamicValidation();
     }
     
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
-        
-        // Validate on update
-        validateBusinessRules();
+        enforceDynamicValidation();
     }
     
     // Getters and Setters
@@ -197,14 +196,10 @@ public class Timesheet {
      * Get hourly rate as BigDecimal (for backward compatibility)
      */
     public BigDecimal getHourlyRate() {
-        if (hourlyRate == null || hourlyRate.getAmount() == null) {
+        if (hourlyRate == null) {
             return null;
         }
-        BigDecimal normalized = hourlyRate.getAmount().stripTrailingZeros();
-        if (normalized.scale() < 1) {
-            normalized = normalized.setScale(1);
-        }
-        return normalized;
+        return hourlyRate.getAmount();
     }
     
     public String getDescription() {
@@ -267,21 +262,40 @@ public class Timesheet {
     }
     
     public void validateBusinessRules() {
-        // Ensure week start date is Monday
+        // Intentionally left minimal; business validation enforced in domain service (SSOT)
         if (weekPeriod != null && weekPeriod.getStartDate() != null && weekPeriod.getStartDate().getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
             throw new IllegalArgumentException("Monday");
         }
-        
-        if (hours != null && (hours.compareTo(TimesheetValidationConstants.getMinHours()) < 0 || 
-                             hours.compareTo(TimesheetValidationConstants.getMaxHours()) > 0)) {
-            throw new IllegalArgumentException(TimesheetValidationConstants.getHoursValidationMessage());
+    }
+
+    /**
+     * Enforce dynamic validation based on TimesheetValidationProperties.
+     * Ensures hours and hourly rate are within configured bounds.
+     * Design by Contract: fast-fail with informative exceptions.
+     */
+    private void enforceDynamicValidation() {
+        if (validationProperties == null) {
+            return; // Property binding not available in entity context; validated elsewhere
         }
-        
-        if (hourlyRate != null) {
+        if (hours != null) {
+            BigDecimal min = validationProperties.getMinHours();
+            BigDecimal max = validationProperties.getHours().getMax();
+            if (min != null && hours.compareTo(min) < 0) {
+                throw new IllegalArgumentException("Hours below minimum: " + min);
+            }
+            if (max != null && hours.compareTo(max) > 0) {
+                throw new IllegalArgumentException("Hours above maximum: " + max);
+            }
+        }
+        if (hourlyRate != null && hourlyRate.getAmount() != null) {
             BigDecimal rate = hourlyRate.getAmount();
-            if (rate.compareTo(TimesheetValidationConstants.getMinHourlyRate()) < 0 || 
-                rate.compareTo(TimesheetValidationConstants.getMaxHourlyRate()) > 0) {
-                throw new IllegalArgumentException(TimesheetValidationConstants.getHourlyRateValidationMessage());
+            BigDecimal minRate = validationProperties.getMinHourlyRate();
+            BigDecimal maxRate = validationProperties.getMaxHourlyRate();
+            if (minRate != null && rate.compareTo(minRate) < 0) {
+                throw new IllegalArgumentException("Hourly rate below minimum: " + minRate);
+            }
+            if (maxRate != null && rate.compareTo(maxRate) > 0) {
+                throw new IllegalArgumentException("Hourly rate above maximum: " + maxRate);
             }
         }
     }

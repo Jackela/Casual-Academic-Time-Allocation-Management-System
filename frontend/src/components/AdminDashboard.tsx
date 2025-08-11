@@ -301,7 +301,7 @@ const AdminDashboard: React.FC = () => {
       case 'PENDING_TUTOR_REVIEW':
       case 'PENDING': // alias for UI filter compatibility
         return 'status-badge status-pending';
-      case 'APPROVED':
+      case 'FINAL_APPROVED':
         return 'status-badge status-approved';
       case 'REJECTED':
         return 'status-badge status-rejected';

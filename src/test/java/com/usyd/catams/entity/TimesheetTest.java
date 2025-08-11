@@ -15,6 +15,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.usyd.catams.test.config.TestConfigurationLoader;
 // import com.usyd.catams.common.validation.TimesheetValidationConstants;
@@ -216,36 +217,15 @@ public class TimesheetTest {
 
     @Test
     void testValidateBusinessRules() {
-        // Test valid timesheet
-        assertThat(timesheet).satisfies(t -> {
-            // Should not throw exception
-            t.validateBusinessRules();
-        });
+        // entity only validates Monday invariant now
+        timesheet.setWeekStartDate(LocalDate.of(2024, 3, 5)); // Tuesday
+        assertThatThrownBy(() -> timesheet.validateBusinessRules())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Monday");
 
-        // Test invalid hours - too low
-        timesheet.setHours(new BigDecimal("0.05"));
-        assertThatThrownBy(() -> timesheet.validateBusinessRules())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(TestConfigurationLoader.getExpectedHoursValidationMessage());
-        // Test invalid hours - too high
-        timesheet.setHours(new BigDecimal("45.0"));
-        assertThatThrownBy(() -> timesheet.validateBusinessRules())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(TestConfigurationLoader.getExpectedHoursValidationMessage());
-        // Reset to valid hours
-        timesheet.setHours(new BigDecimal("5.0"));
-
-        // Test invalid hourly rate - too low
-        timesheet.setHourlyRate(new BigDecimal("5.00"));
-        assertThatThrownBy(() -> timesheet.validateBusinessRules())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Hourly rate must be between 10.00 and 200.00");
-
-        // Test invalid hourly rate - too high
-        timesheet.setHourlyRate(new BigDecimal("250.00"));
-        assertThatThrownBy(() -> timesheet.validateBusinessRules())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Hourly rate must be between 10.00 and 200.00");
+        // valid Monday passes
+        timesheet.setWeekStartDate(LocalDate.of(2024, 3, 4));
+        assertThatCode(() -> timesheet.validateBusinessRules()).doesNotThrowAnyException();
     }
 
     @Test
