@@ -83,6 +83,25 @@ public class TimesheetController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Retrieve timesheets pending first-level approval.
+     * Access control: allowed for TUTOR (own pending) and ADMIN (all), forbidden for LECTURER.
+     */
+    @GetMapping("/pending-approval")
+    @PreAuthorize("hasRole('TUTOR') or hasRole('ADMIN')")
+    public ResponseEntity<PagedTimesheetResponse> getPendingApprovalTimesheets(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @RequestParam(value = "sort", defaultValue = "createdAt,asc") String sort) {
+        if (page < 0) page = 0;
+        if (size <= 0 || size > 100) size = 20;
+        Pageable pageable = createPageable(page, size, sort);
+        Long requesterId = authenticationFacade.getCurrentUserId();
+        Page<com.usyd.catams.entity.Timesheet> pageEntities =
+                timesheetService.getPendingApprovalTimesheets(requesterId, pageable);
+        return ResponseEntity.ok(timesheetMapper.toPagedResponse(pageEntities));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('TUTOR') or hasRole('LECTURER') or hasRole('ADMIN')")
     public ResponseEntity<TimesheetResponse> getTimesheetById(
