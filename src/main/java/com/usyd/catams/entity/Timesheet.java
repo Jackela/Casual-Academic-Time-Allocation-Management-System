@@ -265,9 +265,32 @@ public class Timesheet {
     }
     
     public void validateBusinessRules() {
-        // Intentionally minimal; business validation enforced in domain service (SSOT)
+        // DbC: validate week start day
         if (weekPeriod != null && weekPeriod.getStartDate() != null && weekPeriod.getStartDate().getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
-            throw new IllegalArgumentException("Monday");
+            throw new IllegalArgumentException("Week start date must be a Monday");
+        }
+        // SSOT: enforce hours and hourly rate ranges using validation service (via static holder in non-managed context)
+        com.usyd.catams.common.validation.TimesheetValidationService svc =
+                com.usyd.catams.common.validation.ValidationSSOT.get() != null
+                        ? new com.usyd.catams.common.validation.TimesheetValidationService() {
+                            // Bridge: delegate getters to the injected properties in ValidationSSOT
+                            private final com.usyd.catams.common.validation.TimesheetValidationProperties p = com.usyd.catams.common.validation.ValidationSSOT.get();
+                            @Override public java.math.BigDecimal getMaxHours(){ return p.getHours().getMax(); }
+                        }
+                        : null;
+        if (svc != null) {
+            if (hours != null) {
+                if (hours.compareTo(svc.getMinHours()) < 0 || hours.compareTo(svc.getMaxHours()) > 0) {
+                    throw new IllegalArgumentException(svc.getHoursValidationMessage());
+                }
+            }
+            if (hourlyRate != null && hourlyRate.getAmount() != null) {
+                BigDecimal rate = hourlyRate.getAmount();
+                if (rate.compareTo(svc.getMinHourlyRate()) < 0 || rate.compareTo(svc.getMaxHourlyRate()) > 0) {
+                    throw new IllegalArgumentException(String.format(
+                            "Hourly rate must be between %s and %s", svc.getMinHourlyRate(), svc.getMaxHourlyRate()));
+                }
+            }
         }
     }
 

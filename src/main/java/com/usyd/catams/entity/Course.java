@@ -207,14 +207,14 @@ public class Course {
      * Get budget allocated as BigDecimal (for backward compatibility)
      */
     public BigDecimal getBudgetAllocated() {
-        return budgetAllocated != null ? budgetAllocated.getAmount() : BigDecimal.ZERO;
+        return budgetAllocated != null ? budgetAllocated.getAmount() : null;
     }
     
     /**
      * Get budget used as BigDecimal (for backward compatibility)
      */
     public BigDecimal getBudgetUsed() {
-        return budgetUsed != null ? budgetUsed.getAmount() : BigDecimal.ZERO;
+        return budgetUsed != null ? budgetUsed.getAmount() : null;
     }
     
     public Boolean getIsActive() {
