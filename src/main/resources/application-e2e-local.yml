@@ -2,12 +2,13 @@
 # Uses H2 in-memory database for local E2E testing (faster startup)
 
 spring:
-  # Database Configuration (H2 for local E2E)
+  # Database Configuration (Embedded PostgreSQL for local E2E)
+  # DataSource provided by EmbeddedPostgresConfig under 'e2e-local' profile
   datasource:
-    url: jdbc:h2:mem:catams_e2e;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
+    url: ''
+    driver-class-name: ''
+    username: ''
+    password: ''
     
   # JPA Configuration (local E2E-specific)
   jpa:
@@ -16,7 +17,7 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         
   # Disable Flyway for local E2E tests
   flyway:
