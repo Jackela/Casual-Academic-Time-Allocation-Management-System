@@ -41,13 +41,25 @@ public class TimesheetDomainServiceTest {
         rule2 = ctx -> { throw new com.usyd.catams.exception.BusinessException("R2", "Rule2 should not execute if fail-fast"); };
         userRepository = Mockito.mock(UserRepository.class);
         courseRepository = Mockito.mock(CourseRepository.class);
-        domainService = new TimesheetDomainService(ruleEngine,
-                // inject rules explicitly to hit the existing constructor ordering
-                (c)-> { throw new com.usyd.catams.exception.BusinessException("HOURS", "hours"); },
-                (c)-> { throw new com.usyd.catams.exception.BusinessException("RATE", "rate"); },
-                (c)-> { throw new com.usyd.catams.exception.BusinessException("DATE", "date"); },
-                (c)-> { throw new com.usyd.catams.exception.BusinessException("BUDGET", "budget"); },
-                userRepository, courseRepository);
+        // Use real rule types via mocks to satisfy constructor types
+        com.usyd.catams.domain.rules.HoursRangeRule hoursRule = Mockito.mock(com.usyd.catams.domain.rules.HoursRangeRule.class);
+        com.usyd.catams.domain.rules.HourlyRateRangeRule rateRule = Mockito.mock(com.usyd.catams.domain.rules.HourlyRateRangeRule.class);
+        com.usyd.catams.domain.rules.FutureDateRule futureRule = Mockito.mock(com.usyd.catams.domain.rules.FutureDateRule.class);
+        com.usyd.catams.domain.rules.BudgetExceededRule budgetRule = Mockito.mock(com.usyd.catams.domain.rules.BudgetExceededRule.class);
+
+        // Fail fast: make the first rule throw BusinessException
+        Mockito.doThrow(new com.usyd.catams.exception.BusinessException("HOURS", "hours"))
+            .when(hoursRule).isSatisfiedBy(Mockito.any());
+
+        domainService = new TimesheetDomainService(
+                ruleEngine,
+                hoursRule,
+                rateRule,
+                futureRule,
+                budgetRule,
+                userRepository,
+                courseRepository
+        );
     }
 
     @Test
