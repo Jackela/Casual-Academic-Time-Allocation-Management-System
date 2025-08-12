@@ -9,11 +9,11 @@ import com.usyd.catams.integration.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import jakarta.persistence.EntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-// Removed merge conflict remnants
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,7 +28,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
     private TimesheetRepository timesheetRepository;
 
     @Autowired
-    private TestEntityManager entityManager;
+    private EntityManager entityManager;
 
     private Timesheet timesheet1;
     private Timesheet timesheet2;
@@ -36,6 +36,8 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
 
     @BeforeEach
     void setUp() {
+        // Ensure clean state
+        timesheetRepository.deleteAll();
         // Timesheet created by Lecturer for casual staff payment - awaiting lecturer approval
         timesheet1 = new Timesheet(
             1L, // casualStaffId (tutor/teaching assistant)
@@ -70,10 +72,42 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
         );
         timesheet3.setStatus(ApprovalStatus.DRAFT);
 
-        entityManager.persistAndFlush(timesheet1);
-        entityManager.persistAndFlush(timesheet2);
-        entityManager.persistAndFlush(timesheet3);
+        entityManager.persist(timesheet1);
+        entityManager.persist(timesheet2);
+        entityManager.persist(timesheet3);
+        entityManager.flush();
     }
 
-    // ... all other test methods from the original file
+    @Test
+    void findByTutorId_ShouldReturnAllForTutor() {
+        List<Timesheet> found = timesheetRepository.findByTutorId(1L);
+        assertThat(found).extracting(Timesheet::getTutorId).containsOnly(1L);
+        assertThat(found).hasSize(2);
+    }
+
+    @Test
+    void findByCourseId_ShouldReturnAllForCourse() {
+        List<Timesheet> found = timesheetRepository.findByCourseId(1L);
+        assertThat(found).hasSize(2);
+        assertThat(found).extracting(Timesheet::getCourseId).containsOnly(1L);
+    }
+
+    @Test
+    void findByStatus_ShouldReturnByStatus() {
+        List<Timesheet> drafts = timesheetRepository.findByStatus(ApprovalStatus.DRAFT);
+        List<Timesheet> pending = timesheetRepository.findByStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        List<Timesheet> finalApproved = timesheetRepository.findByStatus(ApprovalStatus.FINAL_APPROVED);
+        assertThat(drafts).hasSize(1);
+        assertThat(pending).hasSize(1);
+        assertThat(finalApproved).hasSize(1);
+    }
+
+    @Test
+    void pagingAndFilters_ShouldWork() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Timesheet> byTutor = timesheetRepository.findByTutorId(1L, pageable);
+        assertThat(byTutor.getTotalElements()).isEqualTo(2);
+        Page<Timesheet> filtered = timesheetRepository.findWithFilters(1L, 1L, ApprovalStatus.PENDING_TUTOR_REVIEW, pageable);
+        assertThat(filtered.getTotalElements()).isEqualTo(1);
+    }
 }

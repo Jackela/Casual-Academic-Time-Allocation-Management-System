@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import waitOn from 'wait-on';
@@ -12,6 +12,7 @@ const projectRoot = join(__dirname, '..', '..');
 
 let backendProcess = null;
 let frontendProcess = null;
+let allSpawnedProcesses = new Set(); // Track all spawned processes for cleanup
 
 // Colors for console output
 const colors = {
@@ -52,6 +53,10 @@ function spawnProcess(command, args, options = {}) {
       shell: true,
       ...options
     });
+
+    // Track all spawned processes for cleanup
+    allSpawnedProcesses.add(child);
+    child.on('close', () => allSpawnedProcesses.delete(child));
 
     let output = '';
     let errorOutput = '';
@@ -95,23 +100,43 @@ function loadParams() {
 const params = loadParams();
 
 function getGradleCommand() {
-  return process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+  // For cross-platform compatibility, we need to handle Windows specifically
+  if (process.platform === 'win32') {
+    // In Windows, we use the shell to run gradlew.bat through cmd
+    return 'cmd';
+  } else {
+    return './gradlew';
+  }
+}
+
+function getGradleArgs(bootRunArgs) {
+  if (process.platform === 'win32') {
+    // Windows: use cmd /c to run gradlew.bat
+    return ['/c', 'gradlew.bat', 'bootRun', '-x', 'test', `--args=${bootRunArgs}`];
+  } else {
+    // Unix-like systems: direct gradlew execution
+    return ['bootRun', '-x', 'test', `--args=${bootRunArgs}`];
+  }
 }
 
 async function startBackend() {
-  logStep('STEP 1', 'Starting Spring Boot backend with E2E profile...');
+  logStep('STEP 3', 'Starting Spring Boot backend with E2E profile...');
   
   try {
     // Start backend process in background (non-blocking)
     const gradleCmd = getGradleCommand();
     const backendArgs = `--spring.profiles.active=${params.backendProfile} --server.port=${params.backendPort}`;
-    const gradleArgs = ['bootRun', '-x', 'test', `--args=${backendArgs}`];
+    const gradleArgs = getGradleArgs(backendArgs);
     backendProcess = spawn(gradleCmd, gradleArgs, {
       cwd: projectRoot,
       stdio: 'pipe',
       shell: true,
       detached: false
     });
+    
+    // Track backend process for cleanup
+    allSpawnedProcesses.add(backendProcess);
+    backendProcess.on('close', () => allSpawnedProcesses.delete(backendProcess));
 
     // Log backend startup progress
     backendProcess.stdout.on('data', (data) => {
@@ -142,10 +167,11 @@ async function startBackend() {
     });
 
     // Implement active health checking instead of log parsing
-    logStep('STEP 2', 'Performing active health checks...');
+    logStep('STEP 4', 'Performing active health checks...');
+    log('  📋 This may take 1-2 minutes on first run (Docker image download + TestContainers startup)', colors.blue);
     
     const readyPromise = new Promise(async (resolve, reject) => {
-      const maxAttempts = 60; // 60 seconds max
+      const maxAttempts = 120; // 120 seconds max (2 minutes for Docker image download + startup)
       for (let attempts = 1; attempts <= maxAttempts; attempts++) {
         try {
           await waitOn({ resources: [`tcp:localhost:${params.backendPort}`], timeout: 1000, interval: 500 });
@@ -165,7 +191,9 @@ async function startBackend() {
             return resolve(backendProcess);
           }
         } catch {}
-        if (attempts % 10 === 0) log(`  ⏱️  Health check attempt ${attempts}/${maxAttempts}...`, colors.yellow);
+        if (attempts % 15 === 0 || attempts === 30 || attempts === 60) {
+          log(`  ⏱️  Health check attempt ${attempts}/${maxAttempts} (${Math.round(attempts/maxAttempts*100)}%)...`, colors.yellow);
+        }
         await new Promise((r) => setTimeout(r, 1000));
       }
       reject(new Error('Backend failed to become healthy within timeout period'));
@@ -176,6 +204,16 @@ async function startBackend() {
   } catch (error) {
     logError(`Failed to start backend: ${error.message}`);
     throw error;
+  }
+}
+
+async function checkDockerAvailability() {
+  try {
+    execSync('docker --version', { stdio: 'pipe' });
+    execSync('docker info', { stdio: 'pipe' });
+    return true;
+  } catch (error) {
+    return false;
   }
 }
 
@@ -190,7 +228,7 @@ async function checkBackendAlreadyRunning() {
 }
 
 async function startFrontend() {
-  logStep('STEP 3', 'Starting Vite development server...');
+  logStep('STEP 5', 'Starting Vite development server...');
   
   try {
     // Skip if already running (avoid port conflicts)
@@ -208,6 +246,10 @@ async function startFrontend() {
       stdio: 'pipe',
       shell: true
     });
+    
+    // Track frontend process for cleanup
+    allSpawnedProcesses.add(frontendProcess);
+    frontendProcess.on('close', () => allSpawnedProcesses.delete(frontendProcess));
 
     frontendProcess.stdout.on('data', (data) => {
       const output = data.toString();
@@ -224,7 +266,7 @@ async function startFrontend() {
     });
 
     // Wait for frontend to be ready
-    logStep('STEP 4', 'Waiting for frontend to be ready...');
+    logStep('STEP 6', 'Waiting for frontend to be ready...');
     await waitOn({
       resources: [params.frontendUrl],
       timeout: 30000, // 30 seconds
@@ -240,7 +282,7 @@ async function startFrontend() {
 }
 
 async function runPlaywrightTests() {
-  logStep('STEP 5', 'Running Playwright E2E tests...');
+  logStep('STEP 7', 'Running Playwright E2E tests...');
   
   try {
     const resultsPath = join(projectRoot, 'frontend', params.jsonReportPath);
@@ -279,24 +321,89 @@ async function runPlaywrightTests() {
 
 // Analysis removed by design; external agent will read the JSON report.
 
+function killProcessTreeWindows(pid) {
+  try {
+    // Kill process tree on Windows using taskkill
+    execSync(`taskkill /F /T /PID ${pid}`, { stdio: 'ignore' });
+  } catch (error) {
+    // Fallback to individual process kill
+    try {
+      execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
+    } catch {}
+  }
+}
+
+function killProcessTreeUnix(pid) {
+  try {
+    // Kill process group on Unix-like systems
+    process.kill(-pid, 'SIGTERM');
+    setTimeout(() => {
+      try { process.kill(-pid, 'SIGKILL'); } catch {}
+    }, 2000);
+  } catch (error) {
+    // Fallback to individual process kill
+    try { process.kill(pid, 'SIGTERM'); } catch {}
+    setTimeout(() => {
+      try { process.kill(pid, 'SIGKILL'); } catch {}
+    }, 2000);
+  }
+}
+
 async function cleanup() {
   logStep('CLEANUP', 'Shutting down services...');
   
   const killGracefully = (proc, name) => new Promise((resolve) => {
-    if (!proc || proc.killed) return resolve();
-    try { proc.kill('SIGTERM'); } catch {}
+    if (!proc || proc.killed || !proc.pid) return resolve();
+    
+    log(`  🛑 Stopping ${name} (PID: ${proc.pid})`);
+    
+    // Platform-specific process tree killing
+    if (process.platform === 'win32') {
+      killProcessTreeWindows(proc.pid);
+    } else {
+      killProcessTreeUnix(proc.pid);
+    }
+    
+    // Wait for process to exit
     const timeout = setTimeout(() => {
-      try { proc.kill('SIGKILL'); } catch {}
+      log(`  ⚠️  ${name} force killed after timeout`);
       resolve();
-    }, 1500);
-    proc.on('close', () => { clearTimeout(timeout); resolve(); });
-    log(`  🛑 ${name} stopped`);
+    }, 3000);
+    
+    proc.on('close', () => {
+      clearTimeout(timeout);
+      log(`  ✅ ${name} stopped gracefully`);
+      resolve();
+    });
   });
 
-  await Promise.all([
-    killGracefully(frontendProcess, 'Frontend server'),
-    killGracefully(backendProcess, 'Backend server')
-  ]);
+  // Kill all tracked spawned processes
+  const cleanupPromises = [];
+  for (const child of allSpawnedProcesses) {
+    if (!child.killed && child.pid) {
+      cleanupPromises.push(killGracefully(child, `Process ${child.pid}`));
+    }
+  }
+
+  // Add main processes
+  if (frontendProcess) cleanupPromises.push(killGracefully(frontendProcess, 'Frontend server'));
+  if (backendProcess) cleanupPromises.push(killGracefully(backendProcess, 'Backend server'));
+
+  await Promise.all(cleanupPromises);
+  
+  // Final comprehensive port cleanup using dedicated script
+  try {
+    log('  🔧 Running comprehensive port cleanup...');
+    const cleanupScript = join(projectRoot, 'scripts', 'cleanup-ports.js');
+    execSync(`node "${cleanupScript}"`, { 
+      stdio: 'inherit',
+      cwd: projectRoot 
+    });
+  } catch (error) {
+    log(`  ⚠️  Port cleanup script failed: ${error.message}`);
+  }
+  
+  log('  🧹 Cleanup completed');
 }
 
 async function main() {
@@ -310,8 +417,22 @@ ${colors.reset}`);
   let playwrightExit = 1;
 
   try {
+    // Check Docker availability first
+    logStep('STEP 0', 'Checking Docker availability...');
+    const dockerAvailable = await checkDockerAvailability();
+    if (!dockerAvailable) {
+      logError('Docker is not available or not running!');
+      logError('📋 To run E2E tests locally, please:');
+      logError('   1. Install Docker Desktop');
+      logError('   2. Start Docker Desktop');
+      logError('   3. Verify with: docker --version');
+      logError('💡 Alternative: Run unit/integration tests instead');
+      process.exit(1);
+    }
+    logSuccess('Docker is available and running');
+
     // Install dependencies if needed
-    logStep('STEP 0', 'Installing dependencies...');
+    logStep('STEP 1', 'Installing dependencies...');
     try {
       await spawnProcess('npm', ['install'], {
         cwd: join(projectRoot, 'frontend')
@@ -331,6 +452,7 @@ ${colors.reset}`);
     process.env.E2E_ADMIN_PASSWORD = users.admin?.password || 'Admin123!';
 
     // Start backend with E2E profile (with health checking) iff not already running
+    logStep('STEP 2', 'Checking backend status...');
     const alreadyUp = await checkBackendAlreadyRunning();
     if (alreadyUp) {
       logSuccess('Detected healthy backend. Skipping backend start.');

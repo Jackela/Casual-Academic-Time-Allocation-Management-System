@@ -1,11 +1,11 @@
 
 package com.usyd.catams.domain.rules;
 
+import com.usyd.catams.common.validation.TimesheetValidationProperties;
 import com.usyd.catams.domain.rules.context.TimesheetValidationContext;
 import com.usyd.catams.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 
@@ -18,8 +18,12 @@ class HoursRangeRuleTest {
 
     @BeforeEach
     void setUp() {
-        hoursRangeRule = new HoursRangeRule();
-        ReflectionTestUtils.setField(hoursRangeRule, "maxHours", new BigDecimal("40"));
+        // Create test properties with known values
+        TimesheetValidationProperties testProps = new TimesheetValidationProperties();
+        testProps.getHours().setMax(new BigDecimal("40"));
+        testProps.setMinHours(new BigDecimal("0.1"));
+        
+        hoursRangeRule = new HoursRangeRule(testProps);
     }
 
     @Test

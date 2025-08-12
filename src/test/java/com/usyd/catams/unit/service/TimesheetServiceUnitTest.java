@@ -12,6 +12,7 @@ import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.domain.service.TimesheetDomainService;
 import com.usyd.catams.mapper.TimesheetMapper;
+import com.usyd.catams.policy.TimesheetPermissionPolicy;
 import com.usyd.catams.testdata.TestDataBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -58,7 +59,14 @@ class TimesheetServiceUnitTest {
     private TimesheetDomainService timesheetDomainService;
 
     @Mock
+    private com.usyd.catams.domain.service.TimesheetValidationService timesheetValidationService;
+
+    @Mock
     private TimesheetMapper timesheetMapper;
+    
+    @Mock
+    private TimesheetPermissionPolicy permissionPolicy;
+    
     @InjectMocks
     private TimesheetApplicationService timesheetService;
 
@@ -105,9 +113,8 @@ class TimesheetServiceUnitTest {
         when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
         when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
         when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
-        // Mock domain service authorization check
-        lenient().when(timesheetDomainService.hasLecturerAuthorityOverCourse(lecturer, course))
-            .thenReturn(true);
+        // Mock policy authorization - lecturer can create timesheet for tutor in their course
+        when(permissionPolicy.canCreateTimesheetFor(lecturer, tutor, course)).thenReturn(true);
         
         // Mock timesheet existence check - first call for uniqueness validation, second call for postcondition
         when(timesheetRepository.existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(
@@ -124,6 +131,10 @@ class TimesheetServiceUnitTest {
             savedTimesheet.setId(1L);
             return savedTimesheet;
         });
+
+        // Mock validation service (SSOT validation)
+        // validateInputs should not throw exception for valid inputs
+        doNothing().when(timesheetValidationService).validateInputs(any(BigDecimal.class), any(BigDecimal.class));
 
         // Mock domain service validation (following DDD: domain logic in domain service)
         when(timesheetDomainService.validateTimesheetCreation(
@@ -178,9 +189,11 @@ class TimesheetServiceUnitTest {
         when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
         when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
         when(courseRepository.findById(otherCourse.getId())).thenReturn(Optional.of(otherCourse));
-        // Mock domain service authorization check - lecturer doesn't have authority over other course
-        lenient().when(timesheetDomainService.hasLecturerAuthorityOverCourse(lecturer, otherCourse))
-            .thenReturn(false);
+        // Mock validation service (SSOT validation) - lenient since security check may fail first
+        lenient().doNothing().when(timesheetValidationService).validateInputs(any(BigDecimal.class), any(BigDecimal.class));
+
+        // Mock policy authorization - lecturer cannot create timesheet for other course
+        when(permissionPolicy.canCreateTimesheetFor(lecturer, tutor, otherCourse)).thenReturn(false);
         // Act & Assert
         assertThatThrownBy(() -> 
             timesheetService.createTimesheet(
@@ -194,29 +207,61 @@ class TimesheetServiceUnitTest {
             )
         )
         .isInstanceOf(SecurityException.class)
-        .hasMessageContaining("LECTURER can only create timesheets for courses they are assigned to");    }
+        .hasMessageContaining("is not authorized to create timesheet for tutor");    }
 
     @Test
-    @DisplayName("createTimesheet - Admin cannot create timesheet (only LECTURER allowed)")
-    void createTimesheet_Admin_ShouldThrowSecurityException() {
+    @DisplayName("createTimesheet - Admin can create timesheet for any tutor")
+    void createTimesheet_Admin_ShouldSucceed() {
         // Arrange - Mock repository calls for validation
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
         when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
-        // Act & Assert
-        assertThatThrownBy(() -> 
-            timesheetService.createTimesheet(
-                tutor.getId(),
-                course.getId(),
-                timesheet.getWeekStartDate(),
-                timesheet.getHours(),
-                timesheet.getHourlyRate(),
-                timesheet.getDescription(),
-                admin.getId()
-            )
-        )
-        .isInstanceOf(SecurityException.class)
-        .hasMessageContaining("Only LECTURER users can create timesheets");
+        
+        // Mock policy authorization - admin can create timesheets
+        when(permissionPolicy.canCreateTimesheetFor(admin, tutor, course)).thenReturn(true);
+        
+        // Mock timesheet existence check
+        when(timesheetRepository.existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(
+            tutor.getId(), course.getId(), timesheet.getWeekStartDate()))
+            .thenReturn(false)   // First call: uniqueness validation - doesn't exist
+            .thenReturn(true);   // Second call: postcondition validation - now exists
+            
+        // Mock save operation
+        when(timesheetRepository.save(any(Timesheet.class))).thenAnswer(invocation -> {
+            Timesheet savedTimesheet = invocation.getArgument(0);
+            savedTimesheet.setId(1L);
+            return savedTimesheet;
+        });
+
+        // Mock validation service (SSOT validation)
+        doNothing().when(timesheetValidationService).validateInputs(any(BigDecimal.class), any(BigDecimal.class));
+
+        // Mock domain service validation
+        when(timesheetDomainService.validateTimesheetCreation(
+            any(User.class), any(User.class), any(Course.class), 
+            any(), any(BigDecimal.class), any(BigDecimal.class), 
+            any(String.class)))
+            .thenReturn(timesheet.getDescription());
+            
+        // Act
+        Timesheet result = timesheetService.createTimesheet(
+            tutor.getId(),
+            course.getId(),
+            timesheet.getWeekStartDate(),
+            timesheet.getHours(),
+            timesheet.getHourlyRate(),
+            timesheet.getDescription(),
+            admin.getId()
+        );
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result.getTutorId()).isEqualTo(tutor.getId());
+        assertThat(result.getCourseId()).isEqualTo(course.getId());
+        assertThat(result.getCreatedBy()).isEqualTo(admin.getId());
+        assertThat(result.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
+        
+        verify(timesheetRepository).save(any(Timesheet.class));
     }
 
     @Test
@@ -225,6 +270,12 @@ class TimesheetServiceUnitTest {
         // Arrange - Mock repository calls for validation
         when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
         when(courseRepository.findById(course.getId())).thenReturn(Optional.of(course));
+        // Mock validation service (SSOT validation) - lenient since security check may fail first
+        lenient().doNothing().when(timesheetValidationService).validateInputs(any(BigDecimal.class), any(BigDecimal.class));
+        
+        // Mock policy authorization - tutor cannot create timesheets
+        when(permissionPolicy.canCreateTimesheetFor(tutor, tutor, course)).thenReturn(false);
+        
         // Act & Assert
         assertThatThrownBy(() -> 
             timesheetService.createTimesheet(
@@ -238,7 +289,7 @@ class TimesheetServiceUnitTest {
             )
         )
         .isInstanceOf(SecurityException.class)
-        .hasMessageContaining("Only LECTURER users can create timesheets");
+        .hasMessageContaining("is not authorized to create timesheet for tutor");
     }
 
     @Test
@@ -250,9 +301,9 @@ class TimesheetServiceUnitTest {
         when(timesheetRepository.findById(timesheet.getId()))
             .thenReturn(Optional.of(timesheet));
         when(courseRepository.findById(timesheet.getCourseId())).thenReturn(Optional.of(course));
-        // Mock domain service authorization check
-        when(timesheetDomainService.hasLecturerAuthorityOverCourse(lecturer, course))
-            .thenReturn(true);
+        
+        // Mock policy authorization - lecturer can view timesheet for their course
+        when(permissionPolicy.canViewTimesheet(lecturer, timesheet, course)).thenReturn(true);
         // Act
         Optional<Timesheet> result = timesheetService.getTimesheetById(timesheet.getId(), lecturer.getId());
 
@@ -287,8 +338,9 @@ class TimesheetServiceUnitTest {
         // Arrange
         when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
         when(courseRepository.findById(timesheet.getCourseId())).thenReturn(Optional.of(course));
-        // Mock domain service authorization check
-        when(timesheetDomainService.hasLecturerAuthorityOverCourse(lecturer, course))            .thenReturn(true);
+        
+        // Mock policy authorization - lecturer can modify timesheet for their course
+        when(permissionPolicy.canModifyTimesheet(lecturer, timesheet, course)).thenReturn(true);
 
         // Act
         boolean result = timesheetService.canUserModifyTimesheet(timesheet, lecturer.getId());
@@ -303,6 +355,10 @@ class TimesheetServiceUnitTest {
     void canUserModifyTimesheet_Admin_ShouldReturnTrue() {
         // Arrange
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(courseRepository.findById(timesheet.getCourseId())).thenReturn(Optional.of(course));
+        
+        // Mock policy authorization - admin can modify any timesheet
+        when(permissionPolicy.canModifyTimesheet(admin, timesheet, course)).thenReturn(true);
         // Act
         boolean result = timesheetService.canUserModifyTimesheet(timesheet, admin.getId());
 

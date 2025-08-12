@@ -121,6 +121,22 @@ public class GlobalExceptionHandler {
     }
     
     /**
+     * Map IllegalStateException to 400 Bad Request for business precondition failures
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException e, HttpServletRequest request) {
+        logger.warn("Illegal state exception: {}", e.getMessage());
+        ErrorResponse error = ErrorResponse.builder()
+            .timestamp(Instant.now().toString())
+            .status(HttpStatus.BAD_REQUEST.value())
+            .error(ErrorCodes.VALIDATION_FAILED)
+            .message(e.getMessage())
+            .path(request.getRequestURI())
+            .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+    
+    /**
      * Handle validation exceptions from @Valid annotations
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -1,6 +1,7 @@
 
 package com.usyd.catams.domain.rules;
 
+import com.usyd.catams.common.validation.TimesheetValidationProperties;
 import com.usyd.catams.domain.rules.context.TimesheetValidationContext;
 import com.usyd.catams.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,7 +18,12 @@ class HourlyRateRangeRuleTest {
 
     @BeforeEach
     void setUp() {
-        hourlyRateRangeRule = new HourlyRateRangeRule();
+        // Create test properties with known values
+        TimesheetValidationProperties testProps = new TimesheetValidationProperties();
+        testProps.setMinHourlyRate(new BigDecimal("10.00"));
+        testProps.setMaxHourlyRate(new BigDecimal("200.00"));
+        
+        hourlyRateRangeRule = new HourlyRateRangeRule(testProps);
     }
 
     @Test

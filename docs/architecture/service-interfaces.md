@@ -388,11 +388,142 @@ public class DecisionResult {
 }
 ```
 
-## 5. Future TimesheetService Interface
+## 5. TimesheetPermissionPolicy Interface (SOLID Compliance)
 
-### 5.1 Interface Definition (Planned)
+### 5.1 Interface Definition
+**Package**: `com.usyd.catams.policy`
+**Implementation**: `DefaultTimesheetPermissionPolicy.java` ✅ Complete
+**Pattern**: Strategy Pattern + Dependency Inversion Principle
+**Purpose**: Authorization logic decoupled from application service
+
+### 5.2 Method Catalog
+
+#### Creation Permissions
+```java
+boolean canCreateTimesheet(User creator);
+// Purpose: Check if user has timesheet creation privileges
+// Returns: true if user role allows timesheet creation
+
+boolean canCreateTimesheetFor(User creator, User tutor, Course course);
+// Purpose: Validate specific creation authorization
+// Returns: true if creator can create timesheet for tutor in course
+```
+
+#### Read Permissions
+```java
+boolean canViewTimesheet(User requester, Timesheet timesheet, Course course);
+// Purpose: Individual timesheet view authorization
+// Returns: true if user can view specific timesheet
+
+boolean canViewTimesheetsByFilters(User requester, Long tutorId, Long courseId, ApprovalStatus status);
+// Purpose: Filtered timesheet list authorization
+// Returns: true if user can view timesheets with specified filters
+
+boolean canViewTimesheetsByDateRange(User requester, Long tutorId, LocalDate startDate, LocalDate endDate);
+// Purpose: Date range query authorization
+// Returns: true if user can view timesheets in date range
+
+boolean canViewTotalHours(User requester, Long tutorId, Long courseId);
+// Purpose: Aggregate hours view authorization
+// Returns: true if user can view total hours data
+
+boolean canViewCourseBudget(User requester, Long courseId);
+// Purpose: Financial data access authorization
+// Returns: true if user can view course budget information
+```
+
+#### Modification Permissions
+```java
+boolean canModifyTimesheet(User requester, Timesheet timesheet, Course course);
+// Purpose: General modification permission check
+// Returns: true if user can edit or delete timesheet
+
+boolean canEditTimesheet(User requester, Timesheet timesheet, Course course);
+// Purpose: Status-aware edit authorization
+// Returns: true if user can edit timesheet in current status
+
+boolean canDeleteTimesheet(User requester, Timesheet timesheet, Course course);
+// Purpose: Status-aware deletion authorization
+// Returns: true if user can delete timesheet in current status
+```
+
+#### Approval Queue Permissions
+```java
+boolean canViewPendingApprovalQueue(User requester);
+// Purpose: Pending approval list access
+// Returns: true if user can access pending approval queue
+
+boolean canViewLecturerFinalApprovalQueue(User requester);
+// Purpose: Final approval queue access
+// Returns: true if user can access lecturer final approval queue
+
+boolean canViewTimesheetsByTutor(User requester, Long tutorId);
+// Purpose: Tutor-specific timesheet access
+// Returns: true if user can view specified tutor's timesheets
+```
+
+### 5.3 Policy Implementation Details
+
+#### Authorization Patterns
+```java
+@Component
+public class DefaultTimesheetPermissionPolicy implements TimesheetPermissionPolicy {
+    
+    // Role-based hierarchy: ADMIN > LECTURER > TUTOR
+    // Ownership-based: Users can access own resources
+    // Resource-based: Authority over specific courses
+    // Status-based: Permissions vary by timesheet status
+    
+    private final TimesheetDomainService domainService;
+    private final CourseRepository courseRepository;
+    
+    // Leverages existing domain services for business rules
+    // Maintains clean separation from application orchestration
+}
+```
+
+#### Integration with ApplicationService
+```java
+@Service
+@Transactional
+public class TimesheetApplicationService implements TimesheetService {
+    
+    private final TimesheetPermissionPolicy permissionPolicy;  // DIP compliance
+    
+    // Authorization delegated to policy instead of embedded logic
+    public Timesheet createTimesheet(...) {
+        if (!permissionPolicy.canCreateTimesheetFor(creator, tutor, course)) {
+            throw new SecurityException("User not authorized...");
+        }
+        // Business logic continues...
+    }
+}
+```
+
+### 5.4 Design Pattern Implementation
+
+#### Strategy Pattern
+- **Interface**: `TimesheetPermissionPolicy` defines authorization contracts
+- **Implementation**: `DefaultTimesheetPermissionPolicy` provides role-based authorization
+- **Extensibility**: New authorization strategies (LDAP, OAuth, etc.) can be added without modifying ApplicationService
+
+#### Dependency Inversion Principle
+- **High-level module**: `TimesheetApplicationService` depends on policy abstraction
+- **Low-level module**: Policy implementation handles concrete authorization logic  
+- **Abstraction**: `TimesheetPermissionPolicy` interface defines contracts
+- **Benefit**: Authorization logic can be changed without modifying business orchestration
+
+#### Single Responsibility Principle
+- **ApplicationService**: Pure business orchestration and transaction management
+- **PermissionPolicy**: Pure authorization logic and access control
+- **Domain Service**: Core business rules and validation
+- **Clear boundaries**: Each component has single, well-defined responsibility
+
+## 6. Future TimesheetService Interface
+
+### 6.1 Interface Definition (Planned)
 **Package**: `com.usyd.catams.application.timesheet`
-**Implementation**: `TimesheetApplicationService.java` (Future)
+**Implementation**: `TimesheetApplicationService.java` (Existing)
 **Future Migration**: Timesheet Microservice
 
 ### 5.2 Planned Method Catalog

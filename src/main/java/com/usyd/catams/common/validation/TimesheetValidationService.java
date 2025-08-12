@@ -1,6 +1,5 @@
 package com.usyd.catams.common.validation;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -9,18 +8,16 @@ import java.math.BigDecimal;
  * Centralized validation service for timesheet business rules.
  * 
  * This service provides a single source of truth for validation rules,
- * using configuration values where appropriate.
+ * using SSOT configuration properties.
  */
 @Service
 public class TimesheetValidationService {
 
-    @Value("${timesheet.hours.max}")
-    private BigDecimal maxHours;
-    
-    // Constants for non-configurable business rules
-    private static final BigDecimal MIN_HOURS = new BigDecimal("0.1");
-    private static final BigDecimal MIN_HOURLY_RATE = new BigDecimal("10.00");
-    private static final BigDecimal MAX_HOURLY_RATE = new BigDecimal("200.00");
+    private final TimesheetValidationProperties validationProps;
+
+    public TimesheetValidationService(TimesheetValidationProperties validationProps) {
+        this.validationProps = validationProps;
+    }
     
     /**
      * Validate hours value.
@@ -33,7 +30,10 @@ public class TimesheetValidationService {
             return;
         }
         
-        if (hours.compareTo(MIN_HOURS) < 0 || hours.compareTo(maxHours) > 0) {
+        BigDecimal minHours = validationProps.getMinHours();
+        BigDecimal maxHours = validationProps.getHours().getMax();
+        
+        if (hours.compareTo(minHours) < 0 || hours.compareTo(maxHours) > 0) {
             throw new IllegalArgumentException(getHoursValidationMessage());
         }
     }
@@ -49,9 +49,12 @@ public class TimesheetValidationService {
             return;
         }
         
-        if (hourlyRate.compareTo(MIN_HOURLY_RATE) < 0 || hourlyRate.compareTo(MAX_HOURLY_RATE) > 0) {
+        BigDecimal minRate = validationProps.getMinHourlyRate();
+        BigDecimal maxRate = validationProps.getMaxHourlyRate();
+        
+        if (hourlyRate.compareTo(minRate) < 0 || hourlyRate.compareTo(maxRate) > 0) {
             throw new IllegalArgumentException(String.format(
-                "Hourly rate must be between %s and %s", MIN_HOURLY_RATE, MAX_HOURLY_RATE));
+                "Hourly rate must be between %s and %s", minRate, maxRate));
         }
     }
     
@@ -61,7 +64,8 @@ public class TimesheetValidationService {
      * @return the validation message for hours
      */
     public String getHoursValidationMessage() {
-        return String.format("Hours must be between %s and %s", MIN_HOURS, maxHours);
+        return String.format("Hours must be between %s and %s", 
+            validationProps.getMinHours(), validationProps.getHours().getMax());
     }
     
     /**
@@ -70,7 +74,7 @@ public class TimesheetValidationService {
      * @return minimum hours
      */
     public BigDecimal getMinHours() {
-        return MIN_HOURS;
+        return validationProps.getMinHours();
     }
     
     /**
@@ -79,8 +83,10 @@ public class TimesheetValidationService {
      * @return maximum hours (from configuration)
      */
     public BigDecimal getMaxHours() {
-        return maxHours;
+        return validationProps.getHours().getMax();
     }
+
+    // duplicate accessors removed; keep single definitions below
     
     /**
      * Get the minimum hourly rate value.
@@ -88,7 +94,7 @@ public class TimesheetValidationService {
      * @return minimum hourly rate
      */
     public BigDecimal getMinHourlyRate() {
-        return MIN_HOURLY_RATE;
+        return validationProps.getMinHourlyRate();
     }
     
     /**
@@ -97,6 +103,6 @@ public class TimesheetValidationService {
      * @return maximum hourly rate
      */
     public BigDecimal getMaxHourlyRate() {
-        return MAX_HOURLY_RATE;
+        return validationProps.getMaxHourlyRate();
     }
 }

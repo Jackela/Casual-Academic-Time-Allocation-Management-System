@@ -24,38 +24,74 @@ export async function killProcessOnPort(port: number): Promise<void> {
   
   try {
     if (process.platform === 'win32') {
-      // Windows
-      const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
-      const lines = stdout.split('\n').filter(line => line.trim());
-      
-      for (const line of lines) {
-        const parts = line.trim().split(/\s+/);
-        const pid = parts[parts.length - 1];
-        
-        if (pid && /^\d+$/.test(pid)) {
+      // Windows: prefer PowerShell (more reliable than parsing netstat)
+      try {
+        const psCmd = `Get-NetTCPConnection -LocalPort ${port} -State Listen | Select-Object -ExpandProperty OwningProcess`;
+        const { stdout } = await execAsync(`powershell -NoProfile -Command "${psCmd}"`);
+        const pids = stdout.split(/\r?\n/).map(s => s.trim()).filter(s => /^\d+$/.test(s));
+        for (const pid of pids) {
           console.log(`💀 Killing process ${pid} on port ${port}`);
           try {
-            await execAsync(`taskkill /F /PID ${pid}`);
+            await execAsync(`taskkill /F /T /PID ${pid}`);
             console.log(`✅ Successfully killed process ${pid}`);
           } catch (error) {
             console.warn(`⚠️ Failed to kill process ${pid}:`, error);
           }
         }
+        if (pids.length === 0) {
+          console.log(`ℹ️ No listening processes found on port ${port}`);
+        }
+      } catch {
+        // Fallback to netstat parsing
+        const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
+        const lines = stdout.split('\n').filter(line => line.trim());
+        for (const line of lines) {
+          const parts = line.trim().split(/\s+/);
+          const pid = parts[parts.length - 1];
+          if (pid && /^\d+$/.test(pid)) {
+            console.log(`💀 Killing process ${pid} on port ${port}`);
+            try {
+              await execAsync(`taskkill /F /T /PID ${pid}`);
+              console.log(`✅ Successfully killed process ${pid}`);
+            } catch (error) {
+              console.warn(`⚠️ Failed to kill process ${pid}:`, error);
+            }
+          }
+        }
       }
     } else {
       // Unix-like systems (Linux, macOS)
-      const { stdout } = await execAsync(`lsof -ti:${port}`);
-      const pids = stdout.split('\n').filter(pid => pid.trim());
-      
+      let pids: string[] = [];
+      try {
+        // Prefer ss where available
+        const { stdout } = await execAsync(`ss -lptn | awk '/:${port} / {print $NF}' | sed -E 's/.*pid=([0-9]+).*/\\1/'`);
+        pids = stdout.split(/\s+/).map(s => s.trim()).filter(Boolean);
+      } catch {}
+      if (pids.length === 0) {
+        try {
+          const { stdout } = await execAsync(`lsof -ti:${port}`);
+          pids = stdout.split(/\s+/).map(s => s.trim()).filter(Boolean);
+        } catch {}
+      }
+      if (pids.length === 0) {
+        try {
+          const { stdout } = await execAsync(`fuser ${port}/tcp 2>/dev/null`);
+          pids = stdout.split(/\s+/).map(s => s.trim()).filter(Boolean);
+        } catch {}
+      }
+
       for (const pid of pids) {
-        if (pid.trim()) {
-          console.log(`💀 Killing process ${pid} on port ${port}`);
-          try {
-            await execAsync(`kill -9 ${pid}`);
-            console.log(`✅ Successfully killed process ${pid}`);
-          } catch (error) {
-            console.warn(`⚠️ Failed to kill process ${pid}:`, error);
-          }
+        console.log(`💀 Killing process ${pid} on port ${port}`);
+        try {
+          // Try graceful first
+          await execAsync(`kill -TERM ${pid}`);
+          // Then force if still alive shortly after
+          setTimeout(async () => {
+            try { await execAsync(`kill -0 ${pid}`); await execAsync(`kill -KILL ${pid}`); } catch {}
+          }, 1000);
+          console.log(`✅ Sent termination signal to process ${pid}`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to signal process ${pid}:`, error);
         }
       }
     }
@@ -72,40 +108,40 @@ export async function killViteProcesses(): Promise<void> {
   
   try {
     if (process.platform === 'win32') {
-      // Windows - find node processes with vite in command line
-      const { stdout } = await execAsync('wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv');
-      const lines = stdout.split('\n').filter(line => line.includes('vite') || line.includes('dev'));
-      
-      for (const line of lines) {
-        const match = line.match(/,(\d+),/);
-        if (match) {
-          const pid = match[1];
-          console.log(`💀 Killing Vite process ${pid}`);
-          try {
-            await execAsync(`taskkill /F /PID ${pid}`);
-            console.log(`✅ Successfully killed Vite process ${pid}`);
-          } catch (error) {
-            console.warn(`⚠️ Failed to kill Vite process ${pid}:`, error);
-          }
+      // Windows - prefer PowerShell CIM query over deprecated WMIC
+      const ps = `Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'vite|dev' } | Select-Object -ExpandProperty ProcessId`;
+      const { stdout } = await execAsync(`powershell -NoProfile -Command "${ps}"`);
+      const pids = stdout.split(/\r?\n/).map(s => s.trim()).filter(s => /^\d+$/.test(s));
+      for (const pid of pids) {
+        console.log(`💀 Killing Vite process ${pid}`);
+        try {
+          await execAsync(`taskkill /F /T /PID ${pid}`);
+          console.log(`✅ Successfully killed Vite process ${pid}`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to kill Vite process ${pid}:`, error);
         }
       }
     } else {
       // Unix-like systems
-      const { stdout } = await execAsync(`ps aux | grep -i vite | grep -v grep`);
-      const lines = stdout.split('\n').filter(line => line.trim());
-      
-      for (const line of lines) {
-        const parts = line.trim().split(/\s+/);
-        const pid = parts[1];
-        
-        if (pid && /^\d+$/.test(pid)) {
-          console.log(`💀 Killing Vite process ${pid}`);
-          try {
-            await execAsync(`kill -9 ${pid}`);
-            console.log(`✅ Successfully killed Vite process ${pid}`);
-          } catch (error) {
-            console.warn(`⚠️ Failed to kill Vite process ${pid}:`, error);
-          }
+      let pids: string[] = [];
+      try {
+        const { stdout } = await execAsync(`pgrep -f "vite|vite-node|node.*vite"`);
+        pids = stdout.split(/\s+/).map(s => s.trim()).filter(Boolean);
+      } catch {}
+      if (pids.length === 0) {
+        const { stdout } = await execAsync(`ps aux | grep -Ei "vite|vite-node" | grep -v grep`);
+        pids = stdout.split(/\n/).map(line => line.trim().split(/\s+/)[1]).filter(pid => /^\d+$/.test(pid));
+      }
+      for (const pid of pids) {
+        console.log(`💀 Killing Vite process ${pid}`);
+        try {
+          await execAsync(`kill -TERM ${pid}`);
+          setTimeout(async () => {
+            try { await execAsync(`kill -0 ${pid}`); await execAsync(`kill -KILL ${pid}`); } catch {}
+          }, 1000);
+          console.log(`✅ Sent termination signal to process ${pid}`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to kill Vite process ${pid}:`, error);
         }
       }
     }
@@ -117,12 +153,12 @@ export async function killViteProcesses(): Promise<void> {
 /**
  * Register a process for tracking and cleanup
  */
-export function trackProcess(process: ChildProcess): void {
-  trackedProcesses.add(process);
-  
+export function trackProcess(childProc: ChildProcess): void {
+  trackedProcesses.add(childProc);
+
   // Clean up when process exits naturally
-  process.on('exit', () => {
-    trackedProcesses.delete(process);
+  childProc.on('exit', () => {
+    trackedProcesses.delete(childProc);
   });
 }
 
@@ -131,20 +167,22 @@ export function trackProcess(process: ChildProcess): void {
  */
 export async function killTrackedProcesses(): Promise<void> {
   console.log(`🧹 Cleaning up ${trackedProcesses.size} tracked processes...`);
-  
-  const promises = Array.from(trackedProcesses).map(async (process) => {
-    if (!process.killed) {
+
+  const isWindows = process.platform === 'win32';
+
+  const promises = Array.from(trackedProcesses).map(async (childProc) => {
+    if (!childProc.killed) {
       try {
-        if (process.pid) {
-          if (process.platform === 'win32') {
-            await execAsync(`taskkill /F /PID ${process.pid} /T`);
+        if (childProc.pid) {
+          if (isWindows) {
+            await execAsync(`taskkill /F /T /PID ${childProc.pid}`);
           } else {
-            process.kill('SIGTERM');
-            
+            childProc.kill('SIGTERM');
+
             // Force kill if it doesn't exit within 3 seconds
             setTimeout(() => {
-              if (!process.killed) {
-                process.kill('SIGKILL');
+              if (!childProc.killed) {
+                childProc.kill('SIGKILL');
               }
             }, 3000);
           }
@@ -154,7 +192,7 @@ export async function killTrackedProcesses(): Promise<void> {
       }
     }
   });
-  
+
   await Promise.all(promises);
   trackedProcesses.clear();
 }

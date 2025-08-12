@@ -13,6 +13,15 @@ mvn test
 mvn test -Dtest="TimesheetServiceUnitTest"
 ```
 
+## Cleanup between runs (recommended)
+
+When tests are interrupted or fail early, development ports or helper processes may linger (Vite/Node/Gradle). Before re-running tests, clean up cross-platform:
+
+```bash
+node scripts/cleanup-ports.js             # frees common E2E/dev ports
+node scripts/cleanup-ports.js --ports=8084,5174  # or specify ports
+```
+
 ## Test Structure Overview
 
 ```

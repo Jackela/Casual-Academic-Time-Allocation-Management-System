@@ -103,10 +103,9 @@ class ApprovalStateMachineTest {
         "DRAFT, REJECT",
         "DRAFT, REQUEST_MODIFICATION",
         
-        // Invalid transitions from APPROVED_BY_TUTOR (only FINAL_APPROVAL is valid)
+        // Invalid transitions from APPROVED_BY_TUTOR (only FINAL_APPROVAL and REJECT are valid per SSOT)
         "APPROVED_BY_TUTOR, SUBMIT_FOR_APPROVAL",
         "APPROVED_BY_TUTOR, APPROVE",
-        "APPROVED_BY_TUTOR, REJECT",
         
         // Invalid transitions from MODIFICATION_REQUESTED (can only resubmit)
         "MODIFICATION_REQUESTED, APPROVE",
@@ -212,8 +211,8 @@ class ApprovalStateMachineTest {
                 .isEmpty();
         } else if (status == ApprovalStatus.APPROVED_BY_TUTOR) {
             assertThat(validActions)
-                .as("APPROVED_BY_TUTOR should allow lecturer FINAL_APPROVAL")
-                .containsExactlyInAnyOrder(ApprovalAction.FINAL_APPROVAL);
+                .as("APPROVED_BY_TUTOR should allow lecturer FINAL_APPROVAL and REJECT per SSOT")
+                .containsExactlyInAnyOrder(ApprovalAction.FINAL_APPROVAL, ApprovalAction.REJECT);
         } else {
             assertThat(validActions)
                 .as("Non-final status %s should have at least one valid action", status)
@@ -363,11 +362,11 @@ class ApprovalStateMachineTest {
         assertThat(stateMachine.getValidActions(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR))
             .containsExactlyInAnyOrder(ApprovalAction.APPROVE, ApprovalAction.REJECT, ApprovalAction.REQUEST_MODIFICATION);
             
-        // Business rule: Final states have no actions; APPROVED_BY_TUTOR allows only FINAL_APPROVAL
+        // Business rule: Final states have no actions; APPROVED_BY_TUTOR allows FINAL_APPROVAL and REJECT per SSOT
         assertThat(stateMachine.getValidActions(ApprovalStatus.FINAL_APPROVED)).isEmpty();
-        assertThat(stateMachine.getValidActions(ApprovalStatus.FINAL_APPROVED)).isEmpty();
+        assertThat(stateMachine.getValidActions(ApprovalStatus.REJECTED)).isEmpty();
         assertThat(stateMachine.getValidActions(ApprovalStatus.APPROVED_BY_TUTOR))
-            .containsExactlyInAnyOrder(ApprovalAction.FINAL_APPROVAL);
+            .containsExactlyInAnyOrder(ApprovalAction.FINAL_APPROVAL, ApprovalAction.REJECT);
         
         // Business rule: REJECTED is terminal state with no actions
         assertThat(stateMachine.getValidActions(ApprovalStatus.REJECTED))

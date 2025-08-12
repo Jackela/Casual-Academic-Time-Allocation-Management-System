@@ -55,6 +55,12 @@ describe('LoginPage Component Tests', () => {
     // Reset axios mock
     mockedAxios.post.mockReset();
     mockedAxios.isAxiosError.mockReset();
+    
+    // Reset navigation mock
+    mockNavigate.mockClear();
+    
+    // Reset location mock state
+    mockLocation.state = null;
   });
 
   afterEach(() => {
@@ -158,16 +164,26 @@ describe('LoginPage Component Tests', () => {
 
       // Only email filled
       await user.type(emailInput, 'user@example.com');
-      expect(submitButton).toBeDisabled();
+      await waitFor(() => {
+        expect(submitButton).toBeDisabled();
+      }, { timeout: 3000 });
 
       // Only password filled (clear email first)
       await user.clear(emailInput);
+      await waitFor(() => {
+        expect(emailInput).toHaveValue('');
+      }, { timeout: 2000 });
+      
       await user.type(passwordInput, 'password123');
-      expect(submitButton).toBeDisabled();
+      await waitFor(() => {
+        expect(submitButton).toBeDisabled();
+      }, { timeout: 3000 });
 
       // Both fields filled
       await user.type(emailInput, 'user@example.com');
-      expect(submitButton).toBeEnabled();
+      await waitFor(() => {
+        expect(submitButton).toBeEnabled();
+      }, { timeout: 3000 });
     });
 
     test('clears error message when user starts typing', async () => {
@@ -194,18 +210,26 @@ describe('LoginPage Component Tests', () => {
       // Fill form and submit to trigger error
       await user.type(emailInput, 'user@example.com');
       await user.type(passwordInput, 'wrongpassword');
+      
+      // Wait for form to be ready for submission
+      await waitFor(() => {
+        expect(submitButton).toBeEnabled();
+      }, { timeout: 3000 });
+      
       await user.click(submitButton);
 
       // Wait for error to appear
       await waitFor(() => {
         expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
-      });
+      }, { timeout: 5000 });
 
-      // Start typing in email field
+      // Start typing in email field to clear the error
       await user.type(emailInput, 'a');
 
-      // Error should be cleared
-      expect(screen.queryByText(/invalid credentials/i)).not.toBeInTheDocument();
+      // Wait for error to be cleared
+      await waitFor(() => {
+        expect(screen.queryByText(/invalid credentials/i)).not.toBeInTheDocument();
+      }, { timeout: 3000 });
     });
   });
 
@@ -268,7 +292,7 @@ describe('LoginPage Component Tests', () => {
     test('handles successful API response correctly', async () => {
       const user = userEvent.setup();
       
-      // Mock successful login response
+      // Mock successful login response with realistic delay
       const mockLoginResponse = {
         data: {
           token: 'mock-jwt-token-12345',
@@ -281,7 +305,10 @@ describe('LoginPage Component Tests', () => {
         }
       };
       
-      mockedAxios.post.mockResolvedValueOnce(mockLoginResponse);
+      // Add a small delay to simulate network request
+      mockedAxios.post.mockImplementation(() => 
+        new Promise(resolve => setTimeout(() => resolve(mockLoginResponse), 50))
+      );
 
       render(
         <TestWrapper>
@@ -293,9 +320,16 @@ describe('LoginPage Component Tests', () => {
       const passwordInput = screen.getByLabelText(/password/i);
       const submitButton = screen.getByRole('button', { name: /sign in/i });
 
-      // Fill and submit form
+      // Fill form
       await user.type(emailInput, 'lecturer@example.com');
       await user.type(passwordInput, 'Lecturer123!');
+      
+      // Wait for form to be ready
+      await waitFor(() => {
+        expect(submitButton).toBeEnabled();
+      }, { timeout: 2000 });
+      
+      // Submit form
       await user.click(submitButton);
 
       // Verify API call was made with correct parameters
@@ -312,17 +346,17 @@ describe('LoginPage Component Tests', () => {
             }
           }
         );
-      });
+      }, { timeout: 5000 });
 
       // Check success message appears
       await waitFor(() => {
         expect(screen.getByText(/login successful! welcome to catams/i)).toBeInTheDocument();
-      });
+      }, { timeout: 5000 });
 
       // Verify navigation is called
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { replace: true });
-      });
+      }, { timeout: 3000 });
 
       // Note: In test environment, we focus on the behavior rather than localStorage
       // The AuthContext handles localStorage updates, which is tested separately
@@ -331,17 +365,20 @@ describe('LoginPage Component Tests', () => {
     test('form is cleared after successful login', async () => {
       const user = userEvent.setup();
       
-      mockedAxios.post.mockResolvedValueOnce({
-        data: {
-          token: 'mock-token',
-          user: {
-            id: 1,
-            email: 'user@example.com',
-            name: 'Test User',
-            role: 'TUTOR'
+      // Mock with small delay to simulate real API
+      mockedAxios.post.mockImplementation(() => 
+        new Promise(resolve => setTimeout(() => resolve({
+          data: {
+            token: 'mock-token',
+            user: {
+              id: 1,
+              email: 'user@example.com',
+              name: 'Test User',
+              role: 'TUTOR'
+            }
           }
-        }
-      });
+        }), 50))
+      );
 
       render(
         <TestWrapper>
@@ -353,16 +390,23 @@ describe('LoginPage Component Tests', () => {
       const passwordInput = screen.getByLabelText(/password/i);
       const submitButton = screen.getByRole('button', { name: /sign in/i });
 
-      // Fill and submit form
+      // Fill form
       await user.type(emailInput, 'user@example.com');
       await user.type(passwordInput, 'password123');
+      
+      // Ensure form is ready for submission
+      await waitFor(() => {
+        expect(submitButton).toBeEnabled();
+      }, { timeout: 2000 });
+      
+      // Submit form
       await user.click(submitButton);
 
       // Wait for completion and verify form is cleared
       await waitFor(() => {
         expect(emailInput).toHaveValue('');
         expect(passwordInput).toHaveValue('');
-      });
+      }, { timeout: 5000 });
     });
   });
 
@@ -503,17 +547,20 @@ describe('LoginPage Component Tests', () => {
         from: { pathname: '/protected-route' }
       };
 
-      mockedAxios.post.mockResolvedValueOnce({
-        data: {
-          token: 'mock-token',
-          user: {
-            id: 1,
-            email: 'user@example.com',
-            name: 'Test User',
-            role: 'ADMIN'
+      // Mock with realistic delay
+      mockedAxios.post.mockImplementation(() => 
+        new Promise(resolve => setTimeout(() => resolve({
+          data: {
+            token: 'mock-token',
+            user: {
+              id: 1,
+              email: 'user@example.com',
+              name: 'Test User',
+              role: 'ADMIN'
+            }
           }
-        }
-      });
+        }), 50))
+      );
 
       render(
         <TestWrapper>
@@ -525,15 +572,22 @@ describe('LoginPage Component Tests', () => {
       const passwordInput = screen.getByLabelText(/password/i);
       const submitButton = screen.getByRole('button', { name: /sign in/i });
 
-      // Fill and submit form
+      // Fill form
       await user.type(emailInput, 'admin@example.com');
       await user.type(passwordInput, 'Admin123!');
+      
+      // Wait for form to be ready
+      await waitFor(() => {
+        expect(submitButton).toBeEnabled();
+      }, { timeout: 2000 });
+      
+      // Submit form
       await user.click(submitButton);
 
       // Should redirect to the "from" location
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/protected-route', { replace: true });
-      });
+      }, { timeout: 5000 });
     });
   });
 

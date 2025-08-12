@@ -68,10 +68,19 @@ async function getCmdline(pid) {
 
 async function killPid(pid, force = true) {
   if (process.platform === 'win32') {
+    // /T flag kills the process tree (children processes too)
     const r = await execCapture('taskkill', ['/PID', String(pid), '/T', force ? '/F' : '']);
     return r.code === 0;
   }
-  const r = await execCapture('kill', [force ? '-9' : '', String(pid)].filter(Boolean));
+  // Unix-like: try to kill process group first, then individual process
+  try {
+    // Kill process group (negative PID)
+    const r1 = await execCapture('kill', [force ? '-9' : '-15', `-${pid}`]);
+    if (r1.code === 0) return true;
+  } catch {}
+  
+  // Fallback to individual process
+  const r = await execCapture('kill', [force ? '-9' : '-15', String(pid)]);
   return r.code === 0;
 }
 

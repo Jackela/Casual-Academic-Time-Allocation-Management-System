@@ -1,13 +1,14 @@
 # Local E2E Test Profile Configuration
-# Uses H2 in-memory database for local E2E testing (faster startup)
+# Uses Embedded PostgreSQL (Zonky) for local E2E testing when Docker is unavailable
 
 spring:
-  # Database Configuration (H2 for local E2E)
+  # Database Configuration (Embedded PostgreSQL for local E2E)
+  # DataSource provided by EmbeddedPostgresConfig under 'e2e-local' profile
   datasource:
-    url: jdbc:h2:mem:catams_e2e;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
+    url: ''
+    driver-class-name: ''
+    username: ''
+    password: ''
     
   # JPA Configuration (local E2E-specific)
   jpa:
@@ -16,7 +17,7 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         
   # Disable Flyway for local E2E tests
   flyway:
@@ -25,7 +26,8 @@ spring:
   # Security Configuration (use default JWT from application.yml)
   security:
     jwt:
-      secret: ${JWT_SECRET:local-e2e-secret-for-testing-purposes-only}
+      # Default secret is base64 of "0123456789abcdef0123456789abcdef"
+      secret: ${JWT_SECRET:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
       expiration: 86400000
 
 # CORS Configuration (E2E frontend port)

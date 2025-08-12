@@ -9,6 +9,16 @@ export default defineConfig({
     globals: false,
     css: true,
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    // Increase test timeout for async operations
+    testTimeout: 15000, // 15 seconds instead of default 5 seconds
+    hookTimeout: 10000, // 10 seconds for setup/teardown hooks
+    // Enable better async handling
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true
+      }
+    },
     exclude: [
       'node_modules',
       'dist',

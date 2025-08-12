@@ -1,6 +1,6 @@
 {
   "backendPort": 8084,
-  "backendProfile": "e2e",
+  "backendProfile": "e2e-local",
   "backendHealthCheckPath": "/actuator/health",
   "frontendUrl": "http://localhost:5174",
   "jsonReportPath": "playwright-report/results.json",

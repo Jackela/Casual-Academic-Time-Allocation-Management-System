@@ -54,6 +54,19 @@ public class WeekPeriod implements Serializable, Comparable<WeekPeriod> {
         }
         setWeekStartDate(startDate);
     }
+
+    /**
+     * Unsafe factory used only by entities when they need to stage invalid values for later validation.
+     * DbC: callers must ensure subsequent validation is performed (e.g., Timesheet.validateBusinessRules).
+     */
+    public static WeekPeriod unsafe(LocalDate date) {
+        if (date == null) {
+            throw new IllegalArgumentException("Week start date cannot be null");
+        }
+        WeekPeriod wp = new WeekPeriod();
+        wp.setWeekStartDate(date);
+        return wp;
+    }
     
     /**
      * Sets the week start date (for JPA)

@@ -51,9 +51,8 @@ public class Timesheet {
     private WeekPeriod weekPeriod;
     
     @NotNull
-    @DecimalMin(value = "0.1", inclusive = true)
-    @DecimalMax(value = "40.0", inclusive = true)
     @Digits(integer = 2, fraction = 1)
+    @com.usyd.catams.common.validation.annotations.ValidHours
     @Column(nullable = false, precision = 3, scale = 1)
     private BigDecimal hours;
     
@@ -63,6 +62,7 @@ public class Timesheet {
         @AttributeOverride(name = "amount", column = @Column(name = "hourly_rate", precision = 5, scale = 2)),
         @AttributeOverride(name = "currencyCode", column = @Column(name = "hourly_rate_currency"))
     })
+    @com.usyd.catams.common.validation.annotations.ValidHourlyRate
     private Money hourlyRate;
     
     @NotBlank
@@ -85,9 +85,11 @@ public class Timesheet {
     private Long createdBy;
     
     /**
-     * Approval history for this timesheet - managed as part of the aggregate
+     * Approval history for this timesheet - managed as part of the aggregate.
+     * DbC: when modifying the approvals list, aggregate invariants must hold.
      */
-    @OneToMany(mappedBy = "timesheetId", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JoinColumn(name = "timesheet_id", referencedColumnName = "id", insertable = false, updatable = false)
     @OrderBy("timestamp ASC")
     private List<Approval> approvals = new ArrayList<>();
     
@@ -169,7 +171,8 @@ public class Timesheet {
     }
     
     public void setWeekStartDate(LocalDate weekStartDate) {
-        this.weekPeriod = new WeekPeriod(weekStartDate);
+        // Use unsafe factory to allow setter staging; validation enforced in validateBusinessRules()
+        this.weekPeriod = WeekPeriod.unsafe(weekStartDate);
     }
     
     public BigDecimal getHours() {
@@ -193,7 +196,8 @@ public class Timesheet {
     }
     
     /**
-     * Get hourly rate as BigDecimal (for backward compatibility)
+     * Get hourly rate as BigDecimal (for backward compatibility).
+     * DbC: returns null only if Money is null.
      */
     public BigDecimal getHourlyRate() {
         if (hourlyRate == null) {
@@ -262,16 +266,41 @@ public class Timesheet {
     }
     
     public void validateBusinessRules() {
-        // Intentionally left minimal; business validation enforced in domain service (SSOT)
+        // DbC: validate week start day
         if (weekPeriod != null && weekPeriod.getStartDate() != null && weekPeriod.getStartDate().getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
-            throw new IllegalArgumentException("Monday");
+            throw new IllegalArgumentException("Week start date must be a Monday");
+        }
+        // SSOT: enforce hours and hourly rate ranges using validation properties (via static holder in non-managed context)
+        com.usyd.catams.common.validation.TimesheetValidationProperties props = 
+            com.usyd.catams.common.validation.ValidationSSOT.get();
+        
+        com.usyd.catams.common.validation.TimesheetValidationService svc =
+                props != null
+                        ? new com.usyd.catams.common.validation.TimesheetValidationService(props)
+                        : null;
+        BigDecimal minHours = svc != null ? svc.getMinHours() : new BigDecimal("0.1");
+        BigDecimal maxHours = svc != null ? svc.getMaxHours() : new BigDecimal("38.0");
+        BigDecimal minHourlyRate = svc != null ? svc.getMinHourlyRate() : new BigDecimal("10.00");
+        BigDecimal maxHourlyRate = svc != null ? svc.getMaxHourlyRate() : new BigDecimal("200.00");
+        if (hours != null) {
+            if (hours.compareTo(minHours) < 0 || hours.compareTo(maxHours) > 0) {
+                String msg = svc != null ? svc.getHoursValidationMessage() : String.format("Hours must be between %s and %s", minHours, maxHours);
+                throw new IllegalArgumentException(msg);
+            }
+        }
+        if (hourlyRate != null && hourlyRate.getAmount() != null) {
+            BigDecimal rate = hourlyRate.getAmount();
+            if (rate.compareTo(minHourlyRate) < 0 || rate.compareTo(maxHourlyRate) > 0) {
+                throw new IllegalArgumentException(String.format(
+                        "Hourly rate must be between %s and %s", minHourlyRate, maxHourlyRate));
+            }
         }
     }
 
     /**
      * Enforce dynamic validation based on TimesheetValidationProperties.
      * Ensures hours and hourly rate are within configured bounds.
-     * Design by Contract: fast-fail with informative exceptions.
+     * DbC: throws IllegalArgumentException if invariants are violated.
      */
     private void enforceDynamicValidation() {
         if (validationProperties == null) {
@@ -303,23 +332,16 @@ public class Timesheet {
     // Aggregate Root methods for managing Approvals
     
     /**
-     * Get all approvals for this timesheet (read-only view)
-     * 
-     * @return immutable list of approvals
+     * Get all approvals for this timesheet (read-only view).
+     * DbC: returned list is unmodifiable.
      */
     public List<Approval> getApprovals() {
         return Collections.unmodifiableList(approvals);
     }
     
     /**
-     * Add a new approval action to this timesheet
-     * 
-     * @param approverId ID of the user performing the action
-     * @param action the approval action being performed
-     * @param previousStatus the status before the action
-     * @param newStatus the status after the action  
-     * @param comment optional comment explaining the action
-     * @return the created approval
+     * Add a new approval action to this timesheet.
+     * DbC: transition must be valid and results in consistent aggregate state.
      */
     public Approval addApproval(Long approverId, ApprovalAction action, 
                                ApprovalStatus previousStatus, ApprovalStatus newStatus, String comment) {
@@ -341,10 +363,7 @@ public class Timesheet {
     }
     
     /**
-     * Submit timesheet for approval
-     * 
-     * @param submitterId ID of the user submitting
-     * @return the created approval record
+     * Submit timesheet for approval.
      */
     public Approval submitForApproval(Long submitterId) {
         if (!isEditable()) {
@@ -356,7 +375,7 @@ public class Timesheet {
     }
 
     /**
-     * Submit timesheet for approval with comment
+     * Submit timesheet for approval with comment.
      */
     public Approval submitForApproval(Long submitterId, String comment) {
         if (!isEditable()) {
@@ -368,11 +387,7 @@ public class Timesheet {
     }
     
     /**
-     * Approve timesheet
-     * 
-     * @param approverId ID of the approver
-     * @param comment optional approval comment
-     * @return the created approval record
+     * Approve timesheet.
      */
     public Approval approve(Long approverId, String comment) {
         if (!canBeApproved()) {
@@ -385,11 +400,7 @@ public class Timesheet {
     }
     
     /**
-     * Lecturer final approval after tutor approval
-     * 
-     * @param approverId ID of the lecturer approving
-     * @param comment optional approval comment
-     * @return the created approval record
+     * Lecturer final approval after tutor approval.
      */
     public Approval finalApprove(Long approverId, String comment) {
         if (this.status != ApprovalStatus.APPROVED_BY_TUTOR) {
@@ -402,17 +413,10 @@ public class Timesheet {
     }
     
     /**
-     * Reject timesheet
-     * 
-     * @param approverId ID of the approver
-     * @param comment rejection comment (required)
-     * @return the created approval record
+     * Reject timesheet.
      */
     public Approval reject(Long approverId, String comment) {
-        // Rejection is allowed in pending stages per workflow rules:
-        // - PENDING_TUTOR_REVIEW (tutor stage)
-        // - APPROVED_BY_TUTOR (lecturer final approval stage)
-        // - APPROVED_BY_LECTURER_AND_TUTOR (HR stage with HR_REJECT, handled separately)
+        // Rejection is allowed in pending stages per workflow rules
         if (this.status != ApprovalStatus.PENDING_TUTOR_REVIEW &&
             this.status != ApprovalStatus.APPROVED_BY_TUTOR &&
             this.status != ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR) {
@@ -428,11 +432,7 @@ public class Timesheet {
     }
     
     /**
-     * Request modification to timesheet
-     * 
-     * @param approverId ID of the approver
-     * @param comment modification request comment (required)
-     * @return the created approval record
+     * Request modification to timesheet.
      */
     public Approval requestModification(Long approverId, String comment) {  
         if (!canBeApproved()) {
@@ -448,9 +448,7 @@ public class Timesheet {
     }
     
     /**
-     * Get the most recent approval action
-     * 
-     * @return the most recent approval, if any
+     * Get the most recent approval action.
      */
     public Optional<Approval> getMostRecentApproval() {
         return approvals.stream()
@@ -458,9 +456,7 @@ public class Timesheet {
     }
     
     /**
-     * Get approval history with approver names (requires approver details to be fetched separately)
-     * 
-     * @return list of approvals ordered by timestamp
+     * Get approval history (copy).
      */
     public List<Approval> getApprovalHistory() {
         return approvals.stream()
@@ -468,10 +464,7 @@ public class Timesheet {
     }
     
     /**
-     * Check if timesheet has any approval of a specific action type
-     * 
-     * @param action the approval action to check for
-     * @return true if such approval exists
+     * Check if timesheet has any approval of a specific action type.
      */
     public boolean hasApprovalAction(ApprovalAction action) {
         return approvals.stream()
@@ -479,10 +472,7 @@ public class Timesheet {
     }
     
     /**
-     * Get approvals of a specific action type
-     * 
-     * @param action the approval action type
-     * @return list of matching approvals
+     * Get approvals of a specific action type.
      */
     public List<Approval> getApprovalsByAction(ApprovalAction action) {
         return approvals.stream()
@@ -491,7 +481,7 @@ public class Timesheet {
     }
     
     /**
-     * Clear all approvals (used for testing or special scenarios)
+     * Clear all approvals (testing or special scenarios).
      */
     protected void clearApprovals() {
         approvals.clear();

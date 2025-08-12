@@ -1,10 +1,10 @@
 package com.usyd.catams.test.config;
 
 import com.usyd.catams.common.validation.TimesheetValidationService;
+import com.usyd.catams.common.validation.TimesheetValidationProperties;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 
@@ -24,10 +24,14 @@ public class TestTimesheetValidationService {
     @Bean
     @Primary
     public TimesheetValidationService testTimesheetValidationService() {
-        TimesheetValidationService service = new TimesheetValidationService();
-        // Inject the test configuration value
-        ReflectionTestUtils.setField(service, "maxHours", TEST_MAX_HOURS);
-        return service;
+        // Create test properties with known values
+        TimesheetValidationProperties testProps = new TimesheetValidationProperties();
+        testProps.getHours().setMax(TEST_MAX_HOURS);
+        testProps.setMinHours(TEST_MIN_HOURS);
+        testProps.setMinHourlyRate(TEST_MIN_HOURLY_RATE);
+        testProps.setMaxHourlyRate(TEST_MAX_HOURLY_RATE);
+        
+        return new TimesheetValidationService(testProps);
     }
     
     /**

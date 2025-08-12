@@ -76,6 +76,16 @@ npm run test:e2e:debug
 npm run test:e2e:report
 ```
 
+### Environment cleanup (cross-platform)
+
+If you cancel runs or switch branches frequently, clean up ports and test processes before the next run:
+
+```bash
+node ../../scripts/cleanup-ports.js
+# or target specific ports
+node ../../scripts/cleanup-ports.js --ports=8084,5174
+```
+
 ### Module-specific Tests
 ```bash
 # Authentication tests

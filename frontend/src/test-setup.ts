@@ -1,10 +1,21 @@
-import { afterEach } from 'vitest';
+import { afterEach, beforeEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 // Cleanup after each test case (e.g. clearing jsdom)
 afterEach(() => {
   cleanup();
+});
+
+// Set test timeout for async operations
+beforeEach(() => {
+  // Ensure console warnings don't clutter test output unless debugging
+  const originalWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    if (process.env.DEBUG_TESTS) {
+      originalWarn(...args);
+    }
+  };
 });
 
 // Mock global objects that might be needed

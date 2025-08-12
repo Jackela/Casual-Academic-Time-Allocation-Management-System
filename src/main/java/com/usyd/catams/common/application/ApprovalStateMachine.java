@@ -191,8 +191,7 @@ public class ApprovalStateMachine {
         // Step 3: From APPROVED_BY_TUTOR, lecturer performs FINAL_APPROVAL to move to HR queue
         map.put(new StateTransition(ApprovalStatus.APPROVED_BY_TUTOR, ApprovalAction.FINAL_APPROVAL),
                 ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-
-        // Step 3 (alternative): LECTURER can reject at final review stage per SSOT v2.0
+        // SSOT: Lecturer may also REJECT from APPROVED_BY_TUTOR (send back to edit with reason)
         map.put(new StateTransition(ApprovalStatus.APPROVED_BY_TUTOR, ApprovalAction.REJECT),
                 ApprovalStatus.REJECTED);
 

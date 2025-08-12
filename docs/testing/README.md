@@ -205,6 +205,21 @@ Notes:
 - E2E reports are saved under `frontend/playwright-report/` (HTML/JUnit/trace) and `frontend/test-results/` (artifacts per failure).
 - Ports, backend profile, and timeouts are read from `frontend/scripts/e2e.params.json` (no hard-coded values).
 
+#### Cross-platform process cleanup
+
+- Use `node scripts/cleanup-ports.js` to free test/dev ports and terminate related process trees safely.
+- Windows implementation uses PowerShell (`Get-NetTCPConnection`, `Get-CimInstance`) and `taskkill /T` to kill entire trees.
+- Linux/macOS use `ss` (preferred) with fallbacks to `lsof`/`fuser`, and graceful `SIGTERM` followed by forced `SIGKILL` if needed.
+- If you interrupt any runner with Ctrl+C, run the cleanup command before re-running tests to avoid orphaned `git-bash.exe`, `node`, or `vite` processes.
+
+```bash
+# Clean up typical dev/test ports and processes
+node scripts/cleanup-ports.js
+
+# Target specific ports (optional)
+node scripts/cleanup-ports.js --ports=8084,5174
+```
+
 ### Prerequisites
 1. **Java 21+** installed
 2. **Maven 3.6+** installed

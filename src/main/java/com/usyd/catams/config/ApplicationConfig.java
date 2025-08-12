@@ -11,6 +11,8 @@ public class ApplicationConfig {
     public ApplicationConfig(TimesheetValidationProperties props) {
         // Bridge DI properties to entity static setter for legacy compatibility
         Timesheet.setValidationProperties(props);
+        // Provide SSOT to validators that are not Spring-managed in tests
+        com.usyd.catams.common.validation.ValidationSSOT.set(props);
     }
 }
 

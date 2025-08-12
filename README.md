@@ -145,6 +145,16 @@ node scripts/test-frontend-contract.js
 node scripts/run-e2e.js --project=all
 ```
 
+#### Cross-platform Cleanup
+
+Use the provided cleanup utility to terminate lingering dev/test processes and free ports (Windows/PowerShell and Linux/macOS supported):
+
+```bash
+node scripts/cleanup-ports.js
+# or specify ports explicitly
+node scripts/cleanup-ports.js --ports=8084,5174
+```
+
 ### Selective (faster iteration)
 
 ```bash
