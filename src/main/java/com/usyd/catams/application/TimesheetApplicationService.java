@@ -126,7 +126,7 @@ public class TimesheetApplicationService implements TimesheetService {
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canCreateTimesheetFor(creator, tutor, course)) {
-            throw new SecurityException("User " + creator.getId() + " (" + creator.getRole() + ") is not authorized to create timesheet for tutor " + tutorId + " in course " + courseId);
+            throw new com.usyd.catams.exception.AuthorizationException("User " + creator.getId() + " (" + creator.getRole() + ") is not authorized to create timesheet for tutor " + tutorId + " in course " + courseId);
         }
         
         validateTutorRole(tutor);
@@ -161,7 +161,7 @@ public class TimesheetApplicationService implements TimesheetService {
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canCreateTimesheetFor(creator, tutor, course)) {
-            throw new SecurityException("User " + creator.getId() + " (" + creator.getRole() + ") is not authorized to create timesheet for tutor " + tutorId + " in course " + courseId);
+            throw new com.usyd.catams.exception.AuthorizationException("User " + creator.getId() + " (" + creator.getRole() + ") is not authorized to create timesheet for tutor " + tutorId + " in course " + courseId);
         }
         
         if (tutor.getRole() != UserRole.TUTOR) {
@@ -191,7 +191,7 @@ public class TimesheetApplicationService implements TimesheetService {
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewTimesheetsByFilters(requester, tutorId, courseId, status)) {
-            throw new SecurityException("User " + requester.getId() + " (" + requester.getRole() + ") is not authorized to view timesheets with the specified filters");
+            throw new com.usyd.catams.exception.AuthorizationException("User " + requester.getId() + " (" + requester.getRole() + ") is not authorized to view timesheets with the specified filters");
         }
 
         // Apply role-specific filtering
@@ -209,7 +209,7 @@ public class TimesheetApplicationService implements TimesheetService {
                 return timesheetRepository.findWithFilters(requester.getId(), courseId, status, pageable);
                 
             default:
-                throw new SecurityException("Unknown user role: " + requester.getRole());
+                throw new com.usyd.catams.exception.AuthorizationException("Unknown user role: " + requester.getRole());
         }
     }
 
@@ -232,7 +232,7 @@ public class TimesheetApplicationService implements TimesheetService {
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewTimesheet(requester, timesheet, course)) {
-            throw new SecurityException("User " + requester.getId() + " (" + requester.getRole() + ") is not authorized to view timesheet " + timesheetId);
+            throw new com.usyd.catams.exception.AuthorizationException("User " + requester.getId() + " (" + requester.getRole() + ") is not authorized to view timesheet " + timesheetId);
         }
 
         return timesheetOpt;
@@ -248,7 +248,7 @@ public class TimesheetApplicationService implements TimesheetService {
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewTimesheetsByDateRange(requester, tutorId, startDate, endDate)) {
-            throw new SecurityException("User " + requester.getId() + " (" + requester.getRole() + ") is not authorized to view timesheets by date range for tutor " + tutorId);
+            throw new com.usyd.catams.exception.AuthorizationException("User " + requester.getId() + " (" + requester.getRole() + ") is not authorized to view timesheets by date range for tutor " + tutorId);
         }
 
         return timesheetRepository.findByTutorIdAndWeekPeriod_WeekStartDateBetween(tutorId, startDate, endDate);
@@ -286,7 +286,7 @@ public class TimesheetApplicationService implements TimesheetService {
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewTotalHours(requester, tutorId, courseId)) {
-            throw new SecurityException("User " + requester.getId() + " (" + requester.getRole() + ") is not authorized to view total hours for tutor " + tutorId + " in course " + courseId);
+            throw new com.usyd.catams.exception.AuthorizationException("User " + requester.getId() + " (" + requester.getRole() + ") is not authorized to view total hours for tutor " + tutorId + " in course " + courseId);
         }
 
         return timesheetRepository.getTotalHoursByTutorAndCourse(tutorId, courseId);
@@ -301,14 +301,14 @@ public class TimesheetApplicationService implements TimesheetService {
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewCourseBudget(requester, courseId)) {
-            throw new SecurityException("User " + requester.getId() + " (" + requester.getRole() + ") is not authorized to view budget for course " + courseId);
+            throw new com.usyd.catams.exception.AuthorizationException("User " + requester.getId() + " (" + requester.getRole() + ") is not authorized to view budget for course " + courseId);
         }
 
         return timesheetRepository.getTotalApprovedBudgetUsedByCourse(courseId);
     }
 
     @Override
-    @PreAuthorize("@timesheetApplicationService.canUserEditTimesheetAuth(#timesheetId, authentication)")
+    @Transactional
     public Timesheet updateTimesheet(Long timesheetId, BigDecimal hours, BigDecimal hourlyRate, 
                                    String description, Long requesterId) {
         
@@ -317,13 +317,24 @@ public class TimesheetApplicationService implements TimesheetService {
 
         User requester = userRepository.findById(requesterId)
             .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+            
+        Course course = courseRepository.findById(timesheet.getCourseId())
+            .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
 
+        // Step 1: Authorization check (403 if fails)
+        if (!permissionPolicy.canModifyTimesheet(requester, timesheet, course)) {
+            throw new com.usyd.catams.exception.AuthorizationException(
+                "User " + requester.getId() + " (" + requester.getRole() + 
+                ") does not have permission to modify timesheet " + timesheetId);
+        }
+        
+        // Step 2: Business rule check (400 if fails)
         if (!timesheetDomainService.canRoleEditTimesheetWithStatus(requester.getRole(), timesheet.getStatus())) {
             if (requester.getRole() == UserRole.TUTOR) {
-                throw new IllegalArgumentException("TUTOR can only update timesheets with REJECTED status. " +
+                throw new com.usyd.catams.exception.BusinessRuleException("TUTOR can only update timesheets with REJECTED status. " +
                     "Current status: " + timesheet.getStatus());
             } else {
-                throw new IllegalArgumentException("Cannot update timesheet with status: " + timesheet.getStatus() + 
+                throw new com.usyd.catams.exception.BusinessRuleException("Cannot update timesheet with status: " + timesheet.getStatus() + 
                     ". Only DRAFT timesheets can be updated.");
             }
         }
@@ -342,7 +353,6 @@ public class TimesheetApplicationService implements TimesheetService {
 
     @Override
     @Transactional
-    @PreAuthorize("@timesheetApplicationService.canUserEditTimesheetAuth(#timesheetId, authentication)")
     public void deleteTimesheet(Long timesheetId, Long requesterId) {
         
         Timesheet timesheet = timesheetRepository.findById(timesheetId)
@@ -350,13 +360,24 @@ public class TimesheetApplicationService implements TimesheetService {
 
         User requester = userRepository.findById(requesterId)
             .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+            
+        Course course = courseRepository.findById(timesheet.getCourseId())
+            .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
 
+        // Step 1: Authorization check (403 if fails)
+        if (!permissionPolicy.canModifyTimesheet(requester, timesheet, course)) {
+            throw new com.usyd.catams.exception.AuthorizationException(
+                "User " + requester.getId() + " (" + requester.getRole() + 
+                ") does not have permission to modify timesheet " + timesheetId);
+        }
+        
+        // Step 2: Business rule check (400 if fails)
         if (!timesheetDomainService.canRoleDeleteTimesheetWithStatus(requester.getRole(), timesheet.getStatus())) {
             if (requester.getRole() == UserRole.TUTOR) {
-                throw new IllegalArgumentException("TUTOR can only delete timesheets with REJECTED status. " +
+                throw new com.usyd.catams.exception.BusinessRuleException("TUTOR can only delete timesheets with REJECTED status. " +
                     "Current status: " + timesheet.getStatus());
             } else {
-                throw new IllegalArgumentException("Cannot delete timesheet with status: " + timesheet.getStatus() + 
+                throw new com.usyd.catams.exception.BusinessRuleException("Cannot delete timesheet with status: " + timesheet.getStatus() + 
                     ". Only DRAFT timesheets can be deleted.");
             }
         }
@@ -388,7 +409,7 @@ public class TimesheetApplicationService implements TimesheetService {
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewPendingApprovalQueue(requester)) {
-            throw new SecurityException("User " + requester.getId() + " (" + requester.getRole() + ") cannot access pending approval queue");
+            throw new com.usyd.catams.exception.AuthorizationException("User " + requester.getId() + " (" + requester.getRole() + ") cannot access pending approval queue");
         }
 
         switch (requester.getRole()) {
@@ -401,7 +422,7 @@ public class TimesheetApplicationService implements TimesheetService {
                     ApprovalStatus.PENDING_TUTOR_REVIEW, pageable);
                 
             default:
-                throw new SecurityException("Unknown user role: " + requester.getRole());
+                throw new com.usyd.catams.exception.AuthorizationException("Unknown user role: " + requester.getRole());
         }
     }
 
@@ -521,7 +542,7 @@ public class TimesheetApplicationService implements TimesheetService {
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewLecturerFinalApprovalQueue(requester)) {
-            throw new SecurityException("User " + requester.getId() + " (" + requester.getRole() + ") cannot access lecturer final approval queue");
+            throw new com.usyd.catams.exception.AuthorizationException("User " + requester.getId() + " (" + requester.getRole() + ") cannot access lecturer final approval queue");
         }
 
         switch (requester.getRole()) {
@@ -530,7 +551,7 @@ public class TimesheetApplicationService implements TimesheetService {
             case ADMIN:
                 return timesheetRepository.findByStatus(ApprovalStatus.APPROVED_BY_TUTOR, pageable);
             default:
-                throw new SecurityException("Unknown user role: " + requester.getRole());
+                throw new com.usyd.catams.exception.AuthorizationException("Unknown user role: " + requester.getRole());
         }
     }
 

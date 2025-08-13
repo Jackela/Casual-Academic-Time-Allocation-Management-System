@@ -85,6 +85,24 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle authorization failures - returns 403 Forbidden
+     */
+    @ExceptionHandler(AuthorizationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthorizationException(AuthorizationException e, HttpServletRequest request) {
+        logger.warn("Authorization failure: {}", e.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .timestamp(Instant.now().toString())
+            .status(HttpStatus.FORBIDDEN.value())
+            .error(e.getErrorCode())
+            .message(e.getMessage())
+            .path(request.getRequestURI())
+            .build();
+            
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    /**
      * Handle SecurityException - business layer security violations
      */
     @ExceptionHandler(SecurityException.class)
@@ -120,6 +138,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
     
+    /**
+     * Handle business rule violations - returns 400 Bad Request
+     */
+    @ExceptionHandler(BusinessRuleException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessRuleException(BusinessRuleException e, HttpServletRequest request) {
+        logger.warn("Business rule violation: {}", e.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .timestamp(Instant.now().toString())
+            .status(HttpStatus.BAD_REQUEST.value())
+            .error(e.getErrorCode())
+            .message(e.getMessage())
+            .path(request.getRequestURI())
+            .build();
+            
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     /**
      * Map IllegalStateException to 400 Bad Request for business precondition failures
      */

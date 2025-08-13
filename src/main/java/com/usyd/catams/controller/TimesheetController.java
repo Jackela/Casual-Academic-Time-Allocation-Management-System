@@ -118,9 +118,7 @@ public class TimesheetController {
             @PathVariable("id") Long id,
             @Valid @RequestBody TimesheetUpdateRequest request) {
         Long requesterId = authenticationFacade.getCurrentUserId();
-        if (!timesheetService.canUserEditTimesheet(id, requesterId)) {
-            throw new SecurityException("User does not have permission to modify this timesheet");
-        }
+        // Let the service handle both authorization and business rule validation with proper exceptions
         var entity = timesheetService.updateTimesheet(
                 id,
                 request.getHours(),
@@ -136,9 +134,7 @@ public class TimesheetController {
     public ResponseEntity<Void> deleteTimesheet(
             @PathVariable("id") Long id) {
         Long requesterId = authenticationFacade.getCurrentUserId();
-        if (!timesheetService.canUserEditTimesheet(id, requesterId)) {
-            throw new SecurityException("User does not have permission to modify this timesheet");
-        }
+        // Let the service handle both authorization and business rule validation with proper exceptions
         timesheetService.deleteTimesheet(id, requesterId);
         return ResponseEntity.noContent().build();
     }

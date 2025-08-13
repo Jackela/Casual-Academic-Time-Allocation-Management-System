@@ -1,10 +1,29 @@
-import { afterEach, beforeEach } from 'vitest';
+import { afterEach, afterAll, beforeEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { runCleanups, clearCleanups } from './test-utils/cleanup';
+import { setupGlobalHandleMonitoring } from './test-utils/handle-monitor';
 
 // Cleanup after each test case (e.g. clearing jsdom)
-afterEach(() => {
+afterEach(async () => {
   cleanup();
+  // Run all registered cleanup functions
+  await runCleanups();
+});
+
+// Final cleanup to ensure no hanging resources
+afterAll(async () => {
+  // Final cleanup to ensure no leftover resources
+  await runCleanups();
+  clearCleanups();
+});
+
+// Setup global handle monitoring for resource leak detection
+setupGlobalHandleMonitoring({
+  verbose: process.env.DEBUG_TESTS === 'true',
+  failOnLeaks: process.env.CI === 'true',
+  timeout: 3000,
+  ignoredHandles: ['STDIO', 'SIGNAL', 'PROCESS', 'TIMER']
 });
 
 // Set test timeout for async operations

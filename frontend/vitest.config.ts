@@ -6,17 +6,19 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
+    globalTeardown: './src/test-utils/global-teardown.ts',
     globals: false,
     css: true,
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     // Increase test timeout for async operations
     testTimeout: 15000, // 15 seconds instead of default 5 seconds
     hookTimeout: 10000, // 10 seconds for setup/teardown hooks
-    // Enable better async handling
+    teardownTimeout: 10000, // 10 seconds for cleanup operations
+    // Enable better async handling with single fork for proper cleanup
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: true
+        singleFork: true // Ensures proper cleanup and resource management
       }
     },
     exclude: [
