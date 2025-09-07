@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - AC2: REJECTED status visibility for TUTORs
  * - AC3: TUTOR can edit REJECTED timesheets (status resets to DRAFT)
  * - AC4: TUTOR can delete REJECTED timesheets
- * - AC5: TUTOR can resubmit edited timesheets via POST /api/approvals
+ * - AC5: TUTOR can resubmit edited timesheets via POST /api/confirmations
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
@@ -98,7 +98,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         // Given: Create timesheets in different statuses for the tutor
         Timesheet draftTimesheet = createTimesheet(tutor.getId(), course.getId(), mondayDate, ApprovalStatus.DRAFT);
         Timesheet rejectedTimesheet = createTimesheet(tutor.getId(), course.getId(), mondayDate.plusWeeks(1), ApprovalStatus.REJECTED);
-        Timesheet approvedTimesheet = createTimesheet(tutor.getId(), course.getId(), mondayDate.plusWeeks(2), ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        Timesheet approvedTimesheet = createTimesheet(tutor.getId(), course.getId(), mondayDate.plusWeeks(2), ApprovalStatus.LECTURER_CONFIRMED);
 
         // When: TUTOR calls GET /api/timesheets/me
         MvcResult result = mockMvc.perform(get("/api/timesheets/me")
@@ -280,16 +280,16 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         approvalRequest.setAction(ApprovalAction.SUBMIT_FOR_APPROVAL);
         approvalRequest.setComment("Resubmitting after addressing feedback");
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(approvalRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_REVIEW"));
+                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_CONFIRMATION"));
 
-        // Then: Status should be PENDING_TUTOR_REVIEW
+        // Then: Status should be PENDING_TUTOR_CONFIRMATION
         Timesheet resubmittedTimesheet = timesheetRepository.findById(rejectedTimesheet.getId()).orElseThrow();
-        assertThat(resubmittedTimesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(resubmittedTimesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
     }
 
     /**
@@ -321,7 +321,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         submitRequest.setTimesheetId(createdTimesheet.getId());
         submitRequest.setAction(ApprovalAction.SUBMIT_FOR_APPROVAL);
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + localLecturerToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(submitRequest)))
@@ -333,7 +333,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         rejectRequest.setAction(ApprovalAction.REJECT);
         rejectRequest.setComment("Please increase hours and provide more detail");
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(rejectRequest)))
@@ -370,16 +370,16 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         resubmitRequest.setAction(ApprovalAction.SUBMIT_FOR_APPROVAL);
         resubmitRequest.setComment("Addressed feedback - increased hours and added detail");
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(resubmitRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_REVIEW"));
+                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_CONFIRMATION"));
 
         // Verify final state
         Timesheet finalTimesheet = timesheetRepository.findById(createdTimesheet.getId()).orElseThrow();
-        assertThat(finalTimesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(finalTimesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         assertThat(finalTimesheet.getHours()).isEqualTo(new BigDecimal("15.0"));
         assertThat(finalTimesheet.getDescription()).contains("increased hours");
     }

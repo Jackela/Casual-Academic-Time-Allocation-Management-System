@@ -122,29 +122,51 @@ class ProcessRegistry {
    * @private
    */
   async _getWindowsProcesses () {
-    const command = 'wmic process get ProcessId,Name,CommandLine,ParentProcessId /format:csv'
-    const { stdout } = await execAsync(command)
+    // Try WMIC first (deprecated on modern Windows but still present on some systems)
+    try {
+      const command = 'wmic process get ProcessId,Name,CommandLine,ParentProcessId /format:csv'
+      const { stdout } = await execAsync(command)
 
-    const lines = stdout.split('\n').filter(line => line.trim() && !line.startsWith('Node'))
-    const processes = []
+      const lines = stdout.split('\n').filter(line => line.trim() && !line.startsWith('Node'))
+      const processes = []
 
-    for (const line of lines) {
-      const parts = line.split(',')
-      if (parts.length >= 4) {
-        const [, commandLine, name, parentPid, pid] = parts
+      for (const line of lines) {
+        const parts = line.split(',')
+        if (parts.length >= 4) {
+          const [, commandLine, name, parentPid, pid] = parts
 
-        if (pid && pid.trim() && !isNaN(parseInt(pid.trim()))) {
-          processes.push({
-            pid: parseInt(pid.trim()),
-            name: name ? name.trim() : 'unknown',
-            command: commandLine ? commandLine.trim() : '',
-            parentPid: parentPid && !isNaN(parseInt(parentPid.trim())) ? parseInt(parentPid.trim()) : null
-          })
+          if (pid && pid.trim() && !isNaN(parseInt(pid.trim()))) {
+            processes.push({
+              pid: parseInt(pid.trim()),
+              name: name ? name.trim() : 'unknown',
+              command: commandLine ? commandLine.trim() : '',
+              parentPid: parentPid && !isNaN(parseInt(parentPid.trim())) ? parseInt(parentPid.trim()) : null
+            })
+          }
         }
       }
-    }
 
-    return processes
+      return processes
+    } catch (wmicError) {
+      // Fallback: Use PowerShell CIM to enumerate processes and output JSON for robust parsing
+      const ps = 'powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine | ConvertTo-Json -Depth 2"'
+      const { stdout } = await execAsync(ps)
+      let data
+      try {
+        data = JSON.parse(stdout)
+      } catch (jsonErr) {
+        throw new Error(`Failed to get running processes via PowerShell: ${jsonErr.message}`)
+      }
+      const list = Array.isArray(data) ? data : [data]
+      return list
+        .filter(p => p && p.ProcessId)
+        .map(p => ({
+          pid: parseInt(String(p.ProcessId)),
+          name: (p.Name || 'unknown').toString(),
+          command: (p.CommandLine || '').toString(),
+          parentPid: p.ParentProcessId != null ? parseInt(String(p.ParentProcessId)) : null
+        }))
+    }
   }
 
   /**

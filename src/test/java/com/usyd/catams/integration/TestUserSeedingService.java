@@ -123,7 +123,7 @@ public class TestUserSeedingService {
         testTimesheet2.setHours(BigDecimal.valueOf(8.0));
         testTimesheet2.setHourlyRate(BigDecimal.valueOf(25.00));
         testTimesheet2.setDescription("Lab assistance");
-        testTimesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        testTimesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         testTimesheet2.setCreatedBy(2L); // Created by lecturer
         timesheetRepository.save(testTimesheet2);
         

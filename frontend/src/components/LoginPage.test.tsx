@@ -4,23 +4,25 @@
  */
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import axios from 'axios';
+import type { MockedFunction } from 'vitest';
 import LoginPage from './LoginPage';
 import { AuthProvider } from '../contexts/AuthContext';
 
 // Mock axios
 vi.mock('axios');
 const mockedAxios = vi.mocked(axios);
+const mockedIsAxiosError = vi.mocked(axios.isAxiosError);
 
 // Mock react-router-dom hooks
-const mockNavigate = vi.fn();
-const mockLocation = { state: null };
+const mockNavigate = vi.fn() as MockedFunction<(to: string | number, options?: { replace?: boolean }) => void>;
+const mockLocation = { state: null as any };
 
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -54,7 +56,7 @@ describe('LoginPage Component Tests', () => {
     
     // Reset axios mock
     mockedAxios.post.mockReset();
-    mockedAxios.isAxiosError.mockReset();
+    mockedIsAxiosError.mockReset();
     
     // Reset navigation mock
     mockNavigate.mockClear();
@@ -195,7 +197,7 @@ describe('LoginPage Component Tests', () => {
           data: { message: 'Invalid credentials' }
         }
       });
-      mockedAxios.isAxiosError.mockReturnValue(true);
+      mockedIsAxiosError.mockReturnValue(true);
 
       render(
         <TestWrapper>
@@ -424,7 +426,7 @@ describe('LoginPage Component Tests', () => {
       };
       
       mockedAxios.post.mockRejectedValueOnce(mockError);
-      mockedAxios.isAxiosError.mockReturnValue(true);
+      mockedIsAxiosError.mockReturnValue(true);
 
       render(
         <TestWrapper>
@@ -466,7 +468,7 @@ describe('LoginPage Component Tests', () => {
       };
       
       mockedAxios.post.mockRejectedValueOnce(mockError);
-      mockedAxios.isAxiosError.mockReturnValue(true);
+      mockedIsAxiosError.mockReturnValue(true);
 
       render(
         <TestWrapper>
@@ -494,7 +496,7 @@ describe('LoginPage Component Tests', () => {
       
       // Mock non-axios error (e.g., network error)
       mockedAxios.post.mockRejectedValueOnce(new Error('Network error'));
-      mockedAxios.isAxiosError.mockReturnValue(false);
+      mockedIsAxiosError.mockReturnValue(false);
 
       render(
         <TestWrapper>
@@ -623,7 +625,7 @@ describe('LoginPage Component Tests', () => {
           data: { message: 'Login failed' }
         }
       });
-      mockedAxios.isAxiosError.mockReturnValue(true);
+      mockedIsAxiosError.mockReturnValue(true);
 
       render(
         <TestWrapper>

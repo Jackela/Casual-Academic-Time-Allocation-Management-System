@@ -35,11 +35,11 @@ interface HandleMonitorConfig {
  * @property {string} stack - Stack trace where handle was created
  * @property {any} handle - Reference to the actual handle object
  */
-interface HandleInfo {
-  type: string;
-  stack: string;
-  handle: any;
-}
+// interface _HandleInfo {
+//   type: string;
+//   stack: string;
+//   handle: any;
+// }
 
 /**
  * Default configuration for handle monitoring
@@ -231,12 +231,12 @@ export class HandleMonitor {
     
     if (process._getActiveHandles) {
       const handles = process._getActiveHandles();
-      handles.forEach(handle => this.initialHandles.add(handle));
+      handles.forEach((handle: any) => this.initialHandles.add(handle));
     }
     
     if (process._getActiveRequests) {
       const requests = process._getActiveRequests();
-      requests.forEach(request => this.initialHandles.add(request));
+      requests.forEach((request: any) => this.initialHandles.add(request));
     }
   }
 
@@ -256,11 +256,11 @@ export class HandleMonitor {
 
     // Capture current state
     if (process._getActiveHandles) {
-      process._getActiveHandles().forEach(handle => currentHandles.add(handle));
+      process._getActiveHandles().forEach((handle: any) => currentHandles.add(handle));
     }
     
     if (process._getActiveRequests) {
-      process._getActiveRequests().forEach(request => currentRequests.add(request));
+      process._getActiveRequests().forEach((request: any) => currentRequests.add(request));
     }
 
     // Find new handles (potential leaks)
@@ -353,7 +353,7 @@ export class HandleMonitor {
    */
   private async tryWhyIsNodeRunning(): Promise<void> {
     try {
-      const whyIsNodeRunning = await import('why-is-node-running');
+      const whyIsNodeRunning = require('why-is-node-running');
       console.error('\n📊 Detailed handle analysis:');
       whyIsNodeRunning.default();
     } catch (error) {

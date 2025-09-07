@@ -1,0 +1,449 @@
+/**
+ * Loading Spinner Styles
+ * 
+ * Comprehensive styling for loading spinners with animations,
+ * size variants, and accessibility features.
+ */
+
+/* =============================================================================
+   Base Loading Spinner Styles
+   ============================================================================= */
+
+.loading-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Screen reader only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* =============================================================================
+   Size Variants
+   ============================================================================= */
+
+.loading-spinner--tiny {
+  width: 12px;
+  height: 12px;
+}
+
+.loading-spinner--small {
+  width: 16px;
+  height: 16px;
+}
+
+.loading-spinner--medium {
+  width: 24px;
+  height: 24px;
+}
+
+.loading-spinner--large {
+  width: 32px;
+  height: 32px;
+}
+
+.loading-spinner--extra-large {
+  width: 48px;
+  height: 48px;
+}
+
+/* =============================================================================
+   Color Variants
+   ============================================================================= */
+
+.loading-spinner--primary {
+  color: #3B82F6;
+}
+
+.loading-spinner--secondary {
+  color: #6B7280;
+}
+
+.loading-spinner--success {
+  color: #10B981;
+}
+
+.loading-spinner--warning {
+  color: #F59E0B;
+}
+
+.loading-spinner--error {
+  color: #EF4444;
+}
+
+.loading-spinner--white {
+  color: #FFFFFF;
+}
+
+.loading-spinner--gray {
+  color: #9CA3AF;
+}
+
+/* =============================================================================
+   Speed Variants
+   ============================================================================= */
+
+.loading-spinner--slow .loading-spinner__spinner {
+  animation-duration: 2s;
+}
+
+.loading-spinner--normal .loading-spinner__spinner {
+  animation-duration: 1s;
+}
+
+.loading-spinner--fast .loading-spinner__spinner {
+  animation-duration: 0.5s;
+}
+
+/* =============================================================================
+   Spinner Variant Styles
+   ============================================================================= */
+
+/* Spinner Variant */
+.loading-spinner__spinner {
+  animation: spin linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Dots Variant */
+.loading-spinner__dots {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-dot {
+  position: absolute;
+  top: 50%;
+  background: currentColor;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  animation: dotPulse 1s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+  0%, 80%, 100% {
+    opacity: 0.3;
+    transform: translateY(-50%) scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+/* Bars Variant */
+.loading-spinner__bars {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+}
+
+.loading-bar {
+  position: absolute;
+  bottom: 0;
+  background: currentColor;
+  border-radius: 1px;
+  height: 100%;
+  animation: barStretch 1s ease-in-out infinite;
+}
+
+@keyframes barStretch {
+  0%, 40%, 100% {
+    height: 30%;
+    opacity: 0.3;
+  }
+  20% {
+    height: 100%;
+    opacity: 1;
+  }
+}
+
+/* Pulse Variant */
+.loading-spinner__pulse {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pulse-ring {
+  position: absolute;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  opacity: 1;
+  animation: pulseRing 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* Ring Variant */
+.loading-spinner__ring {
+  animation: ringRotate linear infinite;
+}
+
+@keyframes ringRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* =============================================================================
+   Container Styles
+   ============================================================================= */
+
+.loading-spinner-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-spinner-container--overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(2px);
+  z-index: 9999;
+}
+
+.loading-spinner-container--centered {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.loading-spinner--overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10000;
+}
+
+.loading-spinner--centered {
+  margin: auto;
+}
+
+/* =============================================================================
+   Loading Overlay Styles
+   ============================================================================= */
+
+.loading-overlay-wrapper {
+  position: relative;
+}
+
+.loading-overlay-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(1px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 10;
+}
+
+.loading-overlay-backdrop--visible {
+  opacity: 1;
+  visibility: visible;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.loading-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.loading-overlay-message {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6B7280;
+  text-align: center;
+}
+
+/* =============================================================================
+   Loading Button Styles
+   ============================================================================= */
+
+.loading-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.loading-button--loading {
+  pointer-events: none;
+}
+
+.loading-button__spinner {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.loading-button__text--hidden {
+  opacity: 0;
+}
+
+/* =============================================================================
+   Dark Mode Support
+   ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  .loading-spinner-container--overlay {
+    background: rgba(0, 0, 0, 0.8);
+  }
+  
+  .loading-overlay-backdrop--visible {
+    background: rgba(0, 0, 0, 0.8);
+  }
+  
+  .loading-overlay-content {
+    background: rgba(31, 41, 55, 0.95);
+    color: #F3F4F6;
+  }
+  
+  .loading-overlay-message {
+    color: #9CA3AF;
+  }
+  
+  .loading-spinner--primary {
+    color: #60A5FA;
+  }
+  
+  .loading-spinner--secondary {
+    color: #9CA3AF;
+  }
+  
+  .loading-spinner--success {
+    color: #34D399;
+  }
+  
+  .loading-spinner--warning {
+    color: #FBBF24;
+  }
+  
+  .loading-spinner--error {
+    color: #F87171;
+  }
+}
+
+/* =============================================================================
+   Accessibility & Motion Preferences
+   ============================================================================= */
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner__spinner,
+  .loading-dot,
+  .loading-bar,
+  .pulse-ring,
+  .loading-spinner__ring {
+    animation-duration: 3s;
+    animation-iteration-count: infinite;
+  }
+  
+  .loading-overlay-backdrop {
+    transition: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .loading-spinner {
+    filter: contrast(1.5);
+  }
+  
+  .loading-overlay-backdrop--visible {
+    background: rgba(255, 255, 255, 0.95);
+  }
+  
+  .loading-overlay-content {
+    border: 2px solid #000;
+  }
+}
+
+/* Focus styles for interactive elements */
+.loading-button:focus {
+  outline: 2px solid #3B82F6;
+  outline-offset: 2px;
+}
+
+/* =============================================================================
+   Print Styles
+   ============================================================================= */
+
+@media print {
+  .loading-spinner,
+  .loading-overlay-backdrop,
+  .loading-button__spinner {
+    display: none !important;
+  }
+  
+  .loading-button__text--hidden {
+    opacity: 1 !important;
+  }
+}
+
+/* =============================================================================
+   Performance Optimizations
+   ============================================================================= */
+
+/* Use GPU acceleration for smooth animations */
+.loading-spinner__spinner,
+.loading-dot,
+.loading-bar,
+.pulse-ring,
+.loading-spinner__ring {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* Optimize backdrop blur for performance */
+.loading-overlay-backdrop {
+  will-change: opacity, visibility;
+}

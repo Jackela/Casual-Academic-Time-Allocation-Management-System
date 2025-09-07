@@ -108,13 +108,13 @@ public class TimesheetBuilder {
         return this;
     }
 
-    public TimesheetBuilder asPendingTutorReview() {
-        this.status = ApprovalStatus.PENDING_TUTOR_REVIEW;
+    public TimesheetBuilder asPendingTutorConfirmation() {
+        this.status = ApprovalStatus.PENDING_TUTOR_CONFIRMATION;
         return this;
     }
 
-    public TimesheetBuilder asApprovedByTutor() {
-        this.status = ApprovalStatus.APPROVED_BY_TUTOR;
+    public TimesheetBuilder asTutorConfirmed() {
+        this.status = ApprovalStatus.TUTOR_CONFIRMED;
         return this;
     }
 

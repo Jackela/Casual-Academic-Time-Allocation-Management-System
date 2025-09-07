@@ -206,7 +206,7 @@ class TimesheetServiceUnitTest {
                 lecturer.getId()
             )
         )
-        .isInstanceOf(SecurityException.class)
+        .isInstanceOf(com.usyd.catams.exception.AuthorizationException.class)
         .hasMessageContaining("is not authorized to create timesheet for tutor");    }
 
     @Test
@@ -288,7 +288,7 @@ class TimesheetServiceUnitTest {
                 tutor.getId()
             )
         )
-        .isInstanceOf(SecurityException.class)
+        .isInstanceOf(com.usyd.catams.exception.AuthorizationException.class)
         .hasMessageContaining("is not authorized to create timesheet for tutor");
     }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { CatamsAPIClient, type ApiError } from '../../api/ApiClient'
+import { CatamsAPIClient } from '../../api/ApiClient'
 import { API_CONFIG } from '../../config/api.config'
 
 describe('CatamsAPIClient base URL & error propagation (red)', () => {

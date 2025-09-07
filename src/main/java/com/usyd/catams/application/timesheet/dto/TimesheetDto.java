@@ -267,17 +267,17 @@ public class TimesheetDto {
     /**
      * Check if timesheet is in approval workflow
      */
-    public boolean isInApprovalWorkflow() {
-        return status == ApprovalStatus.PENDING_TUTOR_REVIEW ||
-               status == ApprovalStatus.APPROVED_BY_TUTOR ||
-               status == ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR;
+    public boolean isInConfirmationWorkflow() {
+        return status == ApprovalStatus.PENDING_TUTOR_CONFIRMATION ||
+               status == ApprovalStatus.TUTOR_CONFIRMED ||
+               status == ApprovalStatus.LECTURER_CONFIRMED;
     }
     
     /**
      * Check if timesheet is finalized (cannot be changed)
      */
     public boolean isFinalized() {
-        return status == ApprovalStatus.FINAL_APPROVED ||
+        return status == ApprovalStatus.FINAL_CONFIRMED ||
                status == ApprovalStatus.REJECTED;
     }
     
@@ -287,7 +287,7 @@ public class TimesheetDto {
     public boolean isApprovalOverdue() {
         return approvalDeadline != null && 
                LocalDateTime.now().isAfter(approvalDeadline) &&
-               isInApprovalWorkflow();
+               isInConfirmationWorkflow();
     }
     
     /**
@@ -300,10 +300,10 @@ public class TimesheetDto {
         
         return switch (status) {
             case DRAFT -> "Draft";
-            case PENDING_TUTOR_REVIEW -> "Pending Tutor Review";
-            case APPROVED_BY_TUTOR -> "Approved by Tutor";
-            case APPROVED_BY_LECTURER_AND_TUTOR -> "Approved by Lecturer and Tutor";
-            case FINAL_APPROVED -> "Final Approved";
+            case PENDING_TUTOR_CONFIRMATION -> "Pending Tutor Confirmation";
+            case TUTOR_CONFIRMED -> "Confirmed by Tutor";
+            case LECTURER_CONFIRMED -> "Confirmed by Lecturer";
+            case FINAL_CONFIRMED -> "Final Confirmed";
             case REJECTED -> "Rejected";
             case MODIFICATION_REQUESTED -> "Modification Requested";
         };

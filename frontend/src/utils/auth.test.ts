@@ -9,6 +9,7 @@ import {
   hasAnyRole,
   getAuthHeader,
   isTokenExpired,
+  validateTokenStructure,
   getUserDisplayName,
   getUserRoleDisplay,
   type User
@@ -24,6 +25,13 @@ const localStorageMock = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  
+  // Reset all localStorage mock functions to their default implementations
+  localStorageMock.getItem.mockImplementation(() => null);
+  localStorageMock.setItem.mockImplementation(() => {});
+  localStorageMock.removeItem.mockImplementation(() => {});
+  localStorageMock.clear.mockImplementation(() => {});
+  
   Object.defineProperty(window, 'localStorage', {
     value: localStorageMock,
     writable: true
@@ -37,7 +45,11 @@ const mockUser: User = {
   role: 'LECTURER'
 };
 
-const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIiwicm9sZSI6IkxFQ1RVUkVSIiwiZXhwIjoxNzU0MzYwMDAwfQ.mock-signature';
+// Create a valid token with future expiration
+const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+const validPayload = { sub: 'test@example.com', role: 'LECTURER', exp: futureExp };
+const base64urlPayload = btoa(JSON.stringify(validPayload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + base64urlPayload + '.mock-signature';
 
 describe('auth utilities', () => {
   describe('setAuthData', () => {
@@ -215,6 +227,22 @@ describe('auth utilities', () => {
     });
   });
 
+  describe('validateTokenStructure', () => {
+    it('should validate mock token structure', () => {
+      const result = validateTokenStructure(mockToken);
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('isTokenExpired with mockToken', () => {
+    it('should return false for valid mockToken', () => {
+      localStorageMock.getItem.mockReturnValue(mockToken);
+      
+      const result = isTokenExpired();
+      expect(result).toBe(false);
+    });
+  });
+
   describe('getAuthHeader', () => {
     it('should return Bearer token header', () => {
       localStorageMock.getItem.mockReturnValue(mockToken);
@@ -247,8 +275,11 @@ describe('auth utilities', () => {
     });
 
     it('should return false for token without expiration', () => {
+      // Use proper base64url encoding (no padding)
+      const payload = JSON.stringify({ sub: 'test' });
+      const base64url = btoa(payload).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
       const tokenWithoutExp = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + 
-        btoa(JSON.stringify({ sub: 'test' })) + 
+        base64url + 
         '.signature';
       localStorageMock.getItem.mockReturnValue(tokenWithoutExp);
       
@@ -258,8 +289,9 @@ describe('auth utilities', () => {
 
     it('should return true for expired token', () => {
       const expiredPayload = { exp: Math.floor(Date.now() / 1000) - 3600 }; // 1 hour ago
+      const base64url = btoa(JSON.stringify(expiredPayload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
       const expiredToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + 
-        btoa(JSON.stringify(expiredPayload)) + 
+        base64url + 
         '.signature';
       localStorageMock.getItem.mockReturnValue(expiredToken);
       
@@ -269,8 +301,9 @@ describe('auth utilities', () => {
 
     it('should return false for valid token', () => {
       const validPayload = { exp: Math.floor(Date.now() / 1000) + 3600 }; // 1 hour from now
+      const base64url = btoa(JSON.stringify(validPayload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
       const validToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + 
-        btoa(JSON.stringify(validPayload)) + 
+        base64url + 
         '.signature';
       localStorageMock.getItem.mockReturnValue(validToken);
       

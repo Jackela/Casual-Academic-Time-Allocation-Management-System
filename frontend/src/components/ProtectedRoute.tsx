@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { ENV_CONFIG } from '../utils/environment';
 import './ProtectedRoute.css';
 
 interface ProtectedRouteProps {
@@ -14,19 +15,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
   const location = useLocation();
+  
   // E2E auth bypass: allow protected content in e2e mode when flag is set
-  const isE2EMode = (() => {
-    try {
-      // @ts-ignore
-      return typeof import.meta !== 'undefined' && import.meta?.env?.MODE === 'e2e';
-    } catch { return false; }
-  })();
-  const hasBypass = (() => {
-    try {
-      // @ts-ignore
-      return Boolean(import.meta?.env?.VITE_E2E_AUTH_BYPASS_ROLE);
-    } catch { return false; }
-  })();
+  const hasE2EBypass = ENV_CONFIG.e2e.hasAuthBypass();
 
   // Show loading spinner while checking authentication
   if (isLoading) {
@@ -41,7 +32,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Redirect to login if not authenticated
-  if (!isAuthenticated && !(isE2EMode && hasBypass)) {
+  if (!isAuthenticated && !hasE2EBypass) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

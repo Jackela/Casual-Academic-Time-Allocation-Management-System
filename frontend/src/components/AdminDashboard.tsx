@@ -37,7 +37,7 @@ interface TimesheetsResponse {
 
 interface DashboardSummary {
   totalTimesheets: number;
-  pendingApprovals: number;
+  pendingConfirmations: number;
   totalHours: number;
   totalPay: number;
   budgetUsage: {
@@ -205,7 +205,7 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleApprovalAction = async (timesheetId: number, action: 'APPROVE' | 'REJECT') => {
+  const handleApprovalAction = async (timesheetId: number, action: 'HR_CONFIRM' | 'REJECT') => {
     try {
       setActionLoading(timesheetId);
       setError('');
@@ -215,9 +215,9 @@ const AdminDashboard: React.FC = () => {
         {
           timesheetId: timesheetId,
           action: action,
-          comment: action === 'APPROVE' 
-            ? 'Approved by admin override' 
-            : 'Rejected by admin override'
+          comment: action === 'HR_CONFIRM' 
+            ? 'Confirmed by admin' 
+            : 'Rejected by admin'
         },
         {
           headers: {
@@ -393,8 +393,8 @@ const AdminDashboard: React.FC = () => {
                 </svg>
               </div>
               <div className="card-content">
-                <h3>{dashboardSummary.pendingApprovals}</h3>
-                <p>Pending Approvals</p>
+                <h3>{dashboardSummary.pendingConfirmations}</h3>
+                <p>Pending Confirmations</p>
               </div>
             </div>
 
@@ -628,11 +628,11 @@ const AdminDashboard: React.FC = () => {
                           {canTakeAction(timesheet.status) ? (
                             <>
                               <button
-                                onClick={() => handleApprovalAction(timesheet.id, 'APPROVE')}
+                                onClick={() => handleApprovalAction(timesheet.id, 'HR_CONFIRM')}
                                 disabled={actionLoading === timesheet.id}
                                 className="approve-btn admin-override"
                                 data-testid={`admin-approve-btn-${timesheet.id}`}
-                                title="Admin override: Approve timesheet"
+                                title="Confirm timesheet"
                               >
                                 {actionLoading === timesheet.id ? (
                                   <div className="button-spinner"></div>
@@ -641,7 +641,7 @@ const AdminDashboard: React.FC = () => {
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                                     </svg>
-                                    Approve
+                                    Confirm
                                   </>
                                 )}
                               </button>

@@ -125,12 +125,12 @@ public class TimesheetEntityTest {
         @Test
         void isEditable_ShouldReturnFalseForOtherStatuses() {
             ApprovalStatus[] nonEditableStatuses = {
-                ApprovalStatus.PENDING_TUTOR_REVIEW,
-                ApprovalStatus.PENDING_TUTOR_REVIEW,
-            ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR,
-            ApprovalStatus.FINAL_APPROVED,
+                ApprovalStatus.PENDING_TUTOR_CONFIRMATION,
+                ApprovalStatus.PENDING_TUTOR_CONFIRMATION,
+            ApprovalStatus.LECTURER_CONFIRMED,
+            ApprovalStatus.FINAL_CONFIRMED,
             ApprovalStatus.REJECTED,
-            ApprovalStatus.FINAL_APPROVED
+            ApprovalStatus.FINAL_CONFIRMED
             };
 
             for (ApprovalStatus status : nonEditableStatuses) {
@@ -143,11 +143,11 @@ public class TimesheetEntityTest {
 
         @Test
         void canBeApproved_ShouldReturnTrueForPendingStatuses() {
-            timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-            assertThat(timesheet.canBeApproved()).isTrue();
+            timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            assertThat(timesheet.canBeConfirmed()).isTrue();
 
-            timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-            assertThat(timesheet.canBeApproved()).isTrue();
+            timesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
+            assertThat(timesheet.canBeConfirmed()).isTrue();
         }
 
         @Test
@@ -155,14 +155,13 @@ public class TimesheetEntityTest {
             ApprovalStatus[] nonApprovableStatuses = {
                 ApprovalStatus.DRAFT,
                 ApprovalStatus.MODIFICATION_REQUESTED,
-                ApprovalStatus.APPROVED_BY_TUTOR,
-                ApprovalStatus.FINAL_APPROVED,
+                ApprovalStatus.FINAL_CONFIRMED,
                 ApprovalStatus.REJECTED
             };
 
             for (ApprovalStatus status : nonApprovableStatuses) {
                 timesheet.setStatus(status);
-                assertThat(timesheet.canBeApproved())
+                assertThat(timesheet.canBeConfirmed())
                     .as("Status %s should not be approvable", status)
                     .isFalse();
             }
@@ -256,8 +255,8 @@ public class TimesheetEntityTest {
             assertThat(approval.getApproverId()).isEqualTo(lecturerId);
             assertThat(approval.getAction()).isEqualTo(ApprovalAction.SUBMIT_FOR_APPROVAL);
             assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.DRAFT);
-            assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
             assertThat(timesheet.getApprovals()).hasSize(1);
         }
 
@@ -265,7 +264,7 @@ public class TimesheetEntityTest {
         @DisplayName("Business Rule Enforcement - Cannot submit already approved timesheet")
         void attemptToSubmitApprovedTimesheet_ShouldThrowBusinessException() {
             // Given: Timesheet is already in final approved state
-            timesheet.setStatus(ApprovalStatus.FINAL_APPROVED);
+            timesheet.setStatus(ApprovalStatus.FINAL_CONFIRMED);
             // When: Someone tries to submit an already approved timesheet
             // Then: System must reject this invalid business operation
             assertThatThrownBy(() -> timesheet.submitForApproval(1L))
@@ -276,52 +275,52 @@ public class TimesheetEntityTest {
         @Test
         @DisplayName("Tutor Verification Step - When tutor confirms work accuracy, should mark as tutor approved pending lecturer final approval")        void tutorConfirmsWorkAccuracy_ShouldAdvanceToHRPaymentApproval() {
             // Given: Lecturer-submitted timesheet awaiting tutor verification of work performed
-            timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
             Long tutorId = 2L; // Teaching assistant who actually performed the work
             String tutorComment = "Confirmed: I completed these teaching hours as documented";
 
             // When: Tutor verifies and confirms the accuracy of recorded work hours
-            Approval approval = timesheet.approve(tutorId, tutorComment);
+            Approval approval = timesheet.confirmByTutor(tutorId, tutorComment);
 
             // Then: System should record tutor confirmation and mark as tutor approved (lecturer final approval pending)
-            assertThat(approval.getAction()).isEqualTo(ApprovalAction.APPROVE);
-            assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
-            assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
+            assertThat(approval.getAction()).isEqualTo(ApprovalAction.TUTOR_CONFIRM);
+            assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.TUTOR_CONFIRMED);
             assertThat(approval.getComment()).isEqualTo(tutorComment);
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);        }
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.TUTOR_CONFIRMED);        }
 
         @Test
         @DisplayName("HR Payment Authorization - When HR approves verified timesheet, should authorize casual staff payment")
         void hrAuthorizesPayment_ShouldCompleteWorkflowAndTriggerPayrollProcessing() {
             // Given: Timesheet has been verified by tutor and awaits HR payment authorization
-            timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            Long hrManagerId = 3L; // HR department staff with payment authorization authority
+            timesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);            Long hrManagerId = 3L; // HR department staff with payment authorization authority
 
             // When: HR approves the timesheet for payment processing (comment optional)
-            Approval approval = timesheet.approve(hrManagerId, null);
+            Approval approval = timesheet.confirmByHR(hrManagerId, null);
 
             // Then: Timesheet should reach final approved state, ready for university payroll system
-            assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);        }
+            assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.FINAL_CONFIRMED);
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_CONFIRMED);        }
 
         @Test
         void approve_ShouldFailForNonApprovableStatus() {
             timesheet.setStatus(ApprovalStatus.DRAFT);
 
-            assertThatThrownBy(() -> timesheet.approve(1L, null))
+            assertThatThrownBy(() -> timesheet.confirmByTutor(1L, null))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Timesheet cannot be approved in current state: DRAFT");
+                .hasMessageContaining("Tutor confirmation is only allowed from PENDING_TUTOR_CONFIRMATION state");
         }
 
         @Test
         void reject_ShouldCreateRejectionApproval() {
-            timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
             Long approverId = 2L;
             String comment = "Insufficient details";
 
             Approval approval = timesheet.reject(approverId, comment);
 
             assertThat(approval.getAction()).isEqualTo(ApprovalAction.REJECT);
-            assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
             assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.REJECTED);
             assertThat(approval.getComment()).isEqualTo(comment);
             assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.REJECTED);
@@ -329,7 +328,7 @@ public class TimesheetEntityTest {
 
         @Test
         void reject_ShouldFailWithoutComment() {
-            timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
 
             assertThatThrownBy(() -> timesheet.reject(1L, null))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -346,20 +345,20 @@ public class TimesheetEntityTest {
 
         @Test
         void requestModification_ShouldCreateModificationApproval() {
-            timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            Long approverId = 3L;
+            timesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);            Long approverId = 3L;
             String comment = "Please add more detail to description";
 
             Approval approval = timesheet.requestModification(approverId, comment);
 
             assertThat(approval.getAction()).isEqualTo(ApprovalAction.REQUEST_MODIFICATION);
-            assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
+            assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.LECTURER_CONFIRMED);            assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
             assertThat(approval.getComment()).isEqualTo(comment);
             assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
         }
 
         @Test
         void requestModification_ShouldFailWithoutComment() {
-            timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
 
             assertThatThrownBy(() -> timesheet.requestModification(1L, null))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -371,7 +370,7 @@ public class TimesheetEntityTest {
             timesheet.setStatus(ApprovalStatus.DRAFT);
             
             Approval approval1 = timesheet.submitForApproval(1L);
-            Approval approval2 = timesheet.approve(2L, "Good work");
+            Approval approval2 = timesheet.confirmByTutor(2L, "Good work");
 
             Optional<Approval> mostRecent = timesheet.getMostRecentApproval();
 
@@ -391,13 +390,13 @@ public class TimesheetEntityTest {
             timesheet.setStatus(ApprovalStatus.DRAFT);
             
             timesheet.submitForApproval(1L);
-            timesheet.approve(2L, "Approved by tutor");
+            timesheet.confirmByTutor(2L, "Confirmed by tutor");
 
             List<Approval> history = timesheet.getApprovalHistory();
 
             assertThat(history).hasSize(2);
             assertThat(history.get(0).getAction()).isEqualTo(ApprovalAction.SUBMIT_FOR_APPROVAL);
-            assertThat(history.get(1).getAction()).isEqualTo(ApprovalAction.APPROVE);
+            assertThat(history.get(1).getAction()).isEqualTo(ApprovalAction.TUTOR_CONFIRM);
         }
 
         @Test
@@ -405,19 +404,19 @@ public class TimesheetEntityTest {
             timesheet.submitForApproval(1L);
 
             assertThat(timesheet.hasApprovalAction(ApprovalAction.SUBMIT_FOR_APPROVAL)).isTrue();
-            assertThat(timesheet.hasApprovalAction(ApprovalAction.APPROVE)).isFalse();
+            assertThat(timesheet.hasApprovalAction(ApprovalAction.TUTOR_CONFIRM)).isFalse();
         }
 
         @Test
         void getApprovalsByAction_ShouldReturnMatchingApprovals() {
             timesheet.setStatus(ApprovalStatus.DRAFT);
             timesheet.submitForApproval(1L);
-            timesheet.approve(2L, "Tutor approval");
-            timesheet.finalApprove(1L, "Lecturer final approval");
+            timesheet.confirmByTutor(2L, "Tutor confirmation");
+            timesheet.confirmByLecturer(1L, "Lecturer confirmation");
 
-            List<Approval> approvals = timesheet.getApprovalsByAction(ApprovalAction.APPROVE);
+            List<Approval> approvals = timesheet.getApprovalsByAction(ApprovalAction.TUTOR_CONFIRM);
 
-            assertThat(approvals).hasSize(1);            assertThat(approvals).allMatch(a -> a.getAction() == ApprovalAction.APPROVE);
+            assertThat(approvals).hasSize(1);            assertThat(approvals).allMatch(a -> a.getAction() == ApprovalAction.TUTOR_CONFIRM);
         }
 
         @Test
@@ -495,28 +494,32 @@ public class TimesheetEntityTest {
 
             // Lecturer submits timesheet documenting casual staff work
             timesheet.submitForApproval(1L); // Lecturer ID
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
-            assertThat(timesheet.canBeApproved()).isTrue();
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            assertThat(timesheet.canBeConfirmed()).isTrue();
 
             // Tutor/Teaching Assistant confirms work accuracy
-            timesheet.approve(2L, "Confirmed: I performed these teaching duties as documented");
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
-            assertThat(timesheet.canBeApproved()).isFalse();
+            timesheet.confirmByTutor(2L, "Confirmed: I performed these teaching duties as documented");
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.TUTOR_CONFIRMED);
+            assertThat(timesheet.canBeConfirmed()).isTrue();
 
             // Lecturer gives final academic approval
-            timesheet.finalApprove(1L, "Lecturer final approval");
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);            assertThat(timesheet.canBeApproved()).isTrue();
+            timesheet.confirmByLecturer(1L, "Lecturer confirmation");
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.LECTURER_CONFIRMED);
+            assertThat(timesheet.canBeConfirmed()).isTrue();
 
             // HR authorizes payment for casual academic staff
-            timesheet.approve(3L, "Approved for payroll processing");
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);            assertThat(timesheet.canBeApproved()).isFalse();
+            timesheet.confirmByHR(3L, "Confirmed for payroll processing");
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_CONFIRMED);
+            assertThat(timesheet.canBeConfirmed()).isFalse();
 
             // Verify complete audit trail for university finance compliance
             List<Approval> history = timesheet.getApprovalHistory();
             assertThat(history).hasSize(4);
             assertThat(history.get(0).getAction()).isEqualTo(ApprovalAction.SUBMIT_FOR_APPROVAL);
-            assertThat(history.get(1).getAction()).isEqualTo(ApprovalAction.APPROVE);
-            assertThat(history.get(2).getAction()).isEqualTo(ApprovalAction.FINAL_APPROVAL);        }
+            assertThat(history.get(1).getAction()).isEqualTo(ApprovalAction.TUTOR_CONFIRM);
+            assertThat(history.get(2).getAction()).isEqualTo(ApprovalAction.LECTURER_CONFIRM);
+            assertThat(history.get(3).getAction()).isEqualTo(ApprovalAction.HR_CONFIRM);
+        }
 
         @Test
         void rejectionWorkflow_ShouldWorkCorrectly() {
@@ -525,7 +528,7 @@ public class TimesheetEntityTest {
 
             assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.REJECTED);
             assertThat(timesheet.isEditable()).isFalse();
-            assertThat(timesheet.canBeApproved()).isFalse();
+            assertThat(timesheet.canBeConfirmed()).isFalse();
 
             List<Approval> history = timesheet.getApprovalHistory();
             assertThat(history).hasSize(2);
@@ -540,11 +543,11 @@ public class TimesheetEntityTest {
 
             assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
             assertThat(timesheet.isEditable()).isTrue();
-            assertThat(timesheet.canBeApproved()).isFalse();
+            assertThat(timesheet.canBeConfirmed()).isFalse();
 
             // Can resubmit after modification
             timesheet.submitForApproval(1L);
-            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         }
     }
 }

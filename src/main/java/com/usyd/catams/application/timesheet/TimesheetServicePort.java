@@ -152,12 +152,12 @@ public interface TimesheetServicePort {
                                                BigDecimal minHours, BigDecimal maxHours);
     
     /**
-     * Get pending timesheets for a specific approver
+     * Get pending timesheets for a specific user (for confirmation workflow)
      * 
-     * @param approverId ID of the approver (lecturer or HR)
-     * @return List of timesheets pending approval by this user
+     * @param userId ID of the user (tutor, lecturer or HR)
+     * @return List of timesheets pending confirmation by this user
      */
-    List<TimesheetDto> getPendingTimesheetsForApprover(Long approverId);
+    List<TimesheetDto> getPendingTimesheetsForUser(Long userId);
     
     /**
      * Get recent timesheets (created within last N days)
@@ -182,52 +182,52 @@ public interface TimesheetServicePort {
     TimesheetDto submitForApproval(Long timesheetId, Long submitterId);
     
     /**
-     * Process an approval action on a timesheet
+     * Process a confirmation action on a timesheet
      * 
      * @param timesheetId ID of the timesheet to process
-     * @param approverId ID of the user taking the action
-     * @param action Approval action to take (APPROVE, REJECT, REQUEST_MODIFICATION)
-     * @param comments Optional comments from approver
+     * @param userId ID of the user taking the action
+     * @param action Confirmation action to take (TUTOR_CONFIRM, LECTURER_CONFIRM, HR_CONFIRM, REJECT, REQUEST_MODIFICATION)
+     * @param comments Optional comments from user
      * @return Updated timesheet DTO with new status
      * @throws IllegalStateException if action cannot be performed
      * @throws SecurityException if user lacks permission
      */
-    TimesheetDto processApprovalAction(Long timesheetId, Long approverId, 
-                                      ApprovalAction action, String comments);
+    TimesheetDto processConfirmationAction(Long timesheetId, Long userId, 
+                                          ApprovalAction action, String comments);
     
     /**
-     * Get valid approval actions for a timesheet and user
+     * Get valid confirmation actions for a timesheet and user
      * 
      * @param timesheetId ID of the timesheet
      * @param userId ID of the user checking actions
-     * @return List of valid approval actions for this user and timesheet
+     * @return List of valid confirmation actions for this user and timesheet
      */
-    List<ApprovalAction> getValidApprovalActions(Long timesheetId, Long userId);
+    List<ApprovalAction> getValidConfirmationActions(Long timesheetId, Long userId);
     
     /**
-     * Get approval history for a timesheet
+     * Get confirmation history for a timesheet
      * 
      * @param timesheetId ID of the timesheet
-     * @return List of approval events (may be empty for new timesheets)
+     * @return List of confirmation events (may be empty for new timesheets)
      */
-    List<String> getApprovalHistory(Long timesheetId);
+    List<String> getConfirmationHistory(Long timesheetId);
     
     /**
-     * Check if a user can approve a specific timesheet
+     * Check if a user can confirm a specific timesheet
      * 
      * @param timesheetId ID of the timesheet
-     * @param userId ID of the potential approver
-     * @return true if user can approve this timesheet
+     * @param userId ID of the potential confirmer
+     * @return true if user can confirm this timesheet
      */
-    boolean canUserApproveTimesheet(Long timesheetId, Long userId);
+    boolean canUserConfirmTimesheet(Long timesheetId, Long userId);
     
     /**
-     * Get next approver in workflow for a timesheet
+     * Get next user in confirmation workflow for a timesheet
      * 
      * @param timesheetId ID of the timesheet
-     * @return Optional containing next approver ID, empty if no next approver
+     * @return Optional containing next user ID, empty if no next user needed
      */
-    Optional<Long> getNextApproverId(Long timesheetId);
+    Optional<Long> getNextConfirmerId(Long timesheetId);
     
     // =================== Business Logic Operations ===================
     
@@ -330,17 +330,17 @@ public interface TimesheetServicePort {
     // =================== Bulk Operations ===================
     
     /**
-     * Bulk approve timesheets (for HR mass approval)
+     * Bulk confirm timesheets (for HR mass confirmation)
      * 
-     * @param timesheetIds List of timesheet IDs to approve
-     * @param approverId ID of the approver
+     * @param timesheetIds List of timesheet IDs to confirm
+     * @param confirmerId ID of the confirmer
      * @param comments Optional bulk comments
      * @return Map of timesheet ID -> success/error status
      */
-    Map<Long, String> bulkApproveTimesheets(List<Long> timesheetIds, Long approverId, String comments);
+    Map<Long, String> bulkConfirmTimesheets(List<Long> timesheetIds, Long confirmerId, String comments);
     
     /**
-     * Bulk submit timesheets for approval
+     * Bulk submit timesheets for confirmation
      * 
      * @param timesheetIds List of timesheet IDs to submit
      * @param submitterId ID of the submitter

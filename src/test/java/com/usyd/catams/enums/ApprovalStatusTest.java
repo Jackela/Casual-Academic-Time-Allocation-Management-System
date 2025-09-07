@@ -14,17 +14,17 @@ import static org.junit.jupiter.api.Assertions.*;
 class ApprovalStatusTest {
 
     @Test
-    @DisplayName("APPROVED_BY_TUTOR status should not be editable")
+    @DisplayName("TUTOR_CONFIRMED status should not be editable")
     void tutorApprovedShouldNotBeEditable() {
-        ApprovalStatus status = ApprovalStatus.APPROVED_BY_TUTOR;
+        ApprovalStatus status = ApprovalStatus.TUTOR_CONFIRMED;
         
         assertFalse(status.isEditable());
     }
 
     @Test
-    @DisplayName("APPROVED_BY_TUTOR status should not be final")
+    @DisplayName("TUTOR_CONFIRMED status should not be final")
     void tutorApprovedShouldNotBeFinal() {
-        ApprovalStatus status = ApprovalStatus.APPROVED_BY_TUTOR;
+        ApprovalStatus status = ApprovalStatus.TUTOR_CONFIRMED;
         
         assertFalse(status.isFinal());
     }
@@ -46,9 +46,9 @@ class ApprovalStatusTest {
     }
 
     @Test
-    @DisplayName("PENDING_TUTOR_REVIEW should be pending")
+    @DisplayName("PENDING_TUTOR_CONFIRMATION should be pending")
     void pendingTutorReviewShouldBePending() {
-        ApprovalStatus status = ApprovalStatus.PENDING_TUTOR_REVIEW;
+        ApprovalStatus status = ApprovalStatus.PENDING_TUTOR_CONFIRMATION;
         
         assertTrue(status.isPending());
         assertFalse(status.isEditable());
@@ -56,9 +56,9 @@ class ApprovalStatusTest {
     }
 
     @Test
-    @DisplayName("APPROVED_BY_LECTURER_AND_TUTOR should be pending")
+    @DisplayName("LECTURER_CONFIRMED should be pending")
     void pendingHrReviewShouldBePending() {
-        ApprovalStatus status = ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR;
+        ApprovalStatus status = ApprovalStatus.LECTURER_CONFIRMED;
         
         assertTrue(status.isPending());
         assertFalse(status.isEditable());
@@ -66,9 +66,9 @@ class ApprovalStatusTest {
     }
 
     @Test
-    @DisplayName("FINAL_APPROVED should be final")
+    @DisplayName("FINAL_CONFIRMED should be final")
     void hrApprovedShouldBeFinal() {
-        ApprovalStatus status = ApprovalStatus.FINAL_APPROVED;
+        ApprovalStatus status = ApprovalStatus.FINAL_CONFIRMED;
         
         assertTrue(status.isFinal());
         assertFalse(status.isEditable());
@@ -89,10 +89,10 @@ class ApprovalStatusTest {
     @DisplayName("Display names should be correct")
     void displayNamesShouldBeCorrect() {
         assertEquals("Draft", ApprovalStatus.DRAFT.getDisplayName());
-        assertEquals("Pending Tutor Review", ApprovalStatus.PENDING_TUTOR_REVIEW.getDisplayName());
-        assertEquals("Approved by Tutor", ApprovalStatus.APPROVED_BY_TUTOR.getDisplayName());
-        assertEquals("Approved by Lecturer and Tutor", ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR.getDisplayName());
-        assertEquals("Final Approved", ApprovalStatus.FINAL_APPROVED.getDisplayName());
+        assertEquals("Pending Tutor Confirmation", ApprovalStatus.PENDING_TUTOR_CONFIRMATION.getDisplayName());
+        assertEquals("Tutor Confirmed", ApprovalStatus.TUTOR_CONFIRMED.getDisplayName());
+        assertEquals("Lecturer Confirmed", ApprovalStatus.LECTURER_CONFIRMED.getDisplayName());
+        assertEquals("Final Confirmed", ApprovalStatus.FINAL_CONFIRMED.getDisplayName());
         assertEquals("Rejected", ApprovalStatus.REJECTED.getDisplayName());
     }
 
@@ -100,10 +100,10 @@ class ApprovalStatusTest {
     @DisplayName("Values should be correct")
     void valuesShouldBeCorrect() {
         assertEquals("draft", ApprovalStatus.DRAFT.getValue());
-        assertEquals("pending_tutor_review", ApprovalStatus.PENDING_TUTOR_REVIEW.getValue());
-        assertEquals("approved_by_tutor", ApprovalStatus.APPROVED_BY_TUTOR.getValue());
-        assertEquals("approved_by_lecturer_and_tutor", ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR.getValue());
-        assertEquals("final_approved", ApprovalStatus.FINAL_APPROVED.getValue());
+        assertEquals("pending_tutor_confirmation", ApprovalStatus.PENDING_TUTOR_CONFIRMATION.getValue());
+        assertEquals("tutor_confirmed", ApprovalStatus.TUTOR_CONFIRMED.getValue());
+        assertEquals("lecturer_confirmed", ApprovalStatus.LECTURER_CONFIRMED.getValue());
+        assertEquals("final_confirmed", ApprovalStatus.FINAL_CONFIRMED.getValue());
         assertEquals("rejected", ApprovalStatus.REJECTED.getValue());
     }
 }

@@ -65,28 +65,28 @@ public class TimesheetAssertions extends AbstractAssert<TimesheetAssertions, Tim
     }
     
     /**
-     * Asserts that the timesheet can be approved by an authorized user.
+     * Asserts that the timesheet can be confirmed by an authorized user.
      * 
-     * Business rule: Timesheets can be approved when in PENDING_TUTOR_REVIEW or APPROVED_BY_LECTURER_AND_TUTOR states.
+     * Business rule: Timesheets can be confirmed when in PENDING_TUTOR_CONFIRMATION or LECTURER_CONFIRMED states.
      */
-    public TimesheetAssertions canBeApproved() {
+    public TimesheetAssertions canBeConfirmed() {
         isNotNull();
-        if (!actual.canBeApproved()) {
-            failWithMessage("Expected timesheet to be approvable but it was not. Current status: <%s>", 
+        if (!actual.canBeConfirmed()) {
+            failWithMessage("Expected timesheet to be confirmable but it was not. Current status: <%s>", 
                            actual.getStatus());
         }
         return this;
     }
     
     /**
-     * Asserts that the timesheet cannot be approved.
+     * Asserts that the timesheet cannot be confirmed.
      * 
-     * Business rule: Timesheets cannot be approved when in DRAFT, final, or intermediate states.
+     * Business rule: Timesheets cannot be confirmed when in DRAFT, final, or intermediate states.
      */
-    public TimesheetAssertions cannotBeApproved() {
+    public TimesheetAssertions cannotBeConfirmed() {
         isNotNull();
-        if (actual.canBeApproved()) {
-            failWithMessage("Expected timesheet to not be approvable but it was. Current status: <%s>", 
+        if (actual.canBeConfirmed()) {
+            failWithMessage("Expected timesheet to not be confirmable but it was. Current status: <%s>", 
                            actual.getStatus());
         }
         return this;
@@ -151,7 +151,7 @@ public class TimesheetAssertions extends AbstractAssert<TimesheetAssertions, Tim
      */
     public TimesheetAssertions isReadyForHRReview() {
         isNotNull();
-        if (actual.getStatus() != ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR) {
+        if (actual.getStatus() != ApprovalStatus.LECTURER_CONFIRMED) {
             failWithMessage("Expected timesheet to be ready for HR review but it was not. Current status: <%s>", 
                            actual.getStatus());
         }
@@ -165,7 +165,7 @@ public class TimesheetAssertions extends AbstractAssert<TimesheetAssertions, Tim
      */
     public TimesheetAssertions isAwaitingTutorReview() {
         isNotNull();
-        if (actual.getStatus() != ApprovalStatus.PENDING_TUTOR_REVIEW) {
+        if (actual.getStatus() != ApprovalStatus.PENDING_TUTOR_CONFIRMATION) {
             failWithMessage("Expected timesheet to be awaiting tutor review but it was not. Current status: <%s>", 
                            actual.getStatus());
         }
@@ -221,7 +221,7 @@ public class TimesheetAssertions extends AbstractAssert<TimesheetAssertions, Tim
      */
     public TimesheetAssertions isFullyApproved() {
         isNotNull();
-        if (actual.getStatus() != ApprovalStatus.FINAL_APPROVED) {
+        if (actual.getStatus() != ApprovalStatus.FINAL_CONFIRMED) {
             failWithMessage("Expected timesheet to be fully approved but it was not. Current status: <%s>", 
                            actual.getStatus());
         }
@@ -235,7 +235,7 @@ public class TimesheetAssertions extends AbstractAssert<TimesheetAssertions, Tim
      */
     public TimesheetAssertions isTutorApproved() {
         isNotNull();
-        if (actual.getStatus() != ApprovalStatus.APPROVED_BY_TUTOR) {
+        if (actual.getStatus() != ApprovalStatus.TUTOR_CONFIRMED) {
             failWithMessage("Expected timesheet to be tutor approved but it was not. Current status: <%s>", 
                            actual.getStatus());
         }
@@ -283,10 +283,10 @@ public class TimesheetAssertions extends AbstractAssert<TimesheetAssertions, Tim
     private int getWorkflowOrder(ApprovalStatus status) {
         switch (status) {
             case DRAFT: return 1;
-            case PENDING_TUTOR_REVIEW: return 2;
-            case APPROVED_BY_TUTOR: return 3;
-            case APPROVED_BY_LECTURER_AND_TUTOR: return 4;
-            case FINAL_APPROVED: return 5;
+            case PENDING_TUTOR_CONFIRMATION: return 2;
+            case TUTOR_CONFIRMED: return 3;
+            case LECTURER_CONFIRMED: return 4;
+            case FINAL_CONFIRMED: return 5;
             case MODIFICATION_REQUESTED: return 1; // Can restart workflow
             case REJECTED: return 6; // Terminal state, no restart
             default: return 0;

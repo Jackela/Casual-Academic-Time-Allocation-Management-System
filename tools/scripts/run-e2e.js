@@ -26,7 +26,7 @@ function parseArgs(argv) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const root = path.join(__dirname, '..');
+  const root = path.join(__dirname, '..', '..');
   const frontendDir = path.join(root, 'frontend');
   let backend;
   try {

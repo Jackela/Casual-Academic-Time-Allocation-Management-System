@@ -140,7 +140,7 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
         approvedTimesheet.setHours(BigDecimal.valueOf(8.0));
         approvedTimesheet.setHourlyRate(BigDecimal.valueOf(25.00));
         approvedTimesheet.setDescription("Lab sessions");
-        approvedTimesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        approvedTimesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
         approvedTimesheet.setCreatedBy(lecturer.getId());
         approvedTimesheet = timesheetRepository.save(approvedTimesheet);
     }

@@ -41,27 +41,27 @@ public class WorkflowRulesValidator {
         
         // Test LECTURER creating and submitting timesheet
         testScenario("LECTURER submits DRAFT timesheet", 
-            ApprovalAction.SUBMIT_FOR_APPROVAL, UserRole.LECTURER, ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_REVIEW);
+            ApprovalAction.SUBMIT_FOR_APPROVAL, UserRole.LECTURER, ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
         // Test TUTOR reviewing timesheet
-        testScenario("TUTOR approves timesheet", 
-            ApprovalAction.APPROVE, UserRole.TUTOR, ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalStatus.APPROVED_BY_TUTOR);
+        testScenario("TUTOR confirms timesheet", 
+            ApprovalAction.TUTOR_CONFIRM, UserRole.TUTOR, ApprovalStatus.PENDING_TUTOR_CONFIRMATION, ApprovalStatus.TUTOR_CONFIRMED);
         
-        // Test LECTURER final approval
-        testScenario("LECTURER gives final approval", 
-            ApprovalAction.FINAL_APPROVAL, UserRole.LECTURER, ApprovalStatus.APPROVED_BY_TUTOR, ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        // Test LECTURER final confirmation
+        testScenario("LECTURER gives final confirmation", 
+            ApprovalAction.LECTURER_CONFIRM, UserRole.LECTURER, ApprovalStatus.TUTOR_CONFIRMED, ApprovalStatus.LECTURER_CONFIRMED);
         
-        // Test HR final approval
-        testScenario("HR approves for payroll", 
-            ApprovalAction.HR_APPROVE, UserRole.HR, ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalStatus.FINAL_APPROVED);
+        // Test HR final confirmation
+        testScenario("HR confirms for payroll", 
+            ApprovalAction.HR_CONFIRM, UserRole.HR, ApprovalStatus.LECTURER_CONFIRMED, ApprovalStatus.FINAL_CONFIRMED);
         
         // Test HR rejection
         testScenario("HR rejects timesheet", 
-            ApprovalAction.HR_REJECT, UserRole.HR, ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalStatus.REJECTED);
+            ApprovalAction.REJECT, UserRole.HR, ApprovalStatus.LECTURER_CONFIRMED, ApprovalStatus.REJECTED);
         
         // Test TUTOR resubmitting rejected timesheet
         testScenario("TUTOR resubmits rejected timesheet", 
-            ApprovalAction.SUBMIT_FOR_APPROVAL, UserRole.TUTOR, ApprovalStatus.REJECTED, ApprovalStatus.PENDING_TUTOR_REVIEW);
+            ApprovalAction.SUBMIT_FOR_APPROVAL, UserRole.TUTOR, ApprovalStatus.REJECTED, ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
         System.out.println("\n=== Validation Complete ===");
     }

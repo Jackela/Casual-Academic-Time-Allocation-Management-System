@@ -304,11 +304,11 @@ class TestDataBuilderUnitTest {
                 .build();
 
             Timesheet pendingTimesheet = TestDataBuilder.aDraftTimesheet()
-                .asPendingTutorReview()
+                .asPendingTutorConfirmation()
                 .build();
 
             Timesheet approvedTimesheet = TestDataBuilder.aDraftTimesheet()
-                .asApprovedByTutor()
+                .asTutorConfirmed()
                 .build();
 
             Timesheet rejectedTimesheet = TestDataBuilder.aDraftTimesheet()
@@ -317,8 +317,8 @@ class TestDataBuilderUnitTest {
 
             // Then
             assertThat(draftTimesheet.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
-            assertThat(pendingTimesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
-            assertThat(approvedTimesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
+            assertThat(pendingTimesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            assertThat(approvedTimesheet.getStatus()).isEqualTo(ApprovalStatus.TUTOR_CONFIRMED);
             assertThat(rejectedTimesheet.getStatus()).isEqualTo(ApprovalStatus.REJECTED);
         }
 

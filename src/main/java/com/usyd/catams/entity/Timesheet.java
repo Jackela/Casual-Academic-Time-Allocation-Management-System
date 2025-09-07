@@ -259,10 +259,11 @@ public class Timesheet {
         return status.isEditable();
     }
     
-    public boolean canBeApproved() {
-        // Only states that accept user approval actions per SSOT
-        return status == ApprovalStatus.PENDING_TUTOR_REVIEW ||
-               status == ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR;
+    public boolean canBeConfirmed() {
+        // Only states that accept user confirmation actions per new SSOT
+        return status == ApprovalStatus.PENDING_TUTOR_CONFIRMATION ||
+               status == ApprovalStatus.TUTOR_CONFIRMED ||
+               status == ApprovalStatus.LECTURER_CONFIRMED;
     }
     
     public void validateBusinessRules() {
@@ -387,39 +388,55 @@ public class Timesheet {
     }
     
     /**
-     * Approve timesheet.
+     * Tutor confirms the timesheet accuracy.
+     * Transitions from PENDING_TUTOR_CONFIRMATION to TUTOR_CONFIRMED.
      */
-    public Approval approve(Long approverId, String comment) {
-        if (!canBeApproved()) {
-            throw new IllegalStateException("Timesheet cannot be approved in current state: " + this.status.name());
+    public Approval confirmByTutor(Long tutorId, String comment) {
+        if (this.status != ApprovalStatus.PENDING_TUTOR_CONFIRMATION) {
+            throw new IllegalStateException("Tutor confirmation is only allowed from PENDING_TUTOR_CONFIRMATION state");
         }
         
         ApprovalStatus previousStatus = this.status;
-        ApprovalStatus newStatus = ApprovalAction.APPROVE.getTargetStatus(previousStatus);
-        return addApproval(approverId, ApprovalAction.APPROVE, previousStatus, newStatus, comment);
+        ApprovalStatus newStatus = ApprovalAction.TUTOR_CONFIRM.getTargetStatus(previousStatus);
+        return addApproval(tutorId, ApprovalAction.TUTOR_CONFIRM, previousStatus, newStatus, comment);
     }
     
     /**
-     * Lecturer final approval after tutor approval.
+     * Lecturer confirms the timesheet (with optional comment/reason).
+     * Transitions from TUTOR_CONFIRMED to LECTURER_CONFIRMED.
      */
-    public Approval finalApprove(Long approverId, String comment) {
-        if (this.status != ApprovalStatus.APPROVED_BY_TUTOR) {
-            throw new IllegalStateException("Final approval is only allowed from APPROVED_BY_TUTOR state");
+    public Approval confirmByLecturer(Long lecturerId, String comment) {
+        if (this.status != ApprovalStatus.TUTOR_CONFIRMED) {
+            throw new IllegalStateException("Lecturer confirmation is only allowed from TUTOR_CONFIRMED state");
         }
         
         ApprovalStatus previousStatus = this.status;
-        ApprovalStatus newStatus = ApprovalAction.FINAL_APPROVAL.getTargetStatus(previousStatus);
-        return addApproval(approverId, ApprovalAction.FINAL_APPROVAL, previousStatus, newStatus, comment);
+        ApprovalStatus newStatus = ApprovalAction.LECTURER_CONFIRM.getTargetStatus(previousStatus);
+        return addApproval(lecturerId, ApprovalAction.LECTURER_CONFIRM, previousStatus, newStatus, comment);
+    }
+    
+    /**
+     * HR/Admin gives final confirmation for payroll processing.
+     * Transitions from LECTURER_CONFIRMED to FINAL_CONFIRMED.
+     */
+    public Approval confirmByHR(Long hrId, String comment) {
+        if (this.status != ApprovalStatus.LECTURER_CONFIRMED) {
+            throw new IllegalStateException("HR confirmation is only allowed from LECTURER_CONFIRMED state");
+        }
+        
+        ApprovalStatus previousStatus = this.status;
+        ApprovalStatus newStatus = ApprovalAction.HR_CONFIRM.getTargetStatus(previousStatus);
+        return addApproval(hrId, ApprovalAction.HR_CONFIRM, previousStatus, newStatus, comment);
     }
     
     /**
      * Reject timesheet.
      */
     public Approval reject(Long approverId, String comment) {
-        // Rejection is allowed in pending stages per workflow rules
-        if (this.status != ApprovalStatus.PENDING_TUTOR_REVIEW &&
-            this.status != ApprovalStatus.APPROVED_BY_TUTOR &&
-            this.status != ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR) {
+        // Rejection is allowed in confirmation stages per new workflow rules
+        if (this.status != ApprovalStatus.PENDING_TUTOR_CONFIRMATION &&
+            this.status != ApprovalStatus.TUTOR_CONFIRMED &&
+            this.status != ApprovalStatus.LECTURER_CONFIRMED) {
             throw new IllegalStateException("Timesheet cannot be rejected in current state: " + this.status);
         }
         
@@ -435,7 +452,7 @@ public class Timesheet {
      * Request modification to timesheet.
      */
     public Approval requestModification(Long approverId, String comment) {  
-        if (!canBeApproved()) {
+        if (!canBeConfirmed()) {
             throw new IllegalStateException("Cannot request modification for timesheet in current state: " + this.status);
         }
         

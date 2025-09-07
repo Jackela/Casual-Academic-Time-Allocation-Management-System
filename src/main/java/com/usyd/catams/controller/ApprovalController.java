@@ -14,10 +14,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.stream.Collectors;
 
 /**
- * REST Controller for timesheet approval operations.
+ * REST Controller for timesheet confirmation operations.
  */
 @RestController
-@RequestMapping("/api/approvals")
+@RequestMapping("/api/confirmations")
 public class ApprovalController {
 
     private final ApprovalService approvalService;
@@ -35,7 +35,7 @@ public class ApprovalController {
 
     @PostMapping
     @PreAuthorize("hasRole('TUTOR') or hasRole('LECTURER') or hasRole('ADMIN')")
-    public ResponseEntity<ApprovalActionResponse> performApprovalAction(
+    public ResponseEntity<ApprovalActionResponse> performConfirmationAction(
             @Valid @RequestBody ApprovalActionRequest request) {
         Long requesterId = authenticationFacade.getCurrentUserId();
         var approval = approvalService.performApprovalAction(
@@ -45,7 +45,7 @@ public class ApprovalController {
 
     @GetMapping("/history/{timesheetId}")
     @PreAuthorize("hasRole('TUTOR') or hasRole('LECTURER') or hasRole('ADMIN')")
-    public ResponseEntity<java.util.List<ApprovalActionResponse>> getApprovalHistory(
+    public ResponseEntity<java.util.List<ApprovalActionResponse>> getConfirmationHistory(
             @PathVariable("timesheetId") Long timesheetId) {
         Long requesterId = authenticationFacade.getCurrentUserId();
         var approvals = approvalService.getApprovalHistory(timesheetId, requesterId);
@@ -55,7 +55,7 @@ public class ApprovalController {
 
     @GetMapping("/pending")
     @PreAuthorize("hasRole('LECTURER') or hasRole('ADMIN')")
-    public ResponseEntity<java.util.List<com.usyd.catams.dto.response.TimesheetResponse>> getPendingApprovals() {
+    public ResponseEntity<java.util.List<com.usyd.catams.dto.response.TimesheetResponse>> getPendingConfirmations() {
         // Placeholder: this endpoint not critical yet; return empty list for now
         return ResponseEntity.ok(java.util.List.of());
     }

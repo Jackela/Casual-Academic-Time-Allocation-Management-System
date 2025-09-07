@@ -69,9 +69,9 @@ public class WorkflowMetricsService {
                 .description("Timesheets approved by both lecturer and tutor")
                 .register(meterRegistry);
                 
-        finalApprovalCounter = Counter.builder("approval.transition.final_approved")
-                .description("Timesheets reaching final approval")
-                .tag("status", "final_approved")
+        finalApprovalCounter = Counter.builder("approval.transition.final_confirmed")
+                .description("Timesheets reaching final confirmation")
+                .tag("status", "final_confirmed")
                 .register(meterRegistry);
 
         // Performance timers
@@ -92,16 +92,16 @@ public class WorkflowMetricsService {
                 .register(meterRegistry);
 
         // Current state gauges
-        Gauge.builder("approval.state.pending_tutor_review", this, service -> pendingTutorReviewCount.get())
-                .description("Current number of timesheets pending tutor review")
+        Gauge.builder("approval.state.pending_tutor_confirmation", this, service -> pendingTutorReviewCount.get())
+                .description("Current number of timesheets pending tutor confirmation")
                 .register(meterRegistry);
                 
-        Gauge.builder("approval.state.approved_by_tutor", this, service -> approvedByTutorCount.get())
-                .description("Current number of timesheets approved by tutor (awaiting lecturer)")
+        Gauge.builder("approval.state.tutor_confirmed", this, service -> approvedByTutorCount.get())
+                .description("Current number of timesheets confirmed by tutor (awaiting lecturer)")
                 .register(meterRegistry);
                 
-        Gauge.builder("approval.state.approved_by_lecturer_and_tutor", this, service -> approvedByLecturerAndTutorCount.get())
-                .description("Current number of timesheets approved by lecturer and tutor (awaiting HR)")
+        Gauge.builder("approval.state.lecturer_confirmed", this, service -> approvedByLecturerAndTutorCount.get())
+                .description("Current number of timesheets confirmed by lecturer (awaiting HR)")
                 .register(meterRegistry);
 
         // Error tracking
@@ -120,11 +120,11 @@ public class WorkflowMetricsService {
         workflowTransitionCounter.increment();
 
         // Record milestones
-        if (toStatus == ApprovalStatus.APPROVED_BY_TUTOR) {
+        if (toStatus == ApprovalStatus.TUTOR_CONFIRMED) {
             tutorApprovalCounter.increment();
-        } else if (toStatus == ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR) {
+        } else if (toStatus == ApprovalStatus.LECTURER_CONFIRMED) {
             lecturerAndTutorApprovalCounter.increment();
-        } else if (toStatus == ApprovalStatus.FINAL_APPROVED) {
+        } else if (toStatus == ApprovalStatus.FINAL_CONFIRMED) {
             finalApprovalCounter.increment();
         }
     }
@@ -158,18 +158,18 @@ public class WorkflowMetricsService {
      */
     public void updateCurrentStateCounts(ApprovalStatus status, int delta) {
         switch (status) {
-            case PENDING_TUTOR_REVIEW:
+            case PENDING_TUTOR_CONFIRMATION:
                 pendingTutorReviewCount.addAndGet(delta);
                 break;
-            case APPROVED_BY_TUTOR:
+            case TUTOR_CONFIRMED:
                 approvedByTutorCount.addAndGet(delta);
                 break;
-            case APPROVED_BY_LECTURER_AND_TUTOR:
+            case LECTURER_CONFIRMED:
                 approvedByLecturerAndTutorCount.addAndGet(delta);
                 break;
             case DRAFT:
             case MODIFICATION_REQUESTED:
-            case FINAL_APPROVED:
+            case FINAL_CONFIRMED:
             case REJECTED:
             default:
                 // No gauge updates for these statuses

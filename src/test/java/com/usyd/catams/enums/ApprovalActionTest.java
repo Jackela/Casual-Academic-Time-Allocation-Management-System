@@ -29,13 +29,13 @@ class ApprovalActionTest {
     void getTargetStatus_ShouldDelegateToStateMachine() {
         // Test valid transitions delegate to state machine
         ApprovalStatus result = ApprovalAction.SUBMIT_FOR_APPROVAL.getTargetStatus(ApprovalStatus.DRAFT);
-        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, result);
+        assertEquals(ApprovalStatus.PENDING_TUTOR_CONFIRMATION, result);
         
-        result = ApprovalAction.APPROVE.getTargetStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-        assertEquals(ApprovalStatus.APPROVED_BY_TUTOR, result);
+        result = ApprovalAction.TUTOR_CONFIRM.getTargetStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+        assertEquals(ApprovalStatus.TUTOR_CONFIRMED, result);
         
-        result = ApprovalAction.APPROVE.getTargetStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-        assertEquals(ApprovalStatus.FINAL_APPROVED, result);
+        result = ApprovalAction.HR_CONFIRM.getTargetStatus(ApprovalStatus.LECTURER_CONFIRMED);
+        assertEquals(ApprovalStatus.FINAL_CONFIRMED, result);
     }
 
     @Test
@@ -43,42 +43,46 @@ class ApprovalActionTest {
     void getTargetStatus_ShouldThrowExceptionForInvalidTransitions() {
         // Test that invalid transitions throw exceptions (delegated to state machine)
         assertThrows(IllegalStateException.class, () -> {
-            ApprovalAction.APPROVE.getTargetStatus(ApprovalStatus.DRAFT);
+            ApprovalAction.TUTOR_CONFIRM.getTargetStatus(ApprovalStatus.DRAFT);
         });
         
         assertThrows(IllegalStateException.class, () -> {
-            ApprovalAction.SUBMIT_FOR_APPROVAL.getTargetStatus(ApprovalStatus.FINAL_APPROVED);
+            ApprovalAction.SUBMIT_FOR_APPROVAL.getTargetStatus(ApprovalStatus.FINAL_CONFIRMED);
         });
     }
 
     @Test
-    @DisplayName("LECTURER should only be able to perform SUBMIT_FOR_APPROVAL action")
-    void lecturerShouldOnlySubmitForApproval() {
-        // Based on SSOT: Lecturers are creators, they can only submit for approval
+    @DisplayName("LECTURER should be able to perform submission and confirmation actions")
+    void lecturerShouldPerformSubmissionAndConfirmationActions() {
+        // Based on confirmation workflow: Lecturers can submit and provide lecturer confirmation
         assertTrue(ApprovalAction.SUBMIT_FOR_APPROVAL.canBePerformedByLecturer());
+        assertTrue(ApprovalAction.LECTURER_CONFIRM.canBePerformedByLecturer());
+        assertTrue(ApprovalAction.REJECT.canBePerformedByLecturer());
+        assertTrue(ApprovalAction.REQUEST_MODIFICATION.canBePerformedByLecturer());
         
-        // Lecturers cannot perform approval/rejection actions
-        assertFalse(ApprovalAction.APPROVE.canBePerformedByLecturer());
-        assertFalse(ApprovalAction.REJECT.canBePerformedByLecturer());
-        assertFalse(ApprovalAction.REQUEST_MODIFICATION.canBePerformedByLecturer());
+        // Lecturers cannot perform tutor-specific confirmation
+        assertFalse(ApprovalAction.TUTOR_CONFIRM.canBePerformedByLecturer());
+        assertFalse(ApprovalAction.HR_CONFIRM.canBePerformedByLecturer());
     }
 
     @Test
-    @DisplayName("TUTOR should be able to perform APPROVE, REJECT, and REQUEST_MODIFICATION actions")
+    @DisplayName("TUTOR should be able to perform SUBMIT_FOR_APPROVAL and TUTOR_CONFIRM actions")
     void tutorShouldPerformReviewActions() {
-        // Based on SSOT: Tutors review timesheets created for them
-        assertTrue(ApprovalAction.APPROVE.canBePerformedByTutor());
-        assertTrue(ApprovalAction.REJECT.canBePerformedByTutor());
-        assertTrue(ApprovalAction.REQUEST_MODIFICATION.canBePerformedByTutor());
+        // Based on confirmation workflow: Tutors can submit their own timesheets and confirm assigned timesheets
+        assertTrue(ApprovalAction.SUBMIT_FOR_APPROVAL.canBePerformedByTutor());
+        assertTrue(ApprovalAction.TUTOR_CONFIRM.canBePerformedByTutor());
         
-        // Tutors cannot submit for approval (that's lecturer's role)
-        assertFalse(ApprovalAction.SUBMIT_FOR_APPROVAL.canBePerformedByTutor());
+        // Tutors cannot perform these actions - they only confirm, don't reject/modify
+        assertFalse(ApprovalAction.REJECT.canBePerformedByTutor());
+        assertFalse(ApprovalAction.REQUEST_MODIFICATION.canBePerformedByTutor());
+        assertFalse(ApprovalAction.LECTURER_CONFIRM.canBePerformedByTutor());
+        assertFalse(ApprovalAction.HR_CONFIRM.canBePerformedByTutor());
     }
 
     @Test
     @DisplayName("ADMIN should be able to perform all actions")
     void adminShouldPerformAllActions() {
-        assertTrue(ApprovalAction.APPROVE.canBePerformedByAdmin());
+        assertTrue(ApprovalAction.TUTOR_CONFIRM.canBePerformedByAdmin());
         assertTrue(ApprovalAction.REJECT.canBePerformedByAdmin());
         assertTrue(ApprovalAction.SUBMIT_FOR_APPROVAL.canBePerformedByAdmin());
         assertTrue(ApprovalAction.REQUEST_MODIFICATION.canBePerformedByAdmin());

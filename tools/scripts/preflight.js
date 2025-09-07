@@ -7,8 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const net = require('net');
 
-const projectRoot = __dirname;
-const e2eParamsPath = path.join(projectRoot, '..', 'frontend', 'scripts', 'e2e.params.json');
+const projectRoot = path.resolve(__dirname, '..', '..');
+const e2eParamsPath = path.join(projectRoot, 'frontend', 'scripts', 'e2e.params.json');
 const { isPortListening, findPidsByPort, getCmdline, killPid } = require('./lib/port-utils');
 
 function run(cmd, args, opts = {}) {
@@ -52,8 +52,8 @@ async function main() {
   }
 
   // Gradle wrapper
-  const gradlew = path.join(projectRoot, '..', 'gradlew.bat');
-  const gradlewUnix = path.join(projectRoot, '..', 'gradlew');
+  const gradlew = path.join(projectRoot, 'gradlew.bat');
+  const gradlewUnix = path.join(projectRoot, 'gradlew');
   if (fs.existsSync(gradlew) || fs.existsSync(gradlewUnix)) {
     console.log('✅ Gradle wrapper present');
   } else {

@@ -49,7 +49,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - AC2: TUTOR can APPROVE pending timesheets with auto-transition to HR review
  * - AC3: TUTOR can REJECT pending timesheets  
  * - AC4: Authorization validation - only tutors for their own timesheets can approve/reject
- * - AC5: State transition validation - only PENDING_TUTOR_REVIEW can be acted upon
+ * - AC5: State transition validation - only PENDING_TUTOR_CONFIRMATION can be acted upon
  */
 @ActiveProfiles("integration-test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -114,7 +114,7 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
         // Create test timesheets using TestDataBuilder with SSOT workflow states
         LocalDate weekStart = LocalDate.now().with(DayOfWeek.MONDAY);
 
-        // Timesheet in PENDING_TUTOR_REVIEW state (ready for tutor approval)
+        // Timesheet in PENDING_TUTOR_CONFIRMATION state (ready for tutor approval)
         pendingTimesheet = timesheetRepository.save(
             TestDataBuilder.aDraftTimesheet()
                 .withTutorId(tutor.getId())
@@ -123,7 +123,7 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
                 .withHours(new BigDecimal("10.0"))
                 .withHourlyRate(new BigDecimal("45.00"))
                 .withDescription("Tutorial sessions awaiting approval")
-                .withStatus(ApprovalStatus.PENDING_TUTOR_REVIEW)
+                .withStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION)
                 .withCreatedBy(lecturer.getId())
                 .build()
         );
@@ -142,7 +142,7 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
                 .build()
         );
 
-        // Already approved timesheet (following SSOT workflow)
+        // Already fully approved timesheet (FINAL_CONFIRMED by HR)
         approvedTimesheet = timesheetRepository.save(
             TestDataBuilder.aDraftTimesheet()
                 .withTutorId(tutor.getId())
@@ -150,8 +150,8 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
                 .withWeekStartDate(weekStart.minusWeeks(2))
                 .withHours(new BigDecimal("12.0"))
                 .withHourlyRate(new BigDecimal("45.00"))
-                .withDescription("Assignment marking - fully approved")
-                .withStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR)
+                .withDescription("Assignment marking - fully approved by HR")
+                .withStatus(ApprovalStatus.FINAL_CONFIRMED)
                 .withCreatedBy(lecturer.getId())
                 .build()
         );
@@ -167,7 +167,7 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.timesheets").isArray())
                 .andExpect(jsonPath("$.timesheets[0].id").value(pendingTimesheet.getId()))
-                .andExpect(jsonPath("$.timesheets[0].status").value("PENDING_TUTOR_REVIEW"))
+                .andExpect(jsonPath("$.timesheets[0].status").value("PENDING_TUTOR_CONFIRMATION"))
                 .andExpect(jsonPath("$.pageInfo.totalElements").value(1))
                 .andExpect(jsonPath("$.pageInfo.first").value(true));
     }
@@ -203,26 +203,26 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("AC2: TUTOR APPROVE moves to APPROVED_BY_TUTOR (lecturer final approval pending)")
+    @DisplayName("AC2: TUTOR APPROVE moves to TUTOR_CONFIRMED (lecturer final approval pending)")
     void shouldApproveTimesheet_ToTutorApproved_PendingLecturerFinal() throws Exception {
         ApprovalActionRequest request = new ApprovalActionRequest();
         request.setTimesheetId(pendingTimesheet.getId());
-        request.setAction(ApprovalAction.APPROVE);
+        request.setAction(ApprovalAction.TUTOR_CONFIRM);
         request.setComment("Approved - hours and description look correct");
 
         String tutorJwt = jwtTokenProvider.generateToken(tutor.getId(), tutor.getEmail(), tutor.getRole().name());
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                         .header("Authorization", "Bearer " + tutorJwt)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.action").value("APPROVE"))
+                .andExpect(jsonPath("$.action").value("TUTOR_CONFIRM"))
                 .andExpect(jsonPath("$.timesheetId").value(pendingTimesheet.getId()))
                 .andExpect(jsonPath("$.approverId").value(tutor.getId()));
 
-        // Verify timesheet status changed to APPROVED_BY_TUTOR (no auto-transition)
+        // Verify timesheet status changed to TUTOR_CONFIRMED (no auto-transition)
         Timesheet updatedTimesheet = timesheetRepository.findById(pendingTimesheet.getId()).orElseThrow();
-        assertEquals(ApprovalStatus.APPROVED_BY_TUTOR, updatedTimesheet.getStatus());
+        assertEquals(ApprovalStatus.TUTOR_CONFIRMED, updatedTimesheet.getStatus());
     }
 
     @Test
@@ -235,7 +235,7 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
         request.setAction(ApprovalAction.REJECT);
         request.setComment("Rejected - hours seem excessive for described work");
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -256,10 +256,10 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
 
         ApprovalActionRequest request = new ApprovalActionRequest();
         request.setTimesheetId(pendingTimesheet.getId());
-        request.setAction(ApprovalAction.APPROVE);
+        request.setAction(ApprovalAction.TUTOR_CONFIRM);
         request.setComment("Trying to approve timesheet as lecturer");
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -267,7 +267,7 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
 
         // Verify timesheet status unchanged
         Timesheet unchangedTimesheet = timesheetRepository.findById(pendingTimesheet.getId()).orElseThrow();
-        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, unchangedTimesheet.getStatus());
+        assertEquals(ApprovalStatus.PENDING_TUTOR_CONFIRMATION, unchangedTimesheet.getStatus());
     }
 
     @Test
@@ -285,10 +285,10 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
 
         ApprovalActionRequest request = new ApprovalActionRequest();
         request.setTimesheetId(pendingTimesheet.getId());
-        request.setAction(ApprovalAction.APPROVE);
+        request.setAction(ApprovalAction.TUTOR_CONFIRM);
         request.setComment("Trying to approve different tutor's timesheet");
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -296,20 +296,20 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
 
         // Verify timesheet status unchanged
         Timesheet unchangedTimesheet = timesheetRepository.findById(pendingTimesheet.getId()).orElseThrow();
-        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, unchangedTimesheet.getStatus());
+        assertEquals(ApprovalStatus.PENDING_TUTOR_CONFIRMATION, unchangedTimesheet.getStatus());
     }
 
     @Test
-    @DisplayName("AC5: Cannot approve/reject timesheet not in PENDING_TUTOR_REVIEW state")
+    @DisplayName("AC5: Cannot approve/reject timesheet not in PENDING_TUTOR_CONFIRMATION state")
     void shouldRejectApprovalOfNonPendingTimesheet() throws Exception {
         String token = jwtTokenProvider.generateToken(tutor.getId(), tutor.getEmail(), tutor.getRole().name());
 
         ApprovalActionRequest request = new ApprovalActionRequest();
         request.setTimesheetId(draftTimesheet.getId()); // DRAFT status
-        request.setAction(ApprovalAction.APPROVE);
+        request.setAction(ApprovalAction.TUTOR_CONFIRM);
         request.setComment("Trying to approve draft timesheet");
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -323,22 +323,23 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("AC5: Cannot reject already approved timesheet")
     void shouldRejectRejectionOfApprovedTimesheet() throws Exception {
-        String token = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
+        // Use admin who has permission to reject, to test the state transition validation
+        String token = jwtTokenProvider.generateToken(admin.getId(), admin.getEmail(), admin.getRole().name());
 
         ApprovalActionRequest request = new ApprovalActionRequest();
-        request.setTimesheetId(approvedTimesheet.getId()); // FINAL_APPROVED status
+        request.setTimesheetId(approvedTimesheet.getId()); // FINAL_CONFIRMED status
         request.setAction(ApprovalAction.REJECT);
-        request.setComment("Trying to reject approved timesheet");
+        request.setComment("Trying to reject fully approved timesheet");
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
-        // Verify timesheet status unchanged (remains in HR queue state per SSOT)
+        // Verify timesheet status unchanged (remains in FINAL_CONFIRMED state)
         Timesheet unchangedTimesheet = timesheetRepository.findById(approvedTimesheet.getId()).orElseThrow();
-        assertEquals(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, unchangedTimesheet.getStatus());
+        assertEquals(ApprovalStatus.FINAL_CONFIRMED, unchangedTimesheet.getStatus());
     }
 
     @Test
@@ -348,20 +349,20 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
 
         ApprovalActionRequest request = new ApprovalActionRequest();
         request.setTimesheetId(pendingTimesheet.getId());
-        request.setAction(ApprovalAction.APPROVE);
+        request.setAction(ApprovalAction.TUTOR_CONFIRM);
         request.setComment("Admin override approval");
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.action").value("APPROVE"))
+                .andExpect(jsonPath("$.action").value("TUTOR_CONFIRM"))
                 .andExpect(jsonPath("$.approverId").value(admin.getId()));
 
-        // Verify timesheet status changed to APPROVED_BY_TUTOR (no auto-transition)
+        // Verify timesheet status changed to TUTOR_CONFIRMED (no auto-transition)
         Timesheet updatedTimesheet = timesheetRepository.findById(pendingTimesheet.getId()).orElseThrow();
-        assertEquals(ApprovalStatus.APPROVED_BY_TUTOR, updatedTimesheet.getStatus());
+        assertEquals(ApprovalStatus.TUTOR_CONFIRMED, updatedTimesheet.getStatus());
     }
 
     @Test
@@ -387,9 +388,9 @@ public class TutorApprovalWorkflowIntegrationTest extends IntegrationTestBase {
 
         ApprovalActionRequest request = new ApprovalActionRequest();
         request.setTimesheetId(pendingTimesheet.getId());
-        request.setAction(ApprovalAction.APPROVE);
+        request.setAction(ApprovalAction.TUTOR_CONFIRM);
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());

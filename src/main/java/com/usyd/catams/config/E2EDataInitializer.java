@@ -28,7 +28,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
  * @since 1.0
  */
 @Configuration
-@Profile({"e2e", "e2e-local"})
+@Profile({"e2e", "e2e-local", "demo"})
 public class E2EDataInitializer {
     
     /**
@@ -117,7 +117,7 @@ public class E2EDataInitializer {
                 "Tutorial sessions and marking for COMP1001",
                 lecturerUser.getId()
             );
-            pendingTimesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            pendingTimesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
             upsert.apply(pendingTimesheet);
             
             Timesheet pendingTimesheet2 = new Timesheet(
@@ -129,7 +129,7 @@ public class E2EDataInitializer {
                 "Lab supervision and student consultations",
                 lecturerUser.getId()
             );
-            pendingTimesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            pendingTimesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
             upsert.apply(pendingTimesheet2);
 
             Timesheet draftTimesheet = new Timesheet(
@@ -165,7 +165,7 @@ public class E2EDataInitializer {
                 "Ready for lecturer final approval",
                 lecturerUser.getId()
             );
-            approvedByTutorTimesheet.setStatus(ApprovalStatus.APPROVED_BY_TUTOR);
+            approvedByTutorTimesheet.setStatus(ApprovalStatus.TUTOR_CONFIRMED);
             upsert.apply(approvedByTutorTimesheet);
 
             Timesheet approvedByTutorTimesheet2 = new Timesheet(
@@ -177,7 +177,7 @@ public class E2EDataInitializer {
                 "Second item for lecturer final approval",
                 lecturerUser.getId()
             );
-            approvedByTutorTimesheet2.setStatus(ApprovalStatus.APPROVED_BY_TUTOR);
+            approvedByTutorTimesheet2.setStatus(ApprovalStatus.TUTOR_CONFIRMED);
             upsert.apply(approvedByTutorTimesheet2);
             
             System.out.println("✅ E2E test data initialized");

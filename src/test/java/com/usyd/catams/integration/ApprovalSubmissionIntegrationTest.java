@@ -128,7 +128,7 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
         approvedTimesheet.setHours(BigDecimal.valueOf(8.0));
         approvedTimesheet.setHourlyRate(BigDecimal.valueOf(25.00));
         approvedTimesheet.setDescription("Lab sessions");
-        approvedTimesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        approvedTimesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
         approvedTimesheet.setCreatedBy(lecturer.getId());
         approvedTimesheet = timesheetRepository.save(approvedTimesheet);
     }
@@ -146,14 +146,14 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
             "Submitting timesheet for approval"
         );
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.timesheetId").value(draftTimesheet.getId()))
                 .andExpect(jsonPath("$.action").value("SUBMIT_FOR_APPROVAL"))
-                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_REVIEW"))
+                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_CONFIRMATION"))
                 .andExpect(jsonPath("$.approverId").value(tutor.getId()))
                 .andExpect(jsonPath("$.approverName").value("John Doe"))
                 .andExpect(jsonPath("$.comment").value(nullValue()))
@@ -163,7 +163,7 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
 
         // Verify timesheet status was updated
         Timesheet updated = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
-        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, updated.getStatus());
+        assertEquals(ApprovalStatus.PENDING_TUTOR_CONFIRMATION, updated.getStatus());
 
         // Verify approval record was created through aggregate
         List<Approval> approvals = updated.getApprovalHistory();
@@ -171,7 +171,7 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
         Approval approval = approvals.get(0);
         assertEquals(ApprovalAction.SUBMIT_FOR_APPROVAL, approval.getAction());
         assertEquals(ApprovalStatus.DRAFT, approval.getPreviousStatus());
-        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, approval.getNewStatus());
+        assertEquals(ApprovalStatus.PENDING_TUTOR_CONFIRMATION, approval.getNewStatus());
         assertEquals(tutor.getId(), approval.getApproverId());
         assertEquals("Submitting timesheet for approval", approval.getComment());
     }
@@ -187,16 +187,16 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
             "Admin submitting timesheet"
         );
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_REVIEW"));
+                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_CONFIRMATION"));
 
         // Verify timesheet status was updated
         Timesheet updated = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
-        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, updated.getStatus());
+        assertEquals(ApprovalStatus.PENDING_TUTOR_CONFIRMATION, updated.getStatus());
     }
 
     @Test
@@ -210,13 +210,13 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
             "Attempting to submit approved timesheet"
         );
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists())
-                .andExpect(jsonPath("$.message").value(containsString("Cannot perform SUBMIT_FOR_APPROVAL on timesheet with status APPROVED_BY_LECTURER_AND_TUTOR")));
+                .andExpect(jsonPath("$.message").value(containsString("Cannot perform SUBMIT_FOR_APPROVAL on timesheet with status LECTURER_CONFIRMED")));
     }
 
     @Test
@@ -239,7 +239,7 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
             "Unauthorized submission attempt"
         );
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
@@ -262,22 +262,22 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
             "Lecturer submitting timesheet"
         );
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_REVIEW"));
+                .andExpect(jsonPath("$.newStatus").value("PENDING_TUTOR_CONFIRMATION"));
 
         // Verify timesheet status was updated
         Timesheet updated = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
-        assertEquals(ApprovalStatus.PENDING_TUTOR_REVIEW, updated.getStatus());
+        assertEquals(ApprovalStatus.PENDING_TUTOR_CONFIRMATION, updated.getStatus());
     }
 
     @Test
     @DisplayName("AC4: LECTURER cannot approve timesheets (only tutors can approve per SSOT)")
     void testLecturerCannotApproveTimesheet() throws Exception {
-        // First submit the timesheet to get it into PENDING_TUTOR_REVIEW state (lecturer submits per SSOT)
+        // First submit the timesheet to get it into PENDING_TUTOR_CONFIRMATION state (lecturer submits per SSOT)
         String lecturerToken = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
         ApprovalActionRequest submitRequest = new ApprovalActionRequest(
             draftTimesheet.getId(),
@@ -285,7 +285,7 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
             "Submitting for approval"
         );
         
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + lecturerToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(submitRequest)))
@@ -294,11 +294,11 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
         // Now try to approve as lecturer - should fail (lecturers can't approve per SSOT)
         ApprovalActionRequest approveRequest = new ApprovalActionRequest(
             draftTimesheet.getId(),
-            ApprovalAction.APPROVE,
+            ApprovalAction.TUTOR_CONFIRM,
             "Lecturer attempting to approve"
         );
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + lecturerToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(approveRequest)))
@@ -319,7 +319,7 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
             "Schema compliance test"
         );
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
@@ -354,7 +354,7 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
             "Unauthorized submission"
         );
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
@@ -371,7 +371,7 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
             "Non-existent timesheet"
         );
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
@@ -386,7 +386,7 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
         // Request with null action
         String invalidJson = "{\"timesheetId\":" + draftTimesheet.getId() + ",\"action\":null,\"comment\":\"Invalid action\"}";
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(invalidJson))
@@ -407,7 +407,7 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
             longComment
         );
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
@@ -427,14 +427,14 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
             "Initial submission"
         );
 
-        mockMvc.perform(post("/api/approvals")
+        mockMvc.perform(post("/api/confirmations")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(submitRequest)))
                 .andExpect(status().isOk());
 
         // Now get approval history
-        mockMvc.perform(get("/api/approvals/history/{timesheetId}", draftTimesheet.getId())
+        mockMvc.perform(get("/api/confirmations/history/{timesheetId}", draftTimesheet.getId())
                 .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))

@@ -328,10 +328,10 @@ public class TimesheetApplicationService implements TimesheetService {
                 ") does not have permission to modify timesheet " + timesheetId);
         }
         
-        // Step 2: Business rule check (400 if fails)
+        // Step 2: Business rule check - Use AuthorizationException for tutor restrictions (403 if fails)
         if (!timesheetDomainService.canRoleEditTimesheetWithStatus(requester.getRole(), timesheet.getStatus())) {
             if (requester.getRole() == UserRole.TUTOR) {
-                throw new com.usyd.catams.exception.BusinessRuleException("TUTOR can only update timesheets with REJECTED status. " +
+                throw new com.usyd.catams.exception.AuthorizationException("TUTOR can only update timesheets with REJECTED status. " +
                     "Current status: " + timesheet.getStatus());
             } else {
                 throw new com.usyd.catams.exception.BusinessRuleException("Cannot update timesheet with status: " + timesheet.getStatus() + 
@@ -371,10 +371,10 @@ public class TimesheetApplicationService implements TimesheetService {
                 ") does not have permission to modify timesheet " + timesheetId);
         }
         
-        // Step 2: Business rule check (400 if fails)
+        // Step 2: Business rule check - Use AuthorizationException for tutor restrictions (403 if fails)
         if (!timesheetDomainService.canRoleDeleteTimesheetWithStatus(requester.getRole(), timesheet.getStatus())) {
             if (requester.getRole() == UserRole.TUTOR) {
-                throw new com.usyd.catams.exception.BusinessRuleException("TUTOR can only delete timesheets with REJECTED status. " +
+                throw new com.usyd.catams.exception.AuthorizationException("TUTOR can only delete timesheets with REJECTED status. " +
                     "Current status: " + timesheet.getStatus());
             } else {
                 throw new com.usyd.catams.exception.BusinessRuleException("Cannot delete timesheet with status: " + timesheet.getStatus() + 
@@ -415,11 +415,11 @@ public class TimesheetApplicationService implements TimesheetService {
         switch (requester.getRole()) {
             case TUTOR:
                 return timesheetRepository.findByStatusAndTutorIdOrderByCreatedAtAsc(
-                    ApprovalStatus.PENDING_TUTOR_REVIEW, requester.getId(), pageable);
+                    ApprovalStatus.PENDING_TUTOR_CONFIRMATION, requester.getId(), pageable);
                 
             case ADMIN:
                 return timesheetRepository.findByStatusOrderByCreatedAtAsc(
-                    ApprovalStatus.PENDING_TUTOR_REVIEW, pageable);
+                    ApprovalStatus.PENDING_TUTOR_CONFIRMATION, pageable);
                 
             default:
                 throw new com.usyd.catams.exception.AuthorizationException("Unknown user role: " + requester.getRole());
@@ -549,7 +549,7 @@ public class TimesheetApplicationService implements TimesheetService {
             case LECTURER:
                 return timesheetRepository.findApprovedByTutorByCourses(requester.getId(), pageable);
             case ADMIN:
-                return timesheetRepository.findByStatus(ApprovalStatus.APPROVED_BY_TUTOR, pageable);
+                return timesheetRepository.findByStatus(ApprovalStatus.TUTOR_CONFIRMED, pageable);
             default:
                 throw new com.usyd.catams.exception.AuthorizationException("Unknown user role: " + requester.getRole());
         }

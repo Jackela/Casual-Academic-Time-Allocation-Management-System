@@ -46,7 +46,7 @@ class TimesheetWorkflowBehaviorTest {
             .isEditable()
             .isDraft()
             .isNotPending()
-            .cannotBeApproved();
+            .cannotBeConfirmed();
     }
     
     /**
@@ -63,7 +63,7 @@ class TimesheetWorkflowBehaviorTest {
             .isNotEditable()
             .isAwaitingTutorReview()
             .isPending()
-            .canBeApproved();
+            .canBeConfirmed();
     }
     
     /**
@@ -80,7 +80,7 @@ class TimesheetWorkflowBehaviorTest {
             .isNotEditable()
             .isReadyForHRReview()
             .isPending()
-            .canBeApproved();
+            .canBeConfirmed();
     }
     
     /**
@@ -97,7 +97,7 @@ class TimesheetWorkflowBehaviorTest {
             .isNotEditable()
             .isFullyApproved()
             .isFinal()
-            .cannotBeApproved();
+            .cannotBeConfirmed();
     }
     
     /**
@@ -114,7 +114,7 @@ class TimesheetWorkflowBehaviorTest {
             .isEditable()
             .requiresModification()
             .canBeResubmitted()
-            .cannotBeApproved();
+            .cannotBeConfirmed();
     }
     
     /**
@@ -132,7 +132,7 @@ class TimesheetWorkflowBehaviorTest {
             .isNotEditable()
             .wasRejected()
             .isFinal()
-            .cannotBeApproved();
+            .cannotBeConfirmed();
     }
     
     /**
@@ -146,7 +146,7 @@ class TimesheetWorkflowBehaviorTest {
     void editableTimesheets_ShouldAllowModifications(String description, Timesheet timesheet) {
         assertThat(timesheet)
             .isEditable()
-            .cannotBeApproved()
+            .cannotBeConfirmed()
             .isNotFinal();
     }
     
@@ -172,7 +172,7 @@ class TimesheetWorkflowBehaviorTest {
     @DisplayName("Approvable timesheets should accept approval actions")
     void approvableTimesheets_ShouldAcceptApprovalActions(String description, Timesheet timesheet) {
         assertThat(timesheet)
-            .canBeApproved()
+            .canBeConfirmed()
             .isPending()
             .isNotEditable();
     }
@@ -186,7 +186,7 @@ class TimesheetWorkflowBehaviorTest {
     @MethodSource("com.usyd.catams.test.scenarios.WorkflowTestScenarios$ParameterizedTestData#nonApprovableScenarios")
     @DisplayName("Non-approvable timesheets should reject approval actions")
     void nonApprovableTimesheets_ShouldRejectApprovalActions(String description, Timesheet timesheet) {
-        assertThat(timesheet).cannotBeApproved();
+        assertThat(timesheet).cannotBeConfirmed();
     }
     
     /**
@@ -203,15 +203,15 @@ class TimesheetWorkflowBehaviorTest {
         
         // Progress to submitted
         Timesheet submitted = WorkflowTestScenarios.HappyPathWorkflow.afterSubmission();
-        assertThat(submitted).isAwaitingTutorReview().canBeApproved();
+        assertThat(submitted).isAwaitingTutorReview().canBeConfirmed();
         
         // Progress to tutor approved
         Timesheet tutorApproved = WorkflowTestScenarios.HappyPathWorkflow.afterTutorApproval();
-        assertThat(tutorApproved).isTutorApproved().cannotBeApproved();
+        assertThat(tutorApproved).isTutorApproved().canBeConfirmed();
         
         // Progress to HR queue
         Timesheet inHRQueue = WorkflowTestScenarios.HappyPathWorkflow.inHRQueue();
-        assertThat(inHRQueue).isReadyForHRReview().canBeApproved();
+        assertThat(inHRQueue).isReadyForHRReview().canBeConfirmed();
         
         // Complete workflow
         Timesheet completed = WorkflowTestScenarios.HappyPathWorkflow.fullyCompleted();
@@ -230,18 +230,18 @@ class TimesheetWorkflowBehaviorTest {
         Timesheet draft = TimesheetWorkflowTestFixture.createDraftScenario();
         Approval submission = draft.submitForApproval(WorkflowTestScenarios.LECTURER_ID);
         
-        assertThat(draft).isAwaitingTutorReview().canBeApproved();
+        assertThat(draft).isAwaitingTutorReview().canBeConfirmed();
         org.assertj.core.api.Assertions.assertThat(submission).isNotNull();
         
         // Test approval - should become tutor-approved, then lecturer final approval moves to HR
         Timesheet pending = TimesheetWorkflowTestFixture.createPendingApprovalScenario();
-        Approval tutorApproval = pending.approve(WorkflowTestScenarios.TUTOR_ID, "Looks good");
+        Approval tutorApproval = pending.confirmByTutor(WorkflowTestScenarios.TUTOR_ID, "Looks good");
         org.assertj.core.api.Assertions.assertThat(tutorApproval).isNotNull();
-        assertThat(pending).isTutorApproved().cannotBeApproved();
+        assertThat(pending).isTutorApproved().canBeConfirmed();
         
-        // Lecturer performs final approval to move to HR queue
-        pending.finalApprove(WorkflowTestScenarios.LECTURER_ID, "Final academic approval");
-        assertThat(pending).isReadyForHRReview().canBeApproved();
+        // Lecturer performs final confirmation to move to HR queue
+        pending.confirmByLecturer(WorkflowTestScenarios.LECTURER_ID, "Final academic confirmation");
+        assertThat(pending).isReadyForHRReview().canBeConfirmed();
         
         // Test rejection
         Timesheet forRejection = TimesheetWorkflowTestFixture.createPendingApprovalScenario();
@@ -269,22 +269,22 @@ class TimesheetWorkflowBehaviorTest {
         // Cannot approve draft timesheet
         Timesheet draft = TimesheetWorkflowTestFixture.createDraftScenario();
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> 
-            draft.approve(WorkflowTestScenarios.TUTOR_ID, "comment"))
+            draft.confirmByTutor(WorkflowTestScenarios.TUTOR_ID, "comment"))
             .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("cannot be approved");
+            .hasMessageContaining("Tutor confirmation is only allowed from PENDING_TUTOR_CONFIRMATION state");
         
         // Cannot approve already completed timesheet
         Timesheet completed = TimesheetWorkflowTestFixture.createCompletedWorkflowScenario();
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> 
-            completed.approve(WorkflowTestScenarios.HR_ID, "comment"))
+            completed.confirmByHR(WorkflowTestScenarios.HR_ID, "comment"))
             .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("cannot be approved");
+            .hasMessageContaining("HR confirmation is only allowed from LECTURER_CONFIRMED state");
         
         // Cannot approve intermediate state
         Timesheet tutorApproved = TimesheetWorkflowTestFixture.createTutorApprovedScenario();
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> 
-            tutorApproved.approve(WorkflowTestScenarios.HR_ID, "comment"))
+            tutorApproved.confirmByHR(WorkflowTestScenarios.HR_ID, "comment"))
             .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("cannot be approved");
+            .hasMessageContaining("HR confirmation is only allowed from LECTURER_CONFIRMED state");
     }
 }

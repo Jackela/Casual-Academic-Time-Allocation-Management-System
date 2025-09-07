@@ -23,8 +23,8 @@ import java.util.Collections;
 public class TestSecurityConfig {
 
     /**
-     * 注意：此配置仅用于 "test" profile，不影响 "integration-test" profile。
-     * integration-test 使用真实的JWT认证，test 使用简化的header认证。
+     * Note: This configuration is only used for "test" profile and does not affect "integration-test" profile.
+     * integration-test uses real JWT authentication, test uses simplified header authentication.
      */
     @Bean
     @Primary

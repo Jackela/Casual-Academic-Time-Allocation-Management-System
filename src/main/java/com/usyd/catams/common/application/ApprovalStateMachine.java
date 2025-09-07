@@ -143,10 +143,10 @@ public class ApprovalStateMachine {
             throw new IllegalArgumentException("Status cannot be null");
         }
         
-        // Pending classifications include tutor review and HR queue
-        return status == ApprovalStatus.PENDING_TUTOR_REVIEW ||
-               status == ApprovalStatus.APPROVED_BY_TUTOR ||
-               status == ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR;
+        // Pending classifications include tutor confirmation, lecturer confirmation, and HR queue
+        return status == ApprovalStatus.PENDING_TUTOR_CONFIRMATION ||
+               status == ApprovalStatus.TUTOR_CONFIRMED ||
+               status == ApprovalStatus.LECTURER_CONFIRMED;
     }
     
     /**
@@ -161,54 +161,54 @@ public class ApprovalStateMachine {
             throw new IllegalArgumentException("Status cannot be null");
         }
         
-        return status == ApprovalStatus.FINAL_APPROVED || 
+        return status == ApprovalStatus.FINAL_CONFIRMED || 
                status == ApprovalStatus.REJECTED;
     }
     
     /**
-     * Build the complete state transition map based on documented business requirements.
+     * Build the complete state transition map based on new confirmation workflow.
      * 
-     * Business workflow (from docs/timesheet-approval-workflow-ssot.md):
-     * DRAFT → PENDING_TUTOR_REVIEW → APPROVED_BY_TUTOR → APPROVED_BY_LECTURER_AND_TUTOR → FINAL_APPROVED
+     * New Business workflow:
+     * DRAFT → PENDING_TUTOR_CONFIRMATION → TUTOR_CONFIRMED → LECTURER_CONFIRMED → FINAL_CONFIRMED
      * 
      * This is the single source of truth for approval state transitions.
      */
     private Map<StateTransition, ApprovalStatus> buildTransitionMap() {
         Map<StateTransition, ApprovalStatus> map = new HashMap<>();
         
-        // Step 1: DRAFT can only be submitted for review
+        // Step 1: DRAFT can be submitted by LECTURER or TUTOR (self)
         map.put(new StateTransition(ApprovalStatus.DRAFT, ApprovalAction.SUBMIT_FOR_APPROVAL), 
-                ApprovalStatus.PENDING_TUTOR_REVIEW);
+                ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
-        // Step 2: PENDING_TUTOR_REVIEW - tutor can approve, reject, or request modifications
-        map.put(new StateTransition(ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalAction.APPROVE), 
-                ApprovalStatus.APPROVED_BY_TUTOR);
-        map.put(new StateTransition(ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalAction.REJECT), 
+        // Step 2: PENDING_TUTOR_CONFIRMATION - tutor can confirm, lecturer/HR can reject or request modifications
+        map.put(new StateTransition(ApprovalStatus.PENDING_TUTOR_CONFIRMATION, ApprovalAction.TUTOR_CONFIRM), 
+                ApprovalStatus.TUTOR_CONFIRMED);
+        map.put(new StateTransition(ApprovalStatus.PENDING_TUTOR_CONFIRMATION, ApprovalAction.REJECT), 
                 ApprovalStatus.REJECTED);
-        map.put(new StateTransition(ApprovalStatus.PENDING_TUTOR_REVIEW, ApprovalAction.REQUEST_MODIFICATION), 
+        map.put(new StateTransition(ApprovalStatus.PENDING_TUTOR_CONFIRMATION, ApprovalAction.REQUEST_MODIFICATION), 
                 ApprovalStatus.MODIFICATION_REQUESTED);
         
-        // Step 3: From APPROVED_BY_TUTOR, lecturer performs FINAL_APPROVAL to move to HR queue
-        map.put(new StateTransition(ApprovalStatus.APPROVED_BY_TUTOR, ApprovalAction.FINAL_APPROVAL),
-                ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-        // SSOT: Lecturer may also REJECT from APPROVED_BY_TUTOR (send back to edit with reason)
-        map.put(new StateTransition(ApprovalStatus.APPROVED_BY_TUTOR, ApprovalAction.REJECT),
+        // Step 3: TUTOR_CONFIRMED - lecturer can confirm (with optional comment), lecturer/HR can reject or request modifications
+        map.put(new StateTransition(ApprovalStatus.TUTOR_CONFIRMED, ApprovalAction.LECTURER_CONFIRM),
+                ApprovalStatus.LECTURER_CONFIRMED);
+        map.put(new StateTransition(ApprovalStatus.TUTOR_CONFIRMED, ApprovalAction.REJECT),
                 ApprovalStatus.REJECTED);
-
-        // Step 3B: APPROVED_BY_LECTURER_AND_TUTOR - HR can approve, reject, or request modifications
-        map.put(new StateTransition(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalAction.APPROVE),
-                ApprovalStatus.FINAL_APPROVED);
-        map.put(new StateTransition(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalAction.REJECT),
-                ApprovalStatus.REJECTED);
-        map.put(new StateTransition(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR, ApprovalAction.REQUEST_MODIFICATION),
+        map.put(new StateTransition(ApprovalStatus.TUTOR_CONFIRMED, ApprovalAction.REQUEST_MODIFICATION),
                 ApprovalStatus.MODIFICATION_REQUESTED);
 
-        // Recovery workflows: MODIFICATION_REQUESTED can be resubmitted
+        // Step 4: LECTURER_CONFIRMED - HR can give final confirmation, reject, or request modifications
+        map.put(new StateTransition(ApprovalStatus.LECTURER_CONFIRMED, ApprovalAction.HR_CONFIRM),
+                ApprovalStatus.FINAL_CONFIRMED);
+        map.put(new StateTransition(ApprovalStatus.LECTURER_CONFIRMED, ApprovalAction.REJECT),
+                ApprovalStatus.REJECTED);
+        map.put(new StateTransition(ApprovalStatus.LECTURER_CONFIRMED, ApprovalAction.REQUEST_MODIFICATION),
+                ApprovalStatus.MODIFICATION_REQUESTED);
+
+        // Recovery workflows: MODIFICATION_REQUESTED can be resubmitted by LECTURER or TUTOR (self)
         map.put(new StateTransition(ApprovalStatus.MODIFICATION_REQUESTED, ApprovalAction.SUBMIT_FOR_APPROVAL), 
-                ApprovalStatus.PENDING_TUTOR_REVIEW);
+                ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
-        
-        // FINAL_APPROVED is terminal state - no transitions
+        // FINAL_CONFIRMED and REJECTED are terminal states - no transitions
         
         return Collections.unmodifiableMap(map);
     }
@@ -242,7 +242,7 @@ public class ApprovalStateMachine {
         }
         
         // Add terminal states with empty action sets
-        map.put(ApprovalStatus.FINAL_APPROVED, Collections.emptySet());
+        map.put(ApprovalStatus.FINAL_CONFIRMED, Collections.emptySet());
         map.put(ApprovalStatus.REJECTED, Collections.emptySet());
         
         // Make all sets immutable

@@ -25,8 +25,8 @@ INSERT INTO courses (id, code_value, name, semester, lecturer_id, budget_allocat
 -- Insert test timesheets
 -- Note: week_start_date should be a Monday, using LocalDate calculation
 INSERT INTO timesheets (id, tutor_id, course_id, week_start_date, hours, hourly_rate, hourly_rate_currency, description, status, created_at, updated_at, created_by) VALUES
-(1, 1, 1, '2025-08-04', 10.5, 45.00, 'AUD', 'Test timesheet 1', 'PENDING_TUTOR_REVIEW', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1),
-(2, 1, 2, '2025-08-04', 8.0, 45.00, 'AUD', 'Test timesheet 2', 'HR_APPROVED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1);
+(1, 1, 1, '2025-08-04', 10.5, 45.00, 'AUD', 'Test timesheet 1', 'PENDING_TUTOR_CONFIRMATION', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1),
+(2, 1, 2, '2025-08-04', 8.0, 45.00, 'AUD', 'Test timesheet 2', 'FINAL_CONFIRMED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1);
 
 -- Debug: Show data counts to verify insertion
 -- These SELECT statements will be visible in test logs

@@ -93,7 +93,7 @@ async function checkActiveHandles(): Promise<void> {
       console.warn(`⚠️  ${handles.length} active handles remaining:`);
       
       const handleSummary: Record<string, number> = {};
-      handles.forEach(handle => {
+      handles.forEach((handle: any) => {
         const type = handle?.constructor?.name || 'Unknown';
         handleSummary[type] = (handleSummary[type] || 0) + 1;
       });
@@ -125,7 +125,7 @@ async function checkActiveTimers(): Promise<void> {
       console.warn(`⚠️  ${requests.length} active requests remaining:`);
       
       const requestSummary: Record<string, number> = {};
-      requests.forEach(request => {
+      requests.forEach((request: any) => {
         const type = request?.constructor?.name || 'Unknown';
         requestSummary[type] = (requestSummary[type] || 0) + 1;
       });
@@ -157,7 +157,7 @@ async function checkFileDescriptors(): Promise<void> {
 
     let fdCount = 0;
     lsof.stdout.on('data', (data) => {
-      const lines = data.toString().split('\n').filter(line => line.trim());
+      const lines = data.toString().split('\n').filter((line: string) => line.trim());
       fdCount += lines.length - 1; // Subtract header line
     });
 
@@ -172,7 +172,7 @@ async function checkFileDescriptors(): Promise<void> {
       });
       lsof.on('error', () => resolve()); // Ignore lsof errors
     });
-  } catch (error) {
+  } catch {
     // Silently skip if lsof is not available
   }
 }
@@ -215,7 +215,7 @@ async function checkNetworkConnections(): Promise<void> {
       });
       netstat.on('error', () => resolve()); // Ignore netstat errors
     });
-  } catch (error) {
+  } catch {
     // Silently skip if netstat is not available
   }
 }
@@ -229,7 +229,7 @@ async function checkNetworkConnections(): Promise<void> {
  */
 async function tryDetailedHandleAnalysis(): Promise<void> {
   try {
-    const whyIsNodeRunning = await import('why-is-node-running');
+    const whyIsNodeRunning = require('why-is-node-running');
     console.log('\n📊 Detailed handle analysis:');
     
     // Give a moment for output to flush
@@ -239,7 +239,7 @@ async function tryDetailedHandleAnalysis(): Promise<void> {
     
     // Wait for analysis to complete
     await new Promise(resolve => setTimeout(resolve, 1000));
-  } catch (error) {
+  } catch {
     console.log('\n💡 For detailed handle analysis, install: npm install --save-dev why-is-node-running');
   }
 }

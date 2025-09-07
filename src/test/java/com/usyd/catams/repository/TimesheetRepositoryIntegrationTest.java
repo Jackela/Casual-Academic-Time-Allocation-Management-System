@@ -48,7 +48,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
             "Tutorial preparation and delivery for COMP2022",
             1L // createdBy (lecturer who manages this course)
         );
-        timesheet1.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet1.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         // Timesheet for different casual staff member - already HR approved for payment
         timesheet2 = new Timesheet(
             2L, // casualStaffId (different tutor)
@@ -59,7 +59,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
             "Lab supervision and student assistance",
             2L // createdBy (lecturer)
         );
-        timesheet2.setStatus(ApprovalStatus.FINAL_APPROVED);
+        timesheet2.setStatus(ApprovalStatus.FINAL_CONFIRMED);
         // Draft timesheet not yet submitted for approval
         timesheet3 = new Timesheet(
             1L, // casualStaffId (same tutor as timesheet1)
@@ -95,8 +95,8 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
     @Test
     void findByStatus_ShouldReturnByStatus() {
         List<Timesheet> drafts = timesheetRepository.findByStatus(ApprovalStatus.DRAFT);
-        List<Timesheet> pending = timesheetRepository.findByStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-        List<Timesheet> finalApproved = timesheetRepository.findByStatus(ApprovalStatus.FINAL_APPROVED);
+        List<Timesheet> pending = timesheetRepository.findByStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+        List<Timesheet> finalApproved = timesheetRepository.findByStatus(ApprovalStatus.FINAL_CONFIRMED);
         assertThat(drafts).hasSize(1);
         assertThat(pending).hasSize(1);
         assertThat(finalApproved).hasSize(1);
@@ -107,7 +107,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
         Pageable pageable = PageRequest.of(0, 10);
         Page<Timesheet> byTutor = timesheetRepository.findByTutorId(1L, pageable);
         assertThat(byTutor.getTotalElements()).isEqualTo(2);
-        Page<Timesheet> filtered = timesheetRepository.findWithFilters(1L, 1L, ApprovalStatus.PENDING_TUTOR_REVIEW, pageable);
+        Page<Timesheet> filtered = timesheetRepository.findWithFilters(1L, 1L, ApprovalStatus.PENDING_TUTOR_CONFIRMATION, pageable);
         assertThat(filtered.getTotalElements()).isEqualTo(1);
     }
 }

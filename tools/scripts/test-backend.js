@@ -62,11 +62,17 @@ class RevolutionaryBackendTestRunner {
       
       // Initialize ProcessOrchestrator with enterprise configuration
       this.orchestrator = new ProcessOrchestrator({}, {
-        memoryThreshold: 1024 * 1024 * 1024, // 1GB
-        maxNewProcesses: 15,
-        enableRealTimeMonitoring: true,
-        emergencyRecoveryEnabled: true,
-        auditLogging: true
+        orchestrator: {
+          sessionTimeout: 300000, // 5 minutes
+          emergencyRecoveryTimeout: 5000, // 5 seconds
+          auditLogLevel: 'info',
+          memoryThreshold: 1024 * 1024 * 1024, // 1GB
+          maxNewProcesses: 15
+        },
+        monitoring: {
+          enabled: true,
+          interval: 5000
+        }
       });
 
       // Initialize monitoring system with leak detection

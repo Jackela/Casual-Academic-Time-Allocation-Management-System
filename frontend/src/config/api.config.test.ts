@@ -101,13 +101,8 @@ describe('api.config utilities', () => {
     test('should prioritize test environment over browser environment', () => {
       process.env.NODE_ENV = 'test';
       
-      // Mock import.meta.env to have different values
-      const mockImportMeta = {
-        env: {
-          MODE: 'development',
-          VITE_API_BASE_URL: 'http://custom-url:9999'
-        }
-      };
+      // Note: Mock import.meta.env would have different values
+      // but in Node.js test environment, import.meta won't be used anyway
       
       // In Node.js test environment, import.meta won't be used anyway
       // but this test ensures NODE_ENV takes precedence

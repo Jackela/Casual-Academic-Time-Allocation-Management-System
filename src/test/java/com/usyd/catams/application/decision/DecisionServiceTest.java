@@ -72,7 +72,7 @@ class DecisionServiceTest {
             .ruleSetId("workflow-evaluation")
             .requestId("req-002")
             .fact("timesheetId", 789L)
-            .fact("currentStatus", ApprovalStatus.PENDING_TUTOR_REVIEW)
+            .fact("currentStatus", ApprovalStatus.PENDING_TUTOR_CONFIRMATION)
             .fact("userRole", UserRole.TUTOR)
             .fact("userId", 123L)
             .userId("user-002")
@@ -92,8 +92,8 @@ class DecisionServiceTest {
             .userId("user-001")
             .userRole(UserRole.TUTOR)
             .timesheetId("789")
-            .currentStatus(ApprovalStatus.PENDING_TUTOR_REVIEW)
-            .proposedAction(ApprovalAction.APPROVE)
+            .currentStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION)
+            .proposedAction(ApprovalAction.TUTOR_CONFIRM)
             .courseId("456")
             .build();
     }
@@ -293,7 +293,7 @@ class DecisionServiceTest {
         @DisplayName("Should get valid actions for user in current state")
         void shouldGetValidActionsForUserInCurrentState() {
             // Given
-            List<ApprovalAction> expectedActions = List.of(ApprovalAction.APPROVE, ApprovalAction.REQUEST_MODIFICATION);
+            List<ApprovalAction> expectedActions = List.of(ApprovalAction.TUTOR_CONFIRM, ApprovalAction.REQUEST_MODIFICATION);
             when(decisionService.getValidActions(workflowRequest)).thenReturn(expectedActions);
             
             // When
@@ -301,7 +301,7 @@ class DecisionServiceTest {
             
             // Then
             assertThat(result).hasSize(2);
-            assertThat(result).contains(ApprovalAction.APPROVE, ApprovalAction.REQUEST_MODIFICATION);
+            assertThat(result).contains(ApprovalAction.TUTOR_CONFIRM, ApprovalAction.REQUEST_MODIFICATION);
         }
         
         @Test
@@ -312,7 +312,7 @@ class DecisionServiceTest {
                 .userId("user-001")
                 .userRole(UserRole.TUTOR)
                 .timesheetId("789")
-                .currentStatus(ApprovalStatus.FINAL_APPROVED)
+                .currentStatus(ApprovalStatus.FINAL_CONFIRMED)
                 .build();
                 
             when(decisionService.getValidActions(noActionsRequest)).thenReturn(List.of());
@@ -328,28 +328,28 @@ class DecisionServiceTest {
         @DisplayName("Should get next status for valid action")
         void shouldGetNextStatusForValidAction() {
             // Given
-            ApprovalStatus expectedNextStatus = ApprovalStatus.APPROVED_BY_TUTOR;
-            when(decisionService.getNextStatus(ApprovalAction.APPROVE, ApprovalStatus.PENDING_TUTOR_REVIEW, 
+            ApprovalStatus expectedNextStatus = ApprovalStatus.TUTOR_CONFIRMED;
+            when(decisionService.getNextStatus(ApprovalAction.TUTOR_CONFIRM, ApprovalStatus.PENDING_TUTOR_CONFIRMATION, 
                  UserRole.TUTOR, workflowEvaluationRequest)).thenReturn(expectedNextStatus);
             
             // When
-            ApprovalStatus result = decisionService.getNextStatus(ApprovalAction.APPROVE, 
-                ApprovalStatus.PENDING_TUTOR_REVIEW, UserRole.TUTOR, workflowEvaluationRequest);
+            ApprovalStatus result = decisionService.getNextStatus(ApprovalAction.TUTOR_CONFIRM, 
+                ApprovalStatus.PENDING_TUTOR_CONFIRMATION, UserRole.TUTOR, workflowEvaluationRequest);
             
             // Then
-            assertThat(result).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
+            assertThat(result).isEqualTo(ApprovalStatus.TUTOR_CONFIRMED);
         }
         
         @Test
         @DisplayName("Should return null for invalid action transition")
         void shouldReturnNullForInvalidActionTransition() {
             // Given
-            when(decisionService.getNextStatus(ApprovalAction.APPROVE, ApprovalStatus.FINAL_APPROVED, 
+            when(decisionService.getNextStatus(ApprovalAction.TUTOR_CONFIRM, ApprovalStatus.FINAL_CONFIRMED, 
                  UserRole.TUTOR, workflowEvaluationRequest)).thenReturn(null);
             
             // When
-            ApprovalStatus result = decisionService.getNextStatus(ApprovalAction.APPROVE, 
-                ApprovalStatus.FINAL_APPROVED, UserRole.TUTOR, workflowEvaluationRequest);
+            ApprovalStatus result = decisionService.getNextStatus(ApprovalAction.TUTOR_CONFIRM, 
+                ApprovalStatus.FINAL_CONFIRMED, UserRole.TUTOR, workflowEvaluationRequest);
             
             // Then
             assertThat(result).isNull();

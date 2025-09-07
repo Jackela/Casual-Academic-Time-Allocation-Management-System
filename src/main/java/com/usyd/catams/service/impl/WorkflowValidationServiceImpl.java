@@ -37,8 +37,8 @@ public class WorkflowValidationServiceImpl implements WorkflowValidationService 
                 break;
             
             case LECTURER:
-                // Lecturers can approve or reject timesheets for their courses
-                if (action != ApprovalAction.APPROVE && action != ApprovalAction.REJECT && action != ApprovalAction.REQUEST_MODIFICATION) {
+                // Lecturers can confirm or reject timesheets for their courses
+                if (action != ApprovalAction.LECTURER_CONFIRM && action != ApprovalAction.REJECT && action != ApprovalAction.REQUEST_MODIFICATION) {
                      throw new SecurityException("User role " + user.getRole() + " cannot perform action " + action);
                 }
                 // Get the course to validate the lecturer owns it

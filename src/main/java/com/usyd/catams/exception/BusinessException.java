@@ -1,9 +1,9 @@
 package com.usyd.catams.exception;
 
 /**
- * 业务异常基类
+ * Business Exception Base Class
  * 
- * 用于表示可预期的业务规则违反，如数据验证失败、权限不足等
+ * Used to represent predictable business rule violations, such as data validation failures, insufficient permissions, etc.
  * 
  * @author Development Team
  * @since 1.0

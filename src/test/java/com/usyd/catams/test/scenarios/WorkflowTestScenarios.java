@@ -33,7 +33,7 @@ public class WorkflowTestScenarios {
      * Business context: A lecturer creates a timesheet, submits it, tutor approves,
      * and HR gives final approval. This is the standard successful workflow.
      * 
-     * Expected progression: DRAFT → PENDING_TUTOR_REVIEW → APPROVED_BY_TUTOR → APPROVED_BY_LECTURER_AND_TUTOR → FINAL_APPROVED
+     * Expected progression: DRAFT → PENDING_TUTOR_CONFIRMATION → TUTOR_CONFIRMED → LECTURER_CONFIRMED → FINAL_CONFIRMED
      */
     public static class HappyPathWorkflow {
         public static Timesheet startDraft() {
@@ -151,23 +151,23 @@ public class WorkflowTestScenarios {
         
         /**
          * Scenarios where timesheet can be approved.
-         * Business rule: PENDING_TUTOR_REVIEW and APPROVED_BY_LECTURER_AND_TUTOR allow approval actions.
+         * Business rule: PENDING_TUTOR_CONFIRMATION, TUTOR_CONFIRMED, and LECTURER_CONFIRMED allow approval actions.
          */
         public static Object[][] approvableScenarios() {
             return new Object[][] {
                 { "Awaiting tutor review", TimesheetWorkflowTestFixture.createPendingApprovalScenario() },
+                { "Tutor approved (ready for lecturer confirmation)", TimesheetWorkflowTestFixture.createTutorApprovedScenario() },
                 { "Ready for HR approval", TimesheetWorkflowTestFixture.createReadyForHRScenario() }
             };
         }
         
         /**
          * Scenarios where timesheet cannot be approved.
-         * Business rule: DRAFT, intermediate, and final states don't allow approval actions.
+         * Business rule: DRAFT, final, and special states don't allow approval actions.
          */
         public static Object[][] nonApprovableScenarios() {
             return new Object[][] {
                 { "Draft timesheet", TimesheetWorkflowTestFixture.createDraftScenario() },
-                { "Tutor approved (intermediate)", TimesheetWorkflowTestFixture.createTutorApprovedScenario() },
                 { "Fully approved", TimesheetWorkflowTestFixture.createCompletedWorkflowScenario() },
                 { "Modification requested", TimesheetWorkflowTestFixture.createRequiresModificationScenario() },
                 { "Rejected", TimesheetWorkflowTestFixture.createRejectedScenario() }
@@ -198,12 +198,12 @@ public class WorkflowTestScenarios {
                   
                 { "Tutor approves timesheet", 
                   TimesheetWorkflowTestFixture.createPendingApprovalScenario(), 
-                  ApprovalAction.APPROVE,
+                  ApprovalAction.TUTOR_CONFIRM,
                   "should be tutor approved" },
                   
                 { "HR gives final approval", 
                   TimesheetWorkflowTestFixture.createReadyForHRScenario(), 
-                  ApprovalAction.APPROVE,
+                  ApprovalAction.LECTURER_CONFIRM,
                   "should be fully approved" },
                   
                 { "Request modifications", 
@@ -244,21 +244,21 @@ public class WorkflowTestScenarios {
         switch (current) {
             case DRAFT:
                 if (action == ApprovalAction.SUBMIT_FOR_APPROVAL) {
-                    return ApprovalStatus.PENDING_TUTOR_REVIEW;
+                    return ApprovalStatus.PENDING_TUTOR_CONFIRMATION;
                 }
                 break;
                 
-            case PENDING_TUTOR_REVIEW:
+            case PENDING_TUTOR_CONFIRMATION:
                 switch (action) {
-                    case APPROVE: return ApprovalStatus.APPROVED_BY_TUTOR;
+                    case TUTOR_CONFIRM: return ApprovalStatus.TUTOR_CONFIRMED;
                     case REJECT: return ApprovalStatus.REJECTED;
                     case REQUEST_MODIFICATION: return ApprovalStatus.MODIFICATION_REQUESTED;
                 }
                 break;
                 
-            case APPROVED_BY_LECTURER_AND_TUTOR:
+            case LECTURER_CONFIRMED:
                 switch (action) {
-                    case APPROVE: return ApprovalStatus.FINAL_APPROVED;
+                    case HR_CONFIRM: return ApprovalStatus.FINAL_CONFIRMED;
                     case REJECT: return ApprovalStatus.REJECTED;
                     case REQUEST_MODIFICATION: return ApprovalStatus.MODIFICATION_REQUESTED;
                 }
@@ -266,7 +266,7 @@ public class WorkflowTestScenarios {
                 
             case MODIFICATION_REQUESTED:
                 if (action == ApprovalAction.SUBMIT_FOR_APPROVAL) {
-                    return ApprovalStatus.PENDING_TUTOR_REVIEW;
+                    return ApprovalStatus.PENDING_TUTOR_CONFIRMATION;
                 }
                 break;
                 

@@ -1,22 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { STORAGE_KEYS } from '../utils/storage-keys';
-
-export interface User {
-  id: number;
-  email: string;
-  name: string;
-  role: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  login: (token: string, user: User) => void;
-  logout: () => void;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-}
+import { authManager } from '../services/auth-manager';
+import { secureApiClient } from '../services/api-secure';
+import { ENV_CONFIG } from '../utils/environment';
+import type { User, AuthContextType } from '../types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -25,82 +12,69 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  // Initialize from localStorage synchronously to avoid redirect flicker in ProtectedRoute
-  const getInitialAuth = (): { user: User | null; token: string | null } => {
-    try {
-      const storedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
-      const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-      if (storedToken && storedUser) {
-        return { token: storedToken, user: JSON.parse(storedUser) as User };
-      }
-    } catch (error) {
-      console.error('Error parsing stored user data (initial):', error);
-      localStorage.removeItem(STORAGE_KEYS.TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.USER);
-    }
-    return { user: null, token: null };
-  };
-
-  const initial = getInitialAuth();
-  const [user, setUser] = useState<User | null>(initial.user);
-  const [token, setToken] = useState<string | null>(initial.token);
+  // Initialize state from AuthManager
+  const initialState = authManager.getAuthState();
+  const [user, setUser] = useState<User | null>(initialState.user);
+  const [token, setToken] = useState<string | null>(initialState.token);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Keep effect to normalize any late-arriving storage changes injected before hydration
+  // Initialize secure API client with existing token
+  if (initialState.token) {
+    secureApiClient.setAuthToken(initialState.token);
+  }
+
   useEffect(() => {
-    try {
-      const storedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
-      const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-      if (storedToken && storedUser) {
-        const parsedUser = JSON.parse(storedUser) as User;
-        if (storedToken !== token) setToken(storedToken);
-        if (!user || user.id !== parsedUser.id || user.role !== parsedUser.role) setUser(parsedUser);
-      } else {
-        // E2E auth bypass for test runs only
-        try {
-          // @ts-ignore
-          const isE2E = typeof import.meta !== 'undefined' && import.meta?.env?.MODE === 'e2e';
-          // @ts-ignore
-          const bypassRole = import.meta?.env?.VITE_E2E_AUTH_BYPASS_ROLE as string | undefined;
-          if (isE2E && bypassRole) {
-            const fallbackUser: User = {
-              id: 201,
-              email: `${bypassRole.toLowerCase()}@example.com`,
-              name: bypassRole === 'TUTOR' ? 'John Doe' : (bypassRole === 'LECTURER' ? 'Dr. Jane Smith' : 'Admin User'),
-              role: bypassRole
-            };
-            const fallbackToken = `${bypassRole.toLowerCase()}-e2e-bypass-token`;
-            localStorage.setItem(STORAGE_KEYS.TOKEN, fallbackToken);
-            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(fallbackUser));
-            setToken(fallbackToken);
-            setUser(fallbackUser);
+    // Subscribe to AuthManager state changes and sync with secure API client
+    const unsubscribe = authManager.subscribe((state) => {
+      setUser(state.user);
+      setToken(state.token);
+      
+      // Keep secure API client in sync with auth state
+      secureApiClient.setAuthToken(state.token);
+    });
+
+    // Handle E2E auth bypass - preserve existing logic but use AuthManager
+    const handleE2EBypass = () => {
+      try {
+        // E2E auth bypass ONLY for automated testing environment
+        if (ENV_CONFIG.e2e.hasAuthBypass()) {
+          const currentState = authManager.getAuthState();
+          if (!currentState.isAuthenticated) {
+            const bypassRole = ENV_CONFIG.e2e.getBypassRole();
+            if (bypassRole && ENV_CONFIG.validation.isValidBypassRole(bypassRole)) {
+              const fallbackUser: User = {
+                id: 201,
+                email: `test-${bypassRole.toLowerCase()}@test.local`,
+                name: `Test ${bypassRole}`,
+                role: bypassRole
+              };
+              const fallbackToken = `test-token-${Date.now()}`;
+              
+              // Use AuthManager for E2E bypass
+              authManager.setAuth(fallbackToken, fallbackUser);
+            }
           }
-        } catch {}
+        }
+      } catch (error) {
+        console.error('Error in E2E auth bypass:', error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error parsing stored user data (effect):', error);
-      localStorage.removeItem(STORAGE_KEYS.TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.USER);
-      setToken(null);
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    };
+
+    // Run E2E bypass check
+    handleE2EBypass();
+
+    // Cleanup subscription on unmount
+    return unsubscribe;
   }, []);
 
   const login = (newToken: string, newUser: User) => {
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem(STORAGE_KEYS.TOKEN, newToken);
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUser));
+    authManager.setAuth(newToken, newUser);
   };
 
   const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem(STORAGE_KEYS.TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.USER);
+    authManager.clearAuth();
   };
 
   const value: AuthContextType = {
@@ -108,7 +82,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token,
     login,
     logout,
-    isAuthenticated: !!token && !!user,
+    isAuthenticated: authManager.isAuthenticated(),
     isLoading,
   };
 
@@ -126,3 +100,6 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+// Re-export types for backward compatibility
+export type { User } from '../types/auth';

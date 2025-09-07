@@ -30,11 +30,8 @@ describe('Real-World Cleanup Scenarios', () => {
       // Simulate using supertest without app.listen
       // This is the PREFERRED pattern mentioned in requirements
       
-      const mockApp = {
-        get: vi.fn(),
-        post: vi.fn(),
-        listen: vi.fn()
-      };
+      // Note: In real tests, we would use supertest without app.listen
+      // Example: await request(app).get('/health').expect(200)
       
       // In real tests, we would use:
       // import request from 'supertest';
@@ -68,7 +65,7 @@ describe('Real-World Cleanup Scenarios', () => {
 
     it('should handle random port assignment to avoid conflicts', () => {
       const mockApp = {
-        listen: vi.fn((port, callback) => {
+        listen: vi.fn((port, callback?) => {
           // Simulate random port (0) assignment
           const assignedPort = port === 0 ? 3456 : port;
           callback && callback();
@@ -222,7 +219,8 @@ describe('Real-World Cleanup Scenarios', () => {
         pid: 12345,
         kill: vi.fn(),
         on: vi.fn(),
-        removeAllListeners: vi.fn()
+        removeAllListeners: vi.fn(),
+        killed: false
       };
       
       registerCleanup(async () => {

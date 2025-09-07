@@ -1,9 +1,9 @@
 package com.usyd.catams.exception;
 
 /**
- * 用户认证异常
+ * User Authentication Exception
  * 
- * 用于表示用户认证失败的情况
+ * Used to represent user authentication failure scenarios
  * 
  * @author Development Team
  * @since 1.0

@@ -259,14 +259,14 @@ public class TimesheetIntegrationTest extends IntegrationTestBase {
         assertThat(timesheet.calculateTotalPayAmount()).isEqualTo(expectedPay);
 
         assertThat(timesheet.isEditable()).isTrue(); // DRAFT status should be editable
-        assertThat(timesheet.canBeApproved()).isFalse(); // DRAFT status cannot be approved yet
+        assertThat(timesheet.canBeConfirmed()).isFalse(); // DRAFT status cannot be approved yet
 
         // Change status to pending
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         timesheet = timesheetRepository.save(timesheet);
 
         assertThat(timesheet.isEditable()).isFalse(); // PENDING should not be editable
-        assertThat(timesheet.canBeApproved()).isTrue(); // PENDING can be approved
+        assertThat(timesheet.canBeConfirmed()).isTrue(); // PENDING can be approved
     }
 
     // Helper methods

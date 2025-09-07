@@ -120,20 +120,20 @@ class TimesheetRepositoryTest {
                 new BigDecimal("2.0"), new BigDecimal("25.00"), "Draft work", lecturer.getId());
         Timesheet pending = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(3),
                 new BigDecimal("1.0"), new BigDecimal("25.00"), "Pending work", lecturer.getId());
-        pending.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        pending.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         entityManager.persistAndFlush(draft);
         entityManager.persistAndFlush(pending);
 
         // When
         List<Timesheet> draftTimesheets = timesheetRepository.findByStatus(ApprovalStatus.DRAFT);
-        List<Timesheet> pendingTimesheets = timesheetRepository.findByStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        List<Timesheet> pendingTimesheets = timesheetRepository.findByStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         // Then
         assertThat(draftTimesheets).hasSize(2);
         assertThat(draftTimesheets).extracting(Timesheet::getStatus)
             .containsOnly(ApprovalStatus.DRAFT);
 
         assertThat(pendingTimesheets).hasSize(1);
-        assertThat(pendingTimesheets.get(0).getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(pendingTimesheets.get(0).getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
     }
 
     @Test
@@ -146,21 +146,21 @@ class TimesheetRepositoryTest {
         Timesheet approved = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(2),
                 new BigDecimal("4.0"), new BigDecimal("25.00"), "Approved work", lecturer.getId());
         
-        pending.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-        approved.setStatus(ApprovalStatus.FINAL_APPROVED);
+        pending.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+        approved.setStatus(ApprovalStatus.FINAL_CONFIRMED);
         
         entityManager.persistAndFlush(draft);
         entityManager.persistAndFlush(pending);
         entityManager.persistAndFlush(approved);
 
         // When
-        List<ApprovalStatus> statuses = Arrays.asList(ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_REVIEW);
+        List<ApprovalStatus> statuses = Arrays.asList(ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         List<Timesheet> found = timesheetRepository.findByStatusIn(statuses);
 
         // Then
         assertThat(found).hasSize(2);
         assertThat(found).extracting(Timesheet::getStatus)
-                .containsExactlyInAnyOrder(ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_REVIEW);    }
+                .containsExactlyInAnyOrder(ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_CONFIRMATION);    }
 
     @Test
     void testFindByWeekStartDateBetween() {
@@ -264,7 +264,7 @@ class TimesheetRepositoryTest {
         Timesheet timesheet3 = new Timesheet(tutor.getId(), anotherCourse.getId(), weekStartDate.plusWeeks(2),
                 new BigDecimal("4.0"), new BigDecimal("25.00"), "Work 3", lecturer.getId());
         
-        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        
+        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);        
         entityManager.persistAndFlush(timesheet1);
         entityManager.persistAndFlush(timesheet2);
         entityManager.persistAndFlush(timesheet3);
@@ -317,7 +317,7 @@ class TimesheetRepositoryTest {
         // Given
         Timesheet approved = new Timesheet(tutor.getId(), course.getId(), weekStartDate,
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Approved work", lecturer.getId());
-        approved.setStatus(ApprovalStatus.FINAL_APPROVED);
+        approved.setStatus(ApprovalStatus.FINAL_CONFIRMED);
         
         Timesheet draft = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(1),
                 new BigDecimal("3.0"), new BigDecimal("25.00"), "Draft work", lecturer.getId());
@@ -342,11 +342,11 @@ class TimesheetRepositoryTest {
         
         Timesheet approved1 = new Timesheet(tutor.getId(), course.getId(), weekStartDate,
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Approved work 1", lecturer.getId());
-        approved1.setStatus(ApprovalStatus.FINAL_APPROVED);
+        approved1.setStatus(ApprovalStatus.FINAL_CONFIRMED);
         
         Timesheet approved2 = new Timesheet(anotherTutor.getId(), course.getId(), weekStartDate.plusWeeks(1),
                 new BigDecimal("3.0"), new BigDecimal("30.00"), "Approved work 2", lecturer.getId());
-        approved2.setStatus(ApprovalStatus.FINAL_APPROVED);
+        approved2.setStatus(ApprovalStatus.FINAL_CONFIRMED);
         
         Timesheet draft = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(2),
                 new BigDecimal("4.0"), new BigDecimal("25.00"), "Draft work", lecturer.getId());
@@ -372,10 +372,10 @@ class TimesheetRepositoryTest {
         
         Timesheet pendingHR = new Timesheet(tutor.getId(), course.getId(), weekStartDate,
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Pending HR", lecturer.getId());
-        pendingHR.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);        
+        pendingHR.setStatus(ApprovalStatus.LECTURER_CONFIRMED);        
         Timesheet pendingTutor = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(1),
                 new BigDecimal("3.0"), new BigDecimal("25.00"), "Pending Tutor", lecturer.getId());
-        pendingTutor.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        pendingTutor.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
         entityManager.persistAndFlush(pendingHR);
         entityManager.persistAndFlush(pendingTutor);
@@ -386,9 +386,9 @@ class TimesheetRepositoryTest {
 
         // Then
         assertThat(hrPending).hasSize(1);
-        assertThat(hrPending.get(0).getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);        
+        assertThat(hrPending.get(0).getStatus()).isEqualTo(ApprovalStatus.LECTURER_CONFIRMED);        
         assertThat(tutorPending).hasSize(1);
-        assertThat(tutorPending.get(0).getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(tutorPending.get(0).getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         assertThat(tutorPending.get(0).getTutorId()).isEqualTo(tutor.getId());
     }
 
@@ -429,15 +429,15 @@ class TimesheetRepositoryTest {
         // Timesheets for lecturer's courses
         Timesheet timesheet1 = new Timesheet(tutor.getId(), course.getId(), weekStartDate,
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Work 1", lecturer.getId());
-        timesheet1.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet1.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
         Timesheet timesheet2 = new Timesheet(tutor.getId(), anotherCourse.getId(), weekStartDate.plusWeeks(1),
                 new BigDecimal("3.0"), new BigDecimal("25.00"), "Work 2", lecturer.getId());
-        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        
+        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);        
         // Timesheet for other lecturer's course
         Timesheet timesheet3 = new Timesheet(tutor.getId(), otherLecturerCourse.getId(), weekStartDate.plusWeeks(2),
                 new BigDecimal("4.0"), new BigDecimal("25.00"), "Work 3", anotherLecturer.getId());
-        timesheet3.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        
+        timesheet3.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);        
         entityManager.persistAndFlush(timesheet1);
         entityManager.persistAndFlush(timesheet2);
         entityManager.persistAndFlush(timesheet3);
@@ -457,11 +457,11 @@ class TimesheetRepositoryTest {
         // Given
         Timesheet older = new Timesheet(tutor.getId(), course.getId(), weekStartDate,
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Older pending", lecturer.getId());
-        older.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        older.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
         Timesheet newer = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(1),
                 new BigDecimal("3.0"), new BigDecimal("25.00"), "Newer pending", lecturer.getId());
-        newer.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        
+        newer.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);        
         entityManager.persistAndFlush(older);
         entityManager.flush();
         // Small delay to ensure different creation times
@@ -470,7 +470,7 @@ class TimesheetRepositoryTest {
 
         // When
         Page<Timesheet> found = timesheetRepository.findByStatusOrderByCreatedAtAsc(
-                ApprovalStatus.PENDING_TUTOR_REVIEW, PageRequest.of(0, 10));
+                ApprovalStatus.PENDING_TUTOR_CONFIRMATION, PageRequest.of(0, 10));
         // Then
         assertThat(found.getContent()).hasSize(2);
         // Older should come first due to ASC ordering
@@ -488,7 +488,7 @@ class TimesheetRepositoryTest {
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Work 1", lecturer.getId());
         Timesheet timesheet2 = new Timesheet(tutor.getId(), course.getId(), LocalDate.of(2024, 3, 11),
                 new BigDecimal("3.0"), new BigDecimal("30.00"), "Work 2", lecturer.getId());
-        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        
+        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);        
         // Outside date range
         Timesheet timesheet3 = new Timesheet(tutor.getId(), course.getId(), LocalDate.of(2024, 3, 25),
                 new BigDecimal("4.0"), new BigDecimal("25.00"), "Work 3", lecturer.getId());
@@ -522,7 +522,7 @@ class TimesheetRepositoryTest {
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Work 1", lecturer.getId());
         Timesheet timesheet2 = new Timesheet(tutor.getId(), anotherCourse.getId(), LocalDate.of(2024, 3, 11),
                 new BigDecimal("3.0"), new BigDecimal("30.00"), "Work 2", lecturer.getId());
-        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        
+        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);        
         entityManager.persistAndFlush(timesheet1);
         entityManager.persistAndFlush(timesheet2);
 
@@ -552,7 +552,7 @@ class TimesheetRepositoryTest {
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Work 1", lecturer.getId());
         Timesheet timesheet2 = new Timesheet(anotherTutor.getId(), course.getId(), LocalDate.of(2024, 3, 11),
                 new BigDecimal("3.0"), new BigDecimal("30.00"), "Work 2", lecturer.getId());
-        timesheet2.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);        
+        timesheet2.setStatus(ApprovalStatus.LECTURER_CONFIRMED);        
         entityManager.persistAndFlush(timesheet1);
         entityManager.persistAndFlush(timesheet2);
 
@@ -576,7 +576,7 @@ class TimesheetRepositoryTest {
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Work 1", lecturer.getId());
         Timesheet timesheet2 = new Timesheet(tutor.getId(), course.getId(), LocalDate.of(2024, 3, 11),
                 new BigDecimal("3.0"), new BigDecimal("30.00"), "Work 2", lecturer.getId());
-        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);        
+        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);        
         entityManager.persistAndFlush(timesheet1);
         entityManager.persistAndFlush(timesheet2);
 

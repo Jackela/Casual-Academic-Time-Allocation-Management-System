@@ -18,30 +18,29 @@ public enum ApprovalStatus {
     
     
     /**
-     * Timesheet has been submitted and is waiting for tutor review/confirmation.
-     * Tutor can approve or request modifications.
+     * Timesheet has been submitted and is waiting for tutor confirmation.
+     * Tutor can only confirm (no approval/rejection powers).
      */
-    PENDING_TUTOR_REVIEW("pending_tutor_review"),
-    
+    PENDING_TUTOR_CONFIRMATION("pending_tutor_confirmation"),
     
     /**
-     * Timesheet has been approved by the tutor and is awaiting final lecturer approval.
-     * Based on final workflow: TUTOR approves accuracy, then LECTURER gives final approval.
+     * Timesheet has been confirmed by the tutor and is awaiting lecturer confirmation.
+     * Tutor has confirmed accuracy, now awaiting lecturer's confirmation.
      */
-    APPROVED_BY_TUTOR("approved_by_tutor"),
+    TUTOR_CONFIRMED("tutor_confirmed"),
     
     /**
-     * Timesheet has been approved by both lecturer and tutor, ready for HR processing.
-     * This status indicates academic approval is complete and HR can give final approval.
+     * Timesheet has been confirmed by lecturer and is ready for HR final confirmation.
+     * Lecturer has provided confirmation (with optional comment/reason).
      */
-    APPROVED_BY_LECTURER_AND_TUTOR("approved_by_lecturer_and_tutor"),
+    LECTURER_CONFIRMED("lecturer_confirmed"),
     
     /**
-     * Timesheet has been fully approved by HR and is ready for payroll processing.
+     * Timesheet has been finally confirmed by HR and is ready for payroll processing.
      * This is a terminal state - no further actions allowed.
-     * This is the only approved terminal state per SSOT.
+     * This is the only approved terminal state per new workflow.
      */
-    FINAL_APPROVED("final_approved"),
+    FINAL_CONFIRMED("final_confirmed"),
     
     
     /**
@@ -76,14 +75,14 @@ public enum ApprovalStatus {
         switch (this) {
             case DRAFT:
                 return "Draft";
-            case PENDING_TUTOR_REVIEW:
-                return "Pending Tutor Review";
-            case APPROVED_BY_TUTOR:
-                return "Approved by Tutor";
-            case APPROVED_BY_LECTURER_AND_TUTOR:
-                return "Approved by Lecturer and Tutor";
-            case FINAL_APPROVED:
-                return "Final Approved";
+            case PENDING_TUTOR_CONFIRMATION:
+                return "Pending Tutor Confirmation";
+            case TUTOR_CONFIRMED:
+                return "Tutor Confirmed";
+            case LECTURER_CONFIRMED:
+                return "Lecturer Confirmed";
+            case FINAL_CONFIRMED:
+                return "Final Confirmed";
             case REJECTED:
                 return "Rejected";
             case MODIFICATION_REQUESTED:
@@ -95,22 +94,22 @@ public enum ApprovalStatus {
 
     /**
      * Checks if the status represents a pending state requiring action.
-     * According to SSOT, only PENDING_TUTOR_REVIEW is truly "pending".
+     * According to new workflow, confirmation states are pending.
      * 
-     * @return true if status is pending review/approval
+     * @return true if status is pending confirmation
      */
     public boolean isPending() {
-        return this == PENDING_TUTOR_REVIEW || this == APPROVED_BY_TUTOR || this == APPROVED_BY_LECTURER_AND_TUTOR;
+        return this == PENDING_TUTOR_CONFIRMATION || this == TUTOR_CONFIRMED || this == LECTURER_CONFIRMED;
     }
 
     /**
      * Checks if the status represents a terminal/final state.
-     * Per SSOT, only FINAL_APPROVED and REJECTED are terminal states.
+     * Per new workflow, only FINAL_CONFIRMED and REJECTED are terminal states.
      * 
      * @return true if no further actions are allowed
      */
     public boolean isFinal() {
-        return this == FINAL_APPROVED || this == REJECTED;
+        return this == FINAL_CONFIRMED || this == REJECTED;
     }
 
     /**
@@ -124,7 +123,7 @@ public enum ApprovalStatus {
 
     /**
      * Checks if this status can transition to another status.
-     * This method follows SSOT workflow transitions exactly.
+     * This method follows the new confirmation workflow transitions exactly.
      * 
      * @param targetStatus The target status to transition to
      * @return true if transition is allowed
@@ -136,36 +135,36 @@ public enum ApprovalStatus {
 
         switch (this) {
             case DRAFT:
-                // LECTURER submits for tutor review
-                return targetStatus == PENDING_TUTOR_REVIEW;
+                // LECTURER or TUTOR (self) submits for tutor confirmation
+                return targetStatus == PENDING_TUTOR_CONFIRMATION;
                 
-            case PENDING_TUTOR_REVIEW:
-                // TUTOR can approve, reject, or request modifications
-                // Streamlined path: allow direct progression to HR queue after tutor approval
-                return targetStatus == APPROVED_BY_TUTOR || 
-                       targetStatus == APPROVED_BY_LECTURER_AND_TUTOR ||
+            case PENDING_TUTOR_CONFIRMATION:
+                // TUTOR can confirm, LECTURER/HR can reject or request modifications
+                return targetStatus == TUTOR_CONFIRMED || 
                        targetStatus == REJECTED || 
                        targetStatus == MODIFICATION_REQUESTED;
                        
-            case APPROVED_BY_TUTOR:
-                // LECTURER gives final academic approval
-                return targetStatus == APPROVED_BY_LECTURER_AND_TUTOR;
+            case TUTOR_CONFIRMED:
+                // LECTURER can confirm (with optional comment), LECTURER/HR can reject or request modifications
+                return targetStatus == LECTURER_CONFIRMED ||
+                       targetStatus == REJECTED ||
+                       targetStatus == MODIFICATION_REQUESTED;
                 
-            case APPROVED_BY_LECTURER_AND_TUTOR:
-                // HR can give final approval or reject, or request modification back to lecturer
-                return targetStatus == FINAL_APPROVED || 
+            case LECTURER_CONFIRMED:
+                // HR can give final confirmation, reject, or request modification
+                return targetStatus == FINAL_CONFIRMED || 
                        targetStatus == REJECTED ||
                        targetStatus == MODIFICATION_REQUESTED;
                        
             case MODIFICATION_REQUESTED:
-                // LECTURER resubmits after corrections
-                return targetStatus == PENDING_TUTOR_REVIEW;
+                // LECTURER or TUTOR (self) resubmits after corrections
+                return targetStatus == PENDING_TUTOR_CONFIRMATION;
                 
             case REJECTED:
-                // TUTOR edits and resubmits (starts new cycle)
-                return targetStatus == PENDING_TUTOR_REVIEW;
+                // Not restartable from REJECTED in new workflow - terminal state
+                return false;
                 
-            case FINAL_APPROVED:
+            case FINAL_CONFIRMED:
                 return false; // Terminal state - no further transitions
                 
             default:

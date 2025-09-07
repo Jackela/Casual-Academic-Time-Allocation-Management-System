@@ -1,0 +1,313 @@
+/**
+ * Timesheet Service
+ * 
+ * All timesheet-related API operations with optimized caching,
+ * pagination, and filtering capabilities.
+ */
+
+import { secureApiClient } from './api-secure';
+import type {
+  Timesheet,
+  TimesheetPage,
+  TimesheetQuery,
+  TimesheetCreateRequest,
+  TimesheetUpdateRequest,
+  ApprovalRequest,
+  ApprovalResponse,
+  DashboardSummary,
+  ApiResponse
+} from '../types/api';
+
+// =============================================================================
+// Timesheet CRUD Operations
+// =============================================================================
+
+export class TimesheetService {
+  
+  /**
+   * Get paginated timesheets with filtering
+   */
+  static async getTimesheets(query: TimesheetQuery = {}): Promise<TimesheetPage> {
+    const queryString = secureApiClient.createQueryString({
+      page: query.page || 0,
+      size: query.size || 20,
+      status: query.status,
+      tutorId: query.tutorId,
+      courseId: query.courseId,
+      weekStartDate: query.weekStartDate,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      sortBy: query.sortBy || 'createdAt',
+      sortDirection: query.sortDirection || 'desc'
+    });
+
+    const response = await secureApiClient.get<TimesheetPage>(`/api/timesheets?${queryString}`);
+    
+    // Normalize response format for backward compatibility
+    return this.normalizeTimesheetPage(response.data);
+  }
+
+  /**
+   * Get pending timesheets for lecturer approval
+   */
+  static async getPendingTimesheets(): Promise<TimesheetPage> {
+    const response = await secureApiClient.get<TimesheetPage>('/api/timesheets/pending-final-approval');
+    return this.normalizeTimesheetPage(response.data);
+  }
+
+  /**
+   * Get timesheets by tutor ID
+   */
+  static async getTimesheetsByTutor(tutorId: number, query: Omit<TimesheetQuery, 'tutorId'> = {}): Promise<TimesheetPage> {
+    const queryString = secureApiClient.createQueryString({
+      page: query.page || 0,
+      size: query.size || 20,
+      status: query.status,
+      courseId: query.courseId,
+      weekStartDate: query.weekStartDate,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      sortBy: query.sortBy || 'createdAt',
+      sortDirection: query.sortDirection || 'desc'
+    });
+
+    const response = await secureApiClient.get<TimesheetPage>(`/api/timesheets/tutor/${tutorId}?${queryString}`);
+    return this.normalizeTimesheetPage(response.data);
+  }
+
+  /**
+   * Get single timesheet by ID
+   */
+  static async getTimesheet(id: number): Promise<Timesheet> {
+    const response = await secureApiClient.get<Timesheet>(`/api/timesheets/${id}`);
+    return response.data!;
+  }
+
+  /**
+   * Create new timesheet
+   */
+  static async createTimesheet(data: TimesheetCreateRequest): Promise<Timesheet> {
+    const response = await secureApiClient.post<Timesheet>('/api/timesheets', data);
+    return response.data!;
+  }
+
+  /**
+   * Update existing timesheet
+   */
+  static async updateTimesheet(id: number, data: TimesheetUpdateRequest): Promise<Timesheet> {
+    const response = await secureApiClient.put<Timesheet>(`/api/timesheets/${id}`, data);
+    return response.data!;
+  }
+
+  /**
+   * Delete timesheet
+   */
+  static async deleteTimesheet(id: number): Promise<void> {
+    await secureApiClient.delete(`/api/timesheets/${id}`);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Approval Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Approve or reject timesheet
+   */
+  static async approveTimesheet(request: ApprovalRequest): Promise<ApprovalResponse> {
+    const response = await secureApiClient.post<ApprovalResponse>('/api/approvals', request);
+    return response.data!;
+  }
+
+  /**
+   * Batch approve multiple timesheets
+   */
+  static async batchApproveTimesheets(requests: ApprovalRequest[]): Promise<ApprovalResponse[]> {
+    const promises = requests.map(request => this.approveTimesheet(request));
+    return Promise.all(promises);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dashboard & Summary Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get dashboard summary for current user
+   */
+  static async getDashboardSummary(): Promise<DashboardSummary> {
+    const response = await secureApiClient.get<DashboardSummary>('/api/dashboard/summary');
+    return response.data!;
+  }
+
+  /**
+   * Get admin dashboard summary
+   */
+  static async getAdminDashboardSummary(): Promise<DashboardSummary> {
+    const response = await secureApiClient.get<DashboardSummary>('/api/dashboard/admin-summary');
+    return response.data!;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Utility Methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Calculate total hours for timesheets
+   */
+  static calculateTotalHours(timesheets: Timesheet[]): number {
+    return timesheets.reduce((total, timesheet) => total + timesheet.hours, 0);
+  }
+
+  /**
+   * Calculate total pay for timesheets
+   */
+  static calculateTotalPay(timesheets: Timesheet[]): number {
+    return timesheets.reduce((total, timesheet) => {
+      return total + (timesheet.hours * timesheet.hourlyRate);
+    }, 0);
+  }
+
+  /**
+   * Group timesheets by status
+   */
+  static groupByStatus(timesheets: Timesheet[]): Record<string, Timesheet[]> {
+    return timesheets.reduce((groups, timesheet) => {
+      const status = timesheet.status;
+      if (!groups[status]) {
+        groups[status] = [];
+      }
+      groups[status].push(timesheet);
+      return groups;
+    }, {} as Record<string, Timesheet[]>);
+  }
+
+  /**
+   * Filter timesheets by date range
+   */
+  static filterByDateRange(
+    timesheets: Timesheet[], 
+    startDate: string, 
+    endDate: string
+  ): Timesheet[] {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    return timesheets.filter(timesheet => {
+      const timesheetDate = new Date(timesheet.weekStartDate);
+      return timesheetDate >= start && timesheetDate <= end;
+    });
+  }
+
+  /**
+   * Get timesheets requiring action by user role
+   */
+  static getActionableTimesheets(timesheets: Timesheet[], userRole: string): Timesheet[] {
+    switch (userRole) {
+      case 'LECTURER':
+        return timesheets.filter(t => t.status === 'TUTOR_CONFIRMED');
+      case 'ADMIN':
+        return timesheets.filter(t => ['LECTURER_CONFIRMED', 'TUTOR_CONFIRMED'].includes(t.status));
+      case 'TUTOR':
+        return timesheets.filter(t => ['DRAFT', 'REJECTED', 'MODIFICATION_REQUESTED'].includes(t.status));
+      default:
+        return [];
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private Helper Methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Normalize timesheet page response for backward compatibility
+   */
+  private static normalizeTimesheetPage(data: any): TimesheetPage {
+    // Handle different response formats from backend
+    const timesheets = data?.timesheets || data?.content || data?.data || [];
+    
+    let pageInfo;
+    if (data?.pageInfo) {
+      pageInfo = data.pageInfo;
+    } else if (data?.page) {
+      pageInfo = data.page;
+    } else {
+      // Create default page info if not provided
+      pageInfo = {
+        currentPage: 0,
+        pageSize: timesheets.length,
+        totalElements: timesheets.length,
+        totalPages: 1,
+        first: true,
+        last: true,
+        numberOfElements: timesheets.length,
+        empty: timesheets.length === 0
+      };
+    }
+
+    return {
+      success: data?.success ?? true,
+      timesheets,
+      pageInfo
+    };
+  }
+
+  /**
+   * Validate timesheet data before submission
+   */
+  static validateTimesheet(timesheet: Partial<Timesheet>): string[] {
+    const errors: string[] = [];
+
+    if (!timesheet.tutorId || timesheet.tutorId <= 0) {
+      errors.push('Valid tutor ID is required');
+    }
+
+    if (!timesheet.courseId || timesheet.courseId <= 0) {
+      errors.push('Valid course ID is required');
+    }
+
+    if (!timesheet.weekStartDate) {
+      errors.push('Week start date is required');
+    }
+
+    if (!timesheet.hours || timesheet.hours <= 0 || timesheet.hours > 60) {
+      errors.push('Hours must be between 0.1 and 60');
+    }
+
+    if (!timesheet.hourlyRate || timesheet.hourlyRate <= 0 || timesheet.hourlyRate > 200) {
+      errors.push('Hourly rate must be between 0.01 and 200');
+    }
+
+    if (!timesheet.description || timesheet.description.trim().length === 0) {
+      errors.push('Description is required');
+    }
+
+    if (timesheet.description && timesheet.description.length > 1000) {
+      errors.push('Description must be less than 1000 characters');
+    }
+
+    return errors;
+  }
+}
+
+// =============================================================================
+// Export convenience functions
+// =============================================================================
+
+export const {
+  getTimesheets,
+  getPendingTimesheets,
+  getTimesheetsByTutor,
+  getTimesheet,
+  createTimesheet,
+  updateTimesheet,
+  deleteTimesheet,
+  approveTimesheet,
+  batchApproveTimesheets,
+  getDashboardSummary,
+  getAdminDashboardSummary,
+  calculateTotalHours,
+  calculateTotalPay,
+  groupByStatus,
+  filterByDateRange,
+  getActionableTimesheets,
+  validateTimesheet
+} = TimesheetService;

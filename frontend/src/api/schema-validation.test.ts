@@ -5,7 +5,7 @@
  * and validate boundary conditions defined in the API specification.
  */
 
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import { 
   OpenAPIMockGenerator,
   TimesheetCreateRequestSchema,
@@ -32,7 +32,7 @@ describe('OpenAPI Schema Validation', () => {
     test('should reject invalid timesheet creation requests', () => {
       const { invalid } = OpenAPIMockGenerator.generateTimesheetCreateBoundaryValues();
       
-      invalid.forEach((request, index) => {
+      invalid.forEach((request) => {
         expect(() => {
           TimesheetCreateRequestSchema.parse(request);
         }).toThrow(); // Just check that it throws, don't check specific message

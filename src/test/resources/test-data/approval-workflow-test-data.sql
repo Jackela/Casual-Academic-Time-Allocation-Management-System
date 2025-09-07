@@ -35,24 +35,24 @@ SELECT
 FROM users t, courses c 
 WHERE t.email = 'workflow.tutor@integration.test' AND c.code = 'WORKFLOW01';
 
--- State 2: PENDING_TUTOR_REVIEW (submitted by tutor)
+-- State 2: PENDING_TUTOR_CONFIRMATION (submitted by tutor)
 INSERT INTO timesheets (tutor_id, course_id, week_start_date, hours, hourly_rate, description, status, created_by, created_at, updated_at)
 SELECT 
-    t.id, c.id, '2025-07-28', 8.0, 45.00, 'Submitted timesheet awaiting tutor review', 'PENDING_TUTOR_REVIEW', t.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    t.id, c.id, '2025-07-28', 8.0, 45.00, 'Submitted timesheet awaiting tutor confirmation', 'PENDING_TUTOR_CONFIRMATION', t.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 FROM users t, courses c 
 WHERE t.email = 'workflow.tutor@integration.test' AND c.code = 'WORKFLOW01';
 
--- State 3: APPROVED_BY_TUTOR (tutor approved, awaiting lecturer)
+-- State 3: TUTOR_CONFIRMED (tutor confirmed, awaiting lecturer)
 INSERT INTO timesheets (tutor_id, course_id, week_start_date, hours, hourly_rate, description, status, created_by, created_at, updated_at)
 SELECT 
-    t.id, c.id, '2025-07-21', 10.0, 45.00, 'Tutor approved, awaiting lecturer approval', 'APPROVED_BY_TUTOR', t.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    t.id, c.id, '2025-07-21', 10.0, 45.00, 'Tutor confirmed, awaiting lecturer confirmation', 'TUTOR_CONFIRMED', t.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 FROM users t, courses c 
 WHERE t.email = 'workflow.tutor@integration.test' AND c.code = 'WORKFLOW01';
 
--- State 4: FINAL_APPROVED (complete approval chain)
+-- State 4: FINAL_CONFIRMED (complete confirmation chain)
 INSERT INTO timesheets (tutor_id, course_id, week_start_date, hours, hourly_rate, description, status, created_by, created_at, updated_at)
 SELECT 
-    t.id, c.id, '2025-07-14', 12.0, 45.00, 'Fully approved timesheet', 'FINAL_APPROVED', t.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    t.id, c.id, '2025-07-14', 12.0, 45.00, 'Fully confirmed timesheet', 'FINAL_CONFIRMED', t.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 FROM users t, courses c 
 WHERE t.email = 'workflow.tutor@integration.test' AND c.code = 'WORKFLOW01';
 

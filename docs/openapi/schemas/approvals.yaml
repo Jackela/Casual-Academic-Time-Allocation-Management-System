@@ -2,22 +2,22 @@ ApprovalStatus:
   type: string
   enum:
     - DRAFT
-    - PENDING_LECTURER_APPROVAL
-    - APPROVED
+    - PENDING_TUTOR_CONFIRMATION
+    - TUTOR_CONFIRMED
+    - LECTURER_CONFIRMED
+    - FINAL_CONFIRMED
     - REJECTED
     - MODIFICATION_REQUESTED
-    - PENDING_HR_REVIEW
-    - FINAL_APPROVED
   description: |
-    Approval status of a timesheet:
+    Confirmation status of a timesheet:
     - **DRAFT**: Initial state, being prepared
-    - **PENDING_LECTURER_APPROVAL**: Submitted for lecturer review
-    - **APPROVED**: Approved by lecturer, ready for HR
-    - **REJECTED**: Rejected by lecturer or HR
-    - **MODIFICATION_REQUESTED**: Lecturer requested changes
-    - **PENDING_HR_REVIEW**: Awaiting final HR approval
-    - **FINAL_APPROVED**: Final approval by HR, ready for payment
-  example: "PENDING_LECTURER_APPROVAL"
+    - **PENDING_TUTOR_CONFIRMATION**: Submitted for tutor confirmation
+    - **TUTOR_CONFIRMED**: Confirmed by tutor, awaiting lecturer confirmation
+    - **LECTURER_CONFIRMED**: Confirmed by lecturer, awaiting HR confirmation
+    - **FINAL_CONFIRMED**: Final confirmation by HR, ready for payment
+    - **REJECTED**: Rejected by tutor, lecturer or HR
+    - **MODIFICATION_REQUESTED**: Modifications requested before confirmation
+  example: "PENDING_TUTOR_CONFIRMATION"
 
 ApprovalActionRequest:
   type: object
@@ -35,23 +35,27 @@ ApprovalActionRequest:
     comment:
       type: string
       description: Optional comment explaining the action
-      example: "Approved - hours and description look correct"
+      example: "Confirmed - hours and description look correct"
       maxLength: 500
 
 ApprovalAction:
   type: string
   enum:
     - SUBMIT_FOR_APPROVAL
-    - APPROVE
+    - TUTOR_CONFIRM
+    - LECTURER_CONFIRM
+    - HR_CONFIRM
     - REJECT
     - REQUEST_MODIFICATION
   description: |
-    Type of approval action:
-    - **SUBMIT_FOR_APPROVAL**: Submit draft timesheet for approval
-    - **APPROVE**: Approve the timesheet
+    Type of confirmation action:
+    - **SUBMIT_FOR_APPROVAL**: Submit draft timesheet for confirmation
+    - **TUTOR_CONFIRM**: Tutor confirms the timesheet accuracy
+    - **LECTURER_CONFIRM**: Lecturer confirms the timesheet
+    - **HR_CONFIRM**: HR provides final confirmation for payroll
     - **REJECT**: Reject the timesheet
     - **REQUEST_MODIFICATION**: Request changes to the timesheet
-  example: "APPROVE"
+  example: "TUTOR_CONFIRM"
 
 ApprovalActionResponse:
   type: object
@@ -84,7 +88,7 @@ ApprovalActionResponse:
     comment:
       type: string
       description: Comment provided with the action
-      example: "Approved - hours and description look correct"
+      example: "Confirmed - hours and description look correct"
     timestamp:
       type: string
       format: date-time
@@ -96,7 +100,7 @@ ApprovalActionResponse:
       items:
         type: string
       example:
-        - "Timesheet automatically submitted to HR for final review"
+        - "Timesheet automatically moved to lecturer for confirmation"
 
 ApprovalHistoryEntry:
   type: object

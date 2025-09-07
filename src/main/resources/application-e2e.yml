@@ -2,12 +2,17 @@
 # Uses Testcontainers PostgreSQL for E2E testing
 
 spring:
-  # Database Configuration (Testcontainers)
+  # Database Configuration (H2 for UAT)
   datasource:
-    url: jdbc:tc:postgresql:15:///catams_e2e
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
-    username: ""
-    password: ""
+    url: jdbc:h2:mem:catams-e2e-uat
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+    
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
     
   # JPA Configuration (E2E-specific)
   jpa:
@@ -16,7 +21,7 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.H2Dialect
         
   # Disable Flyway for E2E tests (schema managed by Hibernate)
   flyway:
@@ -30,7 +35,7 @@ spring:
   # Security Configuration
   security:
     jwt:
-      secret: ${JWT_SECRET}
+      secret: Y2F0YW1zLWRlbW8tc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQtb25seS1ub3QtZm9yLXByb2R1Y3Rpb24=
       expiration: 86400000
 
 # CORS Configuration (E2E frontend port)

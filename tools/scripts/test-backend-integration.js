@@ -6,9 +6,11 @@
  */
 
 const { spawn } = require('child_process');
+const path = require('path');
 
-// Simply delegate to the unified script
-const child = spawn('node', ['tools/scripts/test-backend.js', 'integration'], {
+// Simply delegate to the unified script (resolve relative path)
+const backendRunner = path.join(__dirname, 'test-backend.js');
+const child = spawn('node', [backendRunner, 'integration'], {
   stdio: 'inherit',
   cwd: process.cwd()
 });

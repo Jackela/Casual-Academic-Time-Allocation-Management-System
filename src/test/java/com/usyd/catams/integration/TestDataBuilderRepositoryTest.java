@@ -303,7 +303,7 @@ class TestDataBuilderRepositoryTest {
             // Ensure a distinct (tutor, course, week_start_date) to avoid unique constraint conflict
             .withWeekStartDate(LocalDate.now().minusWeeks(2).with(java.time.DayOfWeek.MONDAY))
             .withCreatedBy(savedTutor.getId())
-            .asPendingTutorReview()
+            .asPendingTutorConfirmation()
             .build();
 
         // When
@@ -312,7 +312,7 @@ class TestDataBuilderRepositoryTest {
 
         // Then
         assertThat(savedDraft.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
-        assertThat(savedPending.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(savedPending.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         assertThat(timesheetRepository.count()).isEqualTo(2);
     }
 }

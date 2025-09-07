@@ -106,7 +106,7 @@ public class TimesheetTest {
         timesheet.setHours(new BigDecimal("3.5"));
         timesheet.setHourlyRate(new BigDecimal("30.00"));
         timesheet.setDescription("Updated description");
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         timesheet.setCreatedAt(now);
         timesheet.setUpdatedAt(now);
         timesheet.setCreatedBy(777L);
@@ -118,7 +118,7 @@ public class TimesheetTest {
         assertThat(timesheet.getHours()).isEqualByComparingTo(new BigDecimal("3.5"));
         assertThat(timesheet.getHourlyRate()).isEqualByComparingTo(new BigDecimal("30.00"));
         assertThat(timesheet.getDescription()).isEqualTo("Updated description");
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         assertThat(timesheet.getCreatedAt()).isEqualTo(now);
         assertThat(timesheet.getUpdatedAt()).isEqualTo(now);
         assertThat(timesheet.getCreatedBy()).isEqualTo(777L);
@@ -179,13 +179,13 @@ public class TimesheetTest {
         assertThat(timesheet.isEditable()).isTrue();
 
         // Test non-editable statuses
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         assertThat(timesheet.isEditable()).isFalse();
 
-        timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        timesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
         assertThat(timesheet.isEditable()).isFalse();
 
-        timesheet.setStatus(ApprovalStatus.FINAL_APPROVED);
+        timesheet.setStatus(ApprovalStatus.FINAL_CONFIRMED);
         assertThat(timesheet.isEditable()).isFalse();
 
         timesheet.setStatus(ApprovalStatus.REJECTED);
@@ -195,24 +195,24 @@ public class TimesheetTest {
     @Test
     void testCanBeApproved() {
         // Test approvable statuses
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-        assertThat(timesheet.canBeApproved()).isTrue();
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+        assertThat(timesheet.canBeConfirmed()).isTrue();
 
-        timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-        assertThat(timesheet.canBeApproved()).isTrue();
+        timesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
+        assertThat(timesheet.canBeConfirmed()).isTrue();
 
         // Test non-approvable statuses
         timesheet.setStatus(ApprovalStatus.DRAFT);
-        assertThat(timesheet.canBeApproved()).isFalse();
+        assertThat(timesheet.canBeConfirmed()).isFalse();
 
         timesheet.setStatus(ApprovalStatus.MODIFICATION_REQUESTED);
-        assertThat(timesheet.canBeApproved()).isFalse();
+        assertThat(timesheet.canBeConfirmed()).isFalse();
 
-        timesheet.setStatus(ApprovalStatus.FINAL_APPROVED);
-        assertThat(timesheet.canBeApproved()).isFalse();
+        timesheet.setStatus(ApprovalStatus.FINAL_CONFIRMED);
+        assertThat(timesheet.canBeConfirmed()).isFalse();
 
         timesheet.setStatus(ApprovalStatus.REJECTED);
-        assertThat(timesheet.canBeApproved()).isFalse();
+        assertThat(timesheet.canBeConfirmed()).isFalse();
     }
 
     @Test
@@ -260,16 +260,16 @@ public class TimesheetTest {
         assertThat(approval.getApproverId()).isEqualTo(tutorId);
         assertThat(approval.getAction()).isEqualTo(ApprovalAction.SUBMIT_FOR_APPROVAL);
         assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.DRAFT);
-        assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
 
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         assertThat(timesheet.getApprovals()).hasSize(1);
     }
 
     @Test
     void testSubmitForApprovalFailsWhenNotEditable() {
         // Given
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         // When & Then
         assertThatThrownBy(() -> timesheet.submitForApproval(tutorId))
                 .isInstanceOf(IllegalStateException.class)
@@ -279,36 +279,36 @@ public class TimesheetTest {
     @Test
     void testApprove() {
         // Given
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         Long approverId = 456L;
         String comment = "Looks good!";
 
         // When
-        Approval approval = timesheet.approve(approverId, comment);
+        Approval approval = timesheet.confirmByTutor(approverId, comment);
 
         // Then
         assertThat(approval).isNotNull();
         assertThat(approval.getApproverId()).isEqualTo(approverId);
-        assertThat(approval.getAction()).isEqualTo(ApprovalAction.APPROVE);
-        assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
-        assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
+        assertThat(approval.getAction()).isEqualTo(ApprovalAction.TUTOR_CONFIRM);
+        assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+        assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.TUTOR_CONFIRMED);
         assertThat(approval.getComment()).isEqualTo(comment);
 
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.TUTOR_CONFIRMED);
     }
 
     @Test
     void testApproveFromHRReview() {
         // Given
-        timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        timesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
         Long approverId = 456L;
 
         // When
-        Approval approval = timesheet.approve(approverId, "Final approval");
+        Approval approval = timesheet.confirmByHR(approverId, "Final confirmation");
 
         // Then
-        assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);
+        assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.FINAL_CONFIRMED);
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_CONFIRMED);
     }
 
     @Test
@@ -317,15 +317,15 @@ public class TimesheetTest {
         timesheet.setStatus(ApprovalStatus.DRAFT);
 
         // When & Then
-        assertThatThrownBy(() -> timesheet.approve(456L, "comment"))
+        assertThatThrownBy(() -> timesheet.confirmByTutor(456L, "comment"))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Timesheet cannot be approved in current state");
+                .hasMessageContaining("Tutor confirmation is only allowed from PENDING_TUTOR_CONFIRMATION state");
     }
 
     @Test
     void testReject() {
         // Given
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         Long approverId = 456L;
         String comment = "Needs more detail";
 
@@ -336,7 +336,7 @@ public class TimesheetTest {
         assertThat(approval).isNotNull();
         assertThat(approval.getApproverId()).isEqualTo(approverId);
         assertThat(approval.getAction()).isEqualTo(ApprovalAction.REJECT);
-        assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.REJECTED);
         assertThat(approval.getComment()).isEqualTo(comment);
 
@@ -346,7 +346,7 @@ public class TimesheetTest {
     @Test
     void testRejectFailsWithoutComment() {
         // Given
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         // When & Then
         assertThatThrownBy(() -> timesheet.reject(456L, null))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -375,7 +375,7 @@ public class TimesheetTest {
     @Test
     void testRequestModification() {
         // Given
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         Long approverId = 456L;
         String comment = "Please add more hours detail";
 
@@ -386,7 +386,7 @@ public class TimesheetTest {
         assertThat(approval).isNotNull();
         assertThat(approval.getApproverId()).isEqualTo(approverId);
         assertThat(approval.getAction()).isEqualTo(ApprovalAction.REQUEST_MODIFICATION);
-        assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(approval.getPreviousStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         assertThat(approval.getNewStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
         assertThat(approval.getComment()).isEqualTo(comment);
 
@@ -396,7 +396,7 @@ public class TimesheetTest {
     @Test
     void testRequestModificationFailsWithoutComment() {
         // Given
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         // When & Then
         assertThatThrownBy(() -> timesheet.requestModification(456L, null))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -422,8 +422,8 @@ public class TimesheetTest {
         // When - Add multiple approvals
         timesheet.setStatus(ApprovalStatus.DRAFT);
         Approval approval1 = timesheet.submitForApproval(tutorId);
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-        Approval approval2 = timesheet.approve(456L, "Approved");
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+        Approval approval2 = timesheet.confirmByTutor(456L, "Confirmed");
 
         // Then
         Optional<Approval> mostRecent = timesheet.getMostRecentApproval();
@@ -436,8 +436,8 @@ public class TimesheetTest {
         // Given
         timesheet.setStatus(ApprovalStatus.DRAFT);
         Approval approval1 = timesheet.submitForApproval(tutorId);
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-        Approval approval2 = timesheet.approve(456L, "Approved");
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+        Approval approval2 = timesheet.confirmByTutor(456L, "Confirmed");
 
         // When
         List<Approval> history = timesheet.getApprovalHistory();
@@ -456,7 +456,7 @@ public class TimesheetTest {
 
         // When & Then
         assertThat(timesheet.hasApprovalAction(ApprovalAction.SUBMIT_FOR_APPROVAL)).isTrue();
-        assertThat(timesheet.hasApprovalAction(ApprovalAction.APPROVE)).isFalse();
+        assertThat(timesheet.hasApprovalAction(ApprovalAction.TUTOR_CONFIRM)).isFalse();
         assertThat(timesheet.hasApprovalAction(ApprovalAction.REJECT)).isFalse();
     }
 
@@ -465,12 +465,12 @@ public class TimesheetTest {
         // Given
         timesheet.setStatus(ApprovalStatus.DRAFT);
         Approval submit = timesheet.submitForApproval(tutorId);
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
-        Approval approve = timesheet.approve(456L, "Good work");
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+        Approval approve = timesheet.confirmByTutor(456L, "Good work");
 
         // When
         List<Approval> submits = timesheet.getApprovalsByAction(ApprovalAction.SUBMIT_FOR_APPROVAL);
-        List<Approval> approvals = timesheet.getApprovalsByAction(ApprovalAction.APPROVE);
+        List<Approval> approvals = timesheet.getApprovalsByAction(ApprovalAction.TUTOR_CONFIRM);
         List<Approval> rejections = timesheet.getApprovalsByAction(ApprovalAction.REJECT);
 
         // Then
@@ -522,32 +522,32 @@ public class TimesheetTest {
         // 1. Start as DRAFT
         assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
         assertThat(timesheet.isEditable()).isTrue();
-        assertThat(timesheet.canBeApproved()).isFalse();
+        assertThat(timesheet.canBeConfirmed()).isFalse();
 
         // 2. Submit for approval
         timesheet.submitForApproval(tutorId);
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         assertThat(timesheet.isEditable()).isFalse();
-        assertThat(timesheet.canBeApproved()).isTrue();
+        assertThat(timesheet.canBeConfirmed()).isTrue();
 
-        // 3. Approve by tutor (tutor approved, waiting lecturer final approval)
-        timesheet.approve(456L, "Tutor approved");
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
-        assertThat(timesheet.canBeApproved()).isFalse();
+        // 3. Confirm by tutor (tutor confirmed, waiting lecturer confirmation)
+        timesheet.confirmByTutor(456L, "Tutor confirmed");
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.TUTOR_CONFIRMED);
+        assertThat(timesheet.canBeConfirmed()).isTrue();
 
-        // 3b. Lecturer final approval (moves to HR queue)
-        timesheet.finalApprove(789L, "Lecturer approved");
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
-        assertThat(timesheet.canBeApproved()).isTrue();
+        // 3b. Lecturer confirmation (moves to HR queue)
+        timesheet.confirmByLecturer(789L, "Lecturer confirmed");
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.LECTURER_CONFIRMED);
+        assertThat(timesheet.canBeConfirmed()).isTrue();
 
-        // 4. Final approval by HR
-        timesheet.approve(789L, "HR approved");
-        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_APPROVED);
-        assertThat(timesheet.canBeApproved()).isFalse();
+        // 4. Final confirmation by HR
+        timesheet.confirmByHR(999L, "HR confirmed");
+        assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.FINAL_CONFIRMED);
+        assertThat(timesheet.canBeConfirmed()).isFalse();
         assertThat(timesheet.isEditable()).isFalse();
 
-        // Verify all approvals recorded (submit, tutor approve, lecturer final approve,
-        // HR approve)
+        // Verify all approvals recorded (submit, tutor confirm, lecturer confirm,
+        // HR confirm)
         assertThat(timesheet.getApprovals()).hasSize(4);
     }
 
@@ -563,7 +563,7 @@ public class TimesheetTest {
         timesheet.reject(456L, "Needs more detail");
         assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.REJECTED);
         assertThat(timesheet.isEditable()).isFalse();
-        assertThat(timesheet.canBeApproved()).isFalse();
+        assertThat(timesheet.canBeConfirmed()).isFalse();
 
         assertThat(timesheet.getApprovals()).hasSize(2);
     }
@@ -580,7 +580,7 @@ public class TimesheetTest {
         timesheet.requestModification(456L, "Please add more hours breakdown");
         assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.MODIFICATION_REQUESTED);
         assertThat(timesheet.isEditable()).isTrue();
-        assertThat(timesheet.canBeApproved()).isFalse();
+        assertThat(timesheet.canBeConfirmed()).isFalse();
 
         assertThat(timesheet.getApprovals()).hasSize(2);
     }

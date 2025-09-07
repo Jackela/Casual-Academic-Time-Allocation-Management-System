@@ -316,7 +316,7 @@ class TestDataBuilderIntegrationTest {
                 .withCourseId(savedCourse.getId())
                 // Use a different week start date to respect unique constraint (tutor, course, week)
                 .withWeekStartDate(LocalDate.now().minusWeeks(2).with(java.time.DayOfWeek.MONDAY))
-                .asPendingTutorReview()
+                .asPendingTutorConfirmation()
                 .build();
 
             // When
@@ -325,7 +325,7 @@ class TestDataBuilderIntegrationTest {
 
             // Then
             assertThat(savedDraft.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
-            assertThat(savedPending.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+            assertThat(savedPending.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         }
     }
 

@@ -4,9 +4,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * CATAMS应用程序主启动类
+ * CATAMS Application Main Startup Class
  * 
- * Casual Academic Time Allocation Management System的Spring Boot应用入口
+ * Entry point for the Casual Academic Time Allocation Management System Spring Boot application
  * 
  * @author Development Team
  * @since 1.0

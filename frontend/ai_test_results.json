@@ -1,0 +1,19 @@
+[
+  {
+    "test": "login",
+    "status": "FAIL"
+  },
+  {
+    "test": "exploration",
+    "status": "PASS",
+    "data": {
+      "buttons": 0,
+      "links": 0,
+      "tables": 0
+    }
+  },
+  {
+    "test": "api_health",
+    "status": "PASS"
+  }
+]

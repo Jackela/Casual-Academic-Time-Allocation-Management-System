@@ -23,7 +23,6 @@ import {
 } from './cleanup';
 import { 
   startManagedProcess, 
-  killProcessTree, 
   cleanupPorts, 
   claudeCodePreflight 
 } from './process';

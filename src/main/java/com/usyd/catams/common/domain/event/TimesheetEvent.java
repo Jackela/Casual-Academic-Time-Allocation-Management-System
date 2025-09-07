@@ -199,7 +199,9 @@ public abstract class TimesheetEvent extends AbstractDomainEvent {
         public Long getNextApproverId() { return nextApproverId; }
         
         public boolean isApproved() {
-            return action == ApprovalAction.APPROVE;
+            return action == ApprovalAction.TUTOR_CONFIRM ||
+                   action == ApprovalAction.LECTURER_CONFIRM ||
+                   action == ApprovalAction.HR_CONFIRM;
         }
         
         public boolean isRejected() {
@@ -211,7 +213,7 @@ public abstract class TimesheetEvent extends AbstractDomainEvent {
         }
         
         public boolean isFinalApproval() {
-            return isApproved() && newStatus == ApprovalStatus.FINAL_APPROVED;
+            return isApproved() && newStatus == ApprovalStatus.FINAL_CONFIRMED;
         }
         
         public boolean hasComments() {

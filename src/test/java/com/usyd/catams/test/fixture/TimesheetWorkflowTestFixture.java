@@ -57,11 +57,11 @@ public class TimesheetWorkflowTestFixture {
      * Creates a timesheet awaiting tutor approval.
      * 
      * Business scenario: Lecturer has submitted timesheet, now awaiting tutor review.
-     * Expected behaviors: isEditable() = false, canBeApproved() = true, requiresAction() = true
+     * Expected behaviors: isEditable() = false, canBeConfirmed() = true, requiresAction() = true
      */
     public static Timesheet createPendingApprovalScenario() {
         Timesheet timesheet = createDraftScenario();
-        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        timesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         return timesheet;
     }
     
@@ -69,11 +69,11 @@ public class TimesheetWorkflowTestFixture {
      * Creates a timesheet that has been approved by tutor and is ready for HR review.
      * 
      * Business scenario: Tutor has approved, system automatically moves to HR queue.
-     * Expected behaviors: isEditable() = false, canBeApproved() = true, isReadyForHR() = true
+     * Expected behaviors: isEditable() = false, canBeConfirmed() = true, isReadyForHR() = true
      */
     public static Timesheet createReadyForHRScenario() {
         Timesheet timesheet = createDraftScenario();
-        timesheet.setStatus(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR);
+        timesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
         return timesheet;
     }
     
@@ -81,11 +81,11 @@ public class TimesheetWorkflowTestFixture {
      * Creates a timesheet in the intermediate tutor-approved state.
      * 
      * Business scenario: Tutor has just approved, before automatic HR transition.
-     * Expected behaviors: isEditable() = false, canBeApproved() = false, isIntermediate() = true
+     * Expected behaviors: isEditable() = false, canBeConfirmed() = false, isIntermediate() = true
      */
     public static Timesheet createTutorApprovedScenario() {
         Timesheet timesheet = createDraftScenario();
-        timesheet.setStatus(ApprovalStatus.APPROVED_BY_TUTOR);
+        timesheet.setStatus(ApprovalStatus.TUTOR_CONFIRMED);
         return timesheet;
     }
     
@@ -93,11 +93,11 @@ public class TimesheetWorkflowTestFixture {
      * Creates a fully approved timesheet.
      * 
      * Business scenario: Both tutor and HR have approved - workflow complete.
-     * Expected behaviors: isEditable() = false, canBeApproved() = false, isFinal() = true
+     * Expected behaviors: isEditable() = false, canBeConfirmed() = false, isFinal() = true
      */
     public static Timesheet createCompletedWorkflowScenario() {
         Timesheet timesheet = createDraftScenario();
-        timesheet.setStatus(ApprovalStatus.FINAL_APPROVED);
+        timesheet.setStatus(ApprovalStatus.FINAL_CONFIRMED);
         return timesheet;
     }
     
@@ -186,17 +186,17 @@ public class TimesheetWorkflowTestFixture {
         }
         
         public TimesheetTestBuilder awaitingTutorReview() {
-            this.status = ApprovalStatus.PENDING_TUTOR_REVIEW;
+            this.status = ApprovalStatus.PENDING_TUTOR_CONFIRMATION;
             return this;
         }
         
         public TimesheetTestBuilder readyForHRApproval() {
-            this.status = ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR;
+            this.status = ApprovalStatus.LECTURER_CONFIRMED;
             return this;
         }
         
         public TimesheetTestBuilder fullyApproved() {
-            this.status = ApprovalStatus.FINAL_APPROVED;
+            this.status = ApprovalStatus.FINAL_CONFIRMED;
             return this;
         }
         

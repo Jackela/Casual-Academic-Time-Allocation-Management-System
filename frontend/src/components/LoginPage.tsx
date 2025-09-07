@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-import { API_BASE_URL } from '../config';
+import { secureApiClient } from '../services/api-secure';
+import { secureLogger } from '../utils/secure-logger';
 import './LoginPage.css';
 
 interface LoginFormData {
@@ -61,25 +61,26 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     setError('');
 
-
     try {
-      // Make API call to backend login endpoint
-      const response = await axios.post<LoginResponse>(
-        `${API_BASE_URL}/api/auth/login`,
+      secureLogger.debug('Login attempt', { email: formData.email });
+      
+      // Make API call to backend login endpoint using secure client
+      const response = await secureApiClient.post<LoginResponse>(
+        '/api/auth/login',
         {
           email: formData.email,
           password: formData.password
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
         }
       );
 
-
       // Handle successful login
-      const { token, user } = response.data;
+      const { token, user } = response.data!;
+      
+      secureLogger.security('user_login', {
+        userId: user.id,
+        email: user.email,
+        role: user.role
+      });
       
       // Use the AuthContext login method
       login(token, user);
@@ -93,10 +94,14 @@ const LoginPage: React.FC = () => {
       const from = location.state?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
       
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const errorData = err.response?.data as LoginError;
-        setError(errorData?.message || `Login failed: ${err.message}`);
+    } catch (err: any) {
+      secureLogger.security('login_failed', {
+        email: formData.email,
+        error: err.error || err.message
+      });
+      
+      if (err.error && err.message) {
+        setError(err.message || 'Login failed. Please check your credentials.');
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
@@ -166,14 +171,29 @@ const LoginPage: React.FC = () => {
           </button>
         </form>
 
-        <div className="login-footer" data-testid="login-footer">
-          <p data-testid="credentials-title">Testing Credentials:</p>
-          <small data-testid="credentials-list">
-            • Admin: admin@example.com / Admin123!<br/>
-            • Lecturer: lecturer@example.com / Lecturer123!<br/>
-            • Tutor: tutor@example.com / Tutor123!
-          </small>
-        </div>
+        {/* Testing credentials for development only */}
+        {__DEV_CREDENTIALS__ && (
+          <div className="login-footer" data-testid="login-footer">
+            <p data-testid="credentials-title">Testing Credentials:</p>
+            <div className="credentials-list" data-testid="credentials-list">
+              <div className="credential-group">
+                <strong>Admin:</strong>
+                <span>admin@example.com</span>
+              </div>
+              <div className="credential-group">
+                <strong>Lecturer:</strong>
+                <span>lecturer@example.com</span>
+              </div>
+              <div className="credential-group">
+                <strong>Tutor:</strong>
+                <span>tutor@example.com</span>
+              </div>
+              <small style={{ marginTop: '8px', display: 'block', opacity: 0.7 }}>
+                Use any password for testing
+              </small>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

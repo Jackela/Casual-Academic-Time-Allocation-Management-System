@@ -175,12 +175,14 @@ public class ApprovalActionResponse {
     }
 
     /**
-     * Check if this response represents a successful approval.
+     * Check if this response represents a successful confirmation.
      * 
-     * @return true if action was APPROVE
+     * @return true if action was a confirmation type
      */
-    public boolean isApprovalResponse() {
-        return action == ApprovalAction.APPROVE;
+    public boolean isConfirmationResponse() {
+        return action == ApprovalAction.TUTOR_CONFIRM ||
+               action == ApprovalAction.LECTURER_CONFIRM ||
+               action == ApprovalAction.HR_CONFIRM;
     }
 
     /**
@@ -208,20 +210,20 @@ public class ApprovalActionResponse {
      */
     public static List<String> generateNextStepsForStatus(ApprovalStatus status) {
         switch (status) {
-            case PENDING_TUTOR_REVIEW:
+            case PENDING_TUTOR_CONFIRMATION:
                 return List.of(
                     "Timesheet is now pending lecturer approval",
                     "Lecturer will review and may request changes",
                     "Tutor can monitor status from their dashboard"
                 );
                 
-            case APPROVED_BY_TUTOR:
+            case TUTOR_CONFIRMED:
                 return List.of(
                     "Timesheet has been approved by tutor",
                     "Lecturer should now provide final approval"
                 );
                 
-            case FINAL_APPROVED:
+            case FINAL_CONFIRMED:
                 return List.of(
                     "Timesheet has been fully approved",
                     "Ready for payroll processing",

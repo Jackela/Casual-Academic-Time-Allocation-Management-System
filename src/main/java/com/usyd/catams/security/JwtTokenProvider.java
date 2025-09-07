@@ -31,38 +31,88 @@ public class JwtTokenProvider {
     private final long tokenValidityInMilliseconds;
 
     /**
-     * Construct JWT token provider
+     * Construct JWT token provider with secure key validation
      * 
      * @param secretKeyString Base64 encoded secret key string
      * @param validityInMilliseconds Token validity period in milliseconds
+     * @throws IllegalArgumentException if secret key is too weak
      */
     public JwtTokenProvider(@Value("${spring.security.jwt.secret}") String secretKeyString,
                            @Value("${spring.security.jwt.expiration}") long validityInMilliseconds) {
-        byte[] keyBytes = Base64.getDecoder().decode(secretKeyString);
+        // Validate secret key strength
+        if (secretKeyString == null || secretKeyString.trim().isEmpty()) {
+            throw new IllegalArgumentException("JWT secret key cannot be null or empty");
+        }
+        
+        byte[] keyBytes;
+        try {
+            keyBytes = Base64.getDecoder().decode(secretKeyString);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("JWT secret key must be valid Base64 encoded string", e);
+        }
+        
+        // Ensure minimum key length for HMAC-SHA256 (32 bytes = 256 bits)
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException(
+                String.format("JWT secret key too weak. Minimum 32 bytes required, got %d bytes", keyBytes.length)
+            );
+        }
+        
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
+        
+        // Validate token validity period
+        if (validityInMilliseconds <= 0) {
+            throw new IllegalArgumentException("Token validity period must be positive");
+        }
+        if (validityInMilliseconds > 24 * 60 * 60 * 1000L) { // 24 hours max
+            logger.warn("Token validity period exceeds 24 hours. Consider shorter periods for security.");
+        }
+        
         this.tokenValidityInMilliseconds = validityInMilliseconds;
+        logger.info("JWT token provider initialized with {}ms validity period", validityInMilliseconds);
     }
 
     /**
-     * Generate JWT token
+     * Generate JWT token with input validation
      * 
      * @param userId User ID
      * @param email User email
      * @param role User role
      * @return Generated JWT token
+     * @throws IllegalArgumentException if inputs are invalid
      */
     public String generateToken(Long userId, String email, String role) {
+        // Input validation
+        if (userId == null || userId <= 0) {
+            throw new IllegalArgumentException("User ID must be positive");
+        }
+        if (email == null || email.trim().isEmpty() || !email.contains("@")) {
+            throw new IllegalArgumentException("Valid email address required");
+        }
+        if (role == null || role.trim().isEmpty()) {
+            throw new IllegalArgumentException("User role cannot be null or empty");
+        }
+        
         Date now = new Date();
         Date validity = new Date(now.getTime() + tokenValidityInMilliseconds);
-
-        return Jwts.builder()
-                .subject(email)
-                .claim("userId", userId)
-                .claim("role", role)
-                .issuedAt(now)
-                .expiration(validity)
-                .signWith(secretKey)
-                .compact();
+        
+        try {
+            String token = Jwts.builder()
+                    .subject(email.trim())
+                    .claim("userId", userId)
+                    .claim("role", role.trim().toUpperCase())
+                    .claim("iss", "CATAMS") // Add issuer claim
+                    .issuedAt(now)
+                    .expiration(validity)
+                    .signWith(secretKey)
+                    .compact();
+                    
+            logger.debug("Generated JWT token for user: {} (ID: {})", email, userId);
+            return token;
+        } catch (Exception e) {
+            logger.error("Failed to generate JWT token for user: {}", email, e);
+            throw new RuntimeException("Token generation failed", e);
+        }
     }
     
     /**

@@ -1,12 +1,12 @@
 
+Resource Cleanup Protocol: Any task that starts background services must include cleanup steps when finished, ensuring all processes are closed and ports are released.
 
-资源清理原则 (Resource Cleanup Protocol): 任何启动了后台服务的任务，在结束时必须包含清理步骤，确保所有进程被关闭、端口被释放。
+Pyramid Debugging Method: When encountering bugs, direct E2E debugging is prohibited. Must follow bottom-up order: first verify utility functions with unit tests, then verify UI components with component tests (using Mock API), finally verify complete user flows with E2E tests.
 
+Non-Blocking Reporter: All Playwright commands must default to using --reporter=line or --reporter=null, blocking shell show-report is prohibited.
 
-
-金字塔调试法 (Pyramid Debugging Method): 当遇到Bug时，严禁直接用E2E调试。必须遵循从底层到上层的顺序：先用单元测试验证工具函数，再用组件测试（配合Mock API）验证UI组件，最后才用E2E测试验证完整的用户流程。
-
-
-
-无阻塞报告 (Non-Blocking Reporter): 所有Playwright指令，必须默认使用--reporter=line或--reporter=null，禁止使用会阻塞Shell的show-report。
-
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

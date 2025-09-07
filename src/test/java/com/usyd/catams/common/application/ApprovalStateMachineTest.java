@@ -40,30 +40,30 @@ class ApprovalStateMachineTest {
     
     /**
      * Test all valid state transitions based on documented business workflow.
-     * Business flow: DRAFT → PENDING_TUTOR_REVIEW → APPROVED_BY_TUTOR → APPROVED_BY_LECTURER_AND_TUTOR → FINAL_APPROVED
+     * Business flow: DRAFT → PENDING_TUTOR_CONFIRMATION → TUTOR_CONFIRMED → LECTURER_CONFIRMED → FINAL_CONFIRMED
      * This single test method replaces dozens of individual hardcoded tests.
      */
     @ParameterizedTest
     @DisplayName("Valid state transitions should succeed")
     @CsvSource({
         // Step 1: DRAFT can only be submitted
-        "DRAFT, SUBMIT_FOR_APPROVAL, PENDING_TUTOR_REVIEW",
+        "DRAFT, SUBMIT_FOR_APPROVAL, PENDING_TUTOR_CONFIRMATION",
         
-        // Step 2: PENDING_TUTOR_REVIEW - tutor can approve, reject, or request modifications
-        "PENDING_TUTOR_REVIEW, APPROVE, APPROVED_BY_TUTOR",
-        "PENDING_TUTOR_REVIEW, REJECT, REJECTED",
-        "PENDING_TUTOR_REVIEW, REQUEST_MODIFICATION, MODIFICATION_REQUESTED",
+        // Step 2: PENDING_TUTOR_CONFIRMATION - tutor can confirm, reject, or request modifications
+        "PENDING_TUTOR_CONFIRMATION, TUTOR_CONFIRM, TUTOR_CONFIRMED",
+        "PENDING_TUTOR_CONFIRMATION, REJECT, REJECTED",
+        "PENDING_TUTOR_CONFIRMATION, REQUEST_MODIFICATION, MODIFICATION_REQUESTED",
         
-        // Step 3: From APPROVED_BY_TUTOR, lecturer performs FINAL_APPROVAL to move to HR queue
-        "APPROVED_BY_TUTOR, FINAL_APPROVAL, APPROVED_BY_LECTURER_AND_TUTOR",
+        // Step 3: From TUTOR_CONFIRMED, lecturer performs FINAL_APPROVAL to move to HR queue
+        "TUTOR_CONFIRMED, LECTURER_CONFIRM, LECTURER_CONFIRMED",
         
-        // Step 4: APPROVED_BY_LECTURER_AND_TUTOR - HR can approve, reject, or request modifications
-        "APPROVED_BY_LECTURER_AND_TUTOR, APPROVE, FINAL_APPROVED",
-        "APPROVED_BY_LECTURER_AND_TUTOR, REJECT, REJECTED",
-        "APPROVED_BY_LECTURER_AND_TUTOR, REQUEST_MODIFICATION, MODIFICATION_REQUESTED",
+        // Step 4: LECTURER_CONFIRMED - HR can confirm, reject, or request modifications
+        "LECTURER_CONFIRMED, HR_CONFIRM, FINAL_CONFIRMED",
+        "LECTURER_CONFIRMED, REJECT, REJECTED",
+        "LECTURER_CONFIRMED, REQUEST_MODIFICATION, MODIFICATION_REQUESTED",
         
         // Recovery workflows: MODIFICATION_REQUESTED can be resubmitted
-        "MODIFICATION_REQUESTED, SUBMIT_FOR_APPROVAL, PENDING_TUTOR_REVIEW",
+        "MODIFICATION_REQUESTED, SUBMIT_FOR_APPROVAL, PENDING_TUTOR_CONFIRMATION",
         
     })
     void validTransitions_ShouldSucceed(ApprovalStatus fromStatus, ApprovalAction action, ApprovalStatus expectedStatus) {
@@ -86,40 +86,41 @@ class ApprovalStateMachineTest {
     @ParameterizedTest
     @DisplayName("Invalid state transitions should be rejected")
     @CsvSource({
-        // FINAL_APPROVED is a final state - no transitions allowed
-        "FINAL_APPROVED, SUBMIT_FOR_APPROVAL",
-        "FINAL_APPROVED, APPROVE", 
-        "FINAL_APPROVED, REJECT",
-        "FINAL_APPROVED, REQUEST_MODIFICATION",
-        
-        // FINAL_APPROVED is also a final state - no transitions allowed
-        "FINAL_APPROVED, SUBMIT_FOR_APPROVAL",
-        "FINAL_APPROVED, APPROVE",
-        "FINAL_APPROVED, REJECT",
-        "FINAL_APPROVED, REQUEST_MODIFICATION",
+        // FINAL_CONFIRMED is a final state - no transitions allowed
+        "FINAL_CONFIRMED, SUBMIT_FOR_APPROVAL",
+        "FINAL_CONFIRMED, TUTOR_CONFIRM", 
+        "FINAL_CONFIRMED, REJECT",
+        "FINAL_CONFIRMED, REQUEST_MODIFICATION",
         
         // Invalid transitions from DRAFT (can only submit)
-        "DRAFT, APPROVE",
+        "DRAFT, TUTOR_CONFIRM",
+        "DRAFT, LECTURER_CONFIRM",
+        "DRAFT, HR_CONFIRM",
         "DRAFT, REJECT",
         "DRAFT, REQUEST_MODIFICATION",
         
-        // Invalid transitions from APPROVED_BY_TUTOR (only FINAL_APPROVAL and REJECT are valid per SSOT)
-        "APPROVED_BY_TUTOR, SUBMIT_FOR_APPROVAL",
-        "APPROVED_BY_TUTOR, APPROVE",
+        // Invalid transitions from TUTOR_CONFIRMED (only LECTURER_CONFIRM and REJECT are valid)
+        "TUTOR_CONFIRMED, SUBMIT_FOR_APPROVAL",
+        "TUTOR_CONFIRMED, TUTOR_CONFIRM",
+        "TUTOR_CONFIRMED, HR_CONFIRM",
         
         // Invalid transitions from MODIFICATION_REQUESTED (can only resubmit)
-        "MODIFICATION_REQUESTED, APPROVE",
+        "MODIFICATION_REQUESTED, TUTOR_CONFIRM",
+        "MODIFICATION_REQUESTED, LECTURER_CONFIRM", 
+        "MODIFICATION_REQUESTED, HR_CONFIRM",
         "MODIFICATION_REQUESTED, REJECT",
         "MODIFICATION_REQUESTED, REQUEST_MODIFICATION",
         
-        // Invalid transitions from APPROVED_BY_LECTURER_AND_TUTOR (cannot submit)
-        "APPROVED_BY_LECTURER_AND_TUTOR, SUBMIT_FOR_APPROVAL",
+        // Invalid transitions from LECTURER_CONFIRMED (cannot submit)
+        "LECTURER_CONFIRMED, SUBMIT_FOR_APPROVAL",
         
-        // Invalid transitions from PENDING_TUTOR_REVIEW (cannot submit)
-        "PENDING_TUTOR_REVIEW, SUBMIT_FOR_APPROVAL",
+        // Invalid transitions from PENDING_TUTOR_CONFIRMATION (cannot submit)
+        "PENDING_TUTOR_CONFIRMATION, SUBMIT_FOR_APPROVAL",
         
         // Invalid transitions from REJECTED (terminal state - no actions allowed)
-        "REJECTED, APPROVE",
+        "REJECTED, TUTOR_CONFIRM",
+        "REJECTED, LECTURER_CONFIRM",
+        "REJECTED, HR_CONFIRM",
         "REJECTED, REJECT",
         "REJECTED, REQUEST_MODIFICATION",
         "REJECTED, SUBMIT_FOR_APPROVAL"
@@ -148,10 +149,10 @@ class ApprovalStateMachineTest {
         "DRAFT, true",
         "MODIFICATION_REQUESTED, true", 
         "REJECTED, false",
-        "PENDING_TUTOR_REVIEW, false",
-        "APPROVED_BY_TUTOR, false",
-        "APPROVED_BY_LECTURER_AND_TUTOR, false",
-        "FINAL_APPROVED, false"
+        "PENDING_TUTOR_CONFIRMATION, false",
+        "TUTOR_CONFIRMED, false",
+        "LECTURER_CONFIRMED, false",
+        "FINAL_CONFIRMED, false"
     })
     void statusEditable_ShouldBeCorrect(ApprovalStatus status, boolean expectedEditable) {
         assertThat(stateMachine.isEditable(status))
@@ -162,13 +163,13 @@ class ApprovalStateMachineTest {
     @ParameterizedTest
     @DisplayName("Pending status classification should be correct")
     @CsvSource({
-        "PENDING_TUTOR_REVIEW, true",
-        "APPROVED_BY_LECTURER_AND_TUTOR, true",
-        "APPROVED_BY_TUTOR, true",
+        "PENDING_TUTOR_CONFIRMATION, true",
+        "LECTURER_CONFIRMED, true",
+        "TUTOR_CONFIRMED, true",
         "DRAFT, false",
         "MODIFICATION_REQUESTED, false",
         "REJECTED, false",
-        "FINAL_APPROVED, false"
+        "FINAL_CONFIRMED, false"
     })
     void statusPending_ShouldBeCorrect(ApprovalStatus status, boolean expectedPending) {
         assertThat(stateMachine.isPending(status))
@@ -179,14 +180,14 @@ class ApprovalStateMachineTest {
     @ParameterizedTest
     @DisplayName("Final status classification should be correct")
     @CsvSource({
-        "FINAL_APPROVED, true",
-        "FINAL_APPROVED, true",
+        "FINAL_CONFIRMED, true",
+        "FINAL_CONFIRMED, true",
         "REJECTED, true",
         "DRAFT, false",
-        "PENDING_TUTOR_REVIEW, false",
-        "APPROVED_BY_TUTOR, false",
+        "PENDING_TUTOR_CONFIRMATION, false",
+        "TUTOR_CONFIRMED, false",
         "MODIFICATION_REQUESTED, false",
-        "APPROVED_BY_LECTURER_AND_TUTOR, false"
+        "LECTURER_CONFIRMED, false"
     })
     void statusFinal_ShouldBeCorrect(ApprovalStatus status, boolean expectedFinal) {
         assertThat(stateMachine.isFinal(status))
@@ -203,16 +204,16 @@ class ApprovalStateMachineTest {
     void everyNonFinalStatus_ShouldHaveValidActions(ApprovalStatus status) {
         Set<ApprovalAction> validActions = stateMachine.getValidActions(status);
         
-        if (status == ApprovalStatus.FINAL_APPROVED || 
-            status == ApprovalStatus.FINAL_APPROVED || 
+        if (status == ApprovalStatus.FINAL_CONFIRMED || 
+            status == ApprovalStatus.FINAL_CONFIRMED || 
             status == ApprovalStatus.REJECTED) {
             assertThat(validActions)
                 .as("Status %s should have no valid actions", status)
                 .isEmpty();
-        } else if (status == ApprovalStatus.APPROVED_BY_TUTOR) {
+        } else if (status == ApprovalStatus.TUTOR_CONFIRMED) {
             assertThat(validActions)
-                .as("APPROVED_BY_TUTOR should allow lecturer FINAL_APPROVAL and REJECT per SSOT")
-                .containsExactlyInAnyOrder(ApprovalAction.FINAL_APPROVAL, ApprovalAction.REJECT);
+                .as("TUTOR_CONFIRMED should allow lecturer CONFIRM, REJECT, and REQUEST_MODIFICATION")
+                .containsExactlyInAnyOrder(ApprovalAction.LECTURER_CONFIRM, ApprovalAction.REJECT, ApprovalAction.REQUEST_MODIFICATION);
         } else {
             assertThat(validActions)
                 .as("Non-final status %s should have at least one valid action", status)
@@ -248,7 +249,7 @@ class ApprovalStateMachineTest {
     @DisplayName("Null parameters should throw IllegalArgumentException")
     void nullParameters_ShouldThrowException() {
         // Test canTransition with null parameters
-        assertThatThrownBy(() -> stateMachine.canTransition(null, ApprovalAction.APPROVE))
+        assertThatThrownBy(() -> stateMachine.canTransition(null, ApprovalAction.TUTOR_CONFIRM))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("From status cannot be null");
             
@@ -257,7 +258,7 @@ class ApprovalStateMachineTest {
             .hasMessageContaining("Action cannot be null");
         
         // Test getNextStatus with null parameters
-        assertThatThrownBy(() -> stateMachine.getNextStatus(null, ApprovalAction.APPROVE))
+        assertThatThrownBy(() -> stateMachine.getNextStatus(null, ApprovalAction.TUTOR_CONFIRM))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("From status cannot be null");
             
@@ -288,31 +289,31 @@ class ApprovalStateMachineTest {
     }
     
     /**
-     * Test workflow scenario: Complete happy path from DRAFT to FINAL_APPROVED.
+     * Test workflow scenario: Complete happy path from DRAFT to FINAL_CONFIRMED.
      */
     @Test
     @DisplayName("Complete workflow scenario should work end-to-end")
     void completeWorkflowScenario_ShouldWork() {
         ApprovalStatus currentStatus = ApprovalStatus.DRAFT;
         
-        // Step 1: Submit for approval (DRAFT -> PENDING_TUTOR_REVIEW)
+        // Step 1: Submit for approval (DRAFT -> PENDING_TUTOR_CONFIRMATION)
         assertThat(stateMachine.canTransition(currentStatus, ApprovalAction.SUBMIT_FOR_APPROVAL)).isTrue();
         currentStatus = stateMachine.getNextStatus(currentStatus, ApprovalAction.SUBMIT_FOR_APPROVAL);
-        assertThat(currentStatus).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(currentStatus).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
-        // Step 2: Tutor approves (PENDING_TUTOR_REVIEW -> APPROVED_BY_TUTOR)
-        assertThat(stateMachine.canTransition(currentStatus, ApprovalAction.APPROVE)).isTrue();
-        currentStatus = stateMachine.getNextStatus(currentStatus, ApprovalAction.APPROVE);
-        assertThat(currentStatus).isEqualTo(ApprovalStatus.APPROVED_BY_TUTOR);
+        // Step 2: Tutor approves (PENDING_TUTOR_CONFIRMATION -> TUTOR_CONFIRMED)
+        assertThat(stateMachine.canTransition(currentStatus, ApprovalAction.TUTOR_CONFIRM)).isTrue();
+        currentStatus = stateMachine.getNextStatus(currentStatus, ApprovalAction.TUTOR_CONFIRM);
+        assertThat(currentStatus).isEqualTo(ApprovalStatus.TUTOR_CONFIRMED);
         
-        // Step 3: APPROVED_BY_TUTOR automatically transitions to APPROVED_BY_LECTURER_AND_TUTOR in business logic
+        // Step 3: TUTOR_CONFIRMED automatically transitions to LECTURER_CONFIRMED in business logic
         // For testing purposes, we'll simulate this by manually setting the status
-        currentStatus = ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR;
+        currentStatus = ApprovalStatus.LECTURER_CONFIRMED;
         
-        // Step 4: HR approves (APPROVED_BY_LECTURER_AND_TUTOR -> FINAL_APPROVED)
-        assertThat(stateMachine.canTransition(currentStatus, ApprovalAction.APPROVE)).isTrue();
-        currentStatus = stateMachine.getNextStatus(currentStatus, ApprovalAction.APPROVE);
-        assertThat(currentStatus).isEqualTo(ApprovalStatus.FINAL_APPROVED);
+        // Step 4: HR confirms (LECTURER_CONFIRMED -> FINAL_CONFIRMED)
+        assertThat(stateMachine.canTransition(currentStatus, ApprovalAction.HR_CONFIRM)).isTrue();
+        currentStatus = stateMachine.getNextStatus(currentStatus, ApprovalAction.HR_CONFIRM);
+        assertThat(currentStatus).isEqualTo(ApprovalStatus.FINAL_CONFIRMED);
         
         // Step 5: Verify final state
         assertThat(stateMachine.isFinal(currentStatus)).isTrue();
@@ -329,7 +330,7 @@ class ApprovalStateMachineTest {
         
         // Step 1: Submit for approval
         currentStatus = stateMachine.getNextStatus(currentStatus, ApprovalAction.SUBMIT_FOR_APPROVAL);
-        assertThat(currentStatus).isEqualTo(ApprovalStatus.PENDING_TUTOR_REVIEW);
+        assertThat(currentStatus).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
         // Step 2: Reject (terminal state)
         currentStatus = stateMachine.getNextStatus(currentStatus, ApprovalAction.REJECT);
@@ -356,17 +357,17 @@ class ApprovalStateMachineTest {
             .containsOnly(ApprovalAction.SUBMIT_FOR_APPROVAL);
             
         // Business rule: Pending states allow approval actions
-        assertThat(stateMachine.getValidActions(ApprovalStatus.PENDING_TUTOR_REVIEW))
-            .containsExactlyInAnyOrder(ApprovalAction.APPROVE, ApprovalAction.REJECT, ApprovalAction.REQUEST_MODIFICATION);
+        assertThat(stateMachine.getValidActions(ApprovalStatus.PENDING_TUTOR_CONFIRMATION))
+            .containsExactlyInAnyOrder(ApprovalAction.TUTOR_CONFIRM, ApprovalAction.REJECT, ApprovalAction.REQUEST_MODIFICATION);
             
-        assertThat(stateMachine.getValidActions(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR))
-            .containsExactlyInAnyOrder(ApprovalAction.APPROVE, ApprovalAction.REJECT, ApprovalAction.REQUEST_MODIFICATION);
+        assertThat(stateMachine.getValidActions(ApprovalStatus.LECTURER_CONFIRMED))
+            .containsExactlyInAnyOrder(ApprovalAction.HR_CONFIRM, ApprovalAction.REJECT, ApprovalAction.REQUEST_MODIFICATION);
             
-        // Business rule: Final states have no actions; APPROVED_BY_TUTOR allows FINAL_APPROVAL and REJECT per SSOT
-        assertThat(stateMachine.getValidActions(ApprovalStatus.FINAL_APPROVED)).isEmpty();
+        // Business rule: Final states have no actions; TUTOR_CONFIRMED allows FINAL_APPROVAL and REJECT per SSOT
+        assertThat(stateMachine.getValidActions(ApprovalStatus.FINAL_CONFIRMED)).isEmpty();
         assertThat(stateMachine.getValidActions(ApprovalStatus.REJECTED)).isEmpty();
-        assertThat(stateMachine.getValidActions(ApprovalStatus.APPROVED_BY_TUTOR))
-            .containsExactlyInAnyOrder(ApprovalAction.FINAL_APPROVAL, ApprovalAction.REJECT);
+        assertThat(stateMachine.getValidActions(ApprovalStatus.TUTOR_CONFIRMED))
+            .containsExactlyInAnyOrder(ApprovalAction.LECTURER_CONFIRM, ApprovalAction.REJECT, ApprovalAction.REQUEST_MODIFICATION);
         
         // Business rule: REJECTED is terminal state with no actions
         assertThat(stateMachine.getValidActions(ApprovalStatus.REJECTED))
@@ -387,19 +388,19 @@ class ApprovalStateMachineTest {
         assertThat(stateMachine.isEditable(ApprovalStatus.REJECTED)).isFalse(); // REJECTED is read-only
         
         // Business rule: Non-editable states prevent modifications
-        assertThat(stateMachine.isEditable(ApprovalStatus.PENDING_TUTOR_REVIEW)).isFalse();
-        assertThat(stateMachine.isEditable(ApprovalStatus.APPROVED_BY_TUTOR)).isFalse();
-        assertThat(stateMachine.isEditable(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR)).isFalse();
-        assertThat(stateMachine.isEditable(ApprovalStatus.FINAL_APPROVED)).isFalse();
-        assertThat(stateMachine.isEditable(ApprovalStatus.FINAL_APPROVED)).isFalse();
+        assertThat(stateMachine.isEditable(ApprovalStatus.PENDING_TUTOR_CONFIRMATION)).isFalse();
+        assertThat(stateMachine.isEditable(ApprovalStatus.TUTOR_CONFIRMED)).isFalse();
+        assertThat(stateMachine.isEditable(ApprovalStatus.LECTURER_CONFIRMED)).isFalse();
+        assertThat(stateMachine.isEditable(ApprovalStatus.FINAL_CONFIRMED)).isFalse();
+        assertThat(stateMachine.isEditable(ApprovalStatus.FINAL_CONFIRMED)).isFalse();
         
         // Business rule: Pending states require reviewer action
-        assertThat(stateMachine.isPending(ApprovalStatus.PENDING_TUTOR_REVIEW)).isTrue();
-        assertThat(stateMachine.isPending(ApprovalStatus.APPROVED_BY_LECTURER_AND_TUTOR)).isTrue();
+        assertThat(stateMachine.isPending(ApprovalStatus.PENDING_TUTOR_CONFIRMATION)).isTrue();
+        assertThat(stateMachine.isPending(ApprovalStatus.LECTURER_CONFIRMED)).isTrue();
         
         // Business rule: Final states complete workflow (terminal states)
-        assertThat(stateMachine.isFinal(ApprovalStatus.FINAL_APPROVED)).isTrue();
-        assertThat(stateMachine.isFinal(ApprovalStatus.FINAL_APPROVED)).isTrue();
+        assertThat(stateMachine.isFinal(ApprovalStatus.FINAL_CONFIRMED)).isTrue();
+        assertThat(stateMachine.isFinal(ApprovalStatus.FINAL_CONFIRMED)).isTrue();
         assertThat(stateMachine.isFinal(ApprovalStatus.REJECTED)).isTrue(); // REJECTED is final
         assertThat(stateMachine.isFinal(ApprovalStatus.DRAFT)).isFalse();
     }

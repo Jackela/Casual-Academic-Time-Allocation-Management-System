@@ -210,12 +210,14 @@ public class Approval {
     }
     
     /**
-     * Check if this approval represents an approval action.
+     * Check if this approval represents a confirmation action.
      * 
-     * @return true if this is an approval
+     * @return true if this is a confirmation
      */
-    public boolean isApproval() {
-        return action == ApprovalAction.APPROVE;
+    public boolean isConfirmation() {
+        return action == ApprovalAction.TUTOR_CONFIRM || 
+               action == ApprovalAction.LECTURER_CONFIRM || 
+               action == ApprovalAction.HR_CONFIRM;
     }
     
     /**

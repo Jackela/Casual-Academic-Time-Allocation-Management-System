@@ -151,14 +151,14 @@ public class TestDataBuilderValidation {
         
         // Test approval status transitions
         Timesheet pendingTimesheet = TestDataBuilder.aDraftTimesheet()
-            .asPendingTutorReview()
+            .asPendingTutorConfirmation()
             .build();
-        assert pendingTimesheet.getStatus() == ApprovalStatus.PENDING_TUTOR_REVIEW : "Status should be PENDING_TUTOR_REVIEW";
+        assert pendingTimesheet.getStatus() == ApprovalStatus.PENDING_TUTOR_CONFIRMATION : "Status should be PENDING_TUTOR_CONFIRMATION";
         
         Timesheet approvedTimesheet = TestDataBuilder.aDraftTimesheet()
-            .asApprovedByTutor()
+            .asTutorConfirmed()
             .build();
-        assert approvedTimesheet.getStatus() == ApprovalStatus.APPROVED_BY_TUTOR : "Status should be APPROVED_BY_TUTOR";
+        assert approvedTimesheet.getStatus() == ApprovalStatus.TUTOR_CONFIRMED : "Status should be TUTOR_CONFIRMED";
         
         System.out.println("✓ Timesheet creation validation passed");
     }

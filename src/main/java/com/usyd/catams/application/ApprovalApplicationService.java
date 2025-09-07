@@ -82,8 +82,14 @@ public class ApprovalApplicationService implements ApprovalService {
             case SUBMIT_FOR_APPROVAL:
                 approval = timesheet.submitForApproval(requesterId, comment);
                 break;
-            case APPROVE:
-                approval = timesheet.approve(requesterId, comment);
+            case TUTOR_CONFIRM:
+                approval = timesheet.confirmByTutor(requesterId, comment);
+                break;
+            case LECTURER_CONFIRM:
+                approval = timesheet.confirmByLecturer(requesterId, comment);
+                break;
+            case HR_CONFIRM:
+                approval = timesheet.confirmByHR(requesterId, comment);
                 break;
             case REJECT:
                 approval = timesheet.reject(requesterId, comment);
@@ -91,11 +97,8 @@ public class ApprovalApplicationService implements ApprovalService {
             case REQUEST_MODIFICATION:
                 approval = timesheet.requestModification(requesterId, comment);
                 break;
-            case FINAL_APPROVAL:
-                approval = timesheet.finalApprove(requesterId, comment);
-                break;
             default:
-                throw new IllegalArgumentException("Unsupported approval action: " + action);
+                throw new IllegalArgumentException("Unsupported confirmation action: " + action);
         }
 
         // 5. Save the timesheet aggregate (which cascades to save approvals)

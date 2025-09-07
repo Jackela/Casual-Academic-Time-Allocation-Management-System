@@ -213,7 +213,7 @@ export async function cleanupPorts(...ports: number[]): Promise<void> {
         let output = '';
         netstat.stdout.on('data', (data) => output += data.toString());
         
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve, _reject) => {
           netstat.on('close', async (code) => {
             if (code === 0) {
               const lines = output.split('\n');

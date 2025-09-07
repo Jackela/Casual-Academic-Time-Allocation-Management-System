@@ -6,14 +6,14 @@
  */
 
 import { vi } from 'vitest';
-import axios, { AxiosResponse, AxiosError } from 'axios';
+import axios from 'axios';
+import type { AxiosResponse, AxiosError } from 'axios';
 import { 
   OpenAPIMockGenerator, 
-  MockScenarios,
-  TimesheetPageResponse,
-  AuthResult,
-  ApprovalActionResponse,
-  ErrorResponse
+  MockScenarios
+} from './openapi-mock-generator';
+import type {
+  TimesheetPageResponse
 } from './openapi-mock-generator';
 
 // ========================================
@@ -146,22 +146,22 @@ export class EnhancedMockService {
     vi.mocked(axios.create).mockReturnValue(mockAxiosInstance as any);
     
     // Mock direct axios methods as well (critical for fallback)
-    vi.mocked(axios.get).mockImplementation((url: string, config?: any) => {
+    vi.mocked(axios.get).mockImplementation((url: string, _config?: any) => {
       console.log(`[MOCK-DIRECT] GET ${url}`);
       return this.handleGetRequest(url);
     });
     
-    vi.mocked(axios.post).mockImplementation((url: string, data?: any, config?: any) => {
+    vi.mocked(axios.post).mockImplementation((url: string, data?: any, _config?: any) => {
       console.log(`[MOCK-DIRECT] POST ${url}`, data);
       return this.handlePostRequest(url, data);
     });
     
-    vi.mocked(axios.put).mockImplementation((url: string, data?: any, config?: any) => {
+    vi.mocked(axios.put).mockImplementation((url: string, data?: any, _config?: any) => {
       console.log(`[MOCK-DIRECT] PUT ${url}`, data);
       return this.handlePutRequest(url, data);
     });
     
-    vi.mocked(axios.delete).mockImplementation((url: string, config?: any) => {
+    vi.mocked(axios.delete).mockImplementation((url: string, _config?: any) => {
       console.log(`[MOCK-DIRECT] DELETE ${url}`);
       return this.handleDeleteRequest(url);
     });
@@ -308,7 +308,8 @@ export class EnhancedMockService {
   private static async handleTimesheetCreation(data: any): Promise<AxiosResponse> {
     // Validate using OpenAPI schema
     try {
-      const boundary = OpenAPIMockGenerator.generateTimesheetCreateBoundaryValues();
+      // Validate using OpenAPI schema boundary values (available but not currently used)
+      // const boundary = OpenAPIMockGenerator.generateTimesheetCreateBoundaryValues();
       
       // Basic validation
       if (!data.tutorId || !data.courseId || !data.hours || !data.hourlyRate || !data.description) {
@@ -411,7 +412,7 @@ export class EnhancedMockService {
    * Handle approval actions
    */
   private static async handleApprovalAction(data: any): Promise<AxiosResponse> {
-    const { timesheetId, action, comment } = data;
+    const { timesheetId, action, comment: _comment } = data;
 
     // Validate timesheet ID
     if (!timesheetId || timesheetId <= 0) {

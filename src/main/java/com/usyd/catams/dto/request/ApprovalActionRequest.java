@@ -122,12 +122,14 @@ public class ApprovalActionRequest {
     }
 
     /**
-     * Check if this request is for an approval action.
+     * Check if this request is for an approval/confirmation action.
      * 
-     * @return true if action is APPROVE
+     * @return true if action is any confirmation action
      */
     public boolean isApproval() {
-        return action == ApprovalAction.APPROVE;
+        return action == ApprovalAction.TUTOR_CONFIRM || 
+               action == ApprovalAction.LECTURER_CONFIRM || 
+               action == ApprovalAction.HR_CONFIRM;
     }
 
     /**

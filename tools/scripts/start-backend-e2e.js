@@ -13,7 +13,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 function readParams() {
-  const paramsPath = join(__dirname, '..', 'frontend', 'scripts', 'e2e.params.json');
+  const paramsPath = join(__dirname, '..', '..', 'frontend', 'scripts', 'e2e.params.json');
   const raw = fs.readFileSync(paramsPath, 'utf-8');
   return JSON.parse(raw);
 }
@@ -88,7 +88,7 @@ async function startBackendE2E({ timeoutMs = 180000, stream = true } = {}) {
   const args = ['bootRun', '-x', 'test'];
   const envJwtSecret = process.env.JWT_SECRET || crypto.randomBytes(64).toString('base64');
   const proc = spawn(process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew', args, {
-    cwd: join(__dirname, '..'),
+    cwd: join(__dirname, '..', '..'),
     stdio: stream ? 'inherit' : 'pipe',
     shell: true,
     env: {

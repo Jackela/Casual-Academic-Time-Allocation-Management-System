@@ -3,44 +3,48 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { worker } from './mocks/browser'
+import { ENV_CONFIG } from './utils/environment'
+import { secureLogger } from './utils/secure-logger'
 
-// E2E visibility: surface key env and storage state during app bootstrap
-try {
-  // eslint-disable-next-line no-console
-  console.log('[E2E] import.meta.env.MODE =', (() => { try { /* @ts-ignore */ return import.meta?.env?.MODE } catch { return undefined } })())
-  // eslint-disable-next-line no-console
-  console.log('[E2E] VITE_E2E_AUTH_BYPASS_ROLE =', (() => { try { /* @ts-ignore */ return import.meta?.env?.VITE_E2E_AUTH_BYPASS_ROLE } catch { return undefined } })())
-  // eslint-disable-next-line no-console
-  console.log('[E2E] storage snapshot (pre-render) =', {
-    token: (() => { try { return localStorage.getItem('token') } catch { return null } })(),
-    user: (() => { try { return localStorage.getItem('user') } catch { return null } })(),
-  })
+// E2E visibility: surface key env and storage state during app bootstrap  
+if (ENV_CONFIG.features.enableDetailedLogging()) {
   try {
-    // Expose env and storage snapshot for Playwright to introspect
-    // @ts-ignore
-    ;(window as any).__E2E_ENV__ = {
-      // @ts-ignore
-      mode: (() => { try { return import.meta?.env?.MODE } catch { return undefined } })(),
-      // @ts-ignore
-      bypassRole: (() => { try { return import.meta?.env?.VITE_E2E_AUTH_BYPASS_ROLE } catch { return undefined } })(),
+    secureLogger.e2e('Environment Debug Info', ENV_CONFIG.e2e.getDebugInfo());
+    secureLogger.debug('Storage snapshot (pre-render)', {
+      tokenExists: (() => { try { return !!localStorage.getItem('token') } catch { return false } })(),
+      userExists: (() => { try { return !!localStorage.getItem('user') } catch { return false } })(),
+    });
+  } catch (error) {
+    secureLogger.error('Error setting up E2E debugging', error);
+  }
+}
+
+// Expose globals for Playwright introspection - ONLY in E2E mode
+// This code block is completely removed in production builds via conditional compilation
+if (__E2E_GLOBALS__ && ENV_CONFIG.isE2E()) {
+  try {
+    (window as any).__E2E_ENV__ = {
+      ...ENV_CONFIG.e2e.getDebugInfo(),
       storage: {
-        token: (() => { try { return localStorage.getItem('token') } catch { return null } })(),
-        user: (() => { try { return localStorage.getItem('user') } catch { return null } })(),
+        tokenExists: (() => { try { return !!localStorage.getItem('token') } catch { return false } })(),
+        userExists: (() => { try { return !!localStorage.getItem('user') } catch { return false } })(),
       }
-    }
-  } catch {}
-} catch {}
+    };
+    secureLogger.e2e('E2E globals exposed', (window as any).__E2E_ENV__);
+  } catch (error) {
+    secureLogger.error('Error exposing E2E globals', error);
+  }
+}
 
 // Start MSW only when explicitly enabled via VITE_E2E_USE_MSW in e2e mode
-try {
-  // @ts-ignore
-  const isE2E = typeof import.meta !== 'undefined' && import.meta?.env?.MODE === 'e2e'
-  // @ts-ignore
-  const useMsw = (() => { try { return String(import.meta?.env?.VITE_E2E_USE_MSW || '').toLowerCase() } catch { return '' } })()
-  if (isE2E && (useMsw === 'true' || useMsw === '1')) {
-    worker.start({ quiet: true })
+if (ENV_CONFIG.e2e.shouldUseMSW()) {
+  try {
+    worker.start({ quiet: true });
+    secureLogger.e2e('MSW started for E2E testing');
+  } catch (error) {
+    secureLogger.error('Error starting MSW', error);
   }
-} catch {}
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

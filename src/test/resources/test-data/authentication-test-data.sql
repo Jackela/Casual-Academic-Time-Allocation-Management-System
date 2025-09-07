@@ -37,7 +37,7 @@ SELECT
     8.0,
     45.00,
     'Authentication test timesheet',
-    'PENDING_TUTOR_REVIEW',
+    'PENDING_TUTOR_CONFIRMATION',
     t.id,
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP

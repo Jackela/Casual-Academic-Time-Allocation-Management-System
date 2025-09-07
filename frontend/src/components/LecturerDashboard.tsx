@@ -93,7 +93,7 @@ const LecturerDashboard: React.FC = () => {
     }
   };
 
-  const handleApprovalAction = async (timesheetId: number, action: 'APPROVE' | 'REJECT') => {
+  const handleApprovalAction = async (timesheetId: number, action: 'LECTURER_CONFIRM' | 'REJECT' | 'HR_CONFIRM') => {
     try {
       setActionLoading(timesheetId);
       setError('');
@@ -103,7 +103,7 @@ const LecturerDashboard: React.FC = () => {
         {
           timesheetId: timesheetId,
           action: action,
-          comment: action === 'APPROVE' ? 'Approved by lecturer' : 'Rejected by lecturer'
+          comment: action === 'LECTURER_CONFIRM' ? 'Confirmed by lecturer' : 'Rejected by lecturer'
         },
         {
           headers: {
@@ -196,7 +196,7 @@ const LecturerDashboard: React.FC = () => {
 
       <div className="timesheets-section">
         <div className="section-header">
-          <h2>Pending Timesheet Approvals</h2>
+          <h2>Pending Timesheet Confirmations</h2>
           <span className="count-badge" data-testid="count-badge">{timesheets.length} pending</span>
         </div>
 
@@ -261,16 +261,16 @@ const LecturerDashboard: React.FC = () => {
                     <td>
                       <div className="action-buttons">
                         <button
-                          onClick={() => handleApprovalAction(timesheet.id, 'FINAL_APPROVAL')}
+                          onClick={() => handleApprovalAction(timesheet.id, 'LECTURER_CONFIRM')}
                           disabled={actionLoading === timesheet.id}
                           className="approve-btn"
                           data-testid={`approve-btn-${timesheet.id}`}
-                          title="Final approve timesheet"
+                          title="Confirm timesheet"
                         >
                           {actionLoading === timesheet.id ? (
                             <div className="button-spinner" data-testid={`approve-spinner-${timesheet.id}`}></div>
                           ) : (
-                            <>Final Approve</>
+                            <>Confirm</>
                           )}
                         </button>
                         <button

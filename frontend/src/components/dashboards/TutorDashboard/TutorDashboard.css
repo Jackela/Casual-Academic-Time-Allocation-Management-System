@@ -1,0 +1,84 @@
+/**
+ * Tutor Dashboard Styles
+ * 
+ * Clean, functional styling for the tutor dashboard interface.
+ */
+
+.tutor-dashboard {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.tutor-dashboard__header {
+  margin-bottom: 2rem;
+}
+
+.tutor-dashboard__title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+.tutor-dashboard__subtitle {
+  color: #6B7280;
+  font-size: 1rem;
+}
+
+.tutor-dashboard__content {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.tutor-dashboard__section {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+  padding: 1.5rem;
+}
+
+.tutor-dashboard__section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 1rem 0;
+}
+
+.tutor-dashboard__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #6B7280;
+}
+
+.tutor-dashboard__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #DC2626;
+  text-align: center;
+}
+
+.tutor-dashboard__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #6B7280;
+  text-align: center;
+}
+
+/* Mobile responsive classes */
+.mobile-layout {
+  padding: 1rem;
+}
+
+.mobile-layout .tutor-dashboard__content {
+  gap: 1rem;
+}

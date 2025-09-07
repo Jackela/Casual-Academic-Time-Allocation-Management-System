@@ -2,6 +2,8 @@
  * Shared API configuration for both production and test environments
  */
 
+import { ENV_CONFIG } from '../utils/environment';
+
 export const API_CONFIG = {
   // Default backend configuration
   BACKEND: {
@@ -30,11 +32,12 @@ export const getApiBaseUrl = (): string => {
   }
   
   // Check for E2E mode in browser environment
+  if (ENV_CONFIG.isE2E()) {
+    return API_CONFIG.BACKEND.E2E_URL;
+  }
+  
+  // Production/development environment - check for custom API URL
   try {
-    if (import.meta?.env?.MODE === 'e2e') {
-      return API_CONFIG.BACKEND.E2E_URL;
-    }
-    // Production/development environment
     if (import.meta?.env?.VITE_API_BASE_URL) {
       return import.meta.env.VITE_API_BASE_URL;
     }

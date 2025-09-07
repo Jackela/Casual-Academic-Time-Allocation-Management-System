@@ -1,11 +1,14 @@
-// src/config.ts
+/**
+ * Main Configuration Entry Point
+ * 
+ * Provides legacy compatibility while transitioning to unified configuration system.
+ * @deprecated - Migrate to unified-config.ts for new features
+ */
 
-const getApiBaseUrl = () => {
-  if (import.meta.env.MODE === 'e2e') {
-    return 'http://localhost:8084';
-  }
-  // For development and production, default to 8084 where backend runs
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8084';
-};
+import { API_BASE_URL as LEGACY_API_BASE_URL } from './config/migration';
 
-export const API_BASE_URL = getApiBaseUrl();
+// Re-export for backward compatibility
+export const API_BASE_URL = LEGACY_API_BASE_URL;
+
+// Re-export unified config for modern usage
+export { getConfig, isFeatureEnabled, getApiEndpoint, getEndpoint } from './config/unified-config';

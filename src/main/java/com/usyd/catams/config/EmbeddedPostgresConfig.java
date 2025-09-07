@@ -11,8 +11,6 @@ import org.testcontainers.DockerClientFactory;
 import javax.sql.DataSource;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,31 +31,20 @@ public class EmbeddedPostgresConfig {
     private static final Logger logger = LoggerFactory.getLogger(EmbeddedPostgresConfig.class);
     
     /**
-     * Primary DataSource using TestContainers - preferred approach
+     * Primary DataSource using TestContainers when Docker is available,
+     * otherwise fall back to Embedded Postgres (Zonky) so local demo can run without Docker.
      */
     @Bean(destroyMethod = "close")
     public DataSource dataSource() throws Exception {
         logger.info("🔧 Configuring E2E database for local environment...");
-        
-        // Check Docker availability first
-        if (!isDockerAvailable()) {
-            logger.error("❌ Docker is not available or not running!");
-            logger.error("📋 To run E2E tests locally, please:");
-            logger.error("   1. Install Docker Desktop");
-            logger.error("   2. Start Docker Desktop");
-            logger.error("   3. Verify with: docker --version");
-            logger.error("💡 Alternative: Run E2E tests in CI/CD environment with Docker support");
-            
-            // Exit gracefully rather than trying problematic embedded postgres
-            throw new RuntimeException(
-                "E2E tests require Docker for TestContainers. " +
-                "Please install and start Docker Desktop, then try again. " +
-                "For CI/CD environments, ensure Docker service is available."
-            );
+
+        if (isDockerAvailable()) {
+            logger.info("✅ Docker detected, using TestContainers PostgreSQL...");
+            return createTestContainerDataSource();
         }
-        
-        logger.info("✅ Docker detected, using TestContainers PostgreSQL...");
-        return createTestContainerDataSource();
+
+        logger.warn("⚠️  Docker not available - falling back to Embedded Postgres (Zonky)");
+        return createEmbeddedDataSource();
     }
     
     /**
@@ -114,6 +101,44 @@ public class EmbeddedPostgresConfig {
                 "Please ensure Docker Desktop is running and has sufficient resources. " +
                 "Error: " + e.getMessage(), e
             );
+        }
+    }
+
+    /**
+     * Create Embedded Postgres-based DataSource (Zonky)
+     */
+    private DataSource createEmbeddedDataSource() {
+        try {
+            EmbeddedPostgres embedded = EmbeddedPostgres.start();
+            int port = embedded.getPort();
+            logger.info("🐘 Embedded PostgreSQL started on port: {}", port);
+
+            HikariDataSource ds = new HikariDataSource();
+            ds.setJdbcUrl("jdbc:postgresql://localhost:" + port + "/postgres");
+            ds.setUsername("postgres");
+            ds.setPassword("");
+            ds.setMaximumPoolSize(10);
+            ds.setMinimumIdle(1);
+            ds.setAutoCommit(true);
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try { ds.close(); } catch (Exception ignored) {}
+                try {
+                    logger.info("🧹 Stopping embedded PostgreSQL...");
+                    embedded.close();
+                } catch (Exception e) {
+                    logger.warn("⚠️  Error stopping embedded PostgreSQL: {}", e.getMessage());
+                }
+            }));
+
+            try (Connection conn = ds.getConnection()) {
+                logger.info("✅ Embedded database connection verified successfully");
+            }
+
+            return ds;
+        } catch (Exception e) {
+            logger.error("❌ Failed to start Embedded PostgreSQL: {}", e.getMessage());
+            throw new RuntimeException("Failed to start Embedded PostgreSQL: " + e.getMessage(), e);
         }
     }
     

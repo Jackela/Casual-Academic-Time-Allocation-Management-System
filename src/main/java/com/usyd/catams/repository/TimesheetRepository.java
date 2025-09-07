@@ -205,7 +205,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @return total pay amount
      */
     @Query("SELECT COALESCE(SUM(t.hours * t.hourlyRate.amount), 0) FROM Timesheet t WHERE " +
-           "t.tutorId = :tutorId AND t.courseId = :courseId AND t.status = 'FINAL_APPROVED'")
+           "t.tutorId = :tutorId AND t.courseId = :courseId AND t.status = 'FINAL_CONFIRMED'")
     BigDecimal getTotalApprovedPayByTutorAndCourse(@Param("tutorId") Long tutorId, @Param("courseId") Long courseId);
 
     /**
@@ -215,7 +215,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @return total budget used
      */
     @Query("SELECT COALESCE(SUM(t.hours * t.hourlyRate.amount), 0) FROM Timesheet t WHERE " +
-           "t.courseId = :courseId AND t.status = 'FINAL_APPROVED'")
+           "t.courseId = :courseId AND t.status = 'FINAL_CONFIRMED'")
     BigDecimal getTotalApprovedBudgetUsedByCourse(@Param("courseId") Long courseId);
 
     /**
@@ -228,8 +228,8 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @return list of pending timesheets
      */
     @Query("SELECT t FROM Timesheet t WHERE " +
-           "(:isHR = true AND t.status = 'APPROVED_BY_LECTURER_AND_TUTOR') OR " +
-           "(:isHR = false AND t.status = 'PENDING_TUTOR_REVIEW' AND t.tutorId = :approverId)")
+           "(:isHR = true AND t.status = 'LECTURER_CONFIRMED') OR " +
+           "(:isHR = false AND t.status = 'PENDING_TUTOR_CONFIRMATION' AND t.tutorId = :approverId)")
     List<Timesheet> findPendingTimesheetsForApprover(@Param("approverId") Long approverId, @Param("isHR") boolean isHR);
     
     /**
@@ -250,35 +250,35 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     Page<Timesheet> findByCreatedBy(Long createdBy, Pageable pageable);
     
     /**
-     * Find timesheets with PENDING_TUTOR_REVIEW status for courses taught by a specific lecturer.
+     * Find timesheets with PENDING_TUTOR_CONFIRMATION status for courses taught by a specific lecturer.
      * Used for the GET /api/timesheets/pending-approval endpoint.
      *
      * @param lecturerId the lecturer's ID
      * @param pageable paging and sorting information
-     * @return page of timesheets pending tutor review for the lecturer's courses
+     * @return page of timesheets pending tutor confirmation for the lecturer's courses
      */
-    @Query("SELECT t FROM Timesheet t WHERE t.status = 'PENDING_TUTOR_REVIEW' AND t.courseId IN " +
+    @Query("SELECT t FROM Timesheet t WHERE t.status = 'PENDING_TUTOR_CONFIRMATION' AND t.courseId IN " +
            "(SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId)")
     Page<Timesheet> findPendingLecturerApprovalByCourses(@Param("lecturerId") Long lecturerId, Pageable pageable);
     
     /**
-     * Find all timesheets with PENDING_TUTOR_REVIEW status (for ADMIN users).
+     * Find all timesheets with PENDING_TUTOR_CONFIRMATION status (for ADMIN users).
      * Used for the GET /api/timesheets/pending-approval endpoint.
      *
      * @param pageable paging and sorting information
-     * @return page of all timesheets pending tutor review
+     * @return page of all timesheets pending tutor confirmation
      */
     Page<Timesheet> findByStatusOrderByCreatedAtAsc(ApprovalStatus status, Pageable pageable);
 
     /**
-     * Find timesheets with APPROVED_BY_TUTOR status for courses taught by a specific lecturer.
+     * Find timesheets with TUTOR_CONFIRMED status for courses taught by a specific lecturer.
      * Used for the GET /api/timesheets/pending-final-approval endpoint.
      *
      * @param lecturerId the lecturer's ID
      * @param pageable paging and sorting information
-     * @return page of timesheets approved by tutor, awaiting lecturer final approval
+     * @return page of timesheets confirmed by tutor, awaiting lecturer final confirmation
      */
-    @Query("SELECT t FROM Timesheet t WHERE t.status = 'APPROVED_BY_TUTOR' AND t.courseId IN " +
+    @Query("SELECT t FROM Timesheet t WHERE t.status = 'TUTOR_CONFIRMED' AND t.courseId IN " +
            "(SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId)")
     Page<Timesheet> findApprovedByTutorByCourses(@Param("lecturerId") Long lecturerId, Pageable pageable);
     
@@ -303,7 +303,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
            "COUNT(t), " +
            "COALESCE(SUM(t.hours), 0), " +
            "COALESCE(SUM(t.hours * t.hourlyRate.amount), 0), " +
-           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', " +
+           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED', " +
            "'MODIFICATION_REQUESTED') THEN 1L ELSE 0L END)) " +
            "FROM Timesheet t " +
            "WHERE t.tutorId = :tutorId " +
@@ -341,7 +341,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
            "COUNT(t), " +
            "COALESCE(SUM(t.hours), 0), " +
            "COALESCE(SUM(t.hours * t.hourlyRate.amount), 0), " +
-           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', " +
+           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED', " +
            "'MODIFICATION_REQUESTED') THEN 1L ELSE 0L END)) " +
            "FROM Timesheet t " +
            "WHERE t.courseId IN :courseIds " +
@@ -378,7 +378,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
            "COUNT(t), " +
            "COALESCE(SUM(t.hours), 0), " +
            "COALESCE(SUM(t.hours * t.hourlyRate.amount), 0), " +
-           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', " +
+           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED', " +
            "'MODIFICATION_REQUESTED') THEN 1L ELSE 0L END)) " +
            "FROM Timesheet t " +
            "WHERE t.weekPeriod.weekStartDate BETWEEN :startDate AND :endDate")
@@ -412,7 +412,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
            "COUNT(t), " +
            "COALESCE(SUM(t.hours), 0), " +
            "COALESCE(SUM(t.hours * t.hourlyRate.amount), 0), " +
-           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'APPROVED_BY_LECTURER_AND_TUTOR', " +
+           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED', " +
            "'MODIFICATION_REQUESTED') THEN 1L ELSE 0L END)) " +
            "FROM Timesheet t " +
            "WHERE t.courseId = :courseId " +

@@ -24,7 +24,7 @@ graph TD
   D --> D2[e2e]
   D --> D3[playwright.config.ts]
   D --> D4[vitest.config.ts]
-  A --> S[scripts]
+  A --> S[tools/scripts]
   S --> S1[test-backend-unit.js]
   S --> S2[test-backend-integration.js]
   S --> S3[test-frontend-unit.js]
@@ -66,12 +66,12 @@ graph TD
 
 ## How to Run
 
-- Backend Unit: `node scripts/test-backend-unit.js`
-- Backend Integration: `node scripts/test-backend-integration.js`
-- Frontend Unit: `node scripts/test-frontend-unit.js`
-- Frontend Contract: `node scripts/test-frontend-contract.js`
-- Frontend E2E (ui/mobile/all): `node scripts/run-e2e.js --project=ui|mobile|all`
-- Full layered: `node scripts/test-all.js`
+- Backend Unit: `node tools/scripts/test-backend-unit.js`
+- Backend Integration: `node tools/scripts/test-backend-integration.js`
+- Frontend Unit: `node tools/scripts/test-frontend-unit.js`
+- Frontend Contract: `node tools/scripts/test-frontend-contract.js`
+- Frontend E2E (ui/mobile/all): `node tools/scripts/run-e2e.js --project=ui|mobile|all`
+- Full layered: `node tools/scripts/test-all.js`
 
 ## Report Locations
 
