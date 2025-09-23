@@ -7,6 +7,10 @@
 
 import { ENV_CONFIG } from './environment';
 
+const DEBUG_LOGGING_FLAG = typeof __DEBUG_LOGGING__ !== 'undefined'
+  ? __DEBUG_LOGGING__
+  : false;
+
 /**
  * Sensitive data patterns that should never be logged in production
  */
@@ -108,7 +112,7 @@ export const secureLogger = {
    * Completely stripped from production builds via conditional compilation
    */
   debug: (message: string, data?: any): void => {
-    if (__DEBUG_LOGGING__ && ENV_CONFIG.features.enableDetailedLogging()) {
+    if (DEBUG_LOGGING_FLAG && ENV_CONFIG.features.enableDetailedLogging()) {
       const { message: safeMessage, data: safeData } = createSafeLogMessage(message, data);
       if (safeData !== undefined) {
         console.debug(`[${getTimestamp()}] ${safeMessage}`, safeData);

@@ -6,6 +6,10 @@ plugins {
     id("com.github.node-gradle.node") version "7.1.0" // 1. Introduce node-gradle plugin (Gradle 9 compat)
 }
 
+import org.springframework.boot.gradle.tasks.run.BootRun
+
+
+
 group = "com.usyd"
 version = "1.0.0"
 description = "CATAMS"
@@ -67,8 +71,7 @@ dependencies {
     implementation(libs.org.testcontainers.postgresql)
     // Testcontainers JDBC driver to enable jdbc:tc:postgresql URL in e2e
     implementation("org.testcontainers:jdbc:1.19.1")
-    // Embedded PostgreSQL for E2E testing
-    implementation("io.zonky.test:embedded-postgres:2.0.4")
+    // Removed Embedded PostgreSQL to enforce Testcontainers-only for E2E (fail fast)
     
 
     // JWT
@@ -264,3 +267,21 @@ sourceSets {
         }
     }
 }
+tasks.named<BootRun>("bootRun") {
+    val activeProfiles = System.getenv("SPRING_PROFILES_ACTIVE") ?: ""
+    val disableDevtools = System.getenv("DISABLE_DEVTOOLS") == "1" ||
+        activeProfiles.split(',').map { it.trim().lowercase() }.any { it == "e2e" || it == "e2e-local" }
+    systemProperty("spring.devtools.restart.enabled", "false")
+    systemProperty("spring.devtools.livereload.enabled", "false")
+    systemProperty("spring.devtools.add-properties", "false")
+    doFirst {
+        if (disableDevtools) {
+            classpath = classpath.filter { !it.name.contains("spring-boot-devtools") }
+        }
+    }
+}
+
+
+
+
+

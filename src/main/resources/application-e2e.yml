@@ -1,41 +1,41 @@
 # E2E Test Profile Configuration
-# Uses Testcontainers PostgreSQL for E2E testing
+# Testcontainers PostgreSQL (JDBC driver) - fail fast if Docker is unavailable
 
 spring:
-  # Database Configuration (H2 for UAT)
   datasource:
-    url: jdbc:h2:mem:catams-e2e-uat
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: password
-    
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-    
-  # JPA Configuration (E2E-specific)
+    # Testcontainers JDBC URL. Ensures a fresh PostgreSQL container for E2E
+    url: jdbc:tc:postgresql:15:///catams
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    username: catams_user
+    password: catams_password
+
+  # JPA Configuration (validate schema via Flyway)
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
-        
-  # Disable Flyway for E2E tests (schema managed by Hibernate)
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Flyway enabled to migrate schema explicitly
   flyway:
-    enabled: false
-    
-  # Disable Spring Boot DevTools
+    enabled: true
+    baseline-on-migrate: true
+    clean-disabled: true
+    locations: classpath:db/migration
+    validate-migration-naming: true
+
+  # Disable DevTools in E2E
   devtools:
     restart:
       enabled: false
-      
+
   # Security Configuration
   security:
     jwt:
-      secret: Y2F0YW1zLWRlbW8tc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQtb25seS1ub3QtZm9yLXByb2R1Y3Rpb24=
+      # Default secret strictly for E2E
+      secret: ${JWT_SECRET:Y2F0YW1zLWRlbW8tc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQtb25seS1ub3QtZm9yLXByb2R1Y3Rpb24=}
       expiration: 86400000
 
 # CORS Configuration (E2E frontend port)
@@ -47,10 +47,10 @@ app:
 server:
   port: 8084
 
-# Logging Configuration (E2E-appropriate)
+# Logging Configuration (E2E)
 logging:
   level:
-    com.usyd.catams: INFO
+    com.usyd.catams: DEBUG
     org.springframework.security: WARN
     org.springframework.web: INFO
     org.springframework.web.servlet.handler.HandlerMappingIntrospector: INFO

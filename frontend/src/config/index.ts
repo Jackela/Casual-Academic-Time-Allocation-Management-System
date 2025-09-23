@@ -1,13 +1,9 @@
 /**
  * Configuration System Entry Point
- * 
+ *
  * Provides organized access to all configuration subsystems
  * and initialization/validation utilities.
  */
-
-// =============================================================================
-// Core Configuration Exports
-// =============================================================================
 
 export {
   getConfig,
@@ -26,23 +22,13 @@ export type {
   FeatureFlags
 } from './unified-config';
 
-// =============================================================================
-// Migration and Compatibility
-// =============================================================================
-
-export {
-  API_BASE_URL,
-  API_CONFIG,
-  getApiBaseUrl,
-  getMigrationReport
-} from './migration';
-
-// =============================================================================
-// Configuration Initialization
-// =============================================================================
-
-import { getConfig, validateConfiguration } from './unified-config';
-import { validateConfigConsistency } from './migration';
+import {
+  getConfig,
+  validateConfiguration,
+  isFeatureEnabled,
+  getApiEndpoint,
+  getEndpoint
+} from './unified-config';
 import { secureLogger } from '../utils/secure-logger';
 
 /**
@@ -52,32 +38,24 @@ import { secureLogger } from '../utils/secure-logger';
 export function initializeConfiguration(): boolean {
   try {
     secureLogger.debug('Initializing configuration system...');
-    
-    // Load unified configuration
+
     const config = getConfig();
-    
-    // Validate configuration
+
     if (!validateConfiguration()) {
       throw new Error('Configuration validation failed');
     }
-    
-    // Validate consistency between legacy and unified configs
-    if (!validateConfigConsistency()) {
-      secureLogger.warn('Configuration consistency check failed - legacy and unified configs may be out of sync');
-    }
-    
+
     secureLogger.info('Configuration system initialized successfully', {
       environment: config.environment.getMode(),
       apiBaseUrl: config.api.baseUrl,
       featuresEnabled: Object.entries(config.features)
-        .filter(([_, enabled]) => enabled)
+        .filter(([, enabled]) => enabled)
         .map(([name]) => name),
       securityEnabled: config.security.enableLogging,
       performanceOptimized: config.performance.enableCaching
     });
-    
+
     return true;
-    
   } catch (error) {
     secureLogger.error('Configuration system initialization failed', error);
     return false;
@@ -89,7 +67,7 @@ export function initializeConfiguration(): boolean {
  */
 export function getConfigurationSummary() {
   const config = getConfig();
-  
+
   return {
     environment: {
       mode: config.environment.getMode(),
@@ -116,14 +94,11 @@ export function getConfigurationSummary() {
   };
 }
 
-// =============================================================================
-// Default Export
-// =============================================================================
-
 export default {
-  initialize: initializeConfiguration,
+  initializeConfiguration,
+  getConfigurationSummary,
   getConfig,
-  getSummary: getConfigurationSummary,
+  validateConfiguration,
   isFeatureEnabled,
   getApiEndpoint,
   getEndpoint

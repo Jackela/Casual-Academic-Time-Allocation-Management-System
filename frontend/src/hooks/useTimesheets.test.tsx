@@ -181,7 +181,7 @@ describe('useTimesheets Hook', () => {
 
   describe('Query Management', () => {
     it('should accept initial query parameters', async () => {
-      const initialQuery: TimesheetQuery = { status: 'SUBMITTED', page: 1, size: 10 };
+      const initialQuery: TimesheetQuery = { status: 'PENDING_TUTOR_CONFIRMATION', page: 1, size: 10 };
       
       renderHook(() => useTimesheets(initialQuery), { wrapper });
 
@@ -198,11 +198,11 @@ describe('useTimesheets Hook', () => {
       });
 
       act(() => {
-        result.current.updateQuery({ status: 'APPROVED_BY_LECTURER' });
+        result.current.updateQuery({ status: 'LECTURER_CONFIRMED' });
       });
 
       expect(mockTimesheetService.getTimesheets).toHaveBeenCalledWith({
-        status: 'APPROVED_BY_LECTURER'
+        status: 'LECTURER_CONFIRMED'
       });
     });
 
@@ -303,7 +303,7 @@ describe('useTimesheets Hook', () => {
 
       // Query 1
       act(() => {
-        result.current.updateQuery({ status: 'SUBMITTED' });
+        result.current.updateQuery({ status: 'PENDING_TUTOR_CONFIRMATION' });
       });
 
       await waitFor(() => {
@@ -312,7 +312,7 @@ describe('useTimesheets Hook', () => {
 
       // Query 2 - different parameters
       act(() => {
-        result.current.updateQuery({ status: 'APPROVED_BY_LECTURER' });
+        result.current.updateQuery({ status: 'LECTURER_CONFIRMED' });
       });
 
       expect(mockTimesheetService.getTimesheets).toHaveBeenCalledTimes(2); // 2 updates only
@@ -323,25 +323,33 @@ describe('useTimesheets Hook', () => {
     it('should cancel previous requests when making new ones', async () => {
       const abortSpy = vi.fn();
       const mockAbortController = {
-        abort: abortSpy,
+        abort: vi.fn(() => {
+          abortSpy();
+          mockAbortController.signal.aborted = true;
+        }),
         signal: { aborted: false }
       };
+      const originalAbortController = global.AbortController;
 
       global.AbortController = vi.fn(() => mockAbortController) as any;
 
-      const { result } = renderHook(() => useTimesheets(), { wrapper });
+      try {
+        const { result } = renderHook(() => useTimesheets(), { wrapper });
 
-      // Make first request
-      act(() => {
-        result.current.updateQuery({ status: 'SUBMITTED' });
-      });
+        // Make first request
+        act(() => {
+          result.current.updateQuery({ status: 'PENDING_TUTOR_CONFIRMATION' });
+        });
 
-      // Make second request before first completes
-      act(() => {
-        result.current.updateQuery({ status: 'APPROVED_BY_LECTURER' });
-      });
+        // Make second request before first completes
+        act(() => {
+          result.current.updateQuery({ status: 'LECTURER_CONFIRMED' });
+        });
 
-      expect(abortSpy).toHaveBeenCalled();
+        expect(abortSpy).toHaveBeenCalled();
+      } finally {
+        (global as any).AbortController = originalAbortController;
+      }
     });
 
     it('should not update state for aborted requests', async () => {
@@ -766,8 +774,8 @@ describe('useTimesheetStats Hook', () => {
     mockTimesheetService.calculateTotalHours.mockReturnValue(50);
     mockTimesheetService.calculateTotalPay.mockReturnValue(1775);
     mockTimesheetService.groupByStatus.mockReturnValue({
-      SUBMITTED: [mockTimesheet],
-      APPROVED_BY_LECTURER: [mockTimesheet]
+      PENDING_TUTOR_CONFIRMATION: [mockTimesheet],
+      LECTURER_CONFIRMED: [mockTimesheet]
     });
   });
 

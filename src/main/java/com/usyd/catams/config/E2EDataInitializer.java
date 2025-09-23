@@ -14,6 +14,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.security.crypto.password.PasswordEncoder;
 // E2E DB is provided by profile-specific datasource config
 
@@ -35,6 +36,7 @@ public class E2EDataInitializer {
      * Initialize E2E test data on application startup.
      */
     @Bean
+    @DependsOn("flyway")
     public CommandLineRunner initE2ETestData(
             UserRepository userRepository, 
             CourseRepository courseRepository,
@@ -179,6 +181,44 @@ public class E2EDataInitializer {
             );
             approvedByTutorTimesheet2.setStatus(ApprovalStatus.TUTOR_CONFIRMED);
             upsert.apply(approvedByTutorTimesheet2);
+
+            Timesheet lecturerConfirmedTimesheet = new Timesheet(
+                tutorUser.getId(),
+                course1.getId(),
+                lastMonday.minusDays(21),
+                new BigDecimal("9.5"),
+                new BigDecimal("46.00"),
+                "Awaiting HR final confirmation",
+                lecturerUser.getId()
+            );
+            lecturerConfirmedTimesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
+            upsert.apply(lecturerConfirmedTimesheet);
+
+            Timesheet finalConfirmedTimesheet = new Timesheet(
+                tutorUser.getId(),
+                course2.getId(),
+                twoWeeksAgoMonday.minusDays(28),
+                new BigDecimal("7.0"),
+                new BigDecimal("48.00"),
+                "Completed and paid timesheet",
+                lecturerUser.getId()
+            );
+            finalConfirmedTimesheet.setStatus(ApprovalStatus.FINAL_CONFIRMED);
+            upsert.apply(finalConfirmedTimesheet);
+
+            Timesheet modificationRequestedTimesheet = new Timesheet(
+                tutorUser.getId(),
+                course1.getId(),
+                lastMonday.minusDays(28),
+                new BigDecimal("5.5"),
+                new BigDecimal("41.00"),
+                "Needs additional clarification from tutor",
+                lecturerUser.getId()
+            );
+            modificationRequestedTimesheet.setStatus(ApprovalStatus.MODIFICATION_REQUESTED);
+            upsert.apply(modificationRequestedTimesheet);
+
+
             
             System.out.println("✅ E2E test data initialized");
         };

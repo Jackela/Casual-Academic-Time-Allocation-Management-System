@@ -9,6 +9,7 @@ CREATE TABLE timesheets (
     week_start_date DATE NOT NULL,
     hours DECIMAL(3,1) NOT NULL CHECK (hours >= 0.1 AND hours <= 40.0),
     hourly_rate DECIMAL(5,2) NOT NULL CHECK (hourly_rate >= 10.00 AND hourly_rate <= 200.00),
+    hourly_rate_currency VARCHAR(3) NOT NULL DEFAULT 'AUD',
     description TEXT NOT NULL CHECK (LENGTH(description) <= 1000),
     status VARCHAR(50) NOT NULL DEFAULT 'draft',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

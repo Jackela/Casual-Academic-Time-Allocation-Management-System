@@ -4,6 +4,7 @@
  * Tests for configuration loading, validation, and environment-specific behavior.
  */
 
+import { ENV_CONFIG } from '../utils/environment';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { 
   getConfig, 
@@ -110,23 +111,23 @@ describe('Unified Configuration System', () => {
     });
 
     it('should use E2E URL in E2E environment', () => {
-      const { ENV_CONFIG } = require('../utils/environment');
-      vi.mocked(ENV_CONFIG.isE2E).mockReturnValue(true);
+      const envConfig = vi.mocked(ENV_CONFIG);
+      envConfig.isE2E.mockReturnValue(true);
       
       resetConfig();
       const config = getConfig();
       
-      expect(config.api.baseUrl).toBe('http://localhost:8084');
+      expect(config.api.baseUrl).toBe('http://127.0.0.1:8084');
     });
 
     it('should use test URL in test environment', () => {
-      const { ENV_CONFIG } = require('../utils/environment');
-      vi.mocked(ENV_CONFIG.getMode).mockReturnValue('test');
+      const envConfig = vi.mocked(ENV_CONFIG);
+      envConfig.getMode.mockReturnValue('test');
       
       resetConfig();
       const config = getConfig();
       
-      expect(config.api.baseUrl).toBe('http://localhost:8084');
+      expect(config.api.baseUrl).toBe('http://127.0.0.1:8084');
     });
   });
 
@@ -153,9 +154,9 @@ describe('Unified Configuration System', () => {
     });
 
     it('should adjust session timeout for production', () => {
-      const { ENV_CONFIG } = require('../utils/environment');
-      vi.mocked(ENV_CONFIG.isProduction).mockReturnValue(true);
-      vi.mocked(ENV_CONFIG.isDevelopment).mockReturnValue(false);
+      const envConfig = vi.mocked(ENV_CONFIG);
+      envConfig.isProduction.mockReturnValue(true);
+      envConfig.isDevelopment.mockReturnValue(false);
       
       resetConfig();
       const config = getConfig();
@@ -174,8 +175,8 @@ describe('Unified Configuration System', () => {
     });
 
     it('should enable caching in production', () => {
-      const { ENV_CONFIG } = require('../utils/environment');
-      vi.mocked(ENV_CONFIG.isProduction).mockReturnValue(true);
+      const envConfig = vi.mocked(ENV_CONFIG);
+      envConfig.isProduction.mockReturnValue(true);
       
       resetConfig();
       const config = getConfig();
@@ -198,8 +199,8 @@ describe('Unified Configuration System', () => {
     });
 
     it('should enable all features in development', () => {
-      const { ENV_CONFIG } = require('../utils/environment');
-      vi.mocked(ENV_CONFIG.isDevelopment).mockReturnValue(true);
+      const envConfig = vi.mocked(ENV_CONFIG);
+      envConfig.isDevelopment.mockReturnValue(true);
       
       resetConfig();
       const config = getConfig();
@@ -211,9 +212,9 @@ describe('Unified Configuration System', () => {
     });
 
     it('should have conservative features in E2E environment', () => {
-      const { ENV_CONFIG } = require('../utils/environment');
-      vi.mocked(ENV_CONFIG.isE2E).mockReturnValue(true);
-      vi.mocked(ENV_CONFIG.isDevelopment).mockReturnValue(false);
+      const envConfig = vi.mocked(ENV_CONFIG);
+      envConfig.isE2E.mockReturnValue(true);
+      envConfig.isDevelopment.mockReturnValue(false);
       
       resetConfig();
       const config = getConfig();
@@ -263,10 +264,10 @@ describe('Unified Configuration System', () => {
     });
 
     it('should fail validation with invalid API base URL', () => {
-      const { ENV_CONFIG } = require('../utils/environment');
+      const envConfig = vi.mocked(ENV_CONFIG);
       
       // Mock invalid configuration by making getMode return invalid data
-      vi.mocked(ENV_CONFIG.getMode).mockReturnValue('invalid');
+      envConfig.getMode.mockReturnValue('invalid');
       
       // For this test, we need to mock the config builder to return invalid data
       // This is a simplified version - in reality you'd need more sophisticated mocking

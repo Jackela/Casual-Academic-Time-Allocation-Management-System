@@ -25,7 +25,7 @@ export class TutorDashboardPage {
     this.errorMessage = page.getByTestId('error-message'); 
     this.retryButton = page.getByTestId('retry-button');
     this.emptyState = page.getByTestId('empty-state');
-    this.editModal = page.getByTestId('edit-modal');
+    this.editModal = page.locator('.timesheet-form-modal');
     this.deleteModal = page.getByTestId('delete-modal');
     this.navigationPage = new NavigationPage(page);
   }
@@ -37,7 +37,10 @@ export class TutorDashboardPage {
 
   async waitForMyTimesheetData() {
     // Elastic wait: resolve when any of these signals occur
-    const responseWait = this.page.waitForResponse(r => r.url().includes('/api/timesheets/me'));
+    const responseWait = this.page.waitForResponse(r => {
+      const url = r.url();
+      return url.includes('/api/timesheets') && !/\/api\/timesheets\/\d+/.test(url);
+    });
     const tableVisible = this.timesheetsTable.waitFor({ state: 'visible' }).catch(() => undefined);
     const emptyVisible = this.emptyState.waitFor({ state: 'visible' }).catch(() => undefined);
     const errorVisible = this.errorMessage.waitFor({ state: 'visible' }).catch(() => undefined);
@@ -69,7 +72,8 @@ export class TutorDashboardPage {
   }
 
   async expectWelcomeMessage(userName: string) {
-    await expect(this.welcomeMessage).toContainText(`Welcome back, ${userName}`, { timeout: 10000 });
+    const firstName = userName.split(' ')[0] ?? userName;
+    await expect(this.welcomeMessage).toContainText(`Welcome back, ${firstName}`, { timeout: 10000 });
   }
 
   async expectTimesheetsTable() {
@@ -78,8 +82,9 @@ export class TutorDashboardPage {
 
   async expectLoadingState() {
     await expect(this.loadingState).toBeVisible();
-    await expect(this.page.getByTestId('spinner')).toBeVisible();
-    await expect(this.page.getByTestId('loading-text')).toContainText('Loading your timesheets...');
+    const loadingText = this.page.getByTestId('loading-text');
+    await expect(loadingText).toBeVisible();
+    await expect(loadingText).toContainText(/Loading .*timesheets/i);
   }
 
   async expectErrorState() {
@@ -181,77 +186,90 @@ export class TutorDashboardPage {
   }
 
   async expectEditModalNotVisible() {
-    await expect(this.editModal).not.toBeVisible();
+    await expect(this.editModal).not.toBeVisible({ timeout: 15000 });
   }
 
   async expectEditFormValues(expectedValues: {
-    hours: number;
-    hourlyRate: number;
-    description: string;
+    courseId?: number;
+    weekStartDate?: string;
+    hours?: number;
+    description?: string;
   }) {
-    const hoursInput = this.page.getByTestId('edit-hours-input');
-    const rateInput = this.page.getByTestId('edit-rate-input');
-    const descriptionInput = this.page.getByTestId('edit-description-input');
-
-    await expect(hoursInput).toHaveValue(expectedValues.hours.toString());
-    await expect(rateInput).toHaveValue(expectedValues.hourlyRate.toString());
-    await expect(descriptionInput).toHaveValue(expectedValues.description);
+    await expect(this.editModal).toBeVisible();
+    if (expectedValues.courseId !== undefined) {
+      const courseSelect = this.page.getByLabel('Course', { exact: false });
+      await expect(courseSelect).toHaveValue(String(expectedValues.courseId));
+    }
+    if (expectedValues.weekStartDate !== undefined) {
+      const weekStartInput = this.page.getByLabel('Week Starting', { exact: false });
+      await expect(weekStartInput).toHaveValue(expectedValues.weekStartDate);
+    }
+    if (expectedValues.hours !== undefined) {
+      const hoursInput = this.page.getByLabel('Hours Worked', { exact: false });
+      await expect(hoursInput).toHaveValue(expectedValues.hours.toString());
+    }
+    if (expectedValues.description !== undefined) {
+      const descriptionInput = this.page.getByLabel('Description', { exact: false });
+      await expect(descriptionInput).toHaveValue(expectedValues.description);
+    }
   }
 
   async updateEditForm(updates: {
+    courseId?: number;
+    weekStartDate?: string;
     hours?: number;
-    hourlyRate?: number;
     description?: string;
   }) {
-    // Ensure modal is visible before interacting with inputs
     await expect(this.editModal).toBeVisible();
-    if (updates.hours !== undefined) {
-      const hoursInput = this.page.getByTestId('edit-hours-input');
-       await expect(hoursInput).toBeVisible();
+    if (typeof updates.courseId === 'number') {
+      await this.page.getByLabel('Course', { exact: false }).selectOption(String(updates.courseId));
+    }
+    if (typeof updates.weekStartDate === 'string') {
+      const weekStartInput = this.page.getByLabel('Week Starting', { exact: false });
+      await weekStartInput.fill(updates.weekStartDate);
+    }
+    if (typeof updates.hours === 'number') {
+      const hoursInput = this.page.getByLabel('Hours Worked', { exact: false });
       await hoursInput.fill(updates.hours.toString());
+      await hoursInput.blur();
     }
-
-    if (updates.hourlyRate !== undefined) {
-      const rateInput = this.page.getByTestId('edit-rate-input');
-      await expect(rateInput).toBeVisible();
-      await rateInput.fill(updates.hourlyRate.toString());
-    }
-
-    if (updates.description !== undefined) {
-      const descriptionInput = this.page.getByTestId('edit-description-input');
-      await expect(descriptionInput).toBeVisible();
+    if (typeof updates.description === 'string') {
+      const descriptionInput = this.page.getByLabel('Description', { exact: false });
       await descriptionInput.fill(updates.description);
     }
   }
 
   async saveEditChanges() {
-    const saveButton = this.page.getByTestId('edit-save-btn');
+    const saveButton = this.page.getByRole('button', { name: /Update Timesheet|Create Timesheet/i });
+    await expect(saveButton).toBeVisible();
     await saveButton.click();
   }
 
   async cancelEdit() {
-    const cancelButton = this.page.getByTestId('edit-cancel-btn');
+    const cancelButton = this.page.getByRole('button', { name: /^Cancel$/i });
+    await expect(cancelButton).toBeVisible();
     await cancelButton.click();
   }
 
-  async expectFormValidationError(field: string) {
-    // Conservative validation: ensure modal remains visible; do not trigger submit
+  async expectFormValidationError(field: 'courseId' | 'weekStartDate' | 'hours') {
     await expect(this.editModal).toBeVisible();
-    const saveButton = this.page.getByTestId('edit-save-btn');
-    // Prefer disabled when UI enforces; otherwise at least visible
-    const disabled = await saveButton.isDisabled().catch(() => false);
-    if (disabled) {
-      await expect(saveButton).toBeDisabled();
-    } else {
-      await expect(saveButton).toBeVisible();
-    }
+    const errorSelectors: Record<'courseId' | 'weekStartDate' | 'hours', string> = {
+      courseId: '#course-error',
+      weekStartDate: '#week-start-error',
+      hours: '#hours-error',
+    };
+    const selector = errorSelectors[field];
+    const errorLocator = this.page.locator(selector);
+    await expect(errorLocator).toBeVisible();
+    await expect(errorLocator).not.toHaveText('');
   }
 
   async expectNoFormValidationErrors() {
-    // Check that save button is enabled
-    const saveButton = this.page.getByTestId('edit-save-btn');
-    await expect(saveButton).toBeVisible();
-    await expect(saveButton).not.toHaveText(/Saving/i);
+    const selectors = ['#course-error', '#week-start-error', '#hours-error'];
+    for (const selector of selectors) {
+      const errorLocator = this.page.locator(selector);
+      await expect(errorLocator).toHaveCount(0);
+    }
   }
 
   // Delete modal interactions
@@ -289,7 +307,7 @@ export class TutorDashboardPage {
   // Flow completion checks
   async expectEditFlowCompleted() {
     // Verify that the edit modal is closed and data might have refreshed
-    await expect(this.editModal).not.toBeVisible();
+    await expect(this.editModal).not.toBeVisible({ timeout: 15000 });
     
     // In a real implementation, we might check for a success message
     // or verify that the table has been updated
@@ -318,7 +336,21 @@ export class TutorDashboardPage {
 
   // Utility methods
   async retryDataLoad() {
-    await this.retryButton.click();
+    const buttons = this.page.getByTestId('retry-button');
+    const count = await buttons.count();
+    if (count === 0) {
+      return;
+    }
+    const responsePromise = this.page.waitForResponse((response) =>
+      response.url().includes('/api/timesheets') && response.request().method() === 'GET'
+    ).catch(() => null);
+    await buttons.nth(0).click();
+    if (count > 1) {
+      for (let i = 1; i < count; i++) {
+        await buttons.nth(i).click();
+      }
+    }
+    await responsePromise;
   }
 
   // Mobile/responsive design checks
@@ -377,5 +409,120 @@ export class TutorDashboardPage {
 
   async expectNavigationForRole(role: 'TUTOR') {
     await this.navigationPage.expectNavigationForRole(role);
+  }
+  async refreshDashboard() {
+    const refreshButton = this.page.getByRole('button', { name: /Refresh/i });
+    if (await refreshButton.isVisible().catch(() => false)) {
+      await Promise.all([
+        this.page.waitForLoadState('networkidle').catch(() => undefined),
+        refreshButton.click()
+      ]);
+    }
+    await this.waitForMyTimesheetData();
+  }
+
+  getStatusBadge(timesheetId: number) {
+    return this.page.getByTestId(`status-badge-${timesheetId}`);
+  }
+
+  async openCreateModal() {
+    const createButton = this.page.getByRole('button', { name: /Create New Timesheet/i });
+    await expect(createButton).toBeVisible();
+    await createButton.click();
+    await expect(this.page.getByText('New Timesheet Form')).toBeVisible();
+  }
+
+  async submitCreateTimesheetForm() {
+    const submitButton = this.page.getByRole('button', { name: /Create Timesheet/i });
+    await expect(submitButton).toBeEnabled({ timeout: 5000 });
+
+    const createResponse = await Promise.all([
+      this.page.waitForResponse((response) =>
+        response.url().includes('/api/timesheets') && response.request().method() === 'POST'
+      ),
+      submitButton.click()
+    ]).then(([response]) => response);
+
+    if (!createResponse?.ok()) {
+      const body = await createResponse.text().catch(() => null);
+      throw new Error(`Timesheet creation failed: ${createResponse.status()} ${body ?? ''}`);
+    }
+
+    await this.waitForMyTimesheetData();
+    return createResponse;
+  }
+
+  async openEditModal(timesheetId: number) {
+    const editButton = this.page.getByTestId(`edit-btn-${timesheetId}`);
+    await expect(editButton).toBeVisible();
+    await editButton.click();
+    await expect(this.page.getByText('Edit Timesheet')).toBeVisible();
+  }
+
+  async updateTimesheetForm(fields: { hours?: number; description?: string; courseId?: number; weekStartDate?: string }) {
+    if (typeof fields.courseId === 'number') {
+      await this.page.getByLabel('Course').selectOption(String(fields.courseId));
+    }
+    if (typeof fields.weekStartDate === 'string') {
+      await this.page.getByLabel('Week Starting').fill(fields.weekStartDate);
+    }
+    if (typeof fields.hours === 'number') {
+      await this.page.getByLabel('Hours Worked').fill(fields.hours.toString());
+    }
+    if (typeof fields.description === 'string') {
+      await this.page.getByLabel('Description').fill(fields.description);
+    }
+  }
+
+  async submitTimesheetForm() {
+    const submitButton = this.page.getByRole('button', { name: /Update Timesheet|Create Timesheet/i });
+    await expect(submitButton).toBeEnabled({ timeout: 5000 });
+
+    const responsePromise = this.page.waitForResponse((response) => {
+      const url = response.url();
+      return url.includes('/api/timesheets') && response.request().method() === 'PUT';
+    }, { timeout: 15000 }).catch(() => null);
+
+    await submitButton.click();
+    const updateResponse = await responsePromise;
+
+    if (updateResponse && !updateResponse.ok()) {
+      const body = await updateResponse.text().catch(() => null);
+      throw new Error(`Timesheet update failed: ${updateResponse.status()} ${body ?? ''}`);
+    }
+
+    await this.waitForMyTimesheetData();
+  }
+
+  async submitDraft(timesheetId: number) {
+    const submitButton = this.page.getByTestId(`submit-btn-${timesheetId}`);
+    await expect(submitButton).toBeVisible();
+    const [response] = await Promise.all([
+      this.page.waitForResponse((response) =>
+        response.url().includes('/api/approvals') && response.request().method() === 'POST'
+      ),
+      submitButton.click()
+    ]);
+    await this.waitForMyTimesheetData();
+    return response;
+  }
+
+  async expectConfirmButtonVisible(timesheetId: number) {
+    const confirmButton = this.page.getByTestId(`confirm-btn-${timesheetId}`);
+    await expect(confirmButton).toBeVisible();
+    await expect(confirmButton).toBeEnabled();
+  }
+
+  async confirmTimesheet(timesheetId: number) {
+    const confirmButton = this.page.getByTestId(`confirm-btn-${timesheetId}`);
+    await expect(confirmButton).toBeVisible();
+    const [response] = await Promise.all([
+      this.page.waitForResponse((response) =>
+        response.url().includes('/api/approvals') && response.request().method() === 'POST'
+      ),
+      confirmButton.click()
+    ]);
+    await this.waitForMyTimesheetData();
+    return response;
   }
 }

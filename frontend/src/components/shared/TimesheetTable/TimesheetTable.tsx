@@ -1,13 +1,12 @@
 /**
  * Optimized Timesheet Table Component
- * 
+ *
  * High-performance, fully optimized table component with virtualization,
  * memoization, and advanced features.
  */
 
-import React, { memo, useMemo, useCallback, useState } from 'react';
-// import { FixedSizeList as List } from 'react-window'; // Optional dependency for virtualization
-import type { Timesheet, ApprovalAction } from '../../../types/api';
+import React, { memo, useCallback, useMemo } from 'react';
+import type { Timesheet, ApprovalAction, TimesheetStatus } from '../../../types/api';
 import { formatters } from '../../../utils/formatting';
 import StatusBadge from '../StatusBadge/StatusBadge';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
@@ -16,6 +15,8 @@ import './TimesheetTable.css';
 // =============================================================================
 // Component Props & Types
 // =============================================================================
+
+export type ApprovalRole = 'LECTURER' | 'ADMIN' | 'HR';
 
 export interface TimesheetTableProps {
   timesheets: Timesheet[];
@@ -35,6 +36,8 @@ export interface TimesheetTableProps {
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
   onSort?: (field: string, direction: 'asc' | 'desc') => void;
+  actionMode?: 'approval' | 'tutor';
+  approvalRole?: ApprovalRole;
 }
 
 interface Column {
@@ -56,12 +59,10 @@ interface TimesheetRowProps {
   selected?: boolean;
   onSelectionChange?: (timesheetId: number, selected: boolean) => void;
   showSelection?: boolean;
+  actionMode?: 'approval' | 'tutor';
+  approvalRole?: ApprovalRole;
   style?: React.CSSProperties;
 }
-
-// =============================================================================
-// Memoized Row Component
-// =============================================================================
 
 const TimesheetRow = memo<TimesheetRowProps>(({
   timesheet,
@@ -73,94 +74,158 @@ const TimesheetRow = memo<TimesheetRowProps>(({
   selected = false,
   onSelectionChange,
   showSelection = false,
+  actionMode = 'approval',
+  approvalRole,
   style
 }) => {
   const handleRowClick = useCallback(() => {
     onRowClick?.(timesheet);
   }, [timesheet, onRowClick]);
 
-  const handleSelectionChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-    onSelectionChange?.(timesheet.id, e.target.checked);
+  const handleSelectionChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    event.stopPropagation();
+    onSelectionChange?.(timesheet.id, event.target.checked);
   }, [timesheet.id, onSelectionChange]);
 
-  const handleApprove = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    onApprovalAction?.(timesheet.id, 'FINAL_APPROVAL');
-  }, [timesheet.id, onApprovalAction]);
+  const handleApprove = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    const action = getApproveActionForRole(approvalRole);
+    onApprovalAction?.(timesheet.id, action);
+  }, [timesheet.id, onApprovalAction, approvalRole]);
 
-  const handleReject = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleReject = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
     onApprovalAction?.(timesheet.id, 'REJECT');
-  }, [timesheet.id, onApprovalAction]);
+  }, [timesheet.id, onApprovalAction, approvalRole]);
 
-  const totalPay = useMemo(() => 
-    timesheet.hours * timesheet.hourlyRate, 
-    [timesheet.hours, timesheet.hourlyRate]
-  );
+  const handleEdit = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    onApprovalAction?.(timesheet.id, 'EDIT');
+  }, [timesheet.id, onApprovalAction, approvalRole]);
+
+  const handleSubmitDraft = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    onApprovalAction?.(timesheet.id, 'SUBMIT_DRAFT');
+  }, [timesheet.id, onApprovalAction, approvalRole]);
+
+  const handleConfirm = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    onApprovalAction?.(timesheet.id, 'TUTOR_CONFIRM');
+  }, [timesheet.id, onApprovalAction, approvalRole]);
+
+  const totalPay = useMemo(() => timesheet.hours * timesheet.hourlyRate, [timesheet.hours, timesheet.hourlyRate]);
 
   return (
-    <div 
+    <tr
       className={`timesheet-row ${selected ? 'selected' : ''} ${index % 2 === 0 ? 'even' : 'odd'}`}
       onClick={handleRowClick}
-      style={style}
       data-testid={`timesheet-row-${timesheet.id}`}
-      role="row"
+      style={style}
     >
       {showSelection && (
-        <div className="cell selection-cell" role="cell">
+        <td className="cell selection-cell">
           <input
             type="checkbox"
             checked={selected}
             onChange={handleSelectionChange}
             aria-label={`Select timesheet ${timesheet.id}`}
           />
-        </div>
+        </td>
       )}
-      
-      {columns.filter(col => col.visible !== false).map(column => (
-        <div 
-          key={column.key} 
+
+      {columns.filter(column => column.visible !== false).map(column => (
+        <td
+          key={column.key}
           className={`cell ${column.key}-cell`}
           style={{ width: column.width }}
-          role="cell"
         >
-          {column.render ? column.render(timesheet, index) : renderDefaultCell(column.key, timesheet, {
-            onApprove: handleApprove,
-            onReject: handleReject,
-            actionLoading,
-            totalPay
-          })}
-        </div>
+          {column.render
+            ? column.render(timesheet, index)
+            : renderDefaultCell(column.key, timesheet, {
+                onApprove: handleApprove,
+                onReject: handleReject,
+                onEdit: handleEdit,
+                onSubmitDraft: handleSubmitDraft,
+                onConfirm: handleConfirm,
+                actionLoading,
+                totalPay,
+                actionMode,
+                approvalRole
+              })}
+        </td>
       ))}
-    </div>
+    </tr>
   );
 });
 
 TimesheetRow.displayName = 'TimesheetRow';
 
-// =============================================================================
-// Default Cell Renderers
-// =============================================================================
-
 interface CellRendererProps {
-  onApprove: (e: React.MouseEvent) => void;
-  onReject: (e: React.MouseEvent) => void;
+  onApprove: (event: React.MouseEvent) => void;
+  onReject: (event: React.MouseEvent) => void;
+  onEdit?: (event: React.MouseEvent) => void;
+  onSubmitDraft?: (event: React.MouseEvent) => void;
+  onConfirm?: (event: React.MouseEvent) => void;
   actionLoading: boolean;
   totalPay: number;
+  actionMode: 'approval' | 'tutor';
+  approvalRole?: ApprovalRole;
+}
+
+const APPROVE_ACTION_BY_ROLE: Record<ApprovalRole, ApprovalAction> = {
+  LECTURER: 'LECTURER_CONFIRM',
+  ADMIN: 'HR_CONFIRM',
+  HR: 'HR_CONFIRM',
+};
+
+const ACTION_RULES: Record<ApprovalRole, { approve: TimesheetStatus[]; reject: TimesheetStatus[] }> = {
+  LECTURER: {
+    approve: ['TUTOR_CONFIRMED'],
+    reject: ['TUTOR_CONFIRMED'],
+  },
+  ADMIN: {
+    approve: ['LECTURER_CONFIRMED'],
+    reject: ['LECTURER_CONFIRMED'],
+  },
+  HR: {
+    approve: ['LECTURER_CONFIRMED'],
+    reject: ['LECTURER_CONFIRMED'],
+  },
+};
+
+function getApproveActionForRole(role?: ApprovalRole): ApprovalAction {
+  if (!role) {
+    return 'LECTURER_CONFIRM';
+  }
+  return APPROVE_ACTION_BY_ROLE[role];
+}
+
+function getActionPermissions(role: ApprovalRole | undefined, status: TimesheetStatus) {
+  if (!role) {
+    return {
+      canApprove: true,
+      canReject: true,
+    };
+  }
+
+  const rules = ACTION_RULES[role];
+  return {
+    canApprove: rules.approve.includes(status),
+    canReject: rules.reject.includes(status),
+  };
 }
 
 function renderDefaultCell(
-  key: string, 
-  timesheet: Timesheet, 
+  key: string,
+  timesheet: Timesheet,
   props: CellRendererProps
 ): React.ReactNode {
-  const { onApprove, onReject, actionLoading, totalPay } = props;
+  const { onApprove, onReject, onEdit, onSubmitDraft, onConfirm, actionLoading, totalPay, actionMode, approvalRole } = props;
 
   switch (key) {
     case 'selection':
-      return null; // Handled separately
-      
+      return null;
+
     case 'tutor':
       return (
         <div className="tutor-info">
@@ -170,11 +235,11 @@ function renderDefaultCell(
           <span>{timesheet.tutorName || `Tutor ${timesheet.tutorId}`}</span>
         </div>
       );
-      
+
     case 'course':
       return (
         <div className="course-info">
-          <span className="course-code">
+          <span className="course-code" data-testid={`course-code-${timesheet.id}`}>
             {timesheet.courseCode || `Course ${timesheet.courseId}`}
           </span>
           {timesheet.courseName && (
@@ -182,114 +247,129 @@ function renderDefaultCell(
           )}
         </div>
       );
-      
+
     case 'weekStartDate':
       return formatters.date(timesheet.weekStartDate);
-      
+
     case 'hours':
       return (
-        <span className="hours-badge">
+        <span className="hours-badge" data-testid={`hours-badge-${timesheet.id}`}>
           {formatters.hours(timesheet.hours)}
         </span>
       );
-      
+
     case 'hourlyRate':
       return formatters.currency(timesheet.hourlyRate);
-      
+
     case 'totalPay':
       return <strong>{formatters.currency(totalPay)}</strong>;
-      
+
     case 'status':
-      return <StatusBadge status={timesheet.status} />;
-      
+      return (
+        <StatusBadge
+          status={timesheet.status}
+          dataTestId={`status-badge-${timesheet.id}`}
+        />
+      );
+
     case 'description':
       return (
-        <div 
-          className="description-cell" 
+        <div
+          className="description-cell" data-testid={`description-cell-${timesheet.id}`}
           title={timesheet.description}
         >
           {formatters.truncate(timesheet.description, 50)}
         </div>
       );
-      
+
     case 'createdAt':
       return formatters.relativeTime(timesheet.createdAt);
-      
+
     case 'actions':
+      if (actionMode === 'tutor') {
+        const isDraft = timesheet.status === 'DRAFT' || timesheet.status === 'MODIFICATION_REQUESTED' || timesheet.status === 'REJECTED';
+        const canConfirm = timesheet.status === 'PENDING_TUTOR_CONFIRMATION';
+
+        return (
+          <div className="action-buttons tutor-actions" data-testid="action-buttons">
+            <button
+              type="button"
+              onClick={onEdit}
+              disabled={!onEdit}
+              className="edit-btn"
+              title="Edit timesheet"
+              data-testid={`edit-btn-${timesheet.id}`}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={onSubmitDraft}
+              disabled={!onSubmitDraft || !isDraft}
+              className="submit-btn"
+              title="Submit draft for approval"
+              data-testid={`submit-btn-${timesheet.id}`}
+            >
+              Submit
+            </button>
+            {canConfirm && (
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={!onConfirm}
+                className="confirm-btn"
+                title="Confirm submitted timesheet"
+                data-testid={`confirm-btn-${timesheet.id}`}
+              >
+                Confirm
+              </button>
+            )}
+          </div>
+        );
+      }
+
+      const { canApprove, canReject } = getActionPermissions(approvalRole, timesheet.status);
+      console.debug('[TimesheetTable] action permissions', { role: approvalRole, status: timesheet.status, canApprove, canReject });
+
+      if (!canApprove && !canReject) {
+        return (
+          <div className="action-buttons no-actions" data-testid="action-buttons">
+            <span aria-hidden="true">—</span>
+          </div>
+        );
+      }
+
       return (
-        <div className="action-buttons">
-          <button
-            onClick={onApprove}
-            disabled={actionLoading}
-            className="approve-btn"
-            title="Final approve timesheet"
-          >
-            {actionLoading ? <LoadingSpinner size="small" /> : 'Approve'}
-          </button>
-          <button
-            onClick={onReject}
-            disabled={actionLoading}
-            className="reject-btn"
-            title="Reject timesheet"
-          >
-            {actionLoading ? <LoadingSpinner size="small" /> : 'Reject'}
-          </button>
+        <div className="action-buttons" data-testid="action-buttons">
+          {canApprove && (
+            <button
+              onClick={onApprove}
+              disabled={actionLoading}
+              className="approve-btn"
+              title="Final approve timesheet"
+              data-testid={`approve-btn-${timesheet.id}`}
+            >
+              {actionLoading ? <LoadingSpinner size="small" /> : 'Final Approve'}
+            </button>
+          )}
+          {canReject && (
+            <button
+              onClick={onReject}
+              disabled={actionLoading}
+              className="reject-btn"
+              title="Reject timesheet"
+              data-testid={`reject-btn-${timesheet.id}`}
+            >
+              {actionLoading ? <LoadingSpinner size="small" /> : 'Reject'}
+            </button>
+          )}
         </div>
       );
-      
+
     default:
-      return timesheet[key as keyof Timesheet] || '';
+      return (timesheet as any)[key] ?? '';
   }
 }
-
-// =============================================================================
-// Virtualized Row Component
-// =============================================================================
-
-interface VirtualRowProps {
-  index: number;
-  style: React.CSSProperties;
-  data: {
-    timesheets: Timesheet[];
-    columns: Column[];
-    props: Omit<TimesheetTableProps, 'timesheets'>;
-  };
-}
-
-const VirtualRow = memo<VirtualRowProps>(({ index, style, data }) => {
-  const { timesheets, columns, props } = data;
-  const timesheet = timesheets[index];
-  
-  if (!timesheet) return null;
-
-  return (
-    <TimesheetRow
-      timesheet={timesheet}
-      index={index}
-      columns={columns}
-      onApprovalAction={props.onApprovalAction}
-      onRowClick={props.onRowClick}
-      actionLoading={props.actionLoading === timesheet.id}
-      selected={props.selectedIds?.includes(timesheet.id)}
-      onSelectionChange={props.onSelectionChange ? 
-        (id, selected) => {
-          const newSelection = selected 
-            ? [...(props.selectedIds || []), id]
-            : (props.selectedIds || []).filter(sid => sid !== id);
-          props.onSelectionChange!(newSelection);
-        } : undefined
-      }
-      showSelection={props.showSelection}
-      style={style}
-    />
-  );
-});
-
-VirtualRow.displayName = 'VirtualRow';
-
-// =============================================================================
-// Table Header Component
-// =============================================================================
 
 interface TableHeaderProps {
   columns: Column[];
@@ -312,64 +392,71 @@ const TableHeader = memo<TableHeaderProps>(({
   sortDirection,
   onSort
 }) => {
-  const handleSelectAll = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onSelectAll?.(e.target.checked);
+  const handleSelectAll = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    onSelectAll?.(event.target.checked);
   }, [onSelectAll]);
 
   const handleSort = useCallback((field: string) => {
-    if (!onSort) return;
-    
-    const newDirection = sortBy === field && sortDirection === 'asc' ? 'desc' : 'asc';
-    onSort(field, newDirection);
+    if (!onSort) {
+      return;
+    }
+
+    const nextDirection: 'asc' | 'desc' = sortBy === field && sortDirection === 'asc' ? 'desc' : 'asc';
+    onSort(field, nextDirection);
   }, [onSort, sortBy, sortDirection]);
 
   const isIndeterminate = selectedCount > 0 && selectedCount < totalCount;
   const isAllSelected = selectedCount === totalCount && totalCount > 0;
 
   return (
-    <div className="table-header" role="row">
-      {showSelection && (
-        <div className="cell selection-cell header-cell" role="columnheader">
-          <input
-            type="checkbox"
-            checked={isAllSelected}
-            ref={(input) => {
-              if (input) input.indeterminate = isIndeterminate;
-            }}
-            onChange={handleSelectAll}
-            aria-label="Select all timesheets"
-          />
-        </div>
-      )}
-      
-      {columns.filter(col => col.visible !== false).map(column => (
-        <div 
-          key={column.key}
-          className={`cell header-cell ${column.key}-header ${column.sortable ? 'sortable' : ''}`}
-          style={{ width: column.width }}
-          onClick={column.sortable ? () => handleSort(column.key) : undefined}
-          role="columnheader"
-          aria-sort={sortBy === column.key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-        >
-          <span>{column.label}</span>
-          {column.sortable && sortBy === column.key && (
-            <span className={`sort-indicator ${sortDirection}`}>
-              {sortDirection === 'asc' ? '↑' : '↓'}
-            </span>
-          )}
-        </div>
-      ))}
-    </div>
+    <thead>
+      <tr className="table-header">
+        {showSelection && (
+          <th scope="col" className="cell selection-cell header-cell">
+            <input
+              type="checkbox"
+              checked={isAllSelected}
+              ref={input => {
+                if (input) {
+                  input.indeterminate = isIndeterminate;
+                }
+              }}
+              onChange={handleSelectAll}
+              aria-label="Select all timesheets"
+            />
+          </th>
+        )}
+
+        {columns.filter(column => column.visible !== false).map(column => {
+          const isSorted = sortBy === column.key;
+          const ariaSort = isSorted ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none';
+
+          return (
+            <th
+              key={column.key}
+              scope="col"
+              className={`cell header-cell ${column.key}-header ${column.sortable ? 'sortable' : ''}`}
+              style={{ width: column.width }}
+              aria-sort={ariaSort}
+              onClick={column.sortable ? () => handleSort(column.key) : undefined}
+            >
+              <span>{column.label}</span>
+              {column.sortable && (
+                <span className="sort-indicator" aria-hidden="true">
+                  {isSorted ? (sortDirection === 'asc' ? '↑' : '↓') : '⇅'}
+                </span>
+              )}
+            </th>
+          );
+        })}
+      </tr>
+    </thead>
   );
 });
 
 TableHeader.displayName = 'TableHeader';
 
-// =============================================================================
-// Main Table Component
-// =============================================================================
-
-const TimesheetTable = memo<TimesheetTableProps>(({
+const TimesheetTable: React.FC<TimesheetTableProps> = ({
   timesheets,
   loading = false,
   onApprovalAction,
@@ -381,132 +468,105 @@ const TimesheetTable = memo<TimesheetTableProps>(({
   showTutorInfo = true,
   showCourseInfo = true,
   showSelection = false,
-  virtualizeThreshold = 100,
+  virtualizeThreshold: _virtualizeThreshold = 100,
   className = '',
   emptyMessage = 'No timesheets found',
   sortBy,
   sortDirection,
-  onSort
+  onSort,
+  actionMode = 'approval',
+  approvalRole
 }) => {
-  const [containerHeight] = useState(600); // Could be made dynamic
-  const rowHeight = 60;
-
-  // Define columns configuration
   const columns = useMemo<Column[]>(() => [
     ...(showTutorInfo ? [{ key: 'tutor', label: 'Tutor', width: 150, sortable: true, visible: true }] : []),
     ...(showCourseInfo ? [{ key: 'course', label: 'Course', width: 150, sortable: true, visible: true }] : []),
-    { key: 'weekStartDate', label: 'Week Starting', width: 120, sortable: true, visible: true },
-    { key: 'hours', label: 'Hours', width: 80, sortable: true, visible: true },
-    { key: 'hourlyRate', label: 'Rate', width: 100, sortable: true, visible: true },
-    { key: 'totalPay', label: 'Total Pay', width: 120, sortable: true, visible: true },
-    { key: 'status', label: 'Status', width: 130, sortable: true, visible: true },
-    { key: 'description', label: 'Description', width: 200, sortable: false, visible: true },
-    { key: 'createdAt', label: 'Submitted', width: 120, sortable: true, visible: true },
-    ...(showActions ? [{ key: 'actions', label: 'Actions', width: 160, sortable: false, visible: true }] : [])
+    { key: 'weekStartDate', label: 'Week Starting', width: 140, sortable: true, visible: true },
+    { key: 'hours', label: 'Hours', width: 100, sortable: true, visible: true },
+    { key: 'hourlyRate', label: 'Rate', width: 110, sortable: true, visible: true },
+    { key: 'totalPay', label: 'Total Pay', width: 130, sortable: true, visible: true },
+    { key: 'status', label: 'Status', width: 150, sortable: true, visible: true },
+    { key: 'description', label: 'Description', width: 220, sortable: false, visible: true },
+    { key: 'createdAt', label: 'Submitted', width: 140, sortable: true, visible: true },
+    ...(showActions ? [{ key: 'actions', label: 'Actions', width: 180, sortable: false, visible: true }] : [])
   ], [showTutorInfo, showCourseInfo, showActions]);
 
-  // Handle selection changes
   const handleSelectAll = useCallback((selected: boolean) => {
-    if (!onSelectionChange) return;
-    
-    const newSelection = selected ? timesheets.map(t => t.id) : [];
-    onSelectionChange(newSelection);
+    if (!onSelectionChange) {
+      return;
+    }
+
+    const nextSelection = selected ? timesheets.map(t => t.id) : [];
+    onSelectionChange(nextSelection);
   }, [timesheets, onSelectionChange]);
 
-  // Memoize virtualization data
-  const virtualizationData = useMemo(() => ({
-    timesheets,
-    columns,
-    props: {
-      onApprovalAction,
-      onRowClick,
-      actionLoading,
-      selectedIds,
-      onSelectionChange,
-      showSelection
-    }
-  }), [timesheets, columns, onApprovalAction, onRowClick, actionLoading, selectedIds, onSelectionChange, showSelection]);
-
-  // Loading state
   if (loading) {
     return (
       <div className={`timesheet-table-container loading ${className}`}>
-        <div className="loading-state">
+        <div className="loading-state" data-testid="loading-state">
           <LoadingSpinner size="large" />
-          <p>Loading timesheets...</p>
+          <p data-testid="loading-text">Loading pending timesheets...</p>
         </div>
       </div>
     );
   }
 
-  // Empty state
   if (timesheets.length === 0) {
     return (
       <div className={`timesheet-table-container empty ${className}`}>
-        <div className="empty-state">
+        <div className="empty-state" data-testid="empty-state">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="#ccc" role="img" aria-label="No timesheets">
-            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
           </svg>
-          <h3>No Timesheets</h3>
+          <h3 data-testid="empty-state-title">No Timesheets</h3>
           <p>{emptyMessage}</p>
         </div>
       </div>
     );
   }
 
-  const useVirtualization = false; // Disabled - requires react-window dependency
-
   return (
-    <div className={`timesheet-table-container ${className}`} data-testid="timesheet-table" role="table" aria-label="Timesheets">
-      <TableHeader
-        columns={columns}
-        showSelection={showSelection}
-        selectedCount={selectedIds.length}
-        totalCount={timesheets.length}
-        onSelectAll={handleSelectAll}
-        sortBy={sortBy}
-        sortDirection={sortDirection}
-        onSort={onSort}
-      />
-      
-      <div className="table-body" role="rowgroup">
-        {useVirtualization ? (
-          <List
-            height={containerHeight}
-            itemCount={timesheets.length}
-            itemSize={rowHeight}
-            itemData={virtualizationData}
-            overscanCount={5}
-          >
-            {VirtualRow}
-          </List>
-        ) : (
-          <div className="table-rows">
-            {timesheets.map((timesheet, index) => (
-              <TimesheetRow
-                key={timesheet.id}
-                timesheet={timesheet}
-                index={index}
-                columns={columns}
-                onApprovalAction={onApprovalAction}
-                onRowClick={onRowClick}
-                actionLoading={actionLoading === timesheet.id}
-                selected={selectedIds.includes(timesheet.id)}
-                onSelectionChange={onSelectionChange ? 
-                  (id, selected) => {
-                    const newSelection = selected 
-                      ? [...selectedIds, id]
-                      : selectedIds.filter(sid => sid !== id);
-                    onSelectionChange(newSelection);
-                  } : undefined
+    <div className={`timesheet-table-container ${className}`} data-testid="timesheet-table">
+      <table className="timesheet-table" data-testid="timesheets-table" role="table" aria-label="Timesheets">
+        <TableHeader
+          columns={columns}
+          showSelection={showSelection}
+          selectedCount={selectedIds.length}
+          totalCount={timesheets.length}
+          onSelectAll={handleSelectAll}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSort={onSort}
+        />
+        <tbody className="table-rows">
+          {timesheets.map((timesheet, index) => (
+            <TimesheetRow
+              key={timesheet.id}
+              timesheet={timesheet}
+              index={index}
+              columns={columns}
+              onApprovalAction={onApprovalAction}
+              onRowClick={onRowClick}
+              actionLoading={actionLoading === timesheet.id}
+              selected={selectedIds.includes(timesheet.id)}
+              onSelectionChange={onSelectionChange ? (id, selected) => {
+                if (!onSelectionChange) {
+                  return;
                 }
-                showSelection={showSelection}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-      
+
+                const nextSelection = selected
+                  ? (selectedIds.includes(id) ? selectedIds : [...selectedIds, id])
+                  : selectedIds.filter(existingId => existingId !== id);
+
+                onSelectionChange(nextSelection);
+              } : undefined}
+              showSelection={showSelection}
+              actionMode={actionMode}
+              approvalRole={approvalRole}
+            />
+          ))}
+        </tbody>
+      </table>
+
       {showSelection && selectedIds.length > 0 && (
         <div className="table-footer">
           <span>{selectedIds.length} of {timesheets.length} selected</span>
@@ -514,8 +574,40 @@ const TimesheetTable = memo<TimesheetTableProps>(({
       )}
     </div>
   );
-});
+};
 
 TimesheetTable.displayName = 'TimesheetTable';
 
 export default TimesheetTable;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

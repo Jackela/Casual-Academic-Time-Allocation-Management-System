@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TimesheetService } from './timesheets';
-import { apiClient } from './api';
+import { secureApiClient } from './api-secure';
 import { 
   createMockTimesheet, 
   createMockTimesheetPage, 
@@ -26,8 +26,8 @@ import type {
 // =============================================================================
 
 // Mock API client
-vi.mock('./api', () => ({
-  apiClient: {
+vi.mock('./api-secure', () => ({
+  secureApiClient: {
     get: vi.fn(),
     post: vi.fn(),
     put: vi.fn(),
@@ -36,7 +36,7 @@ vi.mock('./api', () => ({
   }
 }));
 
-const mockApiClient = apiClient as any;
+const mockApiClient = secureApiClient as any;
 
 // Test data
 const mockTimesheet = createMockTimesheet();
@@ -271,7 +271,10 @@ describe('TimesheetService Approval Operations', () => {
 
       const result = await TimesheetService.approveTimesheet(approvalRequest);
 
-      expect(mockApiClient.post).toHaveBeenCalledWith('/api/approvals', approvalRequest);
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/approvals', {
+        ...approvalRequest,
+        action: 'HR_CONFIRM'
+      });
       expect(result).toEqual(approvalResponse);
     });
 
@@ -315,6 +318,8 @@ describe('TimesheetService Approval Operations', () => {
       const results = await TimesheetService.batchApproveTimesheets(approvalRequests);
 
       expect(mockApiClient.post).toHaveBeenCalledTimes(3);
+      const approvalPayloads = mockApiClient.post.mock.calls.map(([, payload]) => payload);
+      approvalPayloads.forEach(payload => expect(payload.action).toBe('HR_CONFIRM'));
       expect(results).toHaveLength(3);
       expect(results[0]).toEqual(approvalResponse);
     });
@@ -360,7 +365,7 @@ describe('TimesheetService Dashboard Operations', () => {
 
       const result = await TimesheetService.getAdminDashboardSummary();
 
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/dashboard/admin-summary');
+      expect(mockApiClient.get).toHaveBeenCalledWith('/api/dashboard/summary');
       expect(result).toEqual(mockDashboardSummary);
     });
   });
@@ -372,9 +377,9 @@ describe('TimesheetService Dashboard Operations', () => {
 
 describe('TimesheetService Utility Methods', () => {
   const timesheets = [
-    createMockTimesheet({ hours: 10, hourlyRate: 25, status: 'SUBMITTED' }),
-    createMockTimesheet({ hours: 15, hourlyRate: 30, status: 'APPROVED_BY_LECTURER' }),
-    createMockTimesheet({ hours: 8, hourlyRate: 35, status: 'SUBMITTED' })
+    createMockTimesheet({ hours: 10, hourlyRate: 25, status: 'PENDING_TUTOR_CONFIRMATION' }),
+    createMockTimesheet({ hours: 15, hourlyRate: 30, status: 'LECTURER_CONFIRMED' }),
+    createMockTimesheet({ hours: 8, hourlyRate: 35, status: 'PENDING_TUTOR_CONFIRMATION' })
   ];
 
   describe('calculateTotalHours', () => {
@@ -406,8 +411,8 @@ describe('TimesheetService Utility Methods', () => {
       const result = TimesheetService.groupByStatus(timesheets);
 
       expect(result).toEqual({
-        SUBMITTED: [timesheets[0], timesheets[2]],
-        APPROVED_BY_LECTURER: [timesheets[1]]
+        PENDING_TUTOR_CONFIRMATION: [timesheets[0], timesheets[2]],
+        LECTURER_CONFIRMED: [timesheets[1]]
       });
     });
 
@@ -454,34 +459,30 @@ describe('TimesheetService Utility Methods', () => {
 
   describe('getActionableTimesheets', () => {
     const testTimesheets = [
-      createMockTimesheet({ status: 'DRAFT' }),
-      createMockTimesheet({ status: 'SUBMITTED' }),
-      createMockTimesheet({ status: 'APPROVED_BY_LECTURER' }),
-      createMockTimesheet({ status: 'REJECTED_BY_LECTURER' }),
-      createMockTimesheet({ status: 'FINAL_APPROVED' })
+      createMockTimesheet({ id: 1, status: 'DRAFT' }),
+      createMockTimesheet({ id: 2, status: 'TUTOR_CONFIRMED' }),
+      createMockTimesheet({ id: 3, status: 'LECTURER_CONFIRMED' }),
+      createMockTimesheet({ id: 4, status: 'REJECTED' }),
+      createMockTimesheet({ id: 5, status: 'MODIFICATION_REQUESTED' }),
+      createMockTimesheet({ id: 6, status: 'FINAL_CONFIRMED' })
     ];
 
     it('should return actionable timesheets for LECTURER', () => {
       const result = TimesheetService.getActionableTimesheets(testTimesheets, 'LECTURER');
-      
-      expect(result).toHaveLength(1);
-      expect(result[0].status).toBe('SUBMITTED');
+
+      expect(result.map(ts => ts.status)).toEqual(['TUTOR_CONFIRMED', 'MODIFICATION_REQUESTED']);
     });
 
     it('should return actionable timesheets for ADMIN', () => {
       const result = TimesheetService.getActionableTimesheets(testTimesheets, 'ADMIN');
-      
-      expect(result).toHaveLength(2);
-      expect(result[0].status).toBe('SUBMITTED');
-      expect(result[1].status).toBe('APPROVED_BY_LECTURER');
+
+      expect(result.map(ts => ts.status)).toEqual(['LECTURER_CONFIRMED']);
     });
 
     it('should return actionable timesheets for TUTOR', () => {
       const result = TimesheetService.getActionableTimesheets(testTimesheets, 'TUTOR');
-      
-      expect(result).toHaveLength(2);
-      expect(result[0].status).toBe('DRAFT');
-      expect(result[1].status).toBe('REJECTED_BY_LECTURER');
+
+      expect(result.map(ts => ts.status)).toEqual(['DRAFT', 'MODIFICATION_REQUESTED']);
     });
 
     it('should return empty array for unknown role', () => {
@@ -642,7 +643,7 @@ describe('TimesheetService Validation', () => {
       };
 
       const errors = TimesheetService.validateTimesheet(invalidTimesheet);
-      expect(errors).toHaveLength(5);
+      expect(errors).toHaveLength(6);
     });
   });
 });
@@ -731,3 +732,5 @@ describe('TimesheetService Integration', () => {
     expect(approvalResult.success).toBe(true);
   });
 });
+
+

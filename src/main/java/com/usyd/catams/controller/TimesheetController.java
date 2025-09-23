@@ -44,7 +44,7 @@ public class TimesheetController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('LECTURER')")
+    @PreAuthorize("hasAnyRole('LECTURER','TUTOR','ADMIN')")
     public ResponseEntity<TimesheetResponse> createTimesheet(
             @Valid @RequestBody TimesheetCreateRequest request,
             Authentication authentication) {
@@ -206,3 +206,4 @@ public class TimesheetController {
         );
     }
 }
+

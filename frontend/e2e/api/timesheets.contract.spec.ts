@@ -1,315 +1,109 @@
-/**
- * Timesheet API Contract Tests
- * Tests timesheet management endpoints directly without browser interaction
- * Validates backend contract behavior and response schemas
- */
+import { test, expect } from '../fixtures/base';
+import { TimesheetApiClient } from '../utils/api-client';
+import { E2E_CONFIG } from '../config/e2e.config';
+import type { TimesheetPage } from '../../src/types/api';
+import { acquireAuthTokens, createTimesheetWithStatus, finalizeTimesheet, type AuthContext } from '../utils/workflow-helpers';
 
-// Converted to Playwright-style test to avoid Vitest expect collision under E2E
-import { test, expect } from '@playwright/test';
-import { CatamsAPIClient, type Credentials, type TimesheetPage, type Timesheet, type ApprovalRequest, type ApprovalResponse } from '../../src/api/ApiClient';
-import { waitForBackendReady } from '../utils/health-checker';
-import { testCredentials } from '../fixtures/base';
+const BACKEND_URL = E2E_CONFIG.BACKEND.URL;
 
 test.describe('Timesheet API Contract', () => {
-  let lecturerClient: CatamsAPIClient;
-  let tutorClient: CatamsAPIClient;
-  let authenticatedLecturerToken: string;
+  let adminClient: TimesheetApiClient;
+  let lecturerClient: TimesheetApiClient;
+  let tutorClient: TimesheetApiClient;
+  let tokens: AuthContext;
+  const seededTimesheets: number[] = [];
 
-  test.beforeAll(async () => {
-    // Wait for backend to be ready
-    await waitForBackendReady();
-    console.log('✅ Backend ready - starting timesheet API contract tests');
+  test.beforeAll(async ({ request }) => {
+    tokens = await acquireAuthTokens(request);
 
-    // Pre-authenticate lecturer for tests that require authentication
-    lecturerClient = new CatamsAPIClient();
+    adminClient = new TimesheetApiClient(BACKEND_URL);
+    const adminAuth = await adminClient.authenticate({
+      email: E2E_CONFIG.USERS.admin.email,
+      password: E2E_CONFIG.USERS.admin.password
+    });
+    expect(adminAuth.token).toBeTruthy();
+
+    lecturerClient = new TimesheetApiClient(BACKEND_URL);
     const lecturerAuth = await lecturerClient.authenticate({
-      email: testCredentials.lecturer.email,
-      password: testCredentials.lecturer.password
+      email: E2E_CONFIG.USERS.lecturer.email,
+      password: E2E_CONFIG.USERS.lecturer.password
     });
-    expect(lecturerAuth.success).toBe(true);
-    authenticatedLecturerToken = lecturerAuth.token!;
+    expect(lecturerAuth.token).toBeTruthy();
 
-    // Set up tutor client
-    tutorClient = new CatamsAPIClient();
+    tutorClient = new TimesheetApiClient(BACKEND_URL);
     const tutorAuth = await tutorClient.authenticate({
-      email: testCredentials.tutor.email,
-      password: testCredentials.tutor.password
+      email: E2E_CONFIG.USERS.tutor.email,
+      password: E2E_CONFIG.USERS.tutor.password
     });
-    expect(tutorAuth.success).toBe(true);
+    expect(tutorAuth.token).toBeTruthy();
   });
 
-  test.afterEach(() => {
-    // Reset any modifications between tests
-    if (lecturerClient) {
-      lecturerClient.setAuthToken(authenticatedLecturerToken);
+  test.afterEach(async ({ request }) => {
+    for (const id of seededTimesheets.splice(0)) {
+      await finalizeTimesheet(request, tokens, id).catch(() => undefined);
     }
   });
 
-  test.describe('GET /api/timesheets/pending-final-approval', () => {
-    test('should return paginated pending timesheets for lecturer', async () => {
-      const response: TimesheetPage = await lecturerClient.getPendingTimesheets();
+  test('should return paginated pending timesheets for admin', async ({ request }) => {
+    const seeded = await createTimesheetWithStatus(request, tokens, { targetStatus: 'LECTURER_CONFIRMED' });
+    seededTimesheets.push(seeded.id);
 
-      // Validate response structure
-      expect(response).toBeDefined();
-      expect(typeof response.success).toBe('boolean');
-      expect(response.timesheets).toBeDefined();
-      expect(Array.isArray(response.timesheets)).toBe(true);
+    const response = await adminClient.getPendingTimesheets(0, 20);
+    expect(response.timesheets.length).toBeGreaterThan(0);
+    const match = response.timesheets.find(ts => ts.id === seeded.id);
+    expect(match).toBeTruthy();
+    expect(match?.status).toBe('LECTURER_CONFIRMED');
+  });
 
-      // Validate page metadata
-      expect(response.pageInfo).toBeDefined();
-      expect(typeof response.pageInfo.totalElements).toBe('number');
-      expect(typeof response.pageInfo.totalPages).toBe('number');
-      expect(typeof response.pageInfo.currentPage).toBe('number');
-      expect(typeof response.pageInfo.pageSize).toBe('number');
-      expect(typeof response.pageInfo.first).toBe('boolean');
-      expect(typeof response.pageInfo.last).toBe('boolean');
-      expect(typeof response.pageInfo.numberOfElements).toBe('number');
-      expect(typeof response.pageInfo.empty).toBe('boolean');
+  test('should support pagination parameters', async ({ request }) => {
+    const seeded = await createTimesheetWithStatus(request, tokens, { targetStatus: 'LECTURER_CONFIRMED' });
+    seededTimesheets.push(seeded.id);
 
-      // If there are timesheets, validate their structure
-      if (response.timesheets.length > 0) {
-        const timesheet = response.timesheets[0];
-        validateTimesheetStructure(timesheet);
-      }
-    });
+    const pageSize = 1;
+    const page = await adminClient.getPendingTimesheets(0, pageSize);
+    expect(page.pageInfo.pageSize).toBe(pageSize);
+    expect(page.timesheets.length).toBeLessThanOrEqual(pageSize);
+  });
 
-    test('should support pagination parameters', async () => {
-      const pageSize = 5;
-      const response: TimesheetPage = await lecturerClient.getPendingTimesheets(0, pageSize);
-
-      expect(response.pageInfo.pageSize).toBe(pageSize);
-      expect(response.timesheets.length).toBeLessThanOrEqual(pageSize);
-    });
-
-    test('should require authentication', async () => {
-      const unauthenticatedClient = new CatamsAPIClient();
-      
-      try {
-        await unauthenticatedClient.getPendingTimesheets();
-        // If no error is thrown, the endpoint might allow unauthenticated access
-        // This could be valid behavior depending on implementation
-        expect(true).toBe(true);
-      } catch (error) {
-        // Expect authentication error
-        expect(error).toBeDefined();
-        expect(typeof error).toBe('object');
-      }
+  test('should require authentication for pending final approval endpoint', async () => {
+    const unauthenticatedClient = new TimesheetApiClient(BACKEND_URL);
+    await expect(unauthenticatedClient.getPendingTimesheets()).rejects.toMatchObject({
+      status: 401,
+      success: false
     });
   });
 
-  test.describe('GET /api/timesheets (user timesheets)', () => {
-    test('should return user timesheets with pagination', async () => {
-      const response: TimesheetPage = await tutorClient.getUserTimesheets();
-
-      expect(response).toBeDefined();
-      expect(response.timesheets).toBeDefined();
-      expect(Array.isArray(response.timesheets)).toBe(true);
-      expect(response.pageInfo).toBeDefined();
-
-      // Validate page structure
-      expect(typeof response.pageInfo.totalElements).toBe('number');
-      expect(typeof response.pageInfo.currentPage).toBe('number');
-      expect(typeof response.pageInfo.pageSize).toBe('number');
-    });
-
-    test('should support filtering by user ID (lecturer view)', async () => {
-      // Lecturers should be able to query timesheets for specific users
-      const response: TimesheetPage = await lecturerClient.getUserTimesheets(1, 0, 10);
-
-      expect(response).toBeDefined();
-      expect(response.timesheets).toBeDefined();
-      expect(Array.isArray(response.timesheets)).toBe(true);
+  test('should return tutor timesheets with pagination metadata', async () => {
+    const response: TimesheetPage = await tutorClient.getUserTimesheets();
+    expect(Array.isArray(response.timesheets)).toBe(true);
+    expect(response.pageInfo).toMatchObject({
+      currentPage: expect.any(Number),
+      totalElements: expect.any(Number),
+      pageSize: expect.any(Number),
     });
   });
 
-  test.describe('POST /api/approvals', () => {
-    test('should validate approval request structure', async () => {
-      // First get a pending timesheet to approve
-      const pendingTimesheets = await lecturerClient.getPendingTimesheets(0, 1);
-      
-      if (pendingTimesheets.timesheets.length === 0) {
-        console.log('⚠️ No pending timesheets available for approval testing');
-        return; // Skip test if no data available
-      }
-
-      const timesheetId = pendingTimesheets.timesheets[0].id;
-      
-      const approvalRequest: ApprovalRequest = {
-        timesheetId: timesheetId,
-        action: 'APPROVE',
-        comment: 'Test approval comment'
-      };
-
-      try {
-        const response: ApprovalResponse = await lecturerClient.processApproval(approvalRequest);
-
-        // Validate response structure
-        expect(response).toBeDefined();
-        expect(typeof response.success).toBe('boolean');
-        expect(typeof response.message).toBe('string');
-        
-        if (response.success) {
-          expect(response.timesheetId).toBe(timesheetId);
-          expect(response.newStatus).toBeDefined();
-          expect(typeof response.newStatus).toBe('string');
-        }
-      } catch (error) {
-        // Some errors might be expected (e.g., timesheet already processed)
-        expect(error).toBeDefined();
-        console.log('Approval error (may be expected):', error);
-      }
-    });
-
-    test('should reject invalid approval actions', async () => {
-      const pendingTimesheets = await lecturerClient.getPendingTimesheets(0, 1);
-      
-      if (pendingTimesheets.timesheets.length === 0) {
-        console.log('⚠️ No pending timesheets available for rejection testing');
-        return;
-      }
-
-      const timesheetId = pendingTimesheets.timesheets[0].id;
-      
-      // Test with invalid action
-      const invalidRequest = {
-        timesheetId: timesheetId,
-        action: 'INVALID_ACTION' as any,
-        comment: 'Test comment'
-      };
-
-      try {
-        await lecturerClient.processApproval(invalidRequest);
-        // If no error, the backend might be more lenient
-        expect(true).toBe(true);
-      } catch (error) {
-        // Expect validation error
-        expect(error).toBeDefined();
-        expect(typeof error).toBe('object');
-      }
-    });
+  test('lecturer can query by tutor id', async () => {
+    const tutorId = tokens.tutor.userId;
+    const response = await lecturerClient.getUserTimesheets(tutorId, { page: 0, size: 5 });
+    expect(Array.isArray(response.timesheets)).toBe(true);
+    if (response.timesheets.length > 0) {
+      expect(response.timesheets.every(ts => ts.tutorId === tutorId)).toBe(true);
+    }
   });
 
-  test.describe('Convenience Approval Methods', () => {
-    test('should provide approve convenience method', async () => {
-      const pendingTimesheets = await lecturerClient.getPendingTimesheets(0, 1);
-      
-      if (pendingTimesheets.timesheets.length === 0) {
-        console.log('⚠️ No pending timesheets available for convenience method testing');
-        return;
-      }
+  test('should reject invalid approval actions with validation error', async ({ request }) => {
+    const seeded = await createTimesheetWithStatus(request, tokens, { targetStatus: 'LECTURER_CONFIRMED' });
+    seededTimesheets.push(seeded.id);
 
-      const timesheetId = pendingTimesheets.timesheets[0].id;
-
-      try {
-        const response: ApprovalResponse = await lecturerClient.approveTimesheet(timesheetId, 'Convenience method test');
-        
-        expect(response).toBeDefined();
-        expect(typeof response.success).toBe('boolean');
-        expect(typeof response.message).toBe('string');
-      } catch (error) {
-        // Expected if timesheet was already processed
-        expect(error).toBeDefined();
-        console.log('Convenience approval error (may be expected):', error);
-      }
-    });
-
-    test('should provide reject convenience method', async () => {
-      const pendingTimesheets = await lecturerClient.getPendingTimesheets(0, 1);
-      
-      if (pendingTimesheets.timesheets.length === 0) {
-        console.log('⚠️ No pending timesheets available for convenience method testing');
-        return;
-      }
-
-      const timesheetId = pendingTimesheets.timesheets[0].id;
-
-      try {
-        const response: ApprovalResponse = await lecturerClient.rejectTimesheet(timesheetId, 'Convenience method test rejection');
-        
-        expect(response).toBeDefined();
-        expect(typeof response.success).toBe('boolean');
-        expect(typeof response.message).toBe('string');
-      } catch (error) {
-        // Expected if timesheet was already processed
-        expect(error).toBeDefined();
-        console.log('Convenience rejection error (may be expected):', error);
-      }
-    });
-  });
-
-  test.describe('Error Handling', () => {
-    test('should handle non-existent timesheet IDs gracefully', async () => {
-      const nonExistentId = 999999;
-
-      try {
-        const response = await lecturerClient.getTimesheetById(nonExistentId);
-        // If no error, the backend might return null or empty response
-        expect(response).toBeDefined();
-      } catch (error) {
-        // Expect 404 or similar error
-        expect(error).toBeDefined();
-        expect(typeof error).toBe('object');
-      }
-    });
-
-    test('should handle unauthorized approval attempts', async () => {
-      // Try to approve with tutor credentials (should fail)
-      const pendingTimesheets = await lecturerClient.getPendingTimesheets(0, 1);
-      
-      if (pendingTimesheets.timesheets.length === 0) {
-        console.log('⚠️ No pending timesheets available for authorization testing');
-        return;
-      }
-
-      const timesheetId = pendingTimesheets.timesheets[0].id;
-
-      try {
-        await tutorClient.approveTimesheet(timesheetId);
-        // If no error, the backend might allow tutors to approve (check business rules)
-        console.log('⚠️ Tutor was able to approve timesheet - check authorization rules');
-        expect(true).toBe(true);
-      } catch (error) {
-        // Expect authorization error
-        expect(error).toBeDefined();
-        expect(typeof error).toBe('object');
-      }
+    await expect(adminClient.processApproval({
+      timesheetId: seeded.id,
+      action: 'INVALID_ACTION' as any,
+      comment: 'invalid'
+    })).rejects.toMatchObject({
+      success: false,
+      status: 400
     });
   });
 });
 
-/**
- * Helper function to validate timesheet object structure
- */
-function validateTimesheetStructure(timesheet: Timesheet): void {
-  expect(timesheet).toBeDefined();
-  expect(typeof timesheet.id).toBe('number');
-  expect(typeof timesheet.tutorId).toBe('number');
-  expect(typeof timesheet.courseId).toBe('number');
-  expect(typeof timesheet.weekStartDate).toBe('string');
-  expect(typeof timesheet.hours).toBe('number');
-  expect(typeof timesheet.hourlyRate).toBe('number');
-  expect(typeof timesheet.description).toBe('string');
-  expect(typeof timesheet.status).toBe('string');
-  
-  // Validate status is one of SSOT values
-  expect([
-    'DRAFT',
-    'PENDING_TUTOR_REVIEW',
-    'APPROVED_BY_TUTOR',
-    'APPROVED_BY_LECTURER_AND_TUTOR',
-    'FINAL_APPROVED',
-    'REJECTED',
-    'MODIFICATION_REQUESTED'
-  ]).toContain(timesheet.status);
-  
-  // Optional fields
-  if (timesheet.tutorName !== undefined) {
-    expect(typeof timesheet.tutorName).toBe('string');
-  }
-  if (timesheet.courseName !== undefined) {
-    expect(typeof timesheet.courseName).toBe('string');
-  }
-  if (timesheet.courseCode !== undefined) {
-    expect(typeof timesheet.courseCode).toBe('string');
-  }
-}

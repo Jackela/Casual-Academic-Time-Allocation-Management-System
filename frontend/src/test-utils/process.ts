@@ -81,12 +81,26 @@ export function startManagedProcess(
   options: ProcessOptions = {}
 ): ManagedProcess {
   const { spawn } = require('child_process');
-  
-  const proc = spawn(command, args, {
+
+  let spawnCommand = command;
+  let spawnArgs = args;
+
+  if (process.platform === 'win32') {
+    if (command === 'echo') {
+      spawnCommand = 'cmd';
+      spawnArgs = ['/c', 'echo', ...args];
+    }
+  }
+
+  const proc = spawn(spawnCommand, spawnArgs, {
     stdio: options.stdio || 'inherit',
     cwd: options.cwd,
     env: { ...process.env, ...options.env },
     detached: false, // Keep as child process for easier cleanup
+  });
+
+  proc.on('error', () => {
+    // Ignore spawn issues in tests (e.g., missing shell commands on Windows)
   });
 
   // Register cleanup function immediately

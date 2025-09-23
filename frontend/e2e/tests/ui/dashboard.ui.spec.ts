@@ -7,7 +7,7 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
       localStorage.setItem('token', authData.token);
       localStorage.setItem('user', JSON.stringify(authData.user));
     }, mockResponses.auth.success);
-    // 1) Define the Mock BEFORE navigation
+
     await page.route('**/api/timesheets/pending-final-approval**', route => {
       route.fulfill({
         status: 200,
@@ -16,51 +16,82 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
       });
     });
 
-    // 2) Navigate to dashboard
     const respPromise = page.waitForResponse(resp => resp.url().includes('/api/timesheets/pending-final-approval'));
     await page.goto('/dashboard');
-
-    // 3) Wait for mocked API confirmation
     await respPromise;
 
-    // 4) Wait for UI readiness
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="main-dashboard-header"]')).toBeVisible();
-
-    // 5) Assert UI
     await expect(page.locator('[data-testid="main-dashboard-title"]')).toContainText('Lecturer Dashboard');
-    
-    // Should display the timesheet table
+
     const table = page.locator('[data-testid="timesheets-table"]');
     await expect(table).toBeVisible();
-    
-    // Should have table headers
     await expect(table.locator('th:has-text("Tutor")')).toBeVisible();
     await expect(table.locator('th:has-text("Course")')).toBeVisible();
     await expect(table.locator('th:has-text("Hours")')).toBeVisible();
     await expect(table.locator('th:has-text("Actions")')).toBeVisible();
-    
-    // Should display mocked timesheet data
+
     const rows = table.locator('tbody tr');
-    await expect(rows).toHaveCount(1); // Based on mock data (simplified to 1 item)
-    
-    // First row should contain John Doe
+    await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText('John Doe');
     await expect(rows.first()).toContainText('Introduction to Programming');
   });
 
-  test('should show approve/reject buttons for each timesheet', async ({ authenticatedPage: page }) => {
+  test('should hide approval buttons for non-actionable statuses', async ({ authenticatedPage: page }) => {
+    await page.addInitScript((authData) => {
+      localStorage.setItem('token', authData.token);
+      localStorage.setItem('user', JSON.stringify(authData.user));
+    }, mockResponses.auth.success);
+
+    const pendingReviewResponse = {
+      ...mockResponses.timesheets.withData,
+      content: mockResponses.timesheets.withData.content.map(item => ({
+        ...item,
+        status: 'PENDING_TUTOR_CONFIRMATION'
+      }))
+    };
+
+    await page.route('**/api/timesheets/pending-final-approval**', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(pendingReviewResponse)
+      });
+    });
+
+    const respPromise = page.waitForResponse(resp => resp.url().includes('/api/timesheets/pending-final-approval'));
+    await page.goto('/dashboard');
+    await respPromise;
+
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('[data-testid="main-dashboard-header"]')).toBeVisible();
+
+    const actionCell = page.locator('[data-testid="action-buttons"]');
+    await expect(page.locator('button:has-text("Final Approve")')).toHaveCount(0);
+    await expect(page.locator('button:has-text("Reject")')).toHaveCount(0);
+    await expect(actionCell.first()).toContainText('—');
+  });
+
+  test('should show approve/reject buttons when timesheet is tutor confirmed', async ({ authenticatedPage: page }) => {
     // Ensure auth state is preset (LECTURER)
     await page.addInitScript((authData) => {
       localStorage.setItem('token', authData.token);
       localStorage.setItem('user', JSON.stringify(authData.user));
     }, mockResponses.auth.success);
     // 1) Define the Mock BEFORE navigation
+    const tutorConfirmedResponse = {
+      ...mockResponses.timesheets.withData,
+      content: mockResponses.timesheets.withData.content.map(item => ({
+        ...item,
+        status: 'TUTOR_CONFIRMED'
+      }))
+    };
+
     await page.route('**/api/timesheets/pending-final-approval**', route => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockResponses.timesheets.withData)
+        body: JSON.stringify(tutorConfirmedResponse)
       });
     });
 
@@ -76,8 +107,11 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
     await expect(page.locator('[data-testid="main-dashboard-header"]')).toBeVisible();
 
     const approveButtons = page.locator('button:has-text("Final Approve")');
-    await expect(approveButtons).toHaveCount(1);
+    const rejectButtons = page.locator('button:has-text("Reject")');
+    await expect(approveButtons).toHaveCount(tutorConfirmedResponse.content.length);
+    await expect(rejectButtons).toHaveCount(tutorConfirmedResponse.content.length);
     await expect(approveButtons.first()).toBeEnabled();
+    await expect(rejectButtons.first()).toBeEnabled();
   });
 
   test('should handle empty state gracefully', async ({ page }) => {

@@ -154,8 +154,8 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("Authorization workflow - tutor cannot create timesheets")
-    void timesheetCreation_TutorRole_ShouldReturn403() throws Exception {
+    @DisplayName("Authorization workflow - tutor can create own timesheets")
+    void timesheetCreation_TutorRole_ShouldSucceed() throws Exception {
         // Arrange
         TimesheetCreateRequest request = TestDataBuilder.aTimesheetRequest()
             .withTutorId(testTutor.getId())
@@ -163,12 +163,46 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .build();
 
         // Act & Assert
-        performPost("/api/timesheets", request, tutorToken) // Tutor token
+        performPost("/api/timesheets", request, tutorToken)
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.tutorId").value(testTutor.getId()))
+            .andExpect(jsonPath("$.courseId").value(testCourse.getId()))
+            .andExpect(jsonPath("$.createdBy").value(testTutor.getId()))
+            .andExpect(jsonPath("$.status").value(com.usyd.catams.enums.ApprovalStatus.DRAFT.name()));
+
+        // Verify timesheet persisted with correct ownership
+        var timesheets = timesheetRepository.findAll();
+        assert timesheets.size() == 1;
+        var createdTimesheet = timesheets.get(0);
+        assert createdTimesheet.getTutorId().equals(testTutor.getId());
+        assert createdTimesheet.getCourseId().equals(testCourse.getId());
+        assert createdTimesheet.getCreatedBy().equals(testTutor.getId());
+        assert createdTimesheet.getStatus() == com.usyd.catams.enums.ApprovalStatus.DRAFT;
+    }
+
+    @Test
+    @DisplayName("Authorization workflow - tutor cannot create timesheet for another tutor")
+    void timesheetCreation_TutorRoleCreatingForAnotherTutor_ShouldReturn403() throws Exception {
+        // Arrange
+        User otherTutor = userRepository.save(
+            TestDataBuilder.aTutor()
+                .withEmail("other.tutor.integration@test.com")
+                .withHashedPassword(passwordEncoder.encode("password123"))
+                .withName("Integration Test Tutor B")
+                .build()
+        );
+
+        TimesheetCreateRequest request = TestDataBuilder.aTimesheetRequest()
+            .withTutorId(otherTutor.getId())
+            .withCourseId(testCourse.getId())
+            .build();
+
+        // Act & Assert
+        performPost("/api/timesheets", request, tutorToken)
             .andExpect(status().isForbidden());
 
-        // Verify no data was persisted
-        var timesheets = timesheetRepository.findAll();
-        assert timesheets.isEmpty();
+        // Verify no unauthorized timesheet was persisted
+        assert timesheetRepository.findAll().isEmpty();
     }
 
     @Test

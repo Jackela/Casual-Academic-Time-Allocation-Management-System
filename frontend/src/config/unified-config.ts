@@ -119,7 +119,7 @@ class ConfigurationBuilder {
         approvals: '/api/approvals',
         dashboard: {
           summary: '/api/dashboard/summary',
-          admin: '/api/dashboard/admin-summary'
+          admin: '/api/dashboard/summary'
         },
         users: {
           me: '/api/users/me',
@@ -134,31 +134,38 @@ class ConfigurationBuilder {
    * Get API base URL with environment-specific logic
    */
   private getApiBaseUrl(): string {
-    // E2E testing environment
-    if (ENV_CONFIG.isE2E()) {
-      return 'http://localhost:8084';
+    // Prefer explicit E2E env when in E2E or test modes
+    const tryEnvBackend = () => {
+      // Node envs (Playwright/global setup)
+      const url = (globalThis as any)?.process?.env?.E2E_BACKEND_URL as string | undefined;
+      const port = (globalThis as any)?.process?.env?.E2E_BACKEND_PORT as string | undefined;
+      if (url && url.length > 0) return url;
+      if (port && port.length > 0) return `http://127.0.0.1:${port}`;
+      return undefined;
+    };
+
+    if (ENV_CONFIG.isE2E() || ENV_CONFIG.getMode() === 'test') {
+      const envUrl = tryEnvBackend();
+      if (envUrl) return envUrl;
     }
 
-    // Test environment (Vitest)
-    if (ENV_CONFIG.getMode() === 'test') {
-      return 'http://localhost:8084';
-    }
-
-    // Custom environment variable
+    // Vite env for browser runtime
     try {
-      if (typeof window !== 'undefined' && import.meta?.env?.VITE_API_BASE_URL) {
-        return import.meta.env.VITE_API_BASE_URL;
+      if (typeof window !== 'undefined' && (import.meta as any)?.env?.VITE_API_BASE_URL) {
+        return (import.meta as any).env.VITE_API_BASE_URL as string;
       }
     } catch {
-      // import.meta not available in Node.js
+      // ignore
     }
 
     // Production/development defaults
     if (ENV_CONFIG.isProduction()) {
-      return 'https://api.catams.example.com'; // Replace with actual production URL
+      return 'https://api.catams.example.com'; // TODO: set real prod URL
     }
 
-    return 'http://localhost:8084';
+    // Dev fallback
+    const fallbackPort = (globalThis as any)?.process?.env?.E2E_BACKEND_PORT || '8084';
+    return `http://127.0.0.1:${fallbackPort}`;
   }
 
   /**
@@ -407,3 +414,4 @@ export type {
 // =============================================================================
 
 export default getConfig;
+

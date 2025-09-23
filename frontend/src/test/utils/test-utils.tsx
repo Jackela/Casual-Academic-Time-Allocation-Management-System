@@ -85,7 +85,7 @@ export function createMockTimesheets(count: number, baseOverrides: Partial<Times
       tutorId: (index % 3) + 1,
       courseId: (index % 5) + 1,
       hours: 5 + (index % 15),
-      status: (['DRAFT', 'SUBMITTED', 'APPROVED_BY_LECTURER', 'FINAL_APPROVED', 'PAID'] as TimesheetStatus[])[index % 5],
+      status: (['DRAFT', 'PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED', 'FINAL_CONFIRMED'] as TimesheetStatus[])[index % 5],
       weekStartDate: new Date(2024, 0, 1 + (index * 7)).toISOString().split('T')[0],
       tutorName: `Tutor ${index + 1}`,
       courseName: `Course ${index + 1}`,
@@ -146,13 +146,12 @@ export function createMockDashboardSummary(overrides: Partial<DashboardSummary> 
     thisWeekPay: 1420,
     statusBreakdown: {
       DRAFT: 5,
-      SUBMITTED: 12,
-      APPROVED_BY_LECTURER: 8,
-      REJECTED_BY_LECTURER: 2,
-      APPROVED_BY_ADMIN: 5,
-      REJECTED_BY_ADMIN: 1,
-      FINAL_APPROVED: 15,
-      PAID: 2
+      PENDING_TUTOR_CONFIRMATION: 12,
+      TUTOR_CONFIRMED: 6,
+      LECTURER_CONFIRMED: 8,
+      FINAL_CONFIRMED: 10,
+      REJECTED: 3,
+      MODIFICATION_REQUESTED: 2
     },
     recentActivity: [
       {

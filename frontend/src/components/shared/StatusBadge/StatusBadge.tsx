@@ -18,6 +18,7 @@ export interface StatusBadgeProps {
   status: TimesheetStatus;
   size?: 'small' | 'medium' | 'large';
   className?: string;
+  dataTestId?: string;
   showIcon?: boolean;
   interactive?: boolean;
   onClick?: () => void;
@@ -105,7 +106,8 @@ const StatusBadge = memo<StatusBadgeProps>(({
   className = '',
   showIcon = true,
   interactive = false,
-  onClick
+  onClick,
+  dataTestId
 }) => {
   const config = statusConfigs[status] || statusConfigs.DRAFT;
 
@@ -146,7 +148,7 @@ const StatusBadge = memo<StatusBadgeProps>(({
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
       aria-label={`Status: ${config.label}. ${config.description}`}
-      data-testid={`status-badge-${status.toLowerCase()}`}
+      data-testid={dataTestId ?? `status-badge-${status.toLowerCase()}`}
     >
       {showIcon && (
         <span className="status-badge__icon" aria-hidden="true">
@@ -287,3 +289,4 @@ export const StatusBadgeGroup = memo<StatusBadgeGroupProps>(({
 StatusBadgeGroup.displayName = 'StatusBadgeGroup';
 
 export default StatusBadge;
+

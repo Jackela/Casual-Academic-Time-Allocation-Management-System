@@ -40,6 +40,7 @@ interface AdminStatCardProps {
   trend?: 'up' | 'down' | 'stable';
   color?: 'primary' | 'success' | 'warning' | 'error' | 'info';
   icon?: string;
+  testId?: string;
   onClick?: () => void;
 }
 
@@ -74,11 +75,12 @@ const AdminStatCard = memo<AdminStatCardProps>(({
   trend = 'stable',
   color = 'primary',
   icon,
+  testId,
   onClick
 }) => (
   <div 
     className={`admin-stat-card admin-stat-card--${color} ${onClick ? 'clickable' : ''}`}
-    data-testid="stat-card"
+    data-testid={testId ?? 'stat-card'}
     onClick={onClick}
     role={onClick ? 'button' : undefined}
     tabIndex={onClick ? 0 : undefined}
@@ -292,17 +294,45 @@ const FilterControls = memo<{
   presets: FilterPreset[];
   onPresetSelect: (preset: FilterPreset) => void;
 }>(({ onFilterChange, presets, onPresetSelect }) => {
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [filters, setFilters] = useState<TimesheetQuery>({});
+  const [showAdvanced, setShowAdvanced] = useState(true);
+  const [filters, setFilters] = useState<Record<string, unknown>>({});
 
-  const handleFilterUpdate = useCallback((newFilters: Partial<TimesheetQuery>) => {
-    const updatedFilters = { ...filters, ...newFilters };
-    setFilters(updatedFilters);
-    onFilterChange(updatedFilters);
-  }, [filters, onFilterChange]);
+  const applyFilters = useCallback((next: Record<string, unknown>) => {
+    const normalized = Object.entries(next).reduce<Record<string, unknown>>((acc, [key, value]) => {
+      const shouldRemove = (
+        value === '' ||
+        value === null ||
+        value === undefined ||
+        (typeof value === 'number' && Number.isNaN(value))
+      );
+
+      if (!shouldRemove) {
+        acc[key] = value;
+      }
+
+      return acc;
+    }, {});
+
+    setFilters(normalized);
+    onFilterChange(normalized as TimesheetQuery);
+  }, [onFilterChange]);
+
+  const handleFilterUpdate = useCallback((newFilters: Record<string, unknown>) => {
+    applyFilters({ ...filters, ...newFilters });
+  }, [applyFilters, filters]);
+
+  const handleClearFilters = useCallback(() => {
+    setFilters({});
+    onFilterChange({} as TimesheetQuery);
+  }, [onFilterChange]);
+
+  const handlePresetClick = useCallback((preset: FilterPreset) => {
+    onPresetSelect(preset);
+    applyFilters(preset.query as Record<string, unknown>);
+  }, [applyFilters, onPresetSelect]);
 
   return (
-    <div className="filter-controls">
+    <div className="filter-controls" data-testid="filters-section">
       <div className="filter-presets">
         <h4>Filter Presets</h4>
         <div className="preset-buttons">
@@ -310,7 +340,9 @@ const FilterControls = memo<{
             <button
               key={preset.id}
               className={`preset-button ${preset.active ? 'active' : ''}`}
-              onClick={() => onPresetSelect(preset)}
+              onClick={() => handlePresetClick(preset)}
+              data-testid={`filter-preset-${preset.id}`}
+              type="button"
             >
               {preset.name}
             </button>
@@ -318,9 +350,11 @@ const FilterControls = memo<{
         </div>
       </div>
 
-      <button 
+      <button
         className="advanced-filters-toggle"
         onClick={() => setShowAdvanced(!showAdvanced)}
+        data-testid="advanced-filters-toggle"
+        type="button"
       >
         Advanced Filters {showAdvanced ? '▼' : '▶'}
       </button>
@@ -332,11 +366,13 @@ const FilterControls = memo<{
             <input
               id="date-range"
               type="date"
+              value={typeof filters['startDate'] === 'string' ? (filters['startDate'] as string) : ''}
               onChange={(e) => handleFilterUpdate({ startDate: e.target.value })}
             />
             <span>to</span>
             <input
               type="date"
+              value={typeof filters['endDate'] === 'string' ? (filters['endDate'] as string) : ''}
               onChange={(e) => handleFilterUpdate({ endDate: e.target.value })}
             />
           </div>
@@ -345,16 +381,18 @@ const FilterControls = memo<{
             <label htmlFor="status-filter">Status</label>
             <select
               id="status-filter"
+              data-testid="status-filter"
+              value={typeof filters['status'] === 'string' ? (filters['status'] as string) : ''}
               onChange={(e) => handleFilterUpdate({ status: e.target.value })}
             >
               <option value="">All Statuses</option>
               <option value="DRAFT">Draft</option>
-              <option value="SUBMITTED">Submitted</option>
-              <option value="APPROVED_BY_LECTURER">Approved by Lecturer</option>
-              <option value="REJECTED_BY_LECTURER">Rejected by Lecturer</option>
-              <option value="APPROVED_BY_ADMIN">Approved by Admin</option>
-              <option value="FINAL_APPROVED">Final Approved</option>
-              <option value="PAID">Paid</option>
+              <option value="PENDING_TUTOR_CONFIRMATION">Submitted</option>
+              <option value="LECTURER_CONFIRMED">Approved by Lecturer</option>
+              <option value="REJECTED">Rejected by Lecturer</option>
+              <option value="FINAL_CONFIRMED">Approved by Admin</option>
+              <option value="FINAL_CONFIRMED">Final Approved</option>
+              <option value="FINAL_CONFIRMED">Paid</option>
             </select>
           </div>
 
@@ -364,13 +402,15 @@ const FilterControls = memo<{
               id="amount-min"
               type="number"
               placeholder="Min"
-              onChange={(e) => handleFilterUpdate({ minAmount: parseFloat(e.target.value) })}
+              value={typeof filters['minAmount'] === 'number' ? String(filters['minAmount']) : ''}
+              onChange={(e) => handleFilterUpdate({ minAmount: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
             />
             <span>to</span>
             <input
               type="number"
               placeholder="Max"
-              onChange={(e) => handleFilterUpdate({ maxAmount: parseFloat(e.target.value) })}
+              value={typeof filters['maxAmount'] === 'number' ? String(filters['maxAmount']) : ''}
+              onChange={(e) => handleFilterUpdate({ maxAmount: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
             />
           </div>
 
@@ -380,6 +420,8 @@ const FilterControls = memo<{
               id="tutor-filter"
               type="text"
               placeholder="Search tutor..."
+              data-testid="tutor-filter"
+              value={typeof filters['tutorName'] === 'string' ? (filters['tutorName'] as string) : ''}
               onChange={(e) => handleFilterUpdate({ tutorName: e.target.value })}
             />
           </div>
@@ -390,8 +432,21 @@ const FilterControls = memo<{
               id="course-filter"
               type="text"
               placeholder="Search course..."
+              data-testid="course-filter"
+              value={typeof filters['courseName'] === 'string' ? (filters['courseName'] as string) : ''}
               onChange={(e) => handleFilterUpdate({ courseName: e.target.value })}
             />
+          </div>
+
+          <div className="filter-actions">
+            <button
+              type="button"
+              className="clear-filters-btn"
+              data-testid="clear-filters-btn"
+              onClick={handleClearFilters}
+            >
+              Clear Filters
+            </button>
           </div>
         </div>
       )}
@@ -470,8 +525,8 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
     switch (currentTab) {
       case 'pending':
         filtered = filtered.filter(t => 
-          t.status === 'SUBMITTED' || 
-          t.status === 'APPROVED_BY_LECTURER'
+          t.status === 'PENDING_TUTOR_CONFIRMATION' || 
+          t.status === 'LECTURER_CONFIRMED'
         );
         break;
       default:
@@ -482,12 +537,33 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
   }, [allTimesheets, searchQuery, currentTab]);
 
   // Filter presets
+  const uniqueTutorCount = useMemo(() => {
+    const tutorIds = new Set<number>();
+    allTimesheets.forEach(timesheet => {
+      if (timesheet?.tutorId) {
+        tutorIds.add(timesheet.tutorId);
+      }
+    });
+
+    return tutorIds.size;
+  }, [allTimesheets]);
+
+  const totalTimesheetCount = dashboardData?.totalTimesheets ?? filteredTimesheets.length;
+  const pendingApprovalsCount = dashboardData?.pendingApprovals ??
+    filteredTimesheets.filter(timesheet =>
+      ['LECTURER_CONFIRMED', 'PENDING_TUTOR_CONFIRMATION', 'PENDING_FINAL_APPROVAL', 'PENDING_TUTOR_REVIEW', 'TUTOR_CONFIRMED']
+        .includes((timesheet.status ?? '').toString())
+    ).length;
+  const totalHoursValue = dashboardData?.totalHours ?? adminStats?.totalHours ?? 0;
+  const totalPayrollValue = dashboardData?.totalPayroll ?? adminStats?.totalPay ?? 0;
+  const tutorCountValue = dashboardData?.tutorCount ?? uniqueTutorCount;
+
   const filterPresets: FilterPreset[] = useMemo(() => [
     {
       id: 'pending-final',
       name: 'Pending Final Approval',
-      query: { status: 'APPROVED_BY_LECTURER' },
-      active: filterQuery.status === 'APPROVED_BY_LECTURER'
+      query: { status: 'LECTURER_CONFIRMED' },
+      active: filterQuery.status === 'LECTURER_CONFIRMED'
     },
     {
       id: 'high-value',
@@ -527,8 +603,15 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
 
   // Computed values
   const welcomeMessage = useMemo(() => {
-    const fullName = user ? `${user.firstName} ${user.lastName}` : 'Administrator';
-    return `Welcome, ${fullName}`;
+    if (user) {
+      const nameParts = [user.firstName, user.lastName]
+        .map(part => (part ?? '').trim())
+        .filter(part => part.length > 0);
+      const derivedName = (nameParts.length > 0 ? nameParts.join(' ') : user.name || user.email) || 'Administrator';
+      return `Welcome back, ${derivedName}`;
+    }
+
+    return 'Welcome back, Administrator';
   }, [user]);
 
   const urgentCount = useMemo(() => {
@@ -556,10 +639,14 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
         return;
       }
 
+      if (action !== 'HR_CONFIRM') {
+        return;
+      }
+
       await approveTimesheet({
         timesheetId,
-        action: action === 'APPROVE' ? 'FINAL_APPROVED' : action,
-        adminNotes: 'Final approval processed by admin'
+        action: 'HR_CONFIRM',
+        comment: 'Final approval processed by admin'
       });
 
       await Promise.all([refreshTimesheets(), refetchDashboard()]);
@@ -591,15 +678,15 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
       if (action === 'approve') {
         const requests = timesheetIds.map(timesheetId => ({
           timesheetId,
-          action: 'FINAL_APPROVED' as const,
-          adminNotes: 'Batch approved by admin'
+          action: 'HR_CONFIRM' as const,
+          comment: 'Batch approved by admin'
         }));
         await batchApprove(requests);
       } else if (action === 'reject') {
         const requests = timesheetIds.map(timesheetId => ({
           timesheetId,
-          action: 'REJECTED_BY_ADMIN' as const,
-          adminNotes: reason || 'Rejected by admin'
+          action: 'REJECT' as const,
+          comment: reason || 'Rejected by admin'
         }));
         await batchApprove(requests);
       }
@@ -665,9 +752,9 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
       <header className="admin-dashboard-header">
         <div className="admin-header__content">
           <div className="admin-header__title-section">
-            <h1 className="admin-header__title">{welcomeMessage}</h1>
+            <h1 className="admin-header__title" data-testid="main-welcome-message">{welcomeMessage}</h1>
             <p className="admin-header__subtitle">System Administrator</p>
-            <p className="admin-header__description">Admin Dashboard</p>
+            <p className="admin-header__description" data-testid="main-dashboard-title">Admin Dashboard</p>
           </div>
           
           {urgentCount > 0 && (
@@ -757,38 +844,53 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
             role="region"
             aria-label="System Overview"
           >
+            <header className="statistics-header">
+              <h2 data-testid="system-overview-title">System Overview</h2>
+            </header>
             <div className="statistics-grid" data-testid="statistics-cards">
               <AdminStatCard
                 title="Total Timesheets"
-                value={dashboardData?.totalTimesheets || 0}
-                subtitle="All time"
+                value={totalTimesheetCount}
+                subtitle="All time records"
                 color="primary"
                 icon="📊"
+                testId="total-timesheets-card"
               />
-              
+
               <AdminStatCard
-                title="Active Users"
-                value={dashboardData?.systemMetrics?.activeUsers || 0}
-                subtitle={`Tutors: 32, Lecturers: 12, Admins: 1`}
-                color="success"
-                icon="👥"
+                title="Pending Approvals"
+                value={pendingApprovalsCount}
+                subtitle="Awaiting admin review"
+                color="warning"
+                icon="⏳"
+                testId="pending-approvals-card"
               />
-              
+
+              <AdminStatCard
+                title="Total Hours"
+                value={formatters.hours(totalHoursValue)}
+                subtitle="Tracked across all tutors"
+                color="info"
+                icon="⏰"
+                testId="total-hours-card"
+              />
+
               <AdminStatCard
                 title="Total Payroll"
-                value={`$${formatters.currencyValue(dashboardData?.totalPay || 0)}`}
-                subtitle={`This Week: $${formatters.currencyValue(dashboardData?.thisWeekPay || 0)}`}
-                color="info"
-                icon="💰"
-              />
-              
-              <AdminStatCard
-                title="System Load"
-                value={`${Math.round((dashboardData?.systemMetrics?.systemLoad || 0.65) * 100)}%`}
-                subtitle="All Systems Operational"
-                trend="stable"
+                value={formatters.currency(totalPayrollValue)}
+                subtitle="Approved payouts"
                 color="success"
-                icon="⚡"
+                icon="💰"
+                testId="total-pay-card"
+              />
+
+              <AdminStatCard
+                title="Tutor Coverage"
+                value={tutorCountValue}
+                subtitle="Active tutors this term"
+                color="info"
+                icon="👥"
+                testId="tutors-card"
               />
             </div>
           </section>
@@ -913,30 +1015,44 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
           </div>
 
           {/* Timesheets Table */}
-          {noTimesheets ? (
-            <div className="empty-state">
-              <div className="empty-state__content">
-                <span className="empty-state__icon">✅</span>
-                <h3>No pending reviews</h3>
-                <p>All timesheets have been processed.</p>
-              </div>
+          <section
+            className="timesheet-admin-section"
+            role="region"
+            aria-label="All System Timesheets"
+          >
+            <div className="timesheet-section__header">
+              <h2 data-testid="timesheet-section-title">All System Timesheets</h2>
+              <span className="timesheet-count-badge" data-testid="total-count-badge">
+                {totalTimesheetCount} total
+              </span>
             </div>
-          ) : (
-            <TimesheetTable
-              timesheets={filteredTimesheets}
-              loading={timesheetsLoading}
-              onApprovalAction={handleApprovalAction}
-              actionLoading={approvalLoading ? filteredTimesheets[0]?.id : null}
-              showActions={true}
-              showTutorInfo={true}
-              showCourseInfo={true}
-              showSelection={true}
-              selectedIds={selectedTimesheets}
-              onSelectionChange={setSelectedTimesheets}
-              virtualizeThreshold={50}
-              className="admin-timesheet-table"
-            />
-          )}
+
+            {noTimesheets ? (
+              <div className="empty-state" data-testid="empty-state">
+                <div className="empty-state__content">
+                  <span className="empty-state__icon">✅</span>
+                  <h3>No pending reviews</h3>
+                  <p>All timesheets have been processed.</p>
+                </div>
+              </div>
+            ) : (
+              <TimesheetTable
+                timesheets={filteredTimesheets}
+                loading={timesheetsLoading}
+                onApprovalAction={handleApprovalAction}
+                actionLoading={approvalLoading ? filteredTimesheets[0]?.id : null}
+                showActions={true}
+                showTutorInfo={true}
+                showCourseInfo={true}
+                showSelection={true}
+                selectedIds={selectedTimesheets}
+                onSelectionChange={setSelectedTimesheets}
+                virtualizeThreshold={50}
+                className="admin-timesheet-table"
+                approvalRole="ADMIN"
+              />
+            )}
+          </section>
         </section>
       )}
 
@@ -1123,3 +1239,4 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
 AdminDashboard.displayName = 'AdminDashboard';
 
 export default AdminDashboard;
+

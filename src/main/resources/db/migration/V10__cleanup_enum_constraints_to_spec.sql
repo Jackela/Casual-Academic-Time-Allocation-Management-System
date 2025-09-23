@@ -6,7 +6,24 @@
 ALTER TABLE approvals DROP CONSTRAINT IF EXISTS approvals_previous_status_check;
 ALTER TABLE approvals DROP CONSTRAINT IF EXISTS approvals_new_status_check;
 ALTER TABLE approvals DROP CONSTRAINT IF EXISTS approvals_action_check;
+-- Drop legacy constraint names from earlier migration
+ALTER TABLE approvals DROP CONSTRAINT IF EXISTS chk_approvals_previous_status;
+ALTER TABLE approvals DROP CONSTRAINT IF EXISTS chk_approvals_new_status;
+ALTER TABLE approvals DROP CONSTRAINT IF EXISTS chk_approvals_action;
+-- Drop any legacy timesheet status constraints by known names
 ALTER TABLE timesheets DROP CONSTRAINT IF EXISTS timesheets_status_check;
+ALTER TABLE timesheets DROP CONSTRAINT IF EXISTS chk_timesheets_status;
+
+-- Remove legacy approvals.status column to avoid NOT NULL conflicts with new schema
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'approvals' AND column_name = 'status'
+    ) THEN
+        ALTER TABLE approvals DROP COLUMN status;
+    END IF;
+END $$;
 
 -- Step 2: Add constraints with ONLY specification-defined enum values
 ALTER TABLE approvals ADD CONSTRAINT approvals_previous_status_check
@@ -34,6 +51,9 @@ CHECK (status IN (
     'DRAFT', 'PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED',
     'LECTURER_CONFIRMED', 'FINAL_CONFIRMED', 'REJECTED', 'MODIFICATION_REQUESTED'
 ));
+
+-- Ensure default aligns with specification (uppercase)
+ALTER TABLE timesheets ALTER COLUMN status SET DEFAULT 'DRAFT';
 
 -- Step 5: Update documentation
 COMMENT ON CONSTRAINT approvals_previous_status_check ON approvals IS 

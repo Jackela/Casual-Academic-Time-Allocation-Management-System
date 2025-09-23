@@ -51,10 +51,10 @@ export interface Timesheet {
   lecturerName?: string;
 }
 
-export type TimesheetStatus = 
-  | 'DRAFT' 
+export type TimesheetStatus =
+  | 'DRAFT'
   | 'PENDING_TUTOR_CONFIRMATION'
-  | 'TUTOR_CONFIRMED' 
+  | 'TUTOR_CONFIRMED'
   | 'LECTURER_CONFIRMED'
   | 'FINAL_CONFIRMED'
   | 'REJECTED'
@@ -138,7 +138,9 @@ export type ApprovalAction =
   | 'LECTURER_CONFIRM'
   | 'HR_CONFIRM'
   | 'REJECT'
-  | 'REQUEST_MODIFICATION';
+  | 'REQUEST_MODIFICATION'
+  | 'EDIT'
+  | 'SUBMIT_DRAFT';
 
 export interface ApprovalResponse {
   success: boolean;
@@ -245,7 +247,16 @@ export function isUserRole(role: string): role is User['role'] {
 }
 
 export function isApprovalAction(action: string): action is ApprovalAction {
-  return ['SUBMIT_FOR_APPROVAL', 'TUTOR_CONFIRM', 'LECTURER_CONFIRM', 'HR_CONFIRM', 'REJECT', 'REQUEST_MODIFICATION'].includes(action as ApprovalAction);
+  return [
+    'SUBMIT_FOR_APPROVAL',
+    'TUTOR_CONFIRM',
+    'LECTURER_CONFIRM',
+    'HR_CONFIRM',
+    'REJECT',
+    'REQUEST_MODIFICATION',
+    'EDIT',
+    'SUBMIT_DRAFT'
+  ].includes(action as ApprovalAction);
 }
 
 // =============================================================================
@@ -277,7 +288,8 @@ export const API_ENDPOINTS = {
   },
   DASHBOARD: {
     SUMMARY: '/api/dashboard/summary',
-    ADMIN_SUMMARY: '/api/dashboard/admin-summary'
+    ADMIN_SUMMARY: '/api/dashboard/summary'
   },
   HEALTH: '/api/health'
 } as const;
+

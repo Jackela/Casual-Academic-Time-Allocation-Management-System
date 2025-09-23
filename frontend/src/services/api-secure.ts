@@ -4,7 +4,8 @@
  * Enhanced version of API client with secure logging and production-safe error handling.
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios from 'axios';
+import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { getConfig } from '../config/unified-config';
 import { secureLogger } from '../utils/secure-logger';
 import { ENV_CONFIG } from '../utils/environment';
@@ -14,13 +15,20 @@ import type { ApiResponse, ApiErrorResponse, User } from '../types/api';
 // Enhanced API Client Class with Security
 // =============================================================================
 
-class SecureApiClient {
+export interface SecureApiClientOptions {
+  environment?: 'browser' | 'server';
+}
+
+export class SecureApiClient {
   private client: AxiosInstance;
   private token: string | null = null;
+  private environment: 'browser' | 'server';
 
-  constructor(baseURL?: string) {
+  constructor(baseURL?: string, options: SecureApiClientOptions = {}) {
     const config = getConfig();
     const apiBaseURL = baseURL || config.api.baseUrl;
+
+    this.environment = options.environment ?? (typeof window !== 'undefined' ? 'browser' : 'server');
     
     this.client = axios.create({
       baseURL: apiBaseURL,
@@ -38,6 +46,10 @@ class SecureApiClient {
     });
   }
 
+  private isBrowserEnvironment(): boolean {
+    return this.environment === 'browser' && typeof window !== 'undefined';
+  }
+
   // ---------------------------------------------------------------------------
   // Authentication Methods
   // ---------------------------------------------------------------------------
@@ -45,10 +57,20 @@ class SecureApiClient {
   setAuthToken(token: string | null): void {
     this.token = token;
     if (token) {
-      this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      const defaults: any = this.client.defaults.headers.common;
+      if (defaults && typeof defaults.set === 'function') {
+        defaults.set('Authorization', `Bearer ${token}`);
+      } else if (defaults) {
+        defaults['Authorization'] = `Bearer ${token}`;
+      }
       secureLogger.debug('Auth token set for API client');
     } else {
-      delete this.client.defaults.headers.common['Authorization'];
+      const defaults: any = this.client.defaults.headers.common;
+      if (defaults && typeof defaults.delete === 'function') {
+        defaults.delete('Authorization');
+      } else if (defaults) {
+        delete defaults['Authorization'];
+      }
       secureLogger.debug('Auth token cleared from API client');
     }
   }
@@ -69,8 +91,16 @@ class SecureApiClient {
         config.metadata = { startTime: Date.now() };
         
         // Ensure auth token is included
-        if (this.token && !config.headers['Authorization']) {
-          config.headers['Authorization'] = `Bearer ${this.token}`;
+        if (this.token) {
+          if (!config.headers) {
+            config.headers = {};
+          }
+          const headers: any = config.headers;
+          if (typeof headers.set === 'function') {
+            headers.set('Authorization', `Bearer ${this.token}`);
+          } else {
+            headers['Authorization'] = `Bearer ${this.token}`;
+          }
         }
 
         // Secure API logging - no sensitive data in URL or body
@@ -146,20 +176,29 @@ class SecureApiClient {
   // ---------------------------------------------------------------------------
 
   private handleAuthError(): void {
+    const isBrowser = this.isBrowserEnvironment();
+    const currentPath = isBrowser ? window.location.pathname : 'server';
+
     secureLogger.security('Authentication error detected', {
-      currentPath: window.location.pathname,
+      currentPath,
       action: 'token_expired_or_invalid',
-      redirectRequired: window.location.pathname !== '/login'
+      redirectRequired: isBrowser ? window.location.pathname !== '/login' : false
     });
-    
-    // Clear token and redirect to login
+
     this.setAuthToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    
-    // Only redirect if not already on login page
-    if (window.location.pathname !== '/login') {
-      window.location.href = '/login';
+
+    if (isBrowser) {
+      try {
+        window.localStorage.removeItem('token');
+        window.localStorage.removeItem('user');
+      } catch (storageError) {
+        secureLogger.warn('Failed to clear auth storage', storageError);
+      }
+
+      const shouldRedirect = ENV_CONFIG.isProduction();
+      if (shouldRedirect && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
   }
 
@@ -299,27 +338,40 @@ class SecureApiClient {
 
 export const secureApiClient = new SecureApiClient();
 
-// Initialize with existing token if available
-const existingToken = localStorage.getItem('token');
-if (existingToken) {
-  secureApiClient.setAuthToken(existingToken);
-  secureLogger.debug('Restored existing auth token from localStorage');
+// Initialize with existing token if available (browser environments only)
+const hasWindow = typeof window !== 'undefined';
+const hasLocalStorage = typeof localStorage !== 'undefined';
+
+if (hasLocalStorage) {
+  try {
+    const existingToken = localStorage.getItem('token');
+    if (existingToken) {
+      secureApiClient.setAuthToken(existingToken);
+      secureLogger.debug('Restored existing auth token from localStorage');
+    }
+  } catch (error) {
+    secureLogger.warn('Failed to restore auth token from storage', error);
+  }
 }
 
-// Global error handler for unhandled API errors
-window.addEventListener('unhandledrejection', (event) => {
-  if (event.reason?.status === 401) {
-    secureLogger.security('Unhandled authentication error detected', {
-      status: event.reason.status,
-      url: event.reason.config?.url || 'unknown',
-      handled: false
-    });
-  } else if (event.reason?.status >= 500) {
-    secureLogger.error('Unhandled server error', {
-      status: event.reason.status,
-      url: event.reason.config?.url || 'unknown'
-    });
-  }
-});
+// Global error handler for unhandled API errors (browser only)
+if (hasWindow) {
+  window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason?.status === 401) {
+      secureLogger.security('Unhandled authentication error detected', {
+        status: event.reason.status,
+        url: event.reason.config?.url || 'unknown',
+        handled: false
+      });
+    } else if (event.reason?.status >= 500) {
+      secureLogger.error('Unhandled server error', {
+        status: event.reason.status,
+        url: event.reason.config?.url || 'unknown'
+      });
+    }
+  });
+}
 
 export default secureApiClient;
+
+

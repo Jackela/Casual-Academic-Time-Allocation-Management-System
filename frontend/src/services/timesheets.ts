@@ -18,6 +18,47 @@ import type {
   ApiResponse
 } from '../types/api';
 
+type ApiApprovalAction =
+  | 'SUBMIT_FOR_APPROVAL'
+  | 'TUTOR_CONFIRM'
+  | 'LECTURER_CONFIRM'
+  | 'HR_CONFIRM'
+  | 'REJECT'
+  | 'REQUEST_MODIFICATION';
+
+const APPROVAL_ACTION_MAP: Record<string, ApiApprovalAction> = {
+  SUBMIT_DRAFT: 'SUBMIT_FOR_APPROVAL',
+  FINAL_APPROVAL: 'LECTURER_CONFIRM',
+  FINAL_CONFIRMED: 'HR_CONFIRM',
+  APPROVE: 'HR_CONFIRM',
+  CONFIRM: 'TUTOR_CONFIRM',
+  TUTOR_CONFIRM: 'TUTOR_CONFIRM',
+  LECTURER_CONFIRM: 'LECTURER_CONFIRM',
+  LECTURER_CONFIRMED: 'LECTURER_CONFIRM',
+  REJECT: 'REJECT',
+  REJECTED: 'REJECT',
+  REQUEST_MODIFICATION: 'REQUEST_MODIFICATION'
+};
+
+const VALID_API_ACTIONS: readonly ApiApprovalAction[] = [
+  'SUBMIT_FOR_APPROVAL',
+  'TUTOR_CONFIRM',
+  'LECTURER_CONFIRM',
+  'HR_CONFIRM',
+  'REJECT',
+  'REQUEST_MODIFICATION'
+];
+
+function normalizeApprovalAction(action: ApprovalRequest['action']): ApiApprovalAction {
+  const mapped = APPROVAL_ACTION_MAP[action as string];
+  if (mapped) {
+    return mapped;
+  }
+  if ((VALID_API_ACTIONS as readonly string[]).includes(action as string)) {
+    return action as ApiApprovalAction;
+  }
+  throw new Error(`Unsupported approval action: ${action}`);
+}
 // =============================================================================
 // Timesheet CRUD Operations
 // =============================================================================
@@ -114,7 +155,8 @@ export class TimesheetService {
    * Approve or reject timesheet
    */
   static async approveTimesheet(request: ApprovalRequest): Promise<ApprovalResponse> {
-    const response = await secureApiClient.post<ApprovalResponse>('/api/approvals', request);
+    const payload = { ...request, action: normalizeApprovalAction(request.action) };
+    const response = await secureApiClient.post<ApprovalResponse>('/api/approvals', payload);
     return response.data!;
   }
 
@@ -142,7 +184,7 @@ export class TimesheetService {
    * Get admin dashboard summary
    */
   static async getAdminDashboardSummary(): Promise<DashboardSummary> {
-    const response = await secureApiClient.get<DashboardSummary>('/api/dashboard/admin-summary');
+    const response = await secureApiClient.get<DashboardSummary>('/api/dashboard/summary');
     return response.data!;
   }
 
@@ -203,11 +245,11 @@ export class TimesheetService {
   static getActionableTimesheets(timesheets: Timesheet[], userRole: string): Timesheet[] {
     switch (userRole) {
       case 'LECTURER':
-        return timesheets.filter(t => t.status === 'TUTOR_CONFIRMED');
+        return timesheets.filter(t => t.status === 'TUTOR_CONFIRMED' || t.status === 'MODIFICATION_REQUESTED');
       case 'ADMIN':
-        return timesheets.filter(t => ['LECTURER_CONFIRMED', 'TUTOR_CONFIRMED'].includes(t.status));
+        return timesheets.filter(t => t.status === 'LECTURER_CONFIRMED');
       case 'TUTOR':
-        return timesheets.filter(t => ['DRAFT', 'REJECTED', 'MODIFICATION_REQUESTED'].includes(t.status));
+        return timesheets.filter(t => ['DRAFT', 'MODIFICATION_REQUESTED', 'PENDING_TUTOR_CONFIRMATION'].includes(t.status));
       default:
         return [];
     }
@@ -311,3 +353,4 @@ export const {
   getActionableTimesheets,
   validateTimesheet
 } = TimesheetService;
+

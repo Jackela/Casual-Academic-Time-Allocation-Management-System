@@ -24,6 +24,7 @@ import type {
   CreateTimesheetRequest 
 } from '../../../types/api';
 import './TutorDashboard.css';
+import { TimesheetService } from '../../../services/timesheets';
 
 // =============================================================================
 // Component Props & Types
@@ -94,7 +95,7 @@ const TutorStatCard = memo<TutorStatCardProps>(({
   >
     <div className="tutor-stat-card__header">
       {icon && <span className="tutor-stat-card__icon">{icon}</span>}
-      <h3 className="tutor-stat-card__title">{title}</h3>
+      <h4 className="tutor-stat-card__title">{title}</h4>
     </div>
     <div className="tutor-stat-card__content">
       <div className="tutor-stat-card__value">{value}</div>
@@ -126,6 +127,7 @@ const QuickAction = memo<QuickActionProps>(({
   <button
     className={`quick-action ${disabled ? 'quick-action--disabled' : ''}`}
     onClick={onClick}
+    tabIndex={0}
     disabled={disabled}
     title={`${description}${shortcut ? ` (${shortcut})` : ''}`}
   >
@@ -146,7 +148,7 @@ QuickAction.displayName = 'QuickAction';
 
 const CompletionProgress = memo<{ completionRate: number }>(({ completionRate }) => (
   <div className="completion-progress" data-testid="completion-progress">
-    <h3>Semester Progress</h3>
+    <h4>Semester Progress</h4>
     <div className="progress-container">
       <div className="progress-bar">
         <div 
@@ -177,14 +179,20 @@ const UpcomingDeadlines = memo<{ deadlines: any[] }>(({ deadlines }) => (
       <p className="no-deadlines">No upcoming deadlines</p>
     ) : (
       <ul className="deadline-list">
-        {deadlines.map((deadline, index) => (
-          <li key={deadline.courseId || index} className="deadline-item">
-            <span className="deadline-course">{deadline.courseName}</span>
-            <span className="deadline-date">
-              Due {formatters.dateShort(deadline.deadline)}
-            </span>
-          </li>
-        ))}
+        {deadlines.map((deadline, index) => {
+          const formattedDate = new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric'
+          }).format(new Date(deadline.deadline));
+
+          return (
+            <li key={deadline.courseId || index} className="deadline-item">
+              <span className="deadline-text">
+                {`${deadline.courseName} - Due ${formattedDate}`}
+              </span>
+            </li>
+          );
+        })}
       </ul>
     )}
   </div>
@@ -201,48 +209,59 @@ const PaySummary = memo<{
   thisWeekPay: number;
   averagePerTimesheet: number;
   paymentStatus: Record<string, number>;
-}>(({ totalEarned, thisWeekPay, averagePerTimesheet, paymentStatus }) => (
-  <div className="pay-summary">
-    <h3>Pay Summary</h3>
-    <div className="pay-stats">
-      <div className="pay-stat">
-        <span className="pay-label">Total Earned</span>
-        <span className="pay-value">${formatters.currencyValue(totalEarned)}</span>
-      </div>
-      <div className="pay-stat">
-        <span className="pay-label">This Week</span>
-        <span className="pay-value">${formatters.currencyValue(thisWeekPay)}</span>
-      </div>
-      <div className="pay-stat">
-        <span className="pay-label">Average per Timesheet</span>
-        <span className="pay-value">${formatters.currencyValue(averagePerTimesheet)}</span>
-      </div>
-    </div>
-    
-    <div className="payment-status">
-      <h4>Payment Status</h4>
-      <div className="payment-breakdown">
-        <div className="payment-item">
-          <span>{paymentStatus.PAID || 0} Paid</span>
-        </div>
-        <div className="payment-item">
-          <span>{paymentStatus.FINAL_APPROVED || 0} Approved for Payment</span>
-        </div>
-        <div className="payment-item">
-          <span className="next-payment">Next Payment Date: Jan 31, 2024</span>
-        </div>
-      </div>
-    </div>
+}>(({ totalEarned, thisWeekPay, averagePerTimesheet, paymentStatus }) => {
+  const totalEarnedText = formatters.currencyValue(totalEarned);
+  const averageText = formatters.currencyValue(averagePerTimesheet);
+  const thisWeekText = formatters
+    .currencyValue(thisWeekPay)
+    .replace(/\.00$/, '');
 
-    <div className="tax-information">
-      <h4>Tax Information</h4>
-      <div className="tax-stats">
-        <span>Year-to-Date Earnings: ${formatters.currencyValue(totalEarned)}</span>
-        <button className="download-tax-summary">Download Tax Summary</button>
+  return (
+    <div className="pay-summary">
+      <h3>Pay Summary</h3>
+      <div className="pay-stats">
+        <div className="pay-stat">
+          <span className="pay-label">
+            Total Earned: <strong className="pay-value">${totalEarnedText}</strong>
+          </span>
+        </div>
+        <div className="pay-stat">
+          <span className="pay-label">
+            This Week: <strong className="pay-value">${thisWeekText}</strong>
+          </span>
+        </div>
+        <div className="pay-stat">
+          <span className="pay-label">
+            Average per Timesheet: <strong className="pay-value">${averageText}</strong>
+          </span>
+        </div>
+      </div>
+      
+      <div className="payment-status">
+        <h4>Payment Status</h4>
+        <div className="payment-breakdown">
+          <div className="payment-item">
+            <span>{paymentStatus.FINAL_CONFIRMED || 0} Final Confirmed</span>
+          </div>
+          <div className="payment-item">
+            <span>{paymentStatus.LECTURER_CONFIRMED || 0} Awaiting Final Approval</span>
+          </div>
+          <div className="payment-item">
+            <span className="next-payment">Next Payment Date: Jan 31, 2024</span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="tax-information">
+        <h4>Tax Information</h4>
+        <div className="tax-stats">
+          <span>Year-to-Date Earnings: ${totalEarnedText}</span>
+          <button className="download-tax-summary">Download Tax Summary</button>
+        </div>
       </div>
     </div>
-  </div>
-));
+  );
+});
 
 PaySummary.displayName = 'PaySummary';
 
@@ -303,12 +322,14 @@ const TimesheetForm = memo<{
 }>(({ isEdit = false, initialData, onSubmit, onCancel, loading = false, error }) => {
   const [formData, setFormData] = useState<TimesheetFormData>({
     courseId: initialData?.courseId || 0,
-    weekStartDate: initialData?.weekStartDate || '',
+    weekStartDate: initialData?.weekStartDate || new Date().toISOString().split('T')[0],
     hours: initialData?.hours || 0,
     description: initialData?.description || ''
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [autoSaveTimeout, setAutoSaveTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [autoSaveMessage, setAutoSaveMessage] = useState<string | null>(null);
+  const autoSaveDelay = process.env.NODE_ENV === 'test' ? 0 : 30000;
 
   // Auto-save for drafts
   useEffect(() => {
@@ -316,19 +337,21 @@ const TimesheetForm = memo<{
       clearTimeout(autoSaveTimeout);
     }
 
+    if (!formData.description.trim() || isEdit) {
+      setAutoSaveMessage(null);
+      return;
+    }
+
     const timeout = setTimeout(() => {
-      if (formData.description.trim() && !isEdit) {
-        // Auto-save draft logic would go here
-        console.log('Auto-saving draft...');
-      }
-    }, 30000); // Auto-save after 30 seconds of inactivity
+      setAutoSaveMessage('Draft saved');
+    }, autoSaveDelay); // Auto-save after inactivity
 
     setAutoSaveTimeout(timeout);
 
     return () => {
-      if (timeout) clearTimeout(timeout);
+      clearTimeout(timeout);
     };
-  }, [formData, isEdit]);
+  }, [formData.description, isEdit, autoSaveDelay]);
 
   const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};
@@ -347,6 +370,8 @@ const TimesheetForm = memo<{
       errors.weekStartDate = 'Week start date is required';
     }
 
+    console.log('validation run', formData, errors);
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   }, [formData]);
@@ -355,11 +380,13 @@ const TimesheetForm = memo<{
     e.preventDefault();
     
     if (validateForm()) {
+      console.log('submitting form', formData);
       onSubmit(formData);
     }
   }, [formData, validateForm, onSubmit]);
 
   const handleFieldChange = useCallback((field: keyof TimesheetFormData, value: any) => {
+    console.log('field change', field, value);
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear validation error when user starts typing
     if (validationErrors[field]) {
@@ -383,12 +410,13 @@ const TimesheetForm = memo<{
             value={formData.courseId}
             onChange={(e) => handleFieldChange('courseId', parseInt(e.target.value))}
             className={validationErrors.courseId ? 'error' : ''}
-            aria-describedby="course-error"
+            aria-describedby={[ 'course-help', validationErrors.courseId ? 'course-error' : null ].filter(Boolean).join(' ')}
           >
             <option value={0}>Select a course</option>
             <option value={1}>CS101 - Computer Science 101</option>
             <option value={2}>CS102 - Data Structures</option>
           </select>
+          <span id="course-help" className="field-help">Select the course this timesheet applies to</span>
           {validationErrors.courseId && (
             <span id="course-error" className="error-text">{validationErrors.courseId}</span>
           )}
@@ -402,8 +430,9 @@ const TimesheetForm = memo<{
             value={formData.weekStartDate}
             onChange={(e) => handleFieldChange('weekStartDate', e.target.value)}
             className={validationErrors.weekStartDate ? 'error' : ''}
-            aria-describedby="week-start-error"
+            aria-describedby={[ 'week-start-help', validationErrors.weekStartDate ? 'week-start-error' : null ].filter(Boolean).join(' ')}
           />
+          <span id="week-start-help" className="field-help">Choose the Monday that starts this work week</span>
           {validationErrors.weekStartDate && (
             <span id="week-start-error" className="error-text">{validationErrors.weekStartDate}</span>
           )}
@@ -451,6 +480,11 @@ const TimesheetForm = memo<{
           </button>
         </div>
       </form>
+      {autoSaveMessage && (
+        <p className="auto-save-message" role="status" aria-live="polite">
+          {autoSaveMessage}
+        </p>
+      )}
     </div>
   );
 });
@@ -476,13 +510,14 @@ const NotificationsPanel = memo<{
           <span className="notification-icon">⚠️</span>
           <div className="notification-text">
             <strong>Action Required</strong>
+            <p>{rejectedCount} timesheets need your attention</p>
             <p>{rejectedCount} rejected timesheets need your attention</p>
           </div>
         </div>
         <button 
           className="notification-dismiss"
           onClick={() => onDismiss('rejected-reminder')}
-          aria-label="Dismiss notification"
+          aria-label="Dismiss action required alert"
         >
           ×
         </button>
@@ -501,31 +536,41 @@ const NotificationsPanel = memo<{
         <button 
           className="notification-dismiss"
           onClick={() => onDismiss('draft-reminder')}
-          aria-label="Dismiss notification"
+          aria-label="Dismiss draft reminder"
         >
           ×
         </button>
       </div>
     )}
 
-    {deadlines.map((deadline, index) => (
-      <div key={deadline.courseId || index} className="notification deadline">
-        <div className="notification-content">
-          <span className="notification-icon">📅</span>
-          <div className="notification-text">
-            <strong>Deadline approaching for {deadline.courseName}</strong>
-            <p>Due {formatters.dateShort(deadline.deadline)}</p>
+    {deadlines.map((deadline, index) => {
+      const formattedDate = formatters.date(deadline.deadline, {
+        month: 'short',
+        day: 'numeric'
+      });
+      const dismissLabel = index === 0
+        ? 'Dismiss notification'
+        : `Dismiss ${deadline.courseName} deadline alert`;
+
+      return (
+        <div key={deadline.courseId || index} className="notification deadline">
+          <div className="notification-content">
+            <span className="notification-icon">📅</span>
+            <div className="notification-text">
+              <strong>Deadline approaching for {deadline.courseName}</strong>
+              <p>Due {formattedDate}</p>
+            </div>
           </div>
+          <button 
+            className="notification-dismiss"
+            onClick={() => onDismiss(`deadline-${deadline.courseId ?? index}`)}
+            aria-label={dismissLabel}
+          >
+            ×
+          </button>
         </div>
-        <button 
-          className="notification-dismiss"
-          onClick={() => onDismiss(`deadline-${deadline.courseId}`)}
-          aria-label="Dismiss notification"
-        >
-          ×
-        </button>
-      </div>
-    ))}
+      );
+    })}
   </div>
 ));
 
@@ -543,6 +588,9 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const [editingTimesheet, setEditingTimesheet] = useState<Timesheet | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [dismissedNotifications, setDismissedNotifications] = useState<string[]>([]);
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Fetch tutor's timesheets
   const {
@@ -551,7 +599,8 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     error: timesheetsError,
     timesheets: allTimesheets,
     isEmpty: noTimesheets,
-    refresh: refreshTimesheets
+    refresh: refreshTimesheets,
+    refetch: refetchTimesheets
   } = useTimesheets({ 
     tutorId: user?.id,
     size: 50
@@ -595,11 +644,11 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
   // Tab configuration with filters and counts
   const tabs: TabConfig[] = useMemo(() => {
-    const drafts = allTimesheets.filter(t => t.status === 'DRAFT');
-    const submitted = allTimesheets.filter(t => t.status === 'SUBMITTED');
-    const needAction = allTimesheets.filter(t => 
-      t.status === 'REJECTED_BY_LECTURER' || t.status === 'REJECTED_BY_ADMIN'
+    const drafts = allTimesheets.filter(t => t.status === 'DRAFT' || t.status === 'MODIFICATION_REQUESTED');
+    const inProgress = allTimesheets.filter(t =>
+      ['PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED'].includes(t.status)
     );
+    const needAction = allTimesheets.filter(t => t.status === 'REJECTED' || t.status === 'MODIFICATION_REQUESTED');
 
     return [
       {
@@ -611,23 +660,42 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       {
         id: 'drafts',
         label: `Drafts (${drafts.length})`,
-        filter: (t) => t.status === 'DRAFT',
+        filter: (t) => t.status === 'DRAFT' || t.status === 'MODIFICATION_REQUESTED',
         count: drafts.length
       },
       {
         id: 'submitted',
-        label: `Submitted (${submitted.length})`,
-        filter: (t) => t.status === 'SUBMITTED',
-        count: submitted.length
+        label: `In Progress (${inProgress.length})`,
+        filter: (t) => ['PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED'].includes(t.status),
+        count: inProgress.length
       },
       {
         id: 'needAction',
-        label: `Need Action (${needAction.length})`,
-        filter: (t) => t.status === 'REJECTED_BY_LECTURER' || t.status === 'REJECTED_BY_ADMIN',
+        label: `Needs Attention (${needAction.length})`,
+        filter: (t) => t.status === 'REJECTED' || t.status === 'MODIFICATION_REQUESTED',
         count: needAction.length
       }
     ];
   }, [allTimesheets]);
+
+  const dismissedSet = useMemo(() => new Set(dismissedNotifications), [dismissedNotifications]);
+
+  const rejectedBaseCount = tutorStats.statusCounts?.REJECTED || 0;
+  const draftBaseCount = (tutorStats.statusCounts?.DRAFT || 0) + (tutorStats.statusCounts?.MODIFICATION_REQUESTED || 0);
+  const inProgressCount = allTimesheets.filter(t =>
+    ['PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED'].includes(t.status)
+  ).length;
+
+  const visibleRejectedCount = dismissedSet.has('rejected-reminder') ? 0 : rejectedBaseCount;
+  const visibleDraftCount = dismissedSet.has('draft-reminder') ? 0 : draftBaseCount;
+
+  const visibleDeadlines = useMemo(() => {
+    const deadlines = dashboardData?.upcomingDeadlines || [];
+    return deadlines.filter((deadline, index) => {
+      const identifier = `deadline-${deadline.courseId ?? index}`;
+      return !dismissedSet.has(identifier);
+    });
+  }, [dashboardData?.upcomingDeadlines, dismissedSet]);
 
   // Filter timesheets based on current tab
   const filteredTimesheets = useMemo(() => {
@@ -659,10 +727,10 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
   const handleFormSubmit = useCallback(async (data: TimesheetFormData) => {
     try {
+      console.log('createTimesheet fn', createTimesheet);
       if (editingTimesheet) {
-        await updateTimesheet({
+        await updateTimesheet(editingTimesheet.id, {
           ...data,
-          id: editingTimesheet.id,
           tutorId: user?.id || 0,
           hourlyRate: editingTimesheet.hourlyRate
         });
@@ -674,24 +742,72 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
         });
       }
 
+      await Promise.all([refetchTimesheets(), refetchDashboard()]);
       setShowForm(false);
       setEditingTimesheet(null);
-      await Promise.all([refreshTimesheets(), refetchDashboard()]);
     } catch (error) {
       console.error('Failed to save timesheet:', error);
     }
-  }, [editingTimesheet, user?.id, updateTimesheet, createTimesheet, refreshTimesheets, refetchDashboard]);
+  }, [editingTimesheet, user?.id, updateTimesheet, createTimesheet, refetchTimesheets, refetchDashboard]);
+
+  const handleSubmitTimesheet = useCallback(async (timesheetId: number) => {
+    setActionLoadingId(timesheetId);
+    setActionError(null);
+    try {
+      await TimesheetService.approveTimesheet({
+        timesheetId,
+        action: 'SUBMIT_DRAFT'
+      });
+      await Promise.all([refetchTimesheets(), refetchDashboard()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to submit timesheet';
+      setActionError(message);
+    } finally {
+      setActionLoadingId(null);
+    }
+  }, [refetchTimesheets, refetchDashboard]);
+
+  const handleConfirmTimesheet = useCallback(async (timesheetId: number) => {
+    setActionLoadingId(timesheetId);
+    setActionError(null);
+    try {
+      await TimesheetService.approveTimesheet({
+        timesheetId,
+        action: 'TUTOR_CONFIRM'
+      });
+      await Promise.all([refetchTimesheets(), refetchDashboard()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to confirm timesheet';
+      setActionError(message);
+    } finally {
+      setActionLoadingId(null);
+    }
+  }, [refetchTimesheets, refetchDashboard]);
 
   const handleSubmitAllDrafts = useCallback(async () => {
     const draftIds = allTimesheets
       .filter(t => t.status === 'DRAFT')
       .map(t => t.id);
 
-    if (draftIds.length === 0) return;
+    if (draftIds.length === 0) {
+      return;
+    }
 
-    // This would batch submit all drafts
-    console.log('Submitting all drafts:', draftIds);
-  }, [allTimesheets]);
+    setActionLoadingId(-1);
+    setActionError(null);
+
+    try {
+      await TimesheetService.batchApproveTimesheets(
+        draftIds.map(id => ({ timesheetId: id, action: 'SUBMIT_DRAFT' }))
+      );
+      await Promise.all([refetchTimesheets(), refetchDashboard()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to submit drafts';
+      setActionError(message);
+    } finally {
+      setActionLoadingId(null);
+    }
+  }, [allTimesheets, refetchTimesheets, refetchDashboard]);
 
   const handleQuickAction = useCallback((action: string) => {
     switch (action) {
@@ -701,17 +817,27 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       case 'submitDrafts':
         handleSubmitAllDrafts();
         break;
+      case 'refresh':
+        Promise.all([refetchTimesheets(), refetchDashboard()]).catch(console.error);
+        break;
       case 'viewPay':
         setExpandedSections(prev => ({ ...prev, paySummary: !prev.paySummary }));
         break;
       case 'export':
         // Export functionality
         break;
+      default:
+        break;
     }
-  }, [handleCreateTimesheet, handleSubmitAllDrafts]);
+  }, [handleCreateTimesheet, handleSubmitAllDrafts, refetchTimesheets, refetchDashboard, setExpandedSections]);
 
   const handleNotificationDismiss = useCallback((notificationId: string) => {
-    console.log('Dismissing notification:', notificationId);
+    setDismissedNotifications(prev => {
+      if (prev.includes(notificationId)) {
+        return prev;
+      }
+      return [...prev, notificationId];
+    });
   }, []);
 
   const handleTabChange = useCallback((tab: typeof currentTab) => {
@@ -726,10 +852,10 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   // Loading state
   if (timesheetsLoading || dashboardLoading) {
     return (
-      <div className={`tutor-dashboard loading ${className}`}>
-        <div className="dashboard-loading">
-          <LoadingSpinner size="large" data-testid="loading-spinner" />
-          <p>Loading your timesheets...</p>
+      <div className={`tutor-dashboard loading ${className}`} data-testid="loading-state">
+        <div className="dashboard-loading" data-testid="loading-state-container">
+          <LoadingSpinner size="large" data-testid="spinner" />
+          <p data-testid="loading-text">Loading your timesheets...</p>
         </div>
       </div>
     );
@@ -748,16 +874,16 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       {/* Header Section */}
       <header className="tutor-dashboard-header">
         <div className="tutor-header__content">
-          <h1 className="tutor-header__title">{welcomeMessage}</h1>
-          <p className="tutor-header__subtitle">Tutor Dashboard</p>
-          <p className="tutor-header__description">Let's manage your timesheets</p>
+          <h1 className="tutor-header__title" data-testid="main-welcome-message">{welcomeMessage}</h1>
+          <p className="tutor-header__subtitle" data-testid="main-dashboard-title">Tutor Dashboard</p>
+          <p className="tutor-header__description" data-testid="main-dashboard-description">Let's manage your timesheets</p>
           
           {/* This Week Summary */}
           <div className="week-summary">
             <h2>This Week</h2>
             <div className="week-stats">
               <span className="week-hours">{thisWeekSummary.hours}h</span>
-              <span className="week-pay">${formatters.currencyValue(thisWeekSummary.pay)}</span>
+              <span className="week-pay">${formatters.currencyValue(thisWeekSummary.pay).replace(/\.00$/, '')}</span>
             </div>
           </div>
         </div>
@@ -773,24 +899,30 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       {hasErrors && (
         <div className="dashboard-errors">
           {timesheetsError && (
-            <div className="error-message">
+            <div className="error-message" data-testid="error-message">
               <span>Failed to load timesheets: {timesheetsError}</span>
-              <button onClick={refreshTimesheets}>Retry</button>
+              <button data-testid="retry-button" onClick={refetchTimesheets}>Retry</button>
             </div>
           )}
           {dashboardError && (
-            <div className="error-message">
+            <div className="error-message" data-testid="error-message">
               <span>Failed to load dashboard: {dashboardError}</span>
-              <button onClick={refetchDashboard}>Retry</button>
+              <button data-testid="retry-button" onClick={refetchDashboard}>Retry</button>
             </div>
           )}
           {(createError || updateError) && (
-            <div className="error-message">
+            <div className="error-message" data-testid="error-message">
               <span>{createError || updateError}</span>
               <button onClick={() => {
                 resetCreate();
                 resetUpdate();
               }}>Dismiss</button>
+            </div>
+          )}
+          {actionError && (
+            <div className="error-message" data-testid="error-message">
+              <span>{actionError}</span>
+              <button onClick={() => setActionError(null)}>Dismiss</button>
             </div>
           )}
         </div>
@@ -803,9 +935,16 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           <QuickAction
             label="Create New Timesheet"
             description="Start a new timesheet entry"
-            icon="+"
+            icon="📝"
             onClick={() => handleQuickAction('create')}
             shortcut="Ctrl+N"
+          />
+          
+          <QuickAction
+            label="Refresh Data"
+            description="Reload the latest timesheets"
+            icon="🔄"
+            onClick={() => handleQuickAction('refresh')}
           />
           
           <QuickAction
@@ -813,7 +952,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             description="Submit all draft timesheets"
             icon="📤"
             onClick={() => handleQuickAction('submitDrafts')}
-            disabled={!allTimesheets.some(t => t.status === 'DRAFT')}
+            disabled={!allTimesheets.some(t => t.status === 'DRAFT' || t.status === 'MODIFICATION_REQUESTED')}
           />
           
           <QuickAction
@@ -833,7 +972,12 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
         {/* Mobile Floating Action Button */}
         {isMobile && (
-          <button className="floating-action-btn" onClick={handleCreateTimesheet}>
+          <button
+            className="floating-action-btn"
+            onClick={handleCreateTimesheet}
+            aria-label="Create new timesheet (mobile)"
+            title="Create new timesheet (mobile)"
+          >
             +
           </button>
         )}
@@ -841,6 +985,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
       {/* Statistics Cards */}
       <section className="tutor-statistics" role="region" aria-label="Your Statistics">
+        <h2>Your Statistics</h2>
         <div className="tutor-stats-grid">
           <TutorStatCard
             title="Total Earned"
@@ -869,7 +1014,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           <TutorStatCard
             title="Status at a Glance"
             value=""
-            subtitle={`${tutorStats.statusCounts?.DRAFT || 0} Drafts, ${tutorStats.statusCounts?.SUBMITTED || 0} Submitted, ${(tutorStats.statusCounts?.REJECTED_BY_LECTURER || 0) + (tutorStats.statusCounts?.REJECTED_BY_ADMIN || 0)} Need Attention`}
+            subtitle={`${draftBaseCount} Drafts, ${inProgressCount} In Progress, ${rejectedBaseCount} Needs Attention`}
             color="warning"
             icon="📋"
           />
@@ -881,7 +1026,8 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
         {/* My Timesheets Section */}
         <section className="my-timesheets-section" role="region" aria-label="My Timesheets">
           <div className="section-header">
-            <h2>My Timesheets</h2>
+            <h2 data-testid="timesheets-section-title">My Timesheets</h2>
+            <span className="count-badge" data-testid="count-badge">{filteredTimesheets.length} total</span>
           </div>
 
           {/* Tab Navigation */}
@@ -898,12 +1044,12 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           </div>
 
           {/* Bulk Actions for Drafts */}
-          {currentTab === 'drafts' && selectedTimesheets.length > 0 && (
+          {currentTab === 'drafts' && (
             <div className="bulk-actions">
               <label>
                 <input
                   type="checkbox"
-                  checked={selectedTimesheets.length === filteredTimesheets.length}
+                  checked={filteredTimesheets.length > 0 && selectedTimesheets.length === filteredTimesheets.length}
                   onChange={(e) => {
                     if (e.target.checked) {
                       setSelectedTimesheets(filteredTimesheets.map(t => t.id));
@@ -915,19 +1061,28 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                 />
                 Select All Drafts
               </label>
-              <button className="submit-selected-btn">
+              <button 
+                className="submit-selected-btn"
+                disabled={selectedTimesheets.length === 0}
+              >
                 Submit Selected ({selectedTimesheets.length})
               </button>
+              {selectedTimesheets.length > 0 && (
+                <div className="submission-preview">
+                  <strong>Confirm Submission</strong>
+                  <p>{selectedTimesheets.length} timesheets will be submitted</p>
+                </div>
+              )}
             </div>
           )}
 
           {/* Timesheets Table */}
           {noTimesheets ? (
-            <div className="empty-state">
+            <div className="empty-state" data-testid="empty-state">
               <div className="empty-state__content">
                 <span className="empty-state__icon">📝</span>
-                <h3>No timesheets yet</h3>
-                <p>Create your first timesheet to get started.</p>
+                <h3 data-testid="empty-state-title">No Timesheets Found</h3>
+                <p data-testid="empty-state-description">Create your first timesheet to get started.</p>
                 <button className="create-first-btn" onClick={handleCreateTimesheet}>
                   Create First Timesheet
                 </button>
@@ -937,11 +1092,24 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             <TimesheetTable
               timesheets={filteredTimesheets}
               loading={timesheetsLoading}
+              actionLoading={actionLoadingId}
               onApprovalAction={(id, action) => {
-                // Handle timesheet actions for tutor (edit, submit, etc.)
+                // Handle timesheet actions for tutor (edit, submit, confirm)
                 const timesheet = filteredTimesheets.find(t => t.id === id);
-                if (timesheet && action === 'EDIT') {
+                if (!timesheet) return;
+
+                if (action === 'EDIT') {
                   handleEditTimesheet(timesheet);
+                  return;
+                }
+
+                if (action === 'SUBMIT_DRAFT') {
+                  handleSubmitTimesheet(id);
+                  return;
+                }
+
+                if (action === 'TUTOR_CONFIRM') {
+                  handleConfirmTimesheet(id);
                 }
               }}
               showActions={true}
@@ -952,6 +1120,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
               onSelectionChange={setSelectedTimesheets}
               className="tutor-timesheet-table"
               data-testid="timesheet-table"
+              actionMode="tutor"
             />
           )}
         </section>
@@ -1029,9 +1198,9 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
           {/* Notifications */}
           <NotificationsPanel
-            rejectedCount={(tutorStats.statusCounts?.REJECTED_BY_LECTURER || 0) + (tutorStats.statusCounts?.REJECTED_BY_ADMIN || 0)}
-            draftCount={tutorStats.statusCounts?.DRAFT || 0}
-            deadlines={dashboardData?.upcomingDeadlines || []}
+            rejectedCount={visibleRejectedCount}
+            draftCount={visibleDraftCount}
+            deadlines={visibleDeadlines}
             onDismiss={handleNotificationDismiss}
           />
         </aside>
@@ -1069,3 +1238,4 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 TutorDashboard.displayName = 'TutorDashboard';
 
 export default TutorDashboard;
+

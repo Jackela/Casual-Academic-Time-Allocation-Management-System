@@ -17,6 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -35,6 +37,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class ApprovalApplicationService implements ApprovalService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ApprovalApplicationService.class);
 
     private final TimesheetRepository timesheetRepository;
     private final UserRepository userRepository;
@@ -61,50 +65,61 @@ public class ApprovalApplicationService implements ApprovalService {
     @Override
     @PreAuthorize("hasRole('TUTOR') or hasRole('LECTURER') or hasRole('ADMIN')")
     public Approval performApprovalAction(Long timesheetId, ApprovalAction action, String comment, Long requesterId) {
-        
-        // 1. Load the timesheet aggregate from repository
-        Timesheet timesheet = timesheetRepository.findById(timesheetId)
-            .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
+        logger.info("Approval requested: action={}, timesheetId={}, requesterId={}", action, timesheetId, requesterId);
+        try {
+            // 1. Load the timesheet aggregate from repository
+            Timesheet timesheet = timesheetRepository.findById(timesheetId)
+                .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
 
-        // 2. Load related entities for validation
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
-        
-        Course course = courseRepository.findById(timesheet.getCourseId())
-            .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
+            // 2. Load related entities for validation
+            User requester = userRepository.findById(requesterId)
+                .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+            
+            Course course = courseRepository.findById(timesheet.getCourseId())
+                .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
 
-        // 3. Validate action using domain service
-        approvalDomainService.validateApprovalActionBusinessRules(timesheet, action, requester, course);
+            // 3. Validate action using domain service
+            approvalDomainService.validateApprovalActionBusinessRules(timesheet, action, requester, course);
 
-        // 4. Perform the action through the aggregate
-        Approval approval;
-        switch (action) {
-            case SUBMIT_FOR_APPROVAL:
-                approval = timesheet.submitForApproval(requesterId, comment);
-                break;
-            case TUTOR_CONFIRM:
-                approval = timesheet.confirmByTutor(requesterId, comment);
-                break;
-            case LECTURER_CONFIRM:
-                approval = timesheet.confirmByLecturer(requesterId, comment);
-                break;
-            case HR_CONFIRM:
-                approval = timesheet.confirmByHR(requesterId, comment);
-                break;
-            case REJECT:
-                approval = timesheet.reject(requesterId, comment);
-                break;
-            case REQUEST_MODIFICATION:
-                approval = timesheet.requestModification(requesterId, comment);
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported confirmation action: " + action);
+            // 4. Perform the action through the aggregate
+            Approval approval;
+            switch (action) {
+                case SUBMIT_FOR_APPROVAL:
+                    approval = timesheet.submitForApproval(requesterId, comment);
+                    break;
+                case TUTOR_CONFIRM:
+                    approval = timesheet.confirmByTutor(requesterId, comment);
+                    break;
+                case LECTURER_CONFIRM:
+                    approval = timesheet.confirmByLecturer(requesterId, comment);
+                    break;
+                case HR_CONFIRM:
+                    approval = timesheet.confirmByHR(requesterId, comment);
+                    break;
+                case REJECT:
+                    approval = timesheet.reject(requesterId, comment);
+                    break;
+                case REQUEST_MODIFICATION:
+                    approval = timesheet.requestModification(requesterId, comment);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported confirmation action: " + action);
+            }
+
+            // 5. Save the timesheet aggregate (which cascades to save approvals)
+            timesheetRepository.save(timesheet);
+            logger.info(
+                "Approval succeeded: action={}, timesheetId={}, approverId={}, fromStatus={}, toStatus={}",
+                action, timesheetId, requesterId, approval.getPreviousStatus(), approval.getNewStatus()
+            );
+            return approval;
+        } catch (Exception e) {
+            logger.error(
+                "Approval failed: action={}, timesheetId={}, requesterId={}, type={}, message={}",
+                action, timesheetId, requesterId, e.getClass().getSimpleName(), e.getMessage()
+            );
+            throw e;
         }
-
-        // 5. Save the timesheet aggregate (which cascades to save approvals)
-        timesheetRepository.save(timesheet);
-
-        return approval;
     }
 
     @Override

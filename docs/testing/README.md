@@ -205,6 +205,16 @@ Notes:
 - E2E reports are saved under `frontend/playwright-report/` (HTML/JUnit/trace) and `frontend/test-results/` (artifacts per failure).
 - Ports, backend profile, and timeouts are read from `frontend/scripts/e2e.params.json` (no hard-coded values).
 
+#### E2E Seed Data
+
+The Spring Boot profile `e2e` executes the initializer at `src/main/java/com/usyd/catams/config/E2EDataInitializer.java` every time the backend starts for Playwright. It provisions deterministic fixtures so UI tests have predictable data:
+
+- **Users:** admin (`admin@example.com`), lecturer (`lecturer@example.com`), tutor (`tutor@example.com`) with the passwords defined in the initializer and the expected roles (ADMIN / LECTURER / TUTOR).
+- **Courses:** two active courses (`COMP1001`, `COMP2001`) owned by the lecturer and seeded with budget figures.
+- **Timesheets:** a portfolio spanning `DRAFT`, `PENDING_TUTOR_CONFIRMATION`, `TUTOR_CONFIRMED`, `LECTURER_CONFIRMED`, `FINAL_CONFIRMED`, `MODIFICATION_REQUESTED`, and `REJECTED` statuses so approval flows and dashboards have concrete data.
+
+Tests should assert against these seeded entities (or explicitly create their own) instead of assuming an empty system.
+
 #### Cross-platform process cleanup
 
 - Use `node scripts/cleanup-ports.js` to free test/dev ports and terminate related process trees safely.

@@ -23,7 +23,7 @@ test.describe('Tutor Dashboard Responsive Design', () => {
     });
 
     const respPromise = page
-      .waitForResponse(resp => resp.url().includes('/api/timesheets/me'))
+      .waitForResponse(resp => resp.url().includes('/api/timesheets'))
       .catch(() => undefined);
     await page.goto('/dashboard');
     await respPromise.catch(() => undefined);

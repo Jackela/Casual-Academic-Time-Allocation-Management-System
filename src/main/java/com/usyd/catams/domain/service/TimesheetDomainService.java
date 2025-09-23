@@ -111,9 +111,12 @@ public class TimesheetDomainService {
     public boolean canRoleEditTimesheetWithStatus(UserRole role, ApprovalStatus status) {
         switch (role) {
             case TUTOR:
-                return status == ApprovalStatus.REJECTED;
+                return status == ApprovalStatus.DRAFT
+                    || status == ApprovalStatus.MODIFICATION_REQUESTED
+                    || status == ApprovalStatus.REJECTED;
             case LECTURER:
-            case ADMIN:                return status == ApprovalStatus.DRAFT;
+            case ADMIN:
+                return status == ApprovalStatus.DRAFT || status == ApprovalStatus.MODIFICATION_REQUESTED;
             default:
                 return false;
         }
@@ -125,9 +128,10 @@ public class TimesheetDomainService {
     public boolean canRoleDeleteTimesheetWithStatus(UserRole role, ApprovalStatus status) {
         switch (role) {
             case TUTOR:
-                return status == ApprovalStatus.REJECTED;
+                return status == ApprovalStatus.DRAFT || status == ApprovalStatus.REJECTED;
             case LECTURER:
-            case ADMIN:                return status == ApprovalStatus.DRAFT;
+            case ADMIN:
+                return status == ApprovalStatus.DRAFT || status == ApprovalStatus.MODIFICATION_REQUESTED;
             default:
                 return false;
         }
@@ -245,3 +249,5 @@ public class TimesheetDomainService {
         }
     }
 }
+
+

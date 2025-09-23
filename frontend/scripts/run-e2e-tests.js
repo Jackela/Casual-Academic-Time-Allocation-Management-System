@@ -94,7 +94,18 @@ function spawnProcess(command, args, options = {}) {
 function loadParams() {
   const paramsPath = join(__dirname, 'e2e.params.json');
   const raw = fs.readFileSync(paramsPath, 'utf8');
-  return JSON.parse(raw);
+  const base = JSON.parse(raw);
+  const fePort = process.env.E2E_FRONTEND_PORT || undefined;
+  const bePort = process.env.E2E_BACKEND_PORT || undefined;
+  const feUrl = process.env.E2E_FRONTEND_URL || (fePort ? `http://localhost:${fePort}` : undefined);
+  const beUrl = process.env.E2E_BACKEND_URL || (bePort ? `http://127.0.0.1:${bePort}` : undefined);
+  return {
+    ...base,
+    frontendUrl: feUrl || base.frontendUrl,
+    backendPort: bePort ? Number(bePort) : base.backendPort,
+    backendHealthCheckPath: base.backendHealthCheckPath || '/actuator/health',
+    _effectiveBackendUrl: beUrl || `http://127.0.0.1:${bePort || base.backendPort}`
+  };
 }
 
 const params = loadParams();
@@ -171,11 +182,11 @@ async function startBackend() {
     log('  📋 This may take 1-2 minutes on first run (Docker image download + TestContainers startup)', colors.blue);
     
     const readyPromise = new Promise(async (resolve, reject) => {
-      const maxAttempts = 120; // 120 seconds max (2 minutes for Docker image download + startup)
+      const maxAttempts = (process.env.E2E_FAST_FAIL === '1' || process.env.E2E_FAST_FAIL === 'true') ? 1 : 120; // fail fast when enabled
       for (let attempts = 1; attempts <= maxAttempts; attempts++) {
         try {
           await waitOn({ resources: [`tcp:localhost:${params.backendPort}`], timeout: 1000, interval: 500 });
-          const healthResponse = await fetch(`http://localhost:${params.backendPort}${params.backendHealthCheckPath}`, { method: 'GET', timeout: 3000 });
+          const healthResponse = await fetch(`http://127.0.0.1:${params.backendPort}${params.backendHealthCheckPath}`, { method: 'GET', timeout: 3000 });
           if (healthResponse.ok) {
             log('  ✅ Backend health check passed', colors.green);
             try {
@@ -219,7 +230,7 @@ async function checkDockerAvailability() {
 
 async function checkBackendAlreadyRunning() {
   try {
-    const url = `http://localhost:${params.backendPort}${params.backendHealthCheckPath}`;
+    const url = `http://127.0.0.1:${params.backendPort}${params.backendHealthCheckPath}`;
     const res = await fetch(url, { method: 'GET', timeout: 2000 });
     return res.ok;
   } catch {
@@ -241,10 +252,22 @@ async function startFrontend() {
     } catch {}
 
     // Use spawn without waiting for completion (frontend needs to stay running)
-    frontendProcess = spawn('npm', ['run', 'dev'], {
+    const fePort = process.env.E2E_FRONTEND_PORT || (new URL(params.frontendUrl)).port || '5174';
+    frontendProcess = spawn('npm', ['run', 'dev', '--', '--mode', 'e2e', '--port', fePort], {
       cwd: join(projectRoot, 'frontend'),
       stdio: 'pipe',
-      shell: true
+      shell: true,
+      env: {
+        ...process.env,
+        E2E_FRONTEND_PORT: fePort,
+        E2E_BACKEND_PORT: process.env.E2E_BACKEND_PORT || String(params.backendPort),
+        E2E_BACKEND_URL: process.env.E2E_BACKEND_URL || params._effectiveBackendUrl,
+        // For browser side config resolution via Vite
+        VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || params._effectiveBackendUrl,
+        ...(process.env.VITE_E2E_AUTH_BYPASS_ROLE
+          ? { VITE_E2E_AUTH_BYPASS_ROLE: process.env.VITE_E2E_AUTH_BYPASS_ROLE }
+          : {})
+      }
     });
     
     // Track frontend process for cleanup
@@ -293,6 +316,10 @@ async function runPlaywrightTests() {
     // Enforce JSON-only reporter for machine readability
     // Instruct Playwright to reuse externally managed web server
     process.env.E2E_EXTERNAL_WEBSERVER = 'true';
+    // Propagate effective URLs/ports to Playwright and the app
+    if (!process.env.E2E_BACKEND_PORT && params.backendPort) process.env.E2E_BACKEND_PORT = String(params.backendPort);
+    if (!process.env.E2E_FRONTEND_URL && params.frontendUrl) process.env.E2E_FRONTEND_URL = params.frontendUrl;
+    if (!process.env.E2E_BACKEND_URL && params._effectiveBackendUrl) process.env.E2E_BACKEND_URL = params._effectiveBackendUrl;
     // Limit projects to desktop runs by default (api-tests + ui-tests). Mobile can be enabled explicitly via CLI if needed.
     const pwArgs = ['playwright', 'test', '--reporter=json'];
     const hasProjectArg = process.argv.some(a => a.startsWith('--project='));
@@ -391,18 +418,22 @@ async function cleanup() {
 
   await Promise.all(cleanupPromises);
   
-  // Final comprehensive port cleanup using dedicated script
+  // Final comprehensive port cleanup using dedicated script (optional)
   try {
-    log('  🔧 Running comprehensive port cleanup...');
     const cleanupScript = join(projectRoot, 'scripts', 'cleanup-ports.js');
-    execSync(`node "${cleanupScript}"`, { 
-      stdio: 'inherit',
-      cwd: projectRoot 
-    });
+    if (fs.existsSync(cleanupScript)) {
+      log('  🔧 Running comprehensive port cleanup...');
+      execSync(`node "${cleanupScript}"`, { 
+        stdio: 'inherit',
+        cwd: projectRoot 
+      });
+      log('  ✅ Port cleanup script completed');
+    } else {
+      log('  🔧 Skipping port cleanup - no scripts/cleanup-ports.js found');
+    }
   } catch (error) {
     log(`  ⚠️  Port cleanup script failed: ${error.message}`);
   }
-  
   log('  🧹 Cleanup completed');
 }
 

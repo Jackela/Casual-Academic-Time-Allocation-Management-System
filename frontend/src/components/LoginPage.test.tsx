@@ -7,15 +7,26 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
-import axios from 'axios';
 import type { MockedFunction } from 'vitest';
 import LoginPage from './LoginPage';
 import { AuthProvider } from '../contexts/AuthContext';
+import { authManager } from '../services/auth-manager';
 
-// Mock axios
-vi.mock('axios');
-const mockedAxios = vi.mocked(axios);
-const mockedIsAxiosError = vi.mocked(axios.isAxiosError);
+// Mock secure API client
+vi.mock('../services/api-secure', () => {
+  return {
+    secureApiClient: {
+      post: vi.fn(),
+      setAuthToken: vi.fn(),
+      clearAuthToken: vi.fn()
+    }
+  };
+});
+
+import { secureApiClient } from '../services/api-secure';
+const mockedSecureClient = vi.mocked(secureApiClient, true);
+
+vi.stubGlobal('__DEV_CREDENTIALS__', true);
 
 // Mock react-router-dom hooks
 const mockNavigate = vi.fn() as MockedFunction<(to: string | number, options?: { replace?: boolean }) => void>;
@@ -29,11 +40,6 @@ vi.mock('react-router-dom', async () => {
     useLocation: () => mockLocation,
   };
 });
-
-// Mock API_BASE_URL
-vi.mock('../config', () => ({
-  API_BASE_URL: 'http://localhost:8084'
-}));
 
 // Test wrapper component that provides necessary context
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -50,17 +56,19 @@ describe('LoginPage Component Tests', () => {
   beforeEach(() => {
     // Clear all mocks before each test
     vi.clearAllMocks();
-    
-    // Clear localStorage
+
+    // Reset secure API client mocks
+    mockedSecureClient.post.mockReset();
+    mockedSecureClient.setAuthToken.mockReset();
+    mockedSecureClient.clearAuthToken.mockReset();
+
+    // Clear localStorage and auth manager state
     localStorage.clear();
-    
-    // Reset axios mock
-    mockedAxios.post.mockReset();
-    mockedIsAxiosError.mockReset();
-    
+    authManager.clearAuth();
+
     // Reset navigation mock
     mockNavigate.mockClear();
-    
+
     // Reset location mock state
     mockLocation.state = null;
   });
@@ -192,12 +200,7 @@ describe('LoginPage Component Tests', () => {
       const user = userEvent.setup();
       
       // Mock failed login response
-      mockedAxios.post.mockRejectedValueOnce({
-        response: {
-          data: { message: 'Invalid credentials' }
-        }
-      });
-      mockedIsAxiosError.mockReturnValue(true);
+      mockedSecureClient.post.mockRejectedValueOnce({ message: 'Invalid credentials', error: 'INVALID_CREDENTIALS' });
 
       render(
         <TestWrapper>
@@ -240,7 +243,7 @@ describe('LoginPage Component Tests', () => {
       const user = userEvent.setup();
       
       // Mock successful login response with delay
-      mockedAxios.post.mockImplementation(() => {
+      mockedSecureClient.post.mockImplementation(() => {
         return new Promise(resolve => {
           setTimeout(() => {
             resolve({
@@ -308,7 +311,7 @@ describe('LoginPage Component Tests', () => {
       };
       
       // Add a small delay to simulate network request
-      mockedAxios.post.mockImplementation(() => 
+      mockedSecureClient.post.mockImplementation(() => 
         new Promise(resolve => setTimeout(() => resolve(mockLoginResponse), 50))
       );
 
@@ -336,16 +339,11 @@ describe('LoginPage Component Tests', () => {
 
       // Verify API call was made with correct parameters
       await waitFor(() => {
-        expect(mockedAxios.post).toHaveBeenCalledWith(
-          'http://localhost:8084/api/auth/login',
+        expect(mockedSecureClient.post).toHaveBeenCalledWith(
+          '/api/auth/login',
           {
             email: 'lecturer@example.com',
             password: 'Lecturer123!'
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json'
-            }
           }
         );
       }, { timeout: 5000 });
@@ -368,7 +366,7 @@ describe('LoginPage Component Tests', () => {
       const user = userEvent.setup();
       
       // Mock with small delay to simulate real API
-      mockedAxios.post.mockImplementation(() => 
+      mockedSecureClient.post.mockImplementation(() => 
         new Promise(resolve => setTimeout(() => resolve({
           data: {
             token: 'mock-token',
@@ -417,16 +415,9 @@ describe('LoginPage Component Tests', () => {
       const user = userEvent.setup();
       
       // Mock failed login response
-      const mockError = {
-        response: {
-          data: {
-            message: 'Invalid email or password. Please try again.'
-          }
-        }
-      };
+      const mockError = { message: 'Invalid email or password. Please try again.', error: 'INVALID_CREDENTIALS' };
       
-      mockedAxios.post.mockRejectedValueOnce(mockError);
-      mockedIsAxiosError.mockReturnValue(true);
+      mockedSecureClient.post.mockRejectedValueOnce(mockError);
 
       render(
         <TestWrapper>
@@ -467,8 +458,7 @@ describe('LoginPage Component Tests', () => {
         }
       };
       
-      mockedAxios.post.mockRejectedValueOnce(mockError);
-      mockedIsAxiosError.mockReturnValue(true);
+      mockedSecureClient.post.mockRejectedValueOnce(mockError);
 
       render(
         <TestWrapper>
@@ -487,7 +477,7 @@ describe('LoginPage Component Tests', () => {
 
       // Verify default error message is displayed
       await waitFor(() => {
-        expect(screen.getByText(/login failed:/i)).toBeInTheDocument();
+        expect(screen.getByText(/an unexpected error occurred/i)).toBeInTheDocument();
       });
     });
 
@@ -495,8 +485,7 @@ describe('LoginPage Component Tests', () => {
       const user = userEvent.setup();
       
       // Mock non-axios error (e.g., network error)
-      mockedAxios.post.mockRejectedValueOnce(new Error('Network error'));
-      mockedIsAxiosError.mockReturnValue(false);
+      mockedSecureClient.post.mockRejectedValueOnce(new Error('Network error'));
 
       render(
         <TestWrapper>
@@ -550,7 +539,7 @@ describe('LoginPage Component Tests', () => {
       };
 
       // Mock with realistic delay
-      mockedAxios.post.mockImplementation(() => 
+      mockedSecureClient.post.mockImplementation(() => 
         new Promise(resolve => setTimeout(() => resolve({
           data: {
             token: 'mock-token',
@@ -620,12 +609,7 @@ describe('LoginPage Component Tests', () => {
     test('error messages are properly associated with the form', async () => {
       const user = userEvent.setup();
       
-      mockedAxios.post.mockRejectedValueOnce({
-        response: {
-          data: { message: 'Login failed' }
-        }
-      });
-      mockedIsAxiosError.mockReturnValue(true);
+      mockedSecureClient.post.mockRejectedValueOnce({ message: 'Login failed', error: 'LOGIN_FAILED' });
 
       render(
         <TestWrapper>
@@ -650,3 +634,4 @@ describe('LoginPage Component Tests', () => {
     });
   });
 });
+

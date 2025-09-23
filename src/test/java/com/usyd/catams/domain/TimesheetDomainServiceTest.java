@@ -73,13 +73,19 @@ public class TimesheetDomainServiceTest {
 
     @Test
     void canRoleEditTimesheetWithStatus_matrix() {
+        assertTrue(domainService.canRoleEditTimesheetWithStatus(UserRole.TUTOR, ApprovalStatus.DRAFT));
+        assertTrue(domainService.canRoleEditTimesheetWithStatus(UserRole.TUTOR, ApprovalStatus.MODIFICATION_REQUESTED));
         assertTrue(domainService.canRoleEditTimesheetWithStatus(UserRole.TUTOR, ApprovalStatus.REJECTED));
-        assertFalse(domainService.canRoleEditTimesheetWithStatus(UserRole.TUTOR, ApprovalStatus.DRAFT));
-        assertTrue(domainService.canRoleEditTimesheetWithStatus(UserRole.LECTURER, ApprovalStatus.DRAFT));
-        assertFalse(domainService.canRoleEditTimesheetWithStatus(UserRole.LECTURER, ApprovalStatus.REJECTED));
-        assertTrue(domainService.canRoleEditTimesheetWithStatus(UserRole.ADMIN, ApprovalStatus.DRAFT));
-    }
+        assertFalse(domainService.canRoleEditTimesheetWithStatus(UserRole.TUTOR, ApprovalStatus.LECTURER_CONFIRMED));
 
+        assertTrue(domainService.canRoleEditTimesheetWithStatus(UserRole.LECTURER, ApprovalStatus.DRAFT));
+        assertTrue(domainService.canRoleEditTimesheetWithStatus(UserRole.LECTURER, ApprovalStatus.MODIFICATION_REQUESTED));
+        assertFalse(domainService.canRoleEditTimesheetWithStatus(UserRole.LECTURER, ApprovalStatus.REJECTED));
+
+        assertTrue(domainService.canRoleEditTimesheetWithStatus(UserRole.ADMIN, ApprovalStatus.DRAFT));
+        assertTrue(domainService.canRoleEditTimesheetWithStatus(UserRole.ADMIN, ApprovalStatus.MODIFICATION_REQUESTED));
+        assertFalse(domainService.canRoleEditTimesheetWithStatus(UserRole.ADMIN, ApprovalStatus.FINAL_CONFIRMED));
+    }
     @Test
     void validateTimesheetCreation_should_fail_fast_on_first_rule() {
         User creator = new User("lecturer@example.com", "Dr. L", "pw", UserRole.LECTURER);

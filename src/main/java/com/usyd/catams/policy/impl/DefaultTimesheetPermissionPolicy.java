@@ -22,7 +22,7 @@ import java.time.LocalDate;
  * 
  * <p><strong>Authorization Architecture:</strong>
  * <ul>
- * <li><strong>Role Hierarchy</strong>: ADMIN (full access) > LECTURER (course-specific) > TUTOR (own resources)</li>
+ * <li><strong>Role Hierarchy</strong>: ADMIN (full access) > LECTURER (course-specific) > TUTOR (self-service)</li>
  * <li><strong>Ownership Model</strong>: Users can access resources they own or have authority over</li>
  * <li><strong>Resource Authority</strong>: LECTURER users have authority over courses they teach</li>
  * <li><strong>Status Awareness</strong>: Permissions adapt based on approval workflow state</li>
@@ -99,10 +99,15 @@ public class DefaultTimesheetPermissionPolicy implements TimesheetPermissionPoli
     
     @Override
     public boolean canCreateTimesheet(User creator) {
-        // Only LECTURER and ADMIN can create timesheets
-        return creator.getRole() == UserRole.LECTURER || creator.getRole() == UserRole.ADMIN;
+        if (creator == null || creator.getRole() == null) {
+            return false;
+        }
+
+        return switch (creator.getRole()) {
+            case ADMIN, LECTURER, TUTOR -> true;
+            default -> false;
+        };
     }
-    
     /**
      * {@inheritDoc}
      * 
@@ -115,7 +120,7 @@ public class DefaultTimesheetPermissionPolicy implements TimesheetPermissionPoli
      * <li>Validates creator has general creation permission (LECTURER or ADMIN role)</li>
      * <li>ADMIN role: Grants universal creation rights (bypasses further checks)</li>
      * <li>LECTURER role: Validates course authority and tutor role requirements</li>
-     * <li>TUTOR role: Always denied (no creation privileges)</li>
+     * <li>TUTOR role: Self-service only (creator must equal tutor)</li>
      * </ol>
      * 
      * <p><strong>Business Logic Implementation:</strong>
@@ -163,7 +168,15 @@ public class DefaultTimesheetPermissionPolicy implements TimesheetPermissionPoli
             return course.getLecturerId().equals(creator.getId());
         }
         
-        // All other cases denied (TUTOR role, invalid roles)
+        if (creator.getRole() == UserRole.TUTOR) {
+            if (tutor.getRole() != UserRole.TUTOR) {
+                return false;
+            }
+
+            return creator.getId().equals(tutor.getId());
+        }
+
+        // All other cases denied (invalid roles)
         return false;
     }
     
@@ -364,3 +377,8 @@ public class DefaultTimesheetPermissionPolicy implements TimesheetPermissionPoli
         }
     }
 }
+
+
+
+
+

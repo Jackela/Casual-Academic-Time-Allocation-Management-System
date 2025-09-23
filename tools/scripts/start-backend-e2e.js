@@ -12,6 +12,11 @@ const { join } = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
+const LOG_PREFIX = '[backend]';
+const info = (msg) => console.log(`${LOG_PREFIX} ${msg}`);
+const warn = (msg) => console.warn(`${LOG_PREFIX} ${msg}`);
+const error = (msg) => console.error(`${LOG_PREFIX} ${msg}`);
+
 function readParams() {
   const paramsPath = join(__dirname, '..', '..', 'frontend', 'scripts', 'e2e.params.json');
   const raw = fs.readFileSync(paramsPath, 'utf-8');
@@ -20,7 +25,8 @@ function readParams() {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function killPortWindows(port) {
+async function killPortWindows(port) {
+  info(`killing processes on port ${port}`);
   try {
     const out = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
     const lines = out.trim().split(/\r?\n/).filter(Boolean);
@@ -34,6 +40,34 @@ function killPortWindows(port) {
       try { execSync(`taskkill /PID ${pid} /F`); } catch {}
     }
   } catch {}
+
+  let attempts = 0;
+  while (attempts < 10) {
+    try {
+      const out = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+      if (!out || !out.trim()) break;
+    } catch {
+      break;
+    }
+    attempts++;
+    await sleep(200);
+  }
+}
+
+function tailLogsOnFailure(lines = 40) {
+  try {
+    const logPath = join(__dirname, '..', '..', 'logs', 'backend-e2e-run.out');
+    if (!fs.existsSync(logPath)) {
+      warn('no backend log file found');
+      return;
+    }
+    const content = fs.readFileSync(logPath, 'utf-8').trim().split(/\r?\n/);
+    const tail = content.slice(-lines);
+    error('--- backend-e2e-run.out (tail) ---');
+    tail.forEach(line => console.error(line));
+  } catch (e) {
+    warn(`failed to read backend log: ${e.message}`);
+  }
 }
 
 function waitForExit(child, timeoutMs) {
@@ -61,57 +95,100 @@ async function dockerAvailable(timeoutMs = 4000) {
   return false;
 }
 
-async function waitForHealth(url, timeoutMs) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(url, { method: 'GET' });
-      if (res.ok) return true;
-    } catch {}
-    await sleep(1000);
-  }
-  return false;
-}
+const DEFAULT_HEALTH_DELAY_MS = 1000;
+const FAST_FAIL_MIN_ATTEMPTS = parseInt(process.env.E2E_FAST_FAIL_MIN_ATTEMPTS || '10', 10);
+const FAST_FAIL_GRACE_MS = parseInt(process.env.E2E_FAST_FAIL_GRACE_MS || '20000', 10);
 
+async function checkHealth(url) {
+  try {
+    const res = await fetch(url, { method: 'GET' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function startBackendE2E({ timeoutMs = 180000, stream = true } = {}) {
   const params = readParams();
   const port = params.backendPort || 8084;
   const healthPath = params.backendHealthCheckPath || '/actuator/health';
   const healthUrl = `http://127.0.0.1:${port}${healthPath}`;
+  const fastFail = process.env.E2E_FAST_FAIL === '1' || process.env.E2E_FAST_FAIL === 'true';
+  const startTime = Date.now();
 
-  killPortWindows(port);
+  await killPortWindows(port);
 
   const useDocker = await dockerAvailable();
-  const activeProfile = useDocker ? 'e2e' : 'e2e-local';
-  console.log(`ℹ️  Backend profile selected: ${activeProfile} (${useDocker ? 'Testcontainers' : 'Embedded Postgres'})`);
+  if (!useDocker) {
+    throw new Error('Docker is not available. E2E profile requires Testcontainers.');
+  }
+  const activeProfile = 'e2e';
+  info(`starting Spring Boot (profile=${activeProfile})`);
 
   const args = ['bootRun', '-x', 'test'];
   const envJwtSecret = process.env.JWT_SECRET || crypto.randomBytes(64).toString('base64');
+  const extraJvmFlags = '-Dspring.devtools.restart.enabled=false -Dspring.devtools.add-properties=false';
+  const env = {
+    ...process.env,
+    JWT_SECRET: envJwtSecret,
+    SPRING_PROFILES_ACTIVE: activeProfile,
+    SERVER_PORT: String(port),
+    SPRING_DEVTOOLS_ADD_PROPERTIES: 'false',
+    SPRING_DEVTOOLS_RESTART_ENABLED: 'false',
+    DISABLE_DEVTOOLS: '1',
+    SPRING_APPLICATION_JSON: JSON.stringify({
+      'spring': {
+        'devtools': {
+          'restart': {
+            'enabled': false
+          },
+          'add-properties': false
+        }
+      }
+    })
+  };
+env.JAVA_TOOL_OPTIONS = env.JAVA_TOOL_OPTIONS
+  ? `${env.JAVA_TOOL_OPTIONS} ${extraJvmFlags}`
+  : extraJvmFlags;
+
   const proc = spawn(process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew', args, {
     cwd: join(__dirname, '..', '..'),
     stdio: stream ? 'inherit' : 'pipe',
     shell: true,
-    env: {
-      ...process.env,
-      JWT_SECRET: envJwtSecret,
-      SPRING_PROFILES_ACTIVE: activeProfile,
-      SERVER_PORT: String(port),
-      SPRING_DEVTOOLS_ADD_PROPERTIES: 'false',
-      SPRING_DEVTOOLS_RESTART_ENABLED: 'false',
-    },
+    env,
   });
-  if (!stream) {
-    proc.stdout.on('data', (d) => process.stdout.write(d));
-    proc.stderr.on('data', (d) => process.stderr.write(d));
-  }
+  proc.once('exit', (code, signal) => {
+    if (Date.now() - startTime < 1000) {
+      error(`gradle process exited immediately (code=${code}, signal=${signal})`);
+    }
+  });
 
   const envTimeout = parseInt(process.env.E2E_BACKEND_TIMEOUT_MS || '', 10);
   const effectiveTimeout = Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : timeoutMs;
-  const ready = await waitForHealth(healthUrl, effectiveTimeout);
+  let attempts = 0;
+  let ready = false;
+  const startHealth = Date.now();
+  const delayMs = fastFail ? DEFAULT_HEALTH_DELAY_MS : 2000;
+  while (Date.now() - startHealth < effectiveTimeout) {
+    attempts += 1;
+    const ok = await checkHealth(healthUrl);
+    if (ok) {
+      ready = true;
+      break;
+    }
+    const elapsed = Date.now() - startHealth;
+    info(`health attempt ${attempts} failed (elapsed ${elapsed}ms)`);
+    const fastFailExceeded = fastFail && attempts >= FAST_FAIL_MIN_ATTEMPTS && elapsed >= FAST_FAIL_GRACE_MS;
+    if (fastFailExceeded) {
+      break;
+    }
+    await sleep(delayMs);
+  }
   if (!ready) {
     try { proc.kill('SIGTERM'); } catch {}
     await waitForExit(proc, 5000);
     try { proc.kill('SIGKILL'); } catch {}
+    tailLogsOnFailure();
     throw new Error(`Backend not ready within ${effectiveTimeout}ms at ${healthUrl}`);
   }
 
@@ -128,7 +205,7 @@ async function startBackendE2E({ timeoutMs = 180000, stream = true } = {}) {
         try { proc.kill('SIGKILL'); } catch {}
         await waitForExit(proc, 3000);
       }
-      killPortWindows(port);
+      await killPortWindows(port);
       return true;
     })();
   };
@@ -141,16 +218,31 @@ if (require.main === module) {
     const timeoutArg = process.argv.find(a => a.startsWith('--timeout='));
     const timeoutMs = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 180000;
     try {
+      const start = Date.now();
       const { port, healthUrl } = await startBackendE2E({ timeoutMs });
-      console.log(`Backend ready on port ${port} (${healthUrl})`);
+      const elapsed = Date.now() - start;
+      info(`health OK in ${elapsed}ms`);
+      info(`ready http://127.0.0.1:${port} (profile=e2e)`);
       process.exit(0);
     } catch (e) {
-      console.error(e.message || e);
+      error(e.message || e);
+      error('see logs/backend-e2e-run.out for details');
       process.exit(1);
     }
   })();
 }
 
 module.exports = { startBackendE2E };
+
+
+
+
+
+
+
+
+
+
+
 
 

@@ -198,27 +198,33 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     }
 
     /**
-     * Test AC3: TUTOR cannot edit non-REJECTED timesheets.
+     * Test AC3: TUTOR can edit DRAFT timesheets they own.
      */
     @Test
-    void testAC3_TutorCannotEditNonRejectedTimesheets() throws Exception {
-        // Given: Create a DRAFT timesheet
+    void testAC3_TutorCanEditDraftTimesheetsTheyOwn() throws Exception {
+        // Given: Create a DRAFT timesheet owned by the tutor
         Timesheet draftTimesheet = createTimesheet(tutor.getId(), course.getId(), mondayDate, ApprovalStatus.DRAFT);
 
-        // When: TUTOR tries to update the DRAFT timesheet
+        // When: TUTOR updates their draft
         TimesheetUpdateRequest updateRequest = new TimesheetUpdateRequest();
         updateRequest.setHours(new BigDecimal("8.0"));
         updateRequest.setHourlyRate(new BigDecimal("25.00"));
-        updateRequest.setDescription("Should not be allowed");
+        updateRequest.setDescription("Tutor updates draft before confirmation");
 
-        // Then: Request should be forbidden
         mockMvc.perform(put("/api/timesheets/" + draftTimesheet.getId())
                 .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isForbidden());
-    }
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(com.usyd.catams.enums.ApprovalStatus.DRAFT.name()))
+                .andExpect(jsonPath("$.description").value("Tutor updates draft before confirmation"));
 
+        // Then: Changes are persisted for the tutor-owned draft
+        Timesheet updatedTimesheet = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
+        assertThat(updatedTimesheet.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
+        assertThat(updatedTimesheet.getHours()).isEqualTo(new BigDecimal("8.0"));
+        assertThat(updatedTimesheet.getDescription()).isEqualTo("Tutor updates draft before confirmation");
+    }
     /**
      * Test AC4: TUTOR can delete REJECTED timesheets.
      */
@@ -237,23 +243,21 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     }
 
     /**
-     * Test AC4: TUTOR cannot delete non-REJECTED timesheets.
+     * Test AC4: TUTOR can delete DRAFT timesheets they own.
      */
     @Test
-    void testAC4_TutorCannotDeleteNonRejectedTimesheets() throws Exception {
-        // Given: Create a DRAFT timesheet
+    void testAC4_TutorCanDeleteDraftTimesheetsTheyOwn() throws Exception {
+        // Given: Create a DRAFT timesheet owned by the tutor
         Timesheet draftTimesheet = createTimesheet(tutor.getId(), course.getId(), mondayDate, ApprovalStatus.DRAFT);
 
-        // When: TUTOR tries to delete the DRAFT timesheet
-        // Then: Request should be forbidden
+        // When: TUTOR deletes the DRAFT timesheet
         mockMvc.perform(delete("/api/timesheets/" + draftTimesheet.getId())
                 .header("Authorization", "Bearer " + localTutorToken))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isNoContent());
 
-        // And: Timesheet should still exist in database
-        assertThat(timesheetRepository.findById(draftTimesheet.getId())).isPresent();
+        // Then: Timesheet is removed from the database
+        assertThat(timesheetRepository.findById(draftTimesheet.getId())).isEmpty();
     }
-
     /**
      * Test AC5: TUTOR can resubmit edited timesheets via POST /api/approvals.
      */
@@ -427,3 +431,5 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
     
 }
+
+

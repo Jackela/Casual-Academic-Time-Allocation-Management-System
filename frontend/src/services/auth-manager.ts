@@ -16,8 +16,9 @@ export class AuthManager {
   private static instance: AuthManager;
   private token: string | null = null;
   private user: User | null = null;
-  private listeners: Set<AuthStateListener> = new Set();
+  private listeners: Set<AuthStateListener> = new Set<AuthStateListener>();
   private apiClientTokenSetter: ((token: string | null) => void) | null = null;
+  private initialized = false;
 
   private constructor() {
     this.initializeFromStorage();
@@ -37,6 +38,10 @@ export class AuthManager {
    * Initialize authentication state from localStorage
    */
   private initializeFromStorage(): void {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return;
+    }
+
     try {
       const storedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
       const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
@@ -51,6 +56,14 @@ export class AuthManager {
       this.user = null;
       this.clearStorageAndState();
     }
+
+    this.initialized = true;
+  }
+
+  private ensureInitialized(): void {
+    if (!this.initialized) {
+      this.initializeFromStorage();
+    }
   }
 
   /**
@@ -58,6 +71,7 @@ export class AuthManager {
    * Updates internal state, persists to storage, syncs with API client, and notifies listeners
    */
   setAuth(token: string, user: User): void {
+    this.ensureInitialized();
     this.token = token;
     this.user = user;
     this.persistToStorage();
@@ -70,6 +84,7 @@ export class AuthManager {
    * Clears internal state, storage, API client token, and notifies listeners
    */
   clearAuth(): void {
+    this.ensureInitialized();
     this.token = null;
     this.user = null;
     this.clearStorageAndState();
@@ -81,6 +96,7 @@ export class AuthManager {
    * Get current authentication state
    */
   getAuthState(): AuthState {
+    this.ensureInitialized();
     return {
       user: this.user,
       token: this.token,
@@ -92,6 +108,7 @@ export class AuthManager {
    * Get current user
    */
   getUser(): User | null {
+    this.ensureInitialized();
     return this.user;
   }
 
@@ -99,6 +116,7 @@ export class AuthManager {
    * Get current token
    */
   getToken(): string | null {
+    this.ensureInitialized();
     return this.token;
   }
 
@@ -106,6 +124,7 @@ export class AuthManager {
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {
+    this.ensureInitialized();
     return !!(this.token && this.user);
   }
 
@@ -113,6 +132,7 @@ export class AuthManager {
    * Subscribe to authentication state changes
    */
   subscribe(listener: AuthStateListener): () => void {
+    this.ensureInitialized();
     this.listeners.add(listener);
     
     // Return unsubscribe function
@@ -126,6 +146,7 @@ export class AuthManager {
    * Called by API client during initialization
    */
   registerApiClientTokenSetter(setter: (token: string | null) => void): void {
+    this.ensureInitialized();
     this.apiClientTokenSetter = setter;
     // Immediately sync current token
     this.syncWithApiClient();
@@ -135,6 +156,10 @@ export class AuthManager {
    * Persist authentication data to localStorage using STORAGE_KEYS
    */
   private persistToStorage(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
     if (this.token && this.user) {
       localStorage.setItem(STORAGE_KEYS.TOKEN, this.token);
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(this.user));
@@ -145,6 +170,10 @@ export class AuthManager {
    * Clear authentication data from localStorage
    */
   private clearStorageAndState(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
     localStorage.removeItem(STORAGE_KEYS.TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
   }
@@ -182,3 +211,19 @@ export class AuthManager {
 
 // Export singleton instance for convenience
 export const authManager = AuthManager.getInstance();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

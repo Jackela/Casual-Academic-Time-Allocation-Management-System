@@ -30,7 +30,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
     await expect(page).toHaveURL(/.*dashboard/);
     
     // Should show lecturer dashboard title
-    await expect(page.getByTestId('dashboard-title')).toContainText('Lecturer Dashboard');
+    await expect(page.getByTestId('main-dashboard-title')).toContainText('Lecturer Dashboard');
     
     // Should show welcome message
     await expect(page.locator('text=Welcome back')).toBeVisible();
@@ -45,7 +45,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
     await page.waitForURL('**/dashboard');
     
     // Should show timesheets section
-    await expect(page.locator('text=Pending Timesheet Approvals')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Pending Approvals' })).toBeVisible();
     
     // Should show either empty state or timesheet table
     const emptyState = page.locator('[data-testid="empty-state"]');
@@ -142,7 +142,9 @@ test.describe('Lecturer Dashboard Workflow', () => {
       await page.waitForTimeout(1000); // Give time for reload
       
       // Page should still show dashboard content
-      await expect(page.locator('h1')).toContainText('Lecturer Dashboard');
+      await expect(page.getByTestId('main-dashboard-title')).toContainText('Lecturer Dashboard');
     }
   });
 });
+
+

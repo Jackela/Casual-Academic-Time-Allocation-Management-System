@@ -6,6 +6,8 @@ import com.usyd.catams.mapper.ApprovalMapper;
 import com.usyd.catams.policy.AuthenticationFacade;
 import com.usyd.catams.service.ApprovalService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,12 +19,13 @@ import java.util.stream.Collectors;
  * REST Controller for timesheet confirmation operations.
  */
 @RestController
-@RequestMapping("/api/confirmations")
+@RequestMapping({"/api/confirmations", "/api/approvals"})
 public class ApprovalController {
 
     private final ApprovalService approvalService;
     private final AuthenticationFacade authenticationFacade;
     private final ApprovalMapper approvalMapper;
+    private static final Logger logger = LoggerFactory.getLogger(ApprovalController.class);
 
     @Autowired
     public ApprovalController(ApprovalService approvalService,
@@ -38,8 +41,11 @@ public class ApprovalController {
     public ResponseEntity<ApprovalActionResponse> performConfirmationAction(
             @Valid @RequestBody ApprovalActionRequest request) {
         Long requesterId = authenticationFacade.getCurrentUserId();
+        logger.info("HTTP approve: action={}, timesheetId={}, requesterId={}", request.getAction(), request.getTimesheetId(), requesterId);
         var approval = approvalService.performApprovalAction(
                 request.getTimesheetId(), request.getAction(), request.getComment(), requesterId);
+        logger.info("HTTP approve OK: action={}, timesheetId={}, fromStatus={}, toStatus={}",
+                request.getAction(), request.getTimesheetId(), approval.getPreviousStatus(), approval.getNewStatus());
         return ResponseEntity.ok(approvalMapper.toResponse(approval));
     }
 

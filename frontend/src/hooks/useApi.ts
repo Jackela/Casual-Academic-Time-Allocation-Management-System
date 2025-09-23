@@ -215,7 +215,7 @@ export function useDashboardSummary() {
  * Hook for fetching admin dashboard summary
  */
 export function useAdminDashboardSummary() {
-  return useApi<DashboardSummary>('/api/dashboard/admin-summary');
+  return useApi<DashboardSummary>('/api/dashboard/summary');
 }
 
 // =============================================================================

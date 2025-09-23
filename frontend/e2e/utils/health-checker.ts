@@ -196,7 +196,9 @@ export async function checkBackendReadiness(): Promise<BackendReadinessResult> {
  * Waits for backend to become ready with retry logic
  */
 export async function waitForBackendReady(): Promise<BackendReadinessResult> {
-  const maxAttempts = E2E_CONFIG.TEST.MAX_HEALTH_CHECK_ATTEMPTS;
+  const maxAttempts = (process.env.E2E_FAST_FAIL === '1' || process.env.E2E_FAST_FAIL === 'true')
+    ? 1
+    : E2E_CONFIG.TEST.MAX_HEALTH_CHECK_ATTEMPTS;
   const interval = E2E_CONFIG.TEST.HEALTH_CHECK_INTERVAL;
   
   console.log(`⏱️  Waiting for backend readiness (max ${maxAttempts} attempts, ${interval}ms interval)...`);

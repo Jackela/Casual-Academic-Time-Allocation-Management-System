@@ -269,16 +269,17 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
         return;
       }
 
+      if (action !== 'LECTURER_CONFIRM') {
+        return;
+      }
+
       await approveTimesheet({
         timesheetId,
-        action: 'APPROVED_BY_LECTURER',
-        comments: action === 'FINAL_APPROVAL' ? 'Approved for processing' : undefined
+        action: 'LECTURER_CONFIRM',
+        comment: 'Approved for processing'
       });
 
-      // Refresh data after successful approval
       await Promise.all([refetchPending(), refetchDashboard()]);
-      
-      // Clear selection if timesheet was selected
       setSelectedTimesheets(prev => prev.filter(id => id !== timesheetId));
     } catch (error) {
       console.error('Failed to process approval:', error);
@@ -291,7 +292,7 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
     try {
       const requests = selectedTimesheets.map(timesheetId => ({
         timesheetId,
-        action: 'APPROVED_BY_LECTURER' as const
+        action: 'LECTURER_CONFIRM' as const
       }));
 
       await batchApprove(requests);
@@ -308,8 +309,8 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
     try {
       await approveTimesheet({
         timesheetId: rejectionModal.timesheetId,
-        action: 'REJECTED_BY_LECTURER',
-        comments: reason
+        action: 'REJECT',
+        comment: reason
       });
 
       setRejectionModal({ timesheetId: 0, open: false });
@@ -345,9 +346,9 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
   if (pendingLoading || dashboardLoading) {
     return (
       <div className={`lecturer-dashboard loading ${className}`}>
-        <div className="dashboard-loading">
+        <div className="dashboard-loading" data-testid="loading-state">
           <LoadingSpinner size="large" />
-          <p>Loading dashboard...</p>
+          <p data-testid="loading-text">Loading pending timesheets...</p>
           <div className="skeleton-cards" data-testid="statistics-cards">
             {Array.from({ length: 3 }, (_, i) => (
               <div key={i} className="skeleton-card" data-testid="skeleton-card" />
@@ -369,10 +370,10 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
       aria-label="Lecturer Dashboard"
     >
       {/* Header Section */}
-      <header className="dashboard-header">
+      <header className="dashboard-header" data-testid="main-dashboard-header">
         <div className="dashboard-header__content">
-          <h1 className="dashboard-header__title">{welcomeMessage}</h1>
-          <p className="dashboard-header__subtitle">Lecturer Dashboard</p>
+          <h1 className="dashboard-header__title" data-testid="main-welcome-message">{welcomeMessage}</h1>
+          <p className="dashboard-header__subtitle" data-testid="main-dashboard-title">Lecturer Dashboard</p>
           
           {urgentCount > 0 && (
             <div className="urgent-notification">
@@ -394,11 +395,11 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
 
       {/* Error Display */}
       {hasErrors && (
-        <div className="dashboard-errors">
+        <div className="dashboard-errors" data-testid="error-message">
           {pendingError && (
             <div className="error-message">
               <span>Failed to fetch pending timesheets: {pendingError}</span>
-              <button onClick={refetchPending}>Retry</button>
+              <button onClick={refetchPending} data-testid="retry-button">Retry</button>
             </div>
           )}
           {dashboardError && (
@@ -450,7 +451,7 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
           
           <StatCard
             title="Approved by You"
-            value={dashboardData?.statusBreakdown?.APPROVED_BY_LECTURER || 0}
+            value={dashboardData?.statusBreakdown?.LECTURER_CONFIRMED || 0}
             subtitle="Lecturer approvals"
             trend="up"
             color="success"
@@ -494,10 +495,10 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
           </div>
 
           {noPendingTimesheets ? (
-            <div className="empty-state">
+            <div className="empty-state" data-testid="empty-state">
               <div className="empty-state__content">
                 <span className="empty-state__icon">🎉</span>
-                <h3>No pending approvals</h3>
+                <h3 data-testid="empty-state-title">No Pending Timesheets</h3>
                 <p>All caught up! No timesheets are waiting for your review.</p>
               </div>
             </div>
@@ -515,6 +516,7 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
               onSelectionChange={setSelectedTimesheets}
               virtualizeThreshold={50}
               className="lecturer-timesheet-table"
+              approvalRole="LECTURER"
             />
           )}
         </section>
@@ -622,3 +624,6 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
 LecturerDashboard.displayName = 'LecturerDashboard';
 
 export default LecturerDashboard;
+
+
+

@@ -11,8 +11,8 @@ export class DashboardPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.dashboardTitle = page.getByTestId('main-dashboard-title').or(page.getByTestId('dashboard-title'));
-    this.welcomeMessage = page.getByTestId('main-welcome-message').or(page.getByTestId('welcome-message'));
+    this.dashboardTitle = page.locator('[data-testid="main-dashboard-title"], [data-testid="dashboard-title"], .dashboard-header__subtitle, .admin-header__subtitle, .tutor-header__subtitle');
+    this.welcomeMessage = page.locator('[data-testid="main-welcome-message"], [data-testid="welcome-message"], .dashboard-header__title, .admin-header__title, .tutor-header__title');
     this.timesheetPage = new TimesheetPage(page);
     this.navigationPage = new NavigationPage(page);
   }
@@ -33,9 +33,22 @@ export class DashboardPage {
   }
 
   async expectToBeLoaded(role: 'LECTURER' | 'ADMIN' | 'TUTOR' = 'LECTURER') {
-    const expectedTitle = role === 'ADMIN' ? 'Admin Dashboard' : role === 'TUTOR' ? 'Tutor Dashboard' : 'Lecturer Dashboard';
-    await expect(this.dashboardTitle).toContainText(expectedTitle);
-    await expect(this.welcomeMessage).toBeVisible();
+    const container = role === 'ADMIN'
+      ? this.page.locator('[data-testid="admin-dashboard"]')
+      : role === 'TUTOR'
+        ? this.page.locator('[data-testid="tutor-dashboard"]')
+        : this.page.locator('[data-testid="lecturer-dashboard"]');
+
+    await expect(container).toBeVisible();
+
+    const expectedSubtitle = role === 'ADMIN'
+      ? /System Administrator/i
+      : role === 'TUTOR'
+        ? /Tutor Dashboard/i
+        : /Lecturer Dashboard/i;
+
+    await expect(this.dashboardTitle.first()).toContainText(expectedSubtitle);
+    await expect(this.welcomeMessage.first()).toBeVisible();
   }
 
   async expectLoadingState() {

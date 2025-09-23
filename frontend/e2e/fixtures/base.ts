@@ -324,7 +324,7 @@ export const test = base.extend<TestFixtures>({
               hours: 8,
               hourlyRate: 42.00,
               description: 'Lab assistance and student support',
-              status: 'FINAL_APPROVED',
+              status: 'FINAL_CONFIRMED',
               createdAt: '2025-01-26T14:30:00Z',
               updatedAt: '2025-01-27T11:15:00Z',
               tutorName: 'Jane Smith',
@@ -430,6 +430,24 @@ test.beforeEach(async ({ page }, testInfo) => {
     try { await page.emulateMedia({ reducedMotion: 'reduce' }); } catch {}
     try {
       await page.addStyleTag({ content: '*{transition: none !important; animation: none !important;}' });
+    } catch {}
+  }
+
+  // When backend is intentionally skipped, provide minimal auth/login mock so UI flows don't hang
+  if (process.env.E2E_SKIP_BACKEND === 'true' || process.env.E2E_SKIP_BACKEND === '1') {
+    try {
+      await page.route(`**${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}` as any, async (route, request) => {
+        try { await new Promise(r => setTimeout(r, 150)); } catch {}
+        const postData = JSON.parse((await request.postData()) || '{}');
+        const role = (postData?.email || '').includes('admin') ? 'admin' : (postData?.email || '').includes('lecturer') ? 'lecturer' : 'tutor';
+        const user = role === 'admin' ? buildUser('admin') : role === 'lecturer' ? buildUser('lecturer') : buildUser('tutor');
+        const token = `${role}-mock-token`;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, token, user, errorMessage: null })
+        });
+      });
     } catch {}
   }
 });

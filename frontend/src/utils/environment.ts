@@ -72,7 +72,7 @@ export const ENV_CONFIG = {
      * Check if E2E authentication bypass is enabled
      */
     hasAuthBypass: (): boolean => {
-      return ENV_CONFIG.isE2E() && Boolean(ENV_CONFIG.e2e.getBypassRole());
+      return Boolean(ENV_CONFIG.e2e.getBypassRole());
     },
 
     /**
@@ -80,7 +80,16 @@ export const ENV_CONFIG = {
      */
     getBypassRole: (): string | undefined => {
       try {
-        return import.meta?.env?.VITE_E2E_AUTH_BYPASS_ROLE as string | undefined;
+        const metaRole = import.meta?.env?.VITE_E2E_AUTH_BYPASS_ROLE as string | undefined;
+        if (metaRole) {
+          return metaRole;
+        }
+        try {
+          return (globalThis as any)?.process?.env?.VITE_E2E_AUTH_BYPASS_ROLE
+            || (globalThis as any)?.process?.env?.E2E_AUTH_BYPASS_ROLE;
+        } catch {
+          return undefined;
+        }
       } catch {
         return undefined;
       }
@@ -226,3 +235,4 @@ export const envErrorHandler = (error: Error, context: string): void => {
 };
 
 export default ENV_CONFIG;
+

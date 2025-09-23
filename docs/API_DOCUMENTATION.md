@@ -4,7 +4,7 @@
 
 The CATAMS API provides comprehensive endpoints for managing academic time allocation and approval workflows. This REST API supports three primary user roles (ADMIN, LECTURER, TUTOR) with role-based access control and JWT authentication.
 
-**Base URL**: `http://localhost:8084/api/v1` (Development)  
+**Base URL**: `http://localhost:8084/api` (Development)  
 **API Version**: 1.0.0  
 **Authentication**: Bearer Token (JWT)
 
@@ -16,7 +16,7 @@ All API endpoints (except `/auth/login`) require a valid JWT token in the Author
 
 ```bash
 # 1. Login to get JWT token
-curl -X POST http://localhost:8084/api/v1/auth/login \
+curl -X POST http://localhost:8084/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "lecturer@university.edu",
@@ -34,7 +34,7 @@ curl -X POST http://localhost:8084/api/v1/auth/login \
 }
 
 # 2. Use token in subsequent requests
-curl -X GET http://localhost:8084/api/v1/timesheets \
+curl -X GET http://localhost:8084/api/timesheets \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
@@ -407,49 +407,61 @@ Request modifications to timesheet.
 ```
 
 ### Dashboard Endpoints
-
 #### GET `/dashboard/summary`
-Get dashboard summary for current user.
+Return aggregated dashboard metrics for the authenticated user. The payload adapts to the caller's role:
+
+- **TUTOR** – personal totals and workload analytics only.
+- **LECTURER** – includes course budget usage for managed courses.
+- **ADMIN** – system-wide metrics using the same structure.
 
 **Response (200 OK):**
 ```json
 {
-  "user": {
-    "id": 1,
-    "name": "Dr. Jane Smith",
-    "role": "LECTURER"
-  },
-  "summary": {
-    "totalTimesheets": 15,
-    "pendingApprovals": 3,
-    "approvedThisMonth": 8,
-    "rejectedThisMonth": 1
-  },
+  "totalTimesheets": 5,
+  "pendingApprovals": 2,
+  "totalHours": 43,
+  "totalPay": 1926,
   "budgetUsage": {
-    "totalBudget": 50000.00,
-    "usedBudget": 32500.00,
-    "remainingBudget": 17500.00,
-    "percentageUsed": 65.0
+    "totalBudget": 22000,
+    "usedBudget": 0,
+    "remainingBudget": 22000,
+    "utilizationPercentage": 0
   },
-  "recentActivity": [
+  "recentActivities": [
     {
-      "id": 1,
+      "id": 3,
       "type": "TIMESHEET_APPROVED",
-      "description": "Approved timesheet for John Doe - COMP3888",
-      "timestamp": "2025-08-12T15:30:00Z"
+      "description": "System-wide timesheet activity",
+      "timestamp": "2025-09-20T11:49:31.061Z",
+      "timesheetId": 3,
+      "userId": 1,
+      "userName": "System User"
     }
   ],
   "pendingItems": [
     {
       "id": 2,
-      "type": "TIMESHEET_PENDING",
-      "description": "Timesheet awaiting approval - Mary Johnson",
-      "priority": "MEDIUM",
-      "dueDate": "2025-08-15T23:59:59Z"
+      "type": "HR_REVIEW",
+      "title": "System-wide reviews needed",
+      "description": "5 items requiring HR attention",
+      "priority": "HIGH",
+      "dueDate": "2025-09-21T12:49:31.061Z",
+      "timesheetId": null
     }
-  ]
+  ],
+  "workloadAnalysis": {
+    "currentWeekHours": 10,
+    "previousWeekHours": 8,
+    "averageWeeklyHours": 1.95,
+    "peakWeekHours": 10,
+    "totalTutors": 8,
+    "activeTutors": 6
+  }
 }
 ```
+
+*Note:* `budgetUsage` is omitted for tutor responses because tutors do not see course-level budget data.
+
 
 ## API Response Formats
 
@@ -564,7 +576,7 @@ interface TimesheetService {
 }
 
 class CatamsApiClient implements TimesheetService {
-  private baseUrl = 'http://localhost:8084/api/v1';
+  private baseUrl = 'http://localhost:8084/api';
   private token?: string;
 
   async login(email: string, password: string): Promise<AuthResponse> {
@@ -620,17 +632,17 @@ class CatamsApiClient implements TimesheetService {
 
 ```bash
 # Login and save token
-TOKEN=$(curl -s -X POST http://localhost:8084/api/v1/auth/login \
+TOKEN=$(curl -s -X POST http://localhost:8084/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"lecturer@university.edu","password":"password123"}' \
   | jq -r '.token')
 
 # Get all timesheets for current user
-curl -X GET http://localhost:8084/api/v1/timesheets \
+curl -X GET http://localhost:8084/api/timesheets \
   -H "Authorization: Bearer $TOKEN"
 
 # Create new timesheet
-curl -X POST http://localhost:8084/api/v1/timesheets \
+curl -X POST http://localhost:8084/api/timesheets \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -642,7 +654,7 @@ curl -X POST http://localhost:8084/api/v1/timesheets \
   }'
 
 # Approve timesheet
-curl -X POST http://localhost:8084/api/v1/approvals/1/approve \
+curl -X POST http://localhost:8084/api/approvals/1/approve \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"comments": "Approved - appropriate hours for described work"}'
@@ -675,3 +687,4 @@ The complete OpenAPI specification is available at:
 **Last Updated**: 2025-08-12  
 **Maintainers**: Development Team  
 **Support**: dev@catams.edu.au
+

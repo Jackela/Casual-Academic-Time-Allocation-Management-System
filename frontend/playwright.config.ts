@@ -2,13 +2,14 @@ import { defineConfig, devices } from '@playwright/test';
 import { E2E_CONFIG } from './e2e/config/e2e.config';
 
 const useExternalWebServer = !!process.env.E2E_EXTERNAL_WEBSERVER;
+const FRONTEND_PORT = process.env.E2E_FRONTEND_PORT || '5174';
 
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/e2e/api/**', '**/e2e/examples/**'],
+  testIgnore: ['**/e2e/examples/**'],
   /* Global setup to handle authentication */
   globalSetup: './e2e/global.setup.ts',
   /* Allow skipping backend readiness from env for mocked-only runs */
@@ -56,6 +57,17 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+
+    {
+      name: 'api-tests',
+      testMatch: ['**/e2e/api/**/*.spec.ts'],
+      use: {
+        baseURL: E2E_CONFIG.BACKEND.URL,
+        extraHTTPHeaders: {
+          'Content-Type': 'application/json',
+        },
+      },
+    },
 
     {
       name: 'ui-tests',
@@ -107,7 +119,7 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: 'npm run dev -- --mode e2e',
+          command: `npm run dev -- --mode e2e --port ${FRONTEND_PORT}`,
           url: E2E_CONFIG.FRONTEND.URL,
           reuseExistingServer: false,
           timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.STARTUP,
@@ -116,7 +128,14 @@ export default defineConfig({
             ...(process.env.VITE_E2E_AUTH_BYPASS_ROLE
               ? { VITE_E2E_AUTH_BYPASS_ROLE: process.env.VITE_E2E_AUTH_BYPASS_ROLE }
               : {}),
+            E2E_FRONTEND_PORT: FRONTEND_PORT,
+            // Propagate backend info for browser-side config resolution
+            ...(process.env.E2E_BACKEND_PORT ? { E2E_BACKEND_PORT: process.env.E2E_BACKEND_PORT } : {}),
+            ...(process.env.E2E_BACKEND_URL ? { E2E_BACKEND_URL: process.env.E2E_BACKEND_URL } : {}),
+            // Also expose as Vite variable when used in browser (when defined)
+            ...(process.env.VITE_API_BASE_URL ? { VITE_API_BASE_URL: process.env.VITE_API_BASE_URL } : {}),
           },
         },
       }),
 });
+

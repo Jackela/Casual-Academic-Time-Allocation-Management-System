@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { TimesheetService } from '../services/timesheets';
 import { useAuth } from '../contexts/AuthContext';
 import type {
@@ -147,13 +148,18 @@ export function useTimesheets(initialQuery: TimesheetQuery = {}) {
     }
   }, [state.hasMore, state.loading, updateQuery]);
 
+  // Refetch data with optional overrides
+  const refetch = useCallback(async (overrideQuery: Partial<TimesheetQuery> = {}) => {
+    const nextQuery = { ...queryRef.current, ...overrideQuery };
+    const cacheKey = JSON.stringify({ ...nextQuery, userId: user?.id });
+    cacheRef.current.delete(cacheKey);
+    await fetchTimesheets(nextQuery);
+  }, [fetchTimesheets, user?.id]);
+
   // Refresh data
   const refresh = useCallback(() => {
-    // Clear cache for this query
-    const currentCacheKey = JSON.stringify({ ...queryRef.current, userId: user?.id });
-    cacheRef.current.delete(currentCacheKey);
-    fetchTimesheets(queryRef.current);
-  }, [fetchTimesheets, user?.id]);
+    void refetch();
+  }, [refetch]);
 
   // Reset to first page
   const reset = useCallback(() => {
@@ -168,9 +174,34 @@ export function useTimesheets(initialQuery: TimesheetQuery = {}) {
       skipEffectRef.current = false;
       return;
     }
-    
+
     if (isAuthenticated && user?.id) {
       fetchTimesheets(queryRef.current);
+    } else {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      cacheRef.current.clear();
+      setState(prev => {
+        if (
+          prev.data === null &&
+          prev.loading === false &&
+          prev.error === null &&
+          prev.hasMore === false &&
+          prev.totalCount === 0 &&
+          prev.currentPage === 0
+        ) {
+          return prev;
+        }
+        return {
+          data: null,
+          loading: false,
+          error: null,
+          hasMore: false,
+          totalCount: 0,
+          currentPage: 0
+        };
+      });
     }
 
     return () => {
@@ -202,6 +233,7 @@ export function useTimesheets(initialQuery: TimesheetQuery = {}) {
     updateQuery,
     loadMore,
     refresh,
+    refetch,
     reset,
     // Computed values
     timesheets: state.data?.timesheets || [],
@@ -337,7 +369,11 @@ export function useApprovalAction() {
       return data;
     } catch (err: any) {
       const error = err.message || 'Failed to process approval';
-      setState({ data: null, loading: false, error });
+      try {
+        flushSync(() => setState({ data: null, loading: false, error }));
+      } catch {
+        setState({ data: null, loading: false, error });
+      }
       throw new Error(error);
     }
   }, []);
@@ -351,7 +387,11 @@ export function useApprovalAction() {
       return responses;
     } catch (err: any) {
       const error = err.message || 'Failed to process batch approval';
-      setState({ data: null, loading: false, error });
+      try {
+        flushSync(() => setState({ data: null, loading: false, error }));
+      } catch {
+        setState({ data: null, loading: false, error });
+      }
       throw new Error(error);
     }
   }, []);
@@ -383,7 +423,11 @@ export function useCreateTimesheet() {
     const validationErrors = TimesheetService.validateTimesheet(data);
     if (validationErrors.length > 0) {
       const error = validationErrors.join(', ');
-      setState({ data: null, loading: false, error });
+      try {
+        flushSync(() => setState({ data: null, loading: false, error }));
+      } catch {
+        setState({ data: null, loading: false, error });
+      }
       throw new Error(error);
     }
 
@@ -395,7 +439,11 @@ export function useCreateTimesheet() {
       return timesheet;
     } catch (err: any) {
       const error = err.message || 'Failed to create timesheet';
-      setState({ data: null, loading: false, error });
+      try {
+        flushSync(() => setState({ data: null, loading: false, error }));
+      } catch {
+        setState({ data: null, loading: false, error });
+      }
       throw new Error(error);
     }
   }, []);
@@ -430,7 +478,11 @@ export function useUpdateTimesheet() {
       return timesheet;
     } catch (err: any) {
       const error = err.message || 'Failed to update timesheet';
-      setState({ data: null, loading: false, error });
+      try {
+        flushSync(() => setState({ data: null, loading: false, error }));
+      } catch {
+        setState({ data: null, loading: false, error });
+      }
       throw new Error(error);
     }
   }, []);

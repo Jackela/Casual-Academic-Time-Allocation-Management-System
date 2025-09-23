@@ -4,6 +4,35 @@ import '@testing-library/jest-dom/vitest';
 import { runCleanups, clearCleanups } from './test-utils/cleanup';
 import { setupGlobalHandleMonitoring } from './test-utils/handle-monitor';
 
+// Ensure Vite define flags exist in Vitest environment
+const macroGlobals = globalThis as typeof globalThis & {
+  __DEV_CREDENTIALS__?: boolean;
+  __E2E_GLOBALS__?: boolean;
+  __DEBUG_LOGGING__?: boolean;
+  __TEST_UTILITIES__?: boolean;
+  __PRODUCTION_BUILD__?: boolean;
+  __STRIP_SENSITIVE_DATA__?: boolean;
+};
+
+if (macroGlobals.__DEV_CREDENTIALS__ === undefined) {
+  macroGlobals.__DEV_CREDENTIALS__ = process.env.NODE_ENV === 'development';
+}
+if (macroGlobals.__E2E_GLOBALS__ === undefined) {
+  macroGlobals.__E2E_GLOBALS__ = process.env.NODE_ENV === 'development' || process.env.VITE_E2E === 'true';
+}
+if (macroGlobals.__DEBUG_LOGGING__ === undefined) {
+  macroGlobals.__DEBUG_LOGGING__ = process.env.NODE_ENV === 'development' || process.env.VITE_E2E === 'true';
+}
+if (macroGlobals.__TEST_UTILITIES__ === undefined) {
+  macroGlobals.__TEST_UTILITIES__ = process.env.NODE_ENV !== 'production';
+}
+if (macroGlobals.__PRODUCTION_BUILD__ === undefined) {
+  macroGlobals.__PRODUCTION_BUILD__ = process.env.NODE_ENV === 'production';
+}
+if (macroGlobals.__STRIP_SENSITIVE_DATA__ === undefined) {
+  macroGlobals.__STRIP_SENSITIVE_DATA__ = process.env.NODE_ENV === 'production';
+}
+
 // Cleanup after each test case (e.g. clearing jsdom)
 afterEach(async () => {
   cleanup();

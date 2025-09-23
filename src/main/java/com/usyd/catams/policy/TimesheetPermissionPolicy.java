@@ -22,7 +22,7 @@ import java.time.LocalDate;
  * <ul>
  * <li><strong>ADMIN</strong>: Full access to all timesheet operations across all courses and users</li>
  * <li><strong>LECTURER</strong>: Can manage timesheets for courses they teach, including creation and approval</li>
- * <li><strong>TUTOR</strong>: Limited to viewing and editing their own timesheets in specific statuses</li>
+ * <li><strong>TUTOR</strong>: Can manage (view/create/edit) their own timesheets within permitted statuses</li>
  * </ul>
  * 
  * <p><strong>Design Patterns Implemented:</strong>
@@ -64,7 +64,7 @@ public interface TimesheetPermissionPolicy {
      * <p><strong>Business Rules:</strong>
      * <ul>
      * <li>Only LECTURER and ADMIN roles can create timesheets</li>
-     * <li>TUTOR role cannot create timesheets (read-only access to their own)</li>
+     * <li>TUTOR role can create timesheets for themselves and manage self-owned drafts</li>
      * <li>User must be active and authenticated</li>
      * </ul>
      * 
@@ -92,7 +92,7 @@ public interface TimesheetPermissionPolicy {
      * <ul>
      * <li><strong>ADMIN</strong>: Can create timesheets for any tutor in any course</li>
      * <li><strong>LECTURER</strong>: Can create timesheets only for tutors in courses they teach</li>
-     * <li><strong>TUTOR</strong>: Cannot create timesheets for others (always false)</li>
+     * <li><strong>TUTOR</strong>: Can create timesheets for themselves</li>
      * </ul>
      * 
      * <p><strong>Business Validation Rules:</strong>

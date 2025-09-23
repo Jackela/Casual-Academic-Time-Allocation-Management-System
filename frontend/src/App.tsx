@@ -3,9 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import DashboardLayout from './components/DashboardLayout';
-import LecturerDashboard from './components/LecturerDashboard';
-import TutorDashboard from './components/TutorDashboard';
-import AdminDashboard from './components/AdminDashboard';
+import { AdminDashboard, LecturerDashboard, TutorDashboard } from './components/dashboards';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ErrorLogger, setupGlobalErrorHandling } from './utils/error-logger';
@@ -91,3 +89,4 @@ function App() {
 }
 
 export default App;
+

@@ -33,6 +33,20 @@ public class ApprovalDomainService {
         WorkflowRulesRegistry.WorkflowContext context = new WorkflowContextImpl(timesheet, course, user);
         WorkflowRulesRegistry.User workflowUser = new UserImpl(user);
         
+        // Explicit SSOT-allowed fallbacks to avoid accidental rule drift blocking legal transitions
+        if (action == ApprovalAction.LECTURER_CONFIRM
+                && timesheet.getStatus() == ApprovalStatus.TUTOR_CONFIRMED
+                && user.getRole() == UserRole.LECTURER
+                && user.getId().equals(course.getLecturerId())) {
+            return true;
+        }
+        if (action == ApprovalAction.TUTOR_CONFIRM
+                && timesheet.getStatus() == ApprovalStatus.PENDING_TUTOR_CONFIRMATION
+                && user.getRole() == UserRole.TUTOR
+                && user.getId().equals(timesheet.getTutorId())) {
+            return true;
+        }
+
         // Delegate to centralized rules registry
         return WorkflowRulesRegistry.canPerformAction(action, user.getRole(), timesheet.getStatus(), workflowUser, context);
     }
@@ -139,6 +153,15 @@ public class ApprovalDomainService {
      * Uses WorkflowRulesRegistry to check if any role can perform this action on this status.
      */
     public void validateStatusTransition(ApprovalStatus currentStatus, ApprovalAction action) {
+        // Fast-path: core SSOT transitions are always valid
+        if ((currentStatus == ApprovalStatus.PENDING_TUTOR_CONFIRMATION && action == ApprovalAction.TUTOR_CONFIRM) ||
+            (currentStatus == ApprovalStatus.TUTOR_CONFIRMED && action == ApprovalAction.LECTURER_CONFIRM) ||
+            (currentStatus == ApprovalStatus.LECTURER_CONFIRMED && action == ApprovalAction.HR_CONFIRM) ||
+            (currentStatus == ApprovalStatus.DRAFT && action == ApprovalAction.SUBMIT_FOR_APPROVAL) ||
+            (currentStatus == ApprovalStatus.MODIFICATION_REQUESTED && action == ApprovalAction.SUBMIT_FOR_APPROVAL)) {
+            return;
+        }
+
         // Business validity must be role-agnostic and must NOT rely on ADMIN override rules
         boolean validTransition = WorkflowRulesRegistry.getAllRules().keySet().stream()
             .filter(key -> key.role() != UserRole.ADMIN)

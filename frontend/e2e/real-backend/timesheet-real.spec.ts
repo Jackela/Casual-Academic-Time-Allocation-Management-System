@@ -1,172 +1,115 @@
 import { test, expect } from '@playwright/test';
+import { LoginPage } from '../pages/LoginPage';
+import { TutorDashboardPage } from '../pages/TutorDashboardPage';
+import { acquireAuthTokens, createTimesheetWithStatus, finalizeTimesheet, transitionTimesheet, type AuthContext } from '../utils/workflow-helpers';
 import { E2E_CONFIG } from '../config/e2e.config';
 
 /**
- * Real Backend Timesheet Workflow Tests
- * Complete end-to-end testing with actual database operations
+ * Real backend verification using live data and SSOT workflow
  */
 
 test.describe('Real Backend Timesheet Operations', () => {
-  let authToken: string;
+  let tokens: AuthContext;
+  const cleanupIds: number[] = [];
 
   test.beforeAll(async ({ request }) => {
-    // Authenticate once for all tests
-    const response = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/auth/login`, {
-      data: {
-        email: 'tutor@example.com',
-        password: 'Tutor123!'
-      }
-    });
-    const data = await response.json();
-    authToken = data.token;
+    tokens = await acquireAuthTokens(request);
   });
 
-  test.beforeEach(async ({ page }) => {
-    // Set auth token before navigation
-    await page.addInitScript((token) => {
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify({
-        id: 3,
-        email: 'tutor@example.com',
-        name: 'John Doe',
-        role: 'TUTOR'
-      }));
-    }, authToken);
-    
-    await page.goto(`${E2E_CONFIG.FRONTEND.URL}/dashboard`);
-    await page.waitForLoadState('networkidle');
-  });
-
-  test('View real timesheets from backend', async ({ page }) => {
-    // Wait for real API call to complete
-    const response = await page.waitForResponse(
-      response => response.url().includes('/api/timesheets/me') && response.status() === 200
-    );
-    
-    const timesheets = await response.json();
-    expect(timesheets).toHaveProperty('content');
-    expect(Array.isArray(timesheets.content)).toBeTruthy();
-    
-    // Verify timesheets are displayed in UI
-    const rows = page.locator('tbody tr');
-    const count = await rows.count();
-    expect(count).toBeGreaterThanOrEqual(0);
-    
-    // If timesheets exist, verify data matches
-    if (count > 0) {
-      const firstRow = rows.first();
-      await expect(firstRow).toContainText(/DRAFT|PENDING|APPROVED|REJECTED/);
+  test.afterEach(async ({ request }) => {
+    while (cleanupIds.length) {
+      const id = cleanupIds.pop();
+      if (!id) continue;
+      await finalizeTimesheet(request, tokens, id).catch(() => undefined);
+      await request.delete(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${id}`, {
+        headers: { Authorization: `Bearer ${tokens.admin.token}` }
+      }).catch(() => undefined);
     }
   });
 
-  test('Create new timesheet with real backend', async ({ page, request }) => {
-    // Create via API first
-    const createResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/timesheets`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json'
-      },
-      data: {
-        tutorId: 3,
-        courseId: 1,
-        weekStartDate: '2025-02-03',
-        hours: 10,
-        hourlyRate: 45.00,
-        description: 'E2E Test Timesheet',
-        status: 'DRAFT'
-      }
-    });
-    
-    expect(createResponse.status()).toBe(201);
-    const newTimesheet = await createResponse.json();
-    expect(newTimesheet.id).toBeTruthy();
-    
-    // Refresh page to see new timesheet
-    await page.reload();
-    await page.waitForResponse(response => 
-      response.url().includes('/api/timesheets/me') && response.status() === 200
-    );
-    
-    // Verify new timesheet appears
-    await expect(page.getByText('E2E Test Timesheet')).toBeVisible();
-    
-    // Cleanup: Delete the test timesheet
-    await request.delete(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${newTimesheet.id}`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
-    });
-  });
+  const loginAsTutor = async (page: any) => {
+    const loginPage = new LoginPage(page);
+    const tutorDashboard = new TutorDashboardPage(page);
+    await loginPage.navigateTo();
+    await loginPage.loginAsTutor();
+    await tutorDashboard.expectToBeLoaded();
+    await tutorDashboard.waitForMyTimesheetData();
+    return tutorDashboard;
+  };
 
-  test('Submit timesheet for approval flow', async ({ page, request }) => {
-    // Create a DRAFT timesheet
-    const createResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/timesheets`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json'
-      },
-      data: {
-        tutorId: 3,
-        courseId: 2,
-        weekStartDate: '2025-02-10',
-        hours: 8,
-        hourlyRate: 50.00,
-        description: 'Submission Test',
-        status: 'DRAFT'
-      }
+  test('loads tutor dashboard data from real backend', async ({ page, request }) => {
+    const dashboard = await loginAsTutor(page);
+
+    const response = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets?page=0&size=5`, {
+      headers: { Authorization: `Bearer ${tokens.tutor.token}` }
     });
-    
-    const timesheet = await createResponse.json();
-    
-    // Reload to see the new timesheet
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-    
-    // Find and click submit button for this timesheet
-    const submitButton = page.locator(`[data-timesheet-id="${timesheet.id}"] button:has-text("Submit")`);
-    
-    if (await submitButton.isVisible()) {
-      const responsePromise = page.waitForResponse(
-        response => response.url().includes('/api/approvals') && response.status() === 200
-      );
-      
-      await submitButton.click();
-      await responsePromise;
-      
-      // Verify status changed
-      await page.reload();
-      await expect(page.getByText('PENDING_TUTOR_REVIEW')).toBeVisible();
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    expect(Array.isArray(payload.timesheets)).toBe(true);
+
+    const hasRows = Array.isArray(payload.timesheets) && payload.timesheets.length > 0;
+    if (hasRows) {
+      await dashboard.expectTimesheetsTable();
+      const rowsLocator = await dashboard.getTimesheetRows();
+      const rows = await rowsLocator.count();
+      expect(rows).toBeGreaterThan(0);
+    } else {
+      await dashboard.expectEmptyState();
     }
-    
-    // Cleanup
-    await request.delete(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheet.id}`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
-    });
   });
 
-  test('Error handling with real backend errors', async ({ page, request }) => {
-    // Try to create invalid timesheet
+  test('creates draft timesheet via API seed and displays in UI', async ({ page, request }) => {
+    const description = `Real backend draft ${Date.now()}`;
+    const seed = await createTimesheetWithStatus(request, tokens, {
+      description,
+      targetStatus: 'DRAFT'
+    });
+    cleanupIds.push(seed.id);
+
+    const dashboard = await loginAsTutor(page);
+    await dashboard.refreshDashboard();
+
+    const row = dashboard.page.getByTestId(`timesheet-row-${seed.id}`);
+    await expect(row).toBeVisible({ timeout: 15000 });
+    await expect(dashboard.getStatusBadge(seed.id)).toContainText(/Draft/i);
+    await expect(row).toContainText(description);
+  });
+
+  test('submits tutor draft and sees pending confirmation status', async ({ page, request }) => {
+    const description = `Submit flow ${Date.now()}`;
+    const draft = await createTimesheetWithStatus(request, tokens, {
+      description,
+      targetStatus: 'DRAFT'
+    });
+    cleanupIds.push(draft.id);
+
+    const dashboard = await loginAsTutor(page);
+    await dashboard.refreshDashboard();
+    await dashboard.submitDraft(draft.id);
+    await expect(dashboard.getStatusBadge(draft.id)).toContainText(/Pending Tutor Confirmation/i);
+
+    await transitionTimesheet(request, tokens, draft.id, 'TUTOR_CONFIRM');
+    await transitionTimesheet(request, tokens, draft.id, 'LECTURER_CONFIRM');
+  });
+
+  test('returns validation error when creating invalid timesheet', async ({ request }) => {
     const response = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/timesheets`, {
       headers: {
-        'Authorization': `Bearer ${authToken}`,
+        Authorization: `Bearer ${tokens.admin.token}`,
         'Content-Type': 'application/json'
       },
       data: {
-        tutorId: 3,
-        courseId: 999, // Non-existent course
+        tutorId: tokens.tutor.userId,
+        courseId: 999,
         weekStartDate: '2025-02-03',
-        hours: 100, // Invalid hours
-        hourlyRate: 45.00,
-        description: 'Invalid Test',
-        status: 'DRAFT'
+        hours: 120,
+        hourlyRate: 45,
+        description: 'Invalid Test Case'
       }
     });
-    
-    // Should get error response
+
     expect(response.status()).toBe(400);
     const error = await response.json();
-    expect(error).toHaveProperty('message');
+    expect(error).toMatchObject({ success: false });
   });
 });

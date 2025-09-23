@@ -184,7 +184,7 @@ export class AITestGenerator {
     const workflows = [
       {
         name: 'Complete timesheet approval workflow',
-        states: ['DRAFT', 'PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'FINAL_APPROVED']
+        states: ['DRAFT', 'PENDING_TUTOR_REVIEW', 'APPROVED_BY_TUTOR', 'FINAL_CONFIRMED']
       },
       {
         name: 'Rejection and resubmission workflow',
@@ -342,7 +342,7 @@ export class AITestGenerator {
       'PENDING_TUTOR_REVIEW->APPROVED_BY_TUTOR': 'button:has-text("Approve")',
       'PENDING_TUTOR_REVIEW->REJECTED': 'button:has-text("Reject")',
       'REJECTED->DRAFT': 'button:has-text("Edit")',
-      'APPROVED_BY_TUTOR->FINAL_APPROVED': 'button:has-text("Final Approve")'
+      'APPROVED_BY_TUTOR->FINAL_CONFIRMED': 'button:has-text("Final Approve")'
     };
     
     return transitions[`${from}->${to}`] || 'button:has-text("Next")';
