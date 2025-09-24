@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import LoadingSpinner, { 
@@ -24,13 +24,6 @@ import LoadingSpinner, {
 vi.stubGlobal('performance', {
   now: vi.fn(() => Date.now())
 });
-
-const defaultProps = {
-  size: 'medium' as const,
-  color: 'primary' as const,
-  variant: 'spinner' as const,
-  speed: 'normal' as const
-};
 
 // =============================================================================
 // LoadingSpinner Component Tests
@@ -587,7 +580,11 @@ describe('Performance and Edge Cases', () => {
       const { loading, toggleLoading } = useLoadingState();
       return (
         <div>
-          <LoadingSpinner loading={loading} />
+          {loading ? (
+            <LoadingSpinner data-testid="rapid-loading-spinner" />
+          ) : (
+            <span data-testid="rapid-loading-spinner-placeholder">Idle</span>
+          )}
           <button data-testid="rapid-toggle" onClick={toggleLoading}>Toggle</button>
         </div>
       );
@@ -700,3 +697,6 @@ describe('Accessibility Features', () => {
     expect(spinner).toBeInTheDocument();
   });
 });
+
+
+

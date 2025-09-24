@@ -8,6 +8,7 @@
 import React, { memo, useCallback, useMemo } from 'react';
 import type { Timesheet, ApprovalAction, TimesheetStatus } from '../../../types/api';
 import { formatters } from '../../../utils/formatting';
+import { secureLogger } from '../../../utils/secure-logger';
 import StatusBadge from '../StatusBadge/StatusBadge';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import './TimesheetTable.css';
@@ -21,6 +22,7 @@ export type ApprovalRole = 'LECTURER' | 'ADMIN' | 'HR';
 export interface TimesheetTableProps {
   timesheets: Timesheet[];
   loading?: boolean;
+  loadingMessage?: string;
   onApprovalAction?: (timesheetId: number, action: ApprovalAction) => void;
   onRowClick?: (timesheet: Timesheet) => void;
   actionLoading?: number | null;
@@ -329,7 +331,7 @@ function renderDefaultCell(
       }
 
       const { canApprove, canReject } = getActionPermissions(approvalRole, timesheet.status);
-      console.debug('[TimesheetTable] action permissions', { role: approvalRole, status: timesheet.status, canApprove, canReject });
+      secureLogger.debug('[TimesheetTable] action permissions', { role: approvalRole, status: timesheet.status, canApprove, canReject });
 
       if (!canApprove && !canReject) {
         return (
@@ -459,6 +461,7 @@ TableHeader.displayName = 'TableHeader';
 const TimesheetTable: React.FC<TimesheetTableProps> = ({
   timesheets,
   loading = false,
+  loadingMessage = 'Loading data...',
   onApprovalAction,
   onRowClick,
   actionLoading = null,
@@ -504,7 +507,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
       <div className={`timesheet-table-container loading ${className}`}>
         <div className="loading-state" data-testid="loading-state">
           <LoadingSpinner size="large" />
-          <p data-testid="loading-text">Loading pending timesheets...</p>
+          <p data-testid="loading-text">{loadingMessage}</p>
         </div>
       </div>
     );
@@ -579,6 +582,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 TimesheetTable.displayName = 'TimesheetTable';
 
 export default TimesheetTable;
+
 
 
 

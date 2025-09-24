@@ -20,10 +20,6 @@ interface LoginResponse {
   };
 }
 
-interface LoginError {
-  message: string;
-  error?: string;
-}
 
 const LoginPage: React.FC = () => {
   const { login, isAuthenticated } = useAuth();

@@ -5,20 +5,17 @@
  * Tests performance, accessibility, virtualization, and all interactive features.
  */
 
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import TimesheetTable from './TimesheetTable';
 import { 
-  createMockTimesheets, 
+  createMockTimesheets,
   createMockTimesheet,
   mockIntersectionObserver,
-  testPerformanceWithManyItems,
-  expectAccessibleName,
-  expectFormattedTimesheet
+  testPerformanceWithManyItems
 } from '../../../test/utils/test-utils';
-import type { Timesheet, ApprovalAction } from '../../../types/api';
+import type { Timesheet } from '../../../types/api';
 
 // =============================================================================
 // Test Setup
@@ -112,7 +109,13 @@ describe('TimesheetTable Component', () => {
       
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
       const loadingText = screen.getByTestId('loading-text');
-      expect(loadingText).toHaveTextContent('Loading pending timesheets...');
+      expect(loadingText).toHaveTextContent('Loading data...');
+    });
+
+    it('should allow custom loading message', () => {
+      render(<TimesheetTable timesheets={[]} loading={true} loadingMessage="Loading pending approvals..." />);
+
+      expect(screen.getByTestId('loading-text')).toHaveTextContent('Loading pending approvals...');
     });
 
     it('should not show table content when loading', () => {
@@ -673,4 +676,8 @@ describe('TimesheetTable Component', () => {
     });
   });
 });
+
+
+
+
 

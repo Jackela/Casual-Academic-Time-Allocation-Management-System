@@ -4,12 +4,12 @@
  * Enhanced version of API client with secure logging and production-safe error handling.
  */
 
-import axios from 'axios';
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosHeaders } from 'axios';
+import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { getConfig } from '../config/unified-config';
 import { secureLogger } from '../utils/secure-logger';
 import { ENV_CONFIG } from '../utils/environment';
-import type { ApiResponse, ApiErrorResponse, User } from '../types/api';
+import type { ApiResponse, ApiErrorResponse } from '../types/api';
 
 // =============================================================================
 // Enhanced API Client Class with Security
@@ -19,7 +19,13 @@ export interface SecureApiClientOptions {
   environment?: 'browser' | 'server';
 }
 
-export class SecureApiClient {
+type RequestMetadata = {
+  startTime: number;
+};
+
+type InternalRequestConfigWithMeta = InternalAxiosRequestConfig & {
+  metadata?: RequestMetadata;
+};export class SecureApiClient {
   private client: AxiosInstance;
   private token: string | null = null;
   private environment: 'browser' | 'server';
@@ -87,29 +93,29 @@ export class SecureApiClient {
     // Request interceptor
     this.client.interceptors.request.use(
       (config) => {
-        // Add request timestamp for performance tracking
-        config.metadata = { startTime: Date.now() };
-        
-        // Ensure auth token is included
+        const requestConfig = config as InternalRequestConfigWithMeta;
+        requestConfig.metadata = { startTime: Date.now() };
+
         if (this.token) {
-          if (!config.headers) {
-            config.headers = {};
+          if (!requestConfig.headers) {
+            requestConfig.headers = new AxiosHeaders();
           }
-          const headers: any = config.headers;
-          if (typeof headers.set === 'function') {
+
+          const headers = requestConfig.headers;
+
+          if (headers instanceof AxiosHeaders) {
             headers.set('Authorization', `Bearer ${this.token}`);
           } else {
-            headers['Authorization'] = `Bearer ${this.token}`;
+            (headers as Record<string, string>)['Authorization'] = `Bearer ${this.token}`;
           }
         }
 
-        // Secure API logging - no sensitive data in URL or body
         secureLogger.api(
-          config.method?.toUpperCase() || 'GET',
-          config.url || ''
+          requestConfig.method?.toUpperCase() || 'GET',
+          requestConfig.url || ''
         );
-        
-        return config;
+
+        return requestConfig;
       },
       (error) => {
         secureLogger.error('API Request Error', error);
@@ -120,49 +126,47 @@ export class SecureApiClient {
     // Response interceptor
     this.client.interceptors.response.use(
       (response) => {
-        const duration = Date.now() - (response.config.metadata?.startTime || 0);
-        
-        // Log successful API response with performance metrics
+        const responseConfig = response.config as InternalRequestConfigWithMeta;
+        const duration = Date.now() - (responseConfig.metadata?.startTime ?? 0);
+
         secureLogger.api(
-          response.config.method?.toUpperCase() || 'GET',
-          response.config.url || '',
+          responseConfig.method?.toUpperCase() || 'GET',
+          responseConfig.url || '',
           response.status,
           duration
         );
-        
-        // Performance monitoring for slow requests
+
         if (duration > 5000) {
           secureLogger.performance('Slow API Request', duration, 'ms', {
-            method: response.config.method?.toUpperCase(),
-            url: response.config.url,
+            method: responseConfig.method?.toUpperCase(),
+            url: responseConfig.url,
             status: response.status
           });
         }
-        
+
         return response;
       },
       (error) => {
-        const duration = error.config?.metadata?.startTime 
-          ? Date.now() - error.config.metadata.startTime 
+        const requestConfig = error.config as InternalRequestConfigWithMeta | undefined;
+        const duration = requestConfig?.metadata?.startTime
+          ? Date.now() - requestConfig.metadata.startTime
           : 0;
-        
-        // Log API error with secure error handling
+
         secureLogger.api(
-          error.config?.method?.toUpperCase() || 'GET',
-          error.config?.url || '',
+          requestConfig?.method?.toUpperCase() || 'GET',
+          requestConfig?.url || '',
           error.response?.status,
           duration,
           error
         );
 
-        // Handle specific error cases
         if (error.response?.status === 401) {
           this.handleAuthError();
         } else if (error.response?.status >= 500) {
           secureLogger.error('Server Error', {
             status: error.response.status,
-            url: error.config?.url,
-            method: error.config?.method?.toUpperCase()
+            url: requestConfig?.url,
+            method: requestConfig?.method?.toUpperCase()
           });
         }
 
@@ -170,7 +174,6 @@ export class SecureApiClient {
       }
     );
   }
-
   // ---------------------------------------------------------------------------
   // Secure Error Handling
   // ---------------------------------------------------------------------------
@@ -204,7 +207,7 @@ export class SecureApiClient {
 
   private transformError(error: any): ApiErrorResponse {
     const baseError = {
-      success: false,
+      success: false as const,
       timestamp: new Date().toISOString(),
       path: error.config?.url || '',
     };
@@ -373,5 +376,13 @@ if (hasWindow) {
 }
 
 export default secureApiClient;
+
+
+
+
+
+
+
+
 
 

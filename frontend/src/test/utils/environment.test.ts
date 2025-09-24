@@ -148,29 +148,36 @@ describe('ENV_CONFIG', () => {
     });
 
     it('should have E2E namespace with expected methods', () => {
-      const expectedE2EMethods = [
-        'hasAuthBypass', 'getBypassRole', 'hasTestFlag', 
-        'shouldUseMSW', 'getDebugInfo'
+      type E2EMethod = keyof typeof ENV_CONFIG['e2e'];
+      const expectedE2EMethods: E2EMethod[] = [
+        'hasAuthBypass',
+        'getBypassRole',
+        'hasTestFlag',
+        'shouldUseMSW',
+        'getDebugInfo'
       ];
-      
-      expectedE2EMethods.forEach(method => {
+
+      expectedE2EMethods.forEach((method) => {
         expect(ENV_CONFIG.e2e).toHaveProperty(method);
         expect(typeof ENV_CONFIG.e2e[method]).toBe('function');
       });
     });
 
     it('should have features namespace with expected methods', () => {
-      const expectedFeatureMethods = [
-        'enableDetailedLogging', 'enableDebugMode', 'hasHotReload'
+      type FeatureMethod = keyof typeof ENV_CONFIG['features'];
+      const expectedFeatureMethods: FeatureMethod[] = [
+        'enableDetailedLogging',
+        'enableDebugMode',
+        'hasHotReload'
       ];
-      
-      expectedFeatureMethods.forEach(method => {
+
+      expectedFeatureMethods.forEach((method) => {
         expect(ENV_CONFIG.features).toHaveProperty(method);
         expect(typeof ENV_CONFIG.features[method]).toBe('function');
       });
     });
-  });
 
+  });
   describe('Type Safety', () => {
     it('should return appropriate types for E2E methods', () => {
       expect(typeof ENV_CONFIG.e2e.hasAuthBypass()).toBe('boolean');
@@ -189,3 +196,6 @@ describe('ENV_CONFIG', () => {
     });
   });
 });
+
+
+

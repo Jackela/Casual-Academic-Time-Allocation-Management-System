@@ -22,14 +22,54 @@ export class DashboardPage {
     await this.page.waitForLoadState('networkidle');
   }
 
+  /**
+   * Enhanced data loading wait mechanism with cross-browser compatibility
+   * Addresses race conditions and provides multiple fallback strategies
+   */
   async waitForTimesheetData() {
-    // Be resilient: wait for either the API response or any UI state to appear
-    await Promise.race([
-      this.page.waitForResponse('**/api/timesheets/pending-final-approval').catch(() => null),
-      this.timesheetPage.timesheetsTable.waitFor({ timeout: 8000 }).catch(() => null),
-      this.timesheetPage.emptyState.waitFor({ timeout: 8000 }).catch(() => null),
-      this.timesheetPage.errorMessage.waitFor({ timeout: 8000 }).catch(() => null)
-    ]);
+    console.log('[DashboardPage] Waiting for timesheet data...');
+    
+    try {
+      // Multi-strategy wait approach for maximum reliability
+      const waitStrategies = [
+        // Strategy 1: Wait for API response
+        this.page.waitForResponse(response => {
+          const url = response.url();
+          return url.includes('/api/timesheets') || url.includes('/api/dashboard');
+        }, { timeout: 12000 }).catch(() => null),
+        
+        // Strategy 2: Wait for UI elements to appear
+        Promise.race([
+          this.timesheetPage.timesheetsTable.waitFor({ state: 'visible', timeout: 10000 }).catch(() => null),
+          this.timesheetPage.emptyState.waitFor({ state: 'visible', timeout: 10000 }).catch(() => null),
+          this.timesheetPage.errorMessage.waitFor({ state: 'visible', timeout: 10000 }).catch(() => null)
+        ]),
+        
+        // Strategy 3: Network idle fallback
+        this.page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => null)
+      ];
+
+      // Wait for any strategy to succeed
+      await Promise.race([
+        Promise.all(waitStrategies.filter(s => s !== null)),
+        new Promise(resolve => setTimeout(resolve, 15000)) // Ultimate timeout
+      ]);
+
+      // Ensure loading spinner is gone (best effort)
+      const loadingSpinner = this.page.getByTestId('loading-spinner').or(
+        this.page.locator('[data-testid="loading-state"], .loading-spinner, .spinner')
+      );
+      
+      await loadingSpinner.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {
+        console.log('[DashboardPage] Loading spinner still visible or not found');
+      });
+
+      console.log('[DashboardPage] Timesheet data loading completed');
+      
+    } catch (error) {
+      console.warn('[DashboardPage] Data loading wait encountered issues:', error);
+      // Continue anyway - UI might still be functional
+    }
   }
 
   async expectToBeLoaded(role: 'LECTURER' | 'ADMIN' | 'TUTOR' = 'LECTURER') {

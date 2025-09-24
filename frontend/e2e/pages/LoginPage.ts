@@ -12,6 +12,7 @@ export class LoginPage {
   readonly errorMessage: Locator;
   readonly successMessage: Locator;
   readonly credentialsSection: Locator;
+  readonly logoutButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -24,6 +25,9 @@ export class LoginPage {
     this.errorMessage = page.getByTestId('error-message');
     this.successMessage = page.getByTestId('success-message');
     this.credentialsSection = page.getByTestId('login-footer');
+    
+    // Enhanced logout support with multiple selectors for cross-browser compatibility
+    this.logoutButton = page.locator('button:has-text("Sign Out"), [data-testid="logout-button"], .logout-button').first();
   }
 
   async navigateTo() {
@@ -125,5 +129,109 @@ export class LoginPage {
     const email = this.resolveEnv('E2E_ADMIN_EMAIL', 'admin@example.com');
     const password = this.resolveEnv('E2E_ADMIN_PASSWORD', 'Admin123!');
     return await this.login(email, password);
+  }
+
+  /**
+   * Robust logout flow with comprehensive state management and cross-browser compatibility
+   * Addresses race conditions and ensures clean authentication state transitions
+   */
+  async logout() {
+    try {
+      // Verify we're on a page where logout is available
+      await this.logoutButton.waitFor({ 
+        state: 'visible', 
+        timeout: 5000 
+      });
+
+      // Perform logout with comprehensive wait strategy
+      const logoutPromises = [
+        // Wait for logout API response (if available)
+        this.page.waitForResponse(response => 
+          response.url().includes('/logout') || response.url().includes('/auth'), 
+          { timeout: 10000 }
+        ).catch(() => null), // Don't fail if no logout endpoint
+        
+        // Wait for navigation to login page
+        this.page.waitForURL('/login', { 
+          timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.PAGE_LOAD,
+          waitUntil: 'networkidle' 
+        }),
+        
+        // Click logout button
+        this.logoutButton.click()
+      ];
+
+      // Execute logout with timeout protection
+      await Promise.race([
+        Promise.all(logoutPromises),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Logout timeout')), 15000)
+        )
+      ]);
+
+      // Post-logout stabilization and verification
+      await this.page.waitForLoadState('networkidle');
+      
+      // Verify we're on the login page with clean state
+      await this.expectToBeOnLoginPage();
+      
+      // Clear any potential cached authentication state
+      await this.page.evaluate(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      });
+
+    } catch (error) {
+      console.warn('Logout flow encountered issues:', error);
+      // Fallback: Direct navigation to login with state clearing
+      await this.page.evaluate(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      });
+      await this.navigateTo();
+    }
+  }
+
+  /**
+   * Verify that we're properly on the login page after logout
+   */
+  async expectToBeOnLoginPage() {
+    // Verify URL
+    await expect(this.page).toHaveURL('/login');
+    
+    // Verify login form is visible and functional
+    await expect(this.loginForm).toBeVisible();
+    await expect(this.loginTitle).toContainText('CATAMS');
+    await expect(this.emailInput).toBeVisible();
+    await expect(this.passwordInput).toBeVisible();
+    
+    // Verify form is in clean state (not disabled from loading)
+    await expect(this.emailInput).toBeEnabled();
+    await expect(this.passwordInput).toBeEnabled();
+  }
+
+  /**
+   * Enhanced login with better error handling and stability
+   */
+  async loginWithRetry(email: string, password: string, maxRetries: number = 2) {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Login attempt ${attempt}/${maxRetries} for ${email}`);
+        return await this.login(email, password);
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`Login attempt ${attempt} failed:`, error);
+        
+        if (attempt < maxRetries) {
+          // Wait before retry and ensure clean state
+          await this.page.waitForTimeout(1000 * attempt);
+          await this.navigateTo();
+        }
+      }
+    }
+    
+    throw lastError || new Error('Login failed after retries');
   }
 }

@@ -258,7 +258,7 @@ describe('TimesheetService Approval Operations', () => {
       const approvalRequest: ApprovalRequest = {
         timesheetId: 1,
         action: 'FINAL_APPROVAL',
-        comments: 'Approved with excellent work'
+        comment: 'Approved with excellent work'
       };
 
       const approvalResponse = {
@@ -282,7 +282,7 @@ describe('TimesheetService Approval Operations', () => {
       const rejectionRequest: ApprovalRequest = {
         timesheetId: 1,
         action: 'REJECT',
-        comments: 'Hours seem excessive for the work described'
+        comment: 'Hours seem excessive for the work described'
       };
 
       const rejectionResponse = {
@@ -318,8 +318,8 @@ describe('TimesheetService Approval Operations', () => {
       const results = await TimesheetService.batchApproveTimesheets(approvalRequests);
 
       expect(mockApiClient.post).toHaveBeenCalledTimes(3);
-      const approvalPayloads = mockApiClient.post.mock.calls.map(([, payload]) => payload);
-      approvalPayloads.forEach(payload => expect(payload.action).toBe('HR_CONFIRM'));
+      const approvalPayloads = mockApiClient.post.mock.calls.map(([, payload]: [unknown, ApprovalRequest]) => payload);
+      approvalPayloads.forEach((payload: ApprovalRequest) => expect(payload.action).toBe('HR_CONFIRM'));
       expect(results).toHaveLength(3);
       expect(results[0]).toEqual(approvalResponse);
     });
@@ -720,7 +720,7 @@ describe('TimesheetService Integration', () => {
     const approvalRequest: ApprovalRequest = {
       timesheetId: createdTimesheet.id,
       action: 'FINAL_APPROVAL',
-      comments: 'Approved'
+      comment: 'Approved'
     };
 
     mockApiClient.post.mockResolvedValue(createMockApiResponse({ 
@@ -732,5 +732,7 @@ describe('TimesheetService Integration', () => {
     expect(approvalResult.success).toBe(true);
   });
 });
+
+
 
 

@@ -72,10 +72,6 @@ export function useTimesheets(initialQuery: TimesheetQuery = {}) {
     queryRef.current = query;
   }, [query]);
 
-  // Generate cache key
-  const cacheKey = useMemo(() => {
-    return JSON.stringify({ ...query, userId: user?.id });
-  }, [query, user?.id]);
 
   // Fetch function with caching
   const fetchTimesheets = useCallback(async (newQuery: TimesheetQuery = {}) => {

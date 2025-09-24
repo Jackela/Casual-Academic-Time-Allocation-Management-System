@@ -7,7 +7,6 @@
 
 import React, { memo } from 'react';
 import type { TimesheetStatus } from '../../../types/api';
-import { formatters } from '../../../utils/formatting';
 import './StatusBadge.css';
 
 // =============================================================================
@@ -289,4 +288,5 @@ export const StatusBadgeGroup = memo<StatusBadgeGroupProps>(({
 StatusBadgeGroup.displayName = 'StatusBadgeGroup';
 
 export default StatusBadge;
+
 

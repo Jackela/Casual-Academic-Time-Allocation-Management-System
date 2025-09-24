@@ -13,9 +13,7 @@ import TutorDashboard from './TutorDashboard';
 import { 
   createMockTimesheetPage, 
   createMockDashboardSummary,
-  createMockUser,
   createMockAuthUser,
-  createMockTimesheets,
   createMockTimesheet,
   MockAuthProvider
 } from '../../../test/utils/test-utils';
@@ -52,9 +50,6 @@ const mockTutorUser = createMockAuthUser({
 });
 
 const mockTutorTimesheets = createMockTimesheetPage(15, {}, { tutorId: 1 });
-const mockDraftTimesheets = createMockTimesheets(3, { status: 'DRAFT', tutorId: 1 });
-const mockSubmittedTimesheets = createMockTimesheets(5, { status: 'PENDING_TUTOR_CONFIRMATION', tutorId: 1 });
-const mockRejectedTimesheets = createMockTimesheets(2, { status: 'REJECTED', tutorId: 1 });
 
 const statusCounts = {
   DRAFT: 4,
@@ -305,9 +300,6 @@ describe('TutorDashboard Component', () => {
       render(<TutorDashboard />, { wrapper });
       
       const timesheetsRegion = screen.getByRole('region', { name: /My Timesheets/i });
-      const uniqueStatuses = Array.from(new Set(
-        mockTutorTimesheets.timesheets.map(timesheet => timesheet.status.toLowerCase())
-      ));
 
       mockTutorTimesheets.timesheets.forEach((timesheet) => {
         const badge = within(timesheetsRegion).getByTestId(`status-badge-${timesheet.id}`);
@@ -707,6 +699,11 @@ describe('TutorDashboard Component', () => {
     });
   });
 });
+
+
+
+
+
 
 
 

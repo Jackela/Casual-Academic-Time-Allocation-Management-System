@@ -22,15 +22,27 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
 
     // Test login flow
     await page.goto('/login');
-    
+
     await page.fill('input[type="email"]', 'lecturer@example.com');
     await page.fill('input[type="password"]', 'password123');
+
+    const timesheetResponse = page.waitForResponse(response =>
+      response.url().includes('/api/timesheets/pending-final-approval')
+        && response.request().method() === 'GET'
+    );
+
     await page.click('button[type="submit"]');
-    
+
     // Should redirect to dashboard
     await page.waitForURL('/dashboard', { timeout: 15000 });
-    // Anchor on main content for robustness
+    await timesheetResponse;
     await page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
+    await page.waitForFunction(() =>
+      !!document.querySelector('[data-testid="timesheets-table"], table')
+      || !!document.querySelector('[data-testid="empty-state"]'),
+      undefined,
+      { timeout: 15000 }
+    );
 
     // Presence-first checks (more resilient than visibility in parallel environments)
     const hasTable = (await page.locator('[data-testid="timesheets-table"], table').count()) > 0
@@ -57,8 +69,20 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
       });
     });
 
+    const timesheetResponse = page.waitForResponse(response =>
+      response.url().includes('/api/timesheets/pending-final-approval')
+        && response.request().method() === 'GET'
+    );
+
     await page.goto('/dashboard');
+    await timesheetResponse;
     await page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
+    await page.waitForFunction(() =>
+      !!document.querySelector('[data-testid="timesheets-table"], table')
+      || !!document.querySelector('[data-testid="empty-state"]'),
+      undefined,
+      { timeout: 15000 }
+    );
 
     const hasTable = (await page.locator('[data-testid="timesheets-table"], table').count()) > 0
       || await page.locator('[data-testid="timesheets-table"], table').first().isVisible().catch(() => false);
@@ -119,8 +143,20 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
       });
     });
 
+    const timesheetErrorResponse = page.waitForResponse(response =>
+      response.url().includes('/api/timesheets/pending-final-approval')
+        && response.status() === 500
+    );
+
     await page.goto('/dashboard');
+    await timesheetErrorResponse;
     await page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
+    await page.waitForFunction(() =>
+      !!document.querySelector('[data-testid="error-message"]')
+      || !!document.querySelector('[data-testid="retry-button"]'),
+      undefined,
+      { timeout: 15000 }
+    );
 
     // Should show error state (flexible)
     const errorVisible = (await page.locator('[data-testid="error-message"]').count()) > 0
@@ -129,4 +165,5 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
       || await page.locator('[data-testid="retry-button"]').first().isVisible({ timeout: 10000 }).catch(() => false);
     expect(errorVisible || retryVisible).toBeTruthy();
   });
+
 });

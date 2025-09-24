@@ -5,19 +5,19 @@
  * bulk actions, and comprehensive statistics overview.
  */
 
-import React, { memo, useMemo, useCallback, useState } from 'react';
-import { 
-  usePendingTimesheets, 
-  useDashboardSummary, 
-  useApprovalAction,
-  useTimesheetStats 
+import { memo, useMemo, useCallback, useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  usePendingTimesheets,
+  useDashboardSummary,
+  useApprovalAction
 } from '../../../hooks/useTimesheets';
 import { useAuth } from '../../../contexts/AuthContext';
 import TimesheetTable from '../../shared/TimesheetTable/TimesheetTable';
 import StatusBadge from '../../shared/StatusBadge/StatusBadge';
 import LoadingSpinner from '../../shared/LoadingSpinner/LoadingSpinner';
 import { formatters } from '../../../utils/formatting';
-import type { Timesheet, ApprovalAction } from '../../../types/api';
+import type { ApprovalAction } from '../../../types/api';
 import './LecturerDashboard.css';
 
 // =============================================================================
@@ -217,9 +217,10 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
     open: false
   });
 
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
+
   // Fetch pending timesheets and dashboard data
   const {
-    data: pendingData,
     loading: pendingLoading,
     error: pendingError,
     timesheets: pendingTimesheets,
@@ -242,16 +243,16 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
     reset: resetApproval
   } = useApprovalAction();
 
-  // Calculate statistics for pending timesheets
-  const pendingStats = useTimesheetStats(pendingTimesheets);
+  useEffect(() => {
+    if (!approvalError) {
+      setShowErrorDetails(false);
+    }
+  }, [approvalError]);
 
-  // Memoized computed values
   const welcomeMessage = useMemo(() => {
-    const firstName = user?.firstName || 'Lecturer';
-    const timeOfDay = new Date().getHours() < 12 ? 'morning' : 
-                      new Date().getHours() < 18 ? 'afternoon' : 'evening';
+    const firstName = user?.firstName || user?.name || 'Lecturer';
     return `Welcome back, ${firstName}`;
-  }, [user?.firstName]);
+  }, [user?.firstName, user?.name]);
 
   const urgentCount = useMemo(() => {
     return pendingTimesheets.filter(t => {
@@ -320,10 +321,6 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
       console.error('Failed to reject timesheet:', error);
     }
   }, [rejectionModal.timesheetId, approveTimesheet, refetchPending, refetchDashboard]);
-
-  const handleSelectAll = useCallback((selected: boolean) => {
-    setSelectedTimesheets(selected ? pendingTimesheets.map(t => t.id) : []);
-  }, [pendingTimesheets]);
 
   const handleQuickAction = useCallback((action: string) => {
     switch (action) {
@@ -409,9 +406,34 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
             </div>
           )}
           {approvalError && (
-            <div className="error-message">
-              <span>Approval failed: {approvalError}</span>
-              <button onClick={resetApproval}>Dismiss</button>
+            <div className="error-message" role="alert" data-testid="approval-error-banner">
+              <div className="error-message__content">
+                <span>Approval could not be completed. Please try again or contact admin.</span>
+                <div className="error-message__actions">
+                  <button
+                    type="button"
+                    className="error-message__toggle"
+                    onClick={() => setShowErrorDetails(prev => !prev)}
+                    data-testid="approval-error-details-toggle"
+                  >
+                    {showErrorDetails ? 'Hide details' : 'Details'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowErrorDetails(false);
+                      resetApproval();
+                    }}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+              {showErrorDetails && (
+                <pre className="error-message__details" data-testid="approval-error-raw">
+                  {approvalError}
+                </pre>
+              )}
             </div>
           )}
         </div>
@@ -495,17 +517,27 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
           </div>
 
           {noPendingTimesheets ? (
-            <div className="empty-state" data-testid="empty-state">
-              <div className="empty-state__content">
-                <span className="empty-state__icon">🎉</span>
-                <h3 data-testid="empty-state-title">No Pending Timesheets</h3>
-                <p>All caught up! No timesheets are waiting for your review.</p>
+            <div className="empty-state-wrapper">
+              <div className="empty-state" data-testid="empty-state">
+                <div className="empty-state__content">
+                  <span className="empty-state__icon">🎉</span>
+                  <h3 data-testid="empty-state-title">No Pending Timesheets</h3>
+                  <p>All caught up! No timesheets are waiting for your review.</p>
+                </div>
               </div>
+              <Link
+                to="/approvals/history"
+                className="lecturer-empty-state-link"
+                data-testid="cta-view-approval-history"
+              >
+                View Approval History
+              </Link>
             </div>
           ) : (
             <TimesheetTable
               timesheets={pendingTimesheets}
               loading={pendingLoading}
+              loadingMessage="Loading pending approvals..."
               onApprovalAction={handleApprovalAction}
               actionLoading={approvalLoading ? pendingTimesheets[0]?.id : null}
               showActions={true}
@@ -624,6 +656,12 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
 LecturerDashboard.displayName = 'LecturerDashboard';
 
 export default LecturerDashboard;
+
+
+
+
+
+
 
 
 

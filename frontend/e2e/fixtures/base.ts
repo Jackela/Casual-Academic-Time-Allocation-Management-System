@@ -188,8 +188,13 @@ export const test = base.extend<TestFixtures>({
       const auth = await authAPI.login(testCredentials.lecturer.email, testCredentials.lecturer.password);
       
       await page.addInitScript((authData, storageKeys) => {
-        localStorage.setItem(storageKeys.TOKEN, authData.token);
-        localStorage.setItem(storageKeys.USER, JSON.stringify(authData.user));
+        try {
+          const keys = storageKeys ?? { TOKEN: 'token', USER: 'user' };
+          localStorage.setItem(keys.TOKEN, authData.token);
+          localStorage.setItem(keys.USER, JSON.stringify(authData.user));
+        } catch {
+          /* no-op: storage access blocked */
+        }
       }, auth, STORAGE_KEYS);
 
       await use(page);
@@ -212,14 +217,24 @@ export const test = base.extend<TestFixtures>({
           errorMessage: null
         };
         await page.addInitScript((authData, storageKeys) => {
-          localStorage.setItem(storageKeys.TOKEN, authData.token);
-          localStorage.setItem(storageKeys.USER, JSON.stringify(authData.user));
+          try {
+            const keys = storageKeys ?? { TOKEN: 'token', USER: 'user' };
+            localStorage.setItem(keys.TOKEN, authData.token);
+            localStorage.setItem(keys.USER, JSON.stringify(authData.user));
+          } catch {
+            /* no-op: storage access blocked */
+          }
         }, mockAuth, STORAGE_KEYS);
       } else {
         const auth = await authAPI.login(testCredentials.tutor.email, testCredentials.tutor.password);
         await page.addInitScript((authData, storageKeys) => {
-          localStorage.setItem(storageKeys.TOKEN, authData.token);
-          localStorage.setItem(storageKeys.USER, JSON.stringify(authData.user));
+          try {
+            const keys = storageKeys ?? { TOKEN: 'token', USER: 'user' };
+            localStorage.setItem(keys.TOKEN, authData.token);
+            localStorage.setItem(keys.USER, JSON.stringify(authData.user));
+          } catch {
+            /* no-op: storage access blocked */
+          }
         }, auth, STORAGE_KEYS);
       }
       await use(page);
@@ -410,11 +425,12 @@ export const test = base.extend<TestFixtures>({
     // Setup mock auth state (idempotent): only set if not present
     await page.addInitScript((token, user, storageKeys) => {
       try {
-        const hasToken = !!localStorage.getItem(storageKeys.TOKEN);
-        const hasUser = !!localStorage.getItem(storageKeys.USER);
+        const keys = storageKeys ?? { TOKEN: 'token', USER: 'user' };
+        const hasToken = !!localStorage.getItem(keys.TOKEN);
+        const hasUser = !!localStorage.getItem(keys.USER);
         if (!hasToken || !hasUser) {
-          localStorage.setItem(storageKeys.TOKEN, token);
-          localStorage.setItem(storageKeys.USER, JSON.stringify(user));
+          localStorage.setItem(keys.TOKEN, token);
+          localStorage.setItem(keys.USER, JSON.stringify(user));
         }
       } catch {}
     }, mockResponses.auth.success.token, buildUser('lecturer'), STORAGE_KEYS);

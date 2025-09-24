@@ -1,0 +1,299 @@
+/* Modern CSS with Tailwind integration */
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* =============================================================================
+   CSS Variables and Theme Definitions
+   ============================================================================= */
+
+:root {
+  /* Radius */
+  --radius: 0.625rem;
+  
+  /* Light theme */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 3.9%;
+  --primary: 0 0% 9%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 96.1%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 96.1%;
+  --muted-foreground: 0 0% 45.1%;
+  --accent: 0 0% 96.1%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 89.8%;
+  --input: 0 0% 89.8%;
+  --ring: 0 0% 3.9%;
+  
+  /* Brand colors from existing design */
+  --brand-primary: 231 77% 68%; /* #667eea */
+  --brand-secondary: 258 42% 61%; /* #764ba2 */
+  
+  /* Typography */
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark {
+  --background: 0 0% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 9%;
+  --secondary: 0 0% 14.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 14.9%;
+  --muted-foreground: 0 0% 63.9%;
+  --accent: 0 0% 14.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 14.9%;
+  --input: 0 0% 14.9%;
+  --ring: 0 0% 83.1%;
+}
+
+/* =============================================================================
+   Base Styles
+   ============================================================================= */
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
+    min-width: 320px;
+    min-height: 100vh;
+  }
+
+  #root {
+    width: 100%;
+    height: 100vh;
+  }
+}
+
+/* =============================================================================
+   Component Layer - Modern Components
+   ============================================================================= */
+
+@layer components {
+  /* Enhanced TutorDashboard specific styles */
+  .tutor-dashboard-enhanced {
+    @apply min-h-screen bg-background text-foreground p-6 max-w-7xl mx-auto;
+  }
+  
+  .tutor-dashboard-enhanced.mobile-layout {
+    @apply p-4;
+  }
+  
+  /* Preserve existing gradient styles but make them Tailwind-compatible */
+  .brand-gradient {
+    background: linear-gradient(135deg, hsl(var(--brand-primary)) 0%, hsl(var(--brand-secondary)) 100%);
+  }
+  
+  /* Modern card hover effects */
+  .stat-card-hover {
+    @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+  }
+  
+  /* Loading states */
+  .loading-skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+  
+  /* Focus states */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+}
+
+/* =============================================================================
+   Utility Layer - Custom Utilities
+   ============================================================================= */
+
+@layer utilities {
+  /* Screen reader only */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  
+  /* Scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) hsl(var(--background));
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted));
+    border-radius: 3px;
+  }
+  
+  /* Glass morphism effect */
+  .glass {
+    backdrop-filter: blur(16px) saturate(180%);
+    background-color: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(209, 213, 219, 0.3);
+  }
+  
+  .dark .glass {
+    background-color: rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(75, 85, 99, 0.3);
+  }
+  
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out;
+  }
+  
+  .animate-slide-in {
+    animation: slide-in 0.3s ease-out;
+  }
+  
+  /* Text utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* =============================================================================
+   Compatibility Layer - Preserve Existing Styles
+   ============================================================================= */
+
+/* Keep existing styles that don't conflict with Tailwind */
+.App {
+  width: 100%;
+  height: 100vh;
+}
+
+/* Legacy dashboard styles for backward compatibility */
+.dashboard-container {
+  @apply w-full min-h-screen;
+}
+
+.tutor-dashboard {
+  @apply p-6 max-w-screen-xl mx-auto;
+}
+
+.tutor-dashboard.loading {
+  @apply flex items-center justify-center min-h-screen;
+}
+
+/* Preserve existing component styles */
+.login-container {
+  @apply flex justify-center items-center min-h-screen p-5;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+}
+
+/* Dashboard layout styles */
+.dashboard-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  @apply text-white shadow-lg sticky top-0 z-50;
+}
+
+/* =============================================================================
+   Dark Mode Enhancements
+   ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  .glass {
+    background-color: rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(75, 85, 99, 0.3);
+  }
+}
+
+/* =============================================================================
+   Responsive Design
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  .tutor-dashboard-enhanced {
+    @apply p-4;
+  }
+  
+  .stat-card-hover {
+    @apply hover:shadow-md hover:translate-y-0;
+  }
+}
+
+/* =============================================================================
+   Print Styles
+   ============================================================================= */
+
+@media print {
+  .tutor-dashboard-enhanced {
+    @apply text-black bg-white;
+  }
+  
+  .brand-gradient {
+    background: none !important;
+    color: black !important;
+  }
+}
+
+/* =============================================================================
+   Performance Optimizations
+   ============================================================================= */
+
+/* GPU acceleration for smooth animations */
+.stat-card-hover,
+.glass,
+.animate-fade-in,
+.animate-slide-in {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .stat-card-hover {
+    @apply hover:translate-y-0;
+  }
+}

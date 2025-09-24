@@ -69,11 +69,55 @@ export default defineConfig({
       },
     },
 
+    // Cross-browser UI testing - Chromium
     {
-      name: 'ui-tests',
+      name: 'chromium',
       use: { 
         ...devices['Desktop Chrome'],
-        // UI tests with mocked data
+        // Enhanced configuration for cross-browser stability
+        launchOptions: {
+          args: [
+            '--no-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-web-security',
+            '--disable-features=TranslateUI',
+            '--disable-ipc-flooding-protection'
+          ]
+        }
+      },
+      grepInvert: /@(mobile|mobile-smoke)/,
+      testIgnore: ['**/e2e/mobile/**', '**/e2e/api/**', '**/e2e/examples/**', '**/e2e/tests/mobile-*.spec.ts', '**/e2e/api/*.spec.ts'],
+    },
+
+    // Cross-browser UI testing - Firefox
+    {
+      name: 'firefox',
+      use: { 
+        ...devices['Desktop Firefox'],
+        // Firefox-specific configuration
+        launchOptions: {
+          firefoxUserPrefs: {
+            'dom.webnotifications.enabled': false,
+            'dom.push.enabled': false
+          }
+        }
+      },
+      grepInvert: /@(mobile|mobile-smoke)/,
+      testIgnore: ['**/e2e/mobile/**', '**/e2e/api/**', '**/e2e/examples/**', '**/e2e/tests/mobile-*.spec.ts', '**/e2e/api/*.spec.ts'],
+    },
+
+    // Cross-browser UI testing - WebKit/Safari
+    {
+      name: 'webkit',
+      use: { 
+        ...devices['Desktop Safari'],
+        // WebKit-specific configuration for better stability
+        launchOptions: {
+          args: [
+            '--disable-web-security',
+            '--allow-running-insecure-content'
+          ]
+        }
       },
       grepInvert: /@(mobile|mobile-smoke)/,
       testIgnore: ['**/e2e/mobile/**', '**/e2e/api/**', '**/e2e/examples/**', '**/e2e/tests/mobile-*.spec.ts', '**/e2e/api/*.spec.ts'],
@@ -92,26 +136,6 @@ export default defineConfig({
       grep: /@mobile/,
       testMatch: ['**/e2e/mobile/**'],
     },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
   ],
 
   /* Auto-start dev server for E2E tests (disabled when external orchestrator provides it) */

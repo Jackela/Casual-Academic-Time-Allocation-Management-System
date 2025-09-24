@@ -73,3 +73,82 @@
   color: #6B7280;
   text-align: center;
 }
+
+.error-message__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.error-message__actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.error-message__toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2563EB;
+  cursor: pointer;
+}
+
+.error-message__details {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: #F3F4F6;
+  color: #374151;
+  border: 1px solid #E5E7EB;
+  font-family: 'Courier New', Courier, monospace;
+  white-space: pre-wrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .error-message__details {
+    background: #1F2937;
+    color: #E5E7EB;
+    border-color: #374151;
+  }
+}
+
+
+.empty-state-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.lecturer-empty-state-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease-in-out;
+}
+
+.lecturer-empty-state-link:hover {
+  background: #1D4ED8;
+}
+
+.lecturer-empty-state-link:focus-visible {
+  outline: 2px solid #93C5FD;
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .lecturer-empty-state-link {
+    background: #3B82F6;
+    color: #F9FAFB;
+  }
+  .lecturer-empty-state-link:hover {
+    background: #2563EB;
+  }
+}

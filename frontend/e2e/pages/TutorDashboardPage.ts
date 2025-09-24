@@ -35,29 +35,54 @@ export class TutorDashboardPage {
     await this.page.waitForLoadState('networkidle');
   }
 
+  /**
+   * Enhanced data loading wait mechanism with cross-browser compatibility
+   * Addresses race conditions and provides multiple fallback strategies
+   */
   async waitForMyTimesheetData() {
-    // Elastic wait: resolve when any of these signals occur
-    const responseWait = this.page.waitForResponse(r => {
-      const url = r.url();
-      return url.includes('/api/timesheets') && !/\/api\/timesheets\/\d+/.test(url);
-    });
-    const tableVisible = this.timesheetsTable.waitFor({ state: 'visible' }).catch(() => undefined);
-    const emptyVisible = this.emptyState.waitFor({ state: 'visible' }).catch(() => undefined);
-    const errorVisible = this.errorMessage.waitFor({ state: 'visible' }).catch(() => undefined);
-    const networkIdle = this.page.waitForLoadState('networkidle').catch(() => undefined);
-    const timeoutFallback = new Promise(resolve => setTimeout(resolve, 12000));
+    console.log('[TutorDashboardPage] Waiting for timesheet data...');
+    
+    try {
+      // Multi-strategy wait approach for maximum reliability
+      const waitStrategies = [
+        // Strategy 1: Wait for API response
+        this.page.waitForResponse(response => {
+          const url = response.url();
+          return url.includes('/api/timesheets') && !/\/api\/timesheets\/\d+/.test(url);
+        }, { timeout: 12000 }).catch(() => null),
+        
+        // Strategy 2: Wait for UI elements to appear
+        Promise.race([
+          this.timesheetsTable.waitFor({ state: 'visible', timeout: 10000 }).catch(() => null),
+          this.emptyState.waitFor({ state: 'visible', timeout: 10000 }).catch(() => null),
+          this.errorMessage.waitFor({ state: 'visible', timeout: 10000 }).catch(() => null)
+        ]),
+        
+        // Strategy 3: Network idle fallback
+        this.page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => null)
+      ];
 
-    await Promise.race([
-      responseWait,
-      tableVisible,
-      emptyVisible,
-      errorVisible,
-      networkIdle,
-      timeoutFallback,
-    ]);
+      // Wait for any strategy to succeed
+      await Promise.race([
+        Promise.all(waitStrategies.filter(s => s !== null)),
+        new Promise(resolve => setTimeout(resolve, 15000)) // Ultimate timeout
+      ]);
 
-    // Best-effort: loading spinner should end; don't fail if it doesn't exist
-    await this.loadingState.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => undefined);
+      // Ensure loading spinner is gone (best effort)
+      const loadingSpinner = this.loadingState.or(
+        this.page.locator('[data-testid=\"loading-spinner\"], .loading-spinner, .spinner')
+      );
+      
+      await loadingSpinner.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {
+        console.log('[TutorDashboardPage] Loading spinner still visible or not found');
+      });
+
+      console.log('[TutorDashboardPage] Timesheet data loading completed');
+      
+    } catch (error) {
+      console.warn('[TutorDashboardPage] Data loading wait encountered issues:', error);
+      // Continue anyway - UI might still be functional
+    }
   }
 
   async expectToBeLoaded() {

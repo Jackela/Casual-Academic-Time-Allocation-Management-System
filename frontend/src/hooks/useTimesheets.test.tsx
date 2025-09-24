@@ -24,7 +24,6 @@ import {
   createMockTimesheet, 
   createMockDashboardSummary,
   createMockUser,
-  MockAuthProvider,
   waitForAsync
 } from '../test/utils/test-utils';
 import type { TimesheetQuery, ApprovalRequest } from '../types/api';
@@ -559,7 +558,7 @@ describe('useApprovalAction Hook', () => {
     const approvalRequest: ApprovalRequest = {
       timesheetId: 1,
       action: 'FINAL_APPROVAL',
-      comments: 'Looks good'
+      comment: 'Looks good'
     };
 
     let approvalResult;
@@ -934,3 +933,4 @@ describe('Hook Integration', () => {
     expect(result.current.timesheets).toEqual([]);
   });
 });
+

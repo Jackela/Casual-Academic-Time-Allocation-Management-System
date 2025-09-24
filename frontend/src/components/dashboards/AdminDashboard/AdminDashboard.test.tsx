@@ -59,22 +59,23 @@ const mockSystemTimesheets = createMockTimesheetPage(8, {}, { status: 'PENDING_T
 
 const mockAdminSummary = createMockDashboardSummary({
   totalTimesheets: 156,
+  pendingApprovals: 20,
   pendingApproval: 20,
   approvedTimesheets: 89,
   rejectedTimesheets: 8,
   totalHours: 1250.5,
+  totalPayroll: 43767.5,
   totalPay: 43767.5,
   thisWeekHours: 180,
   thisWeekPay: 6300,
   statusBreakdown: {
     DRAFT: 8,
     PENDING_TUTOR_CONFIRMATION: 12,
+    TUTOR_CONFIRMED: 9,
     LECTURER_CONFIRMED: 15,
-    REJECTED: 3,
-    FINAL_CONFIRMED: 54,
-    REJECTED: 4,
     FINAL_CONFIRMED: 48,
-    FINAL_CONFIRMED: 12
+    REJECTED: 4,
+    MODIFICATION_REQUESTED: 2
   },
   systemMetrics: {
     activeUsers: 45,
@@ -154,7 +155,7 @@ describe('AdminDashboard Component', () => {
     render(<AdminDashboard />);
 
     const urgentBadge = screen.getByTestId('urgent-notifications');
-    const expectedUrgentCount = mockSystemTimesheets.timesheets.length + mockAdminSummary.pendingApproval;
+    const expectedUrgentCount = mockSystemTimesheets.timesheets.length + (mockAdminSummary.pendingApproval ?? 0);
 
     expect(urgentBadge).toHaveTextContent(String(expectedUrgentCount));
   });
@@ -165,16 +166,17 @@ describe('AdminDashboard Component', () => {
     const systemOverview = screen.getByRole('region', { name: /system overview/i });
 
     const totalTimesheetsCard = within(systemOverview).getByTestId('total-timesheets-card');
-    expect(within(totalTimesheetsCard).getByText(String(mockAdminSummary.totalTimesheets))).toBeInTheDocument();
+    expect(within(totalTimesheetsCard).getByText(String(mockAdminSummary.totalTimesheets ?? 0))).toBeInTheDocument();
 
     const pendingApprovalsCard = within(systemOverview).getByTestId('pending-approvals-card');
     expect(within(pendingApprovalsCard).getByText(String(mockSystemTimesheets.timesheets.length))).toBeInTheDocument();
 
     const totalHoursCard = within(systemOverview).getByTestId('total-hours-card');
-    expect(within(totalHoursCard).getByText(formatters.hours(mockAdminSummary.totalHours))).toBeInTheDocument();
+    expect(within(totalHoursCard).getByText(formatters.hours(mockAdminSummary.totalHours ?? 0))).toBeInTheDocument();
 
     const totalPayrollCard = within(systemOverview).getByTestId('total-pay-card');
-    expect(within(totalPayrollCard).getByText((text) => text.includes(formatCurrency(mockAdminSummary.totalPay)))).toBeInTheDocument();
+    const totalPay = mockAdminSummary.totalPay ?? mockAdminSummary.totalPayroll ?? 0;
+    expect(within(totalPayrollCard).getByText((text) => text.includes(formatCurrency(totalPay ?? 0)))).toBeInTheDocument();
 
     const tutorCoverageCard = within(systemOverview).getByTestId('tutors-card');
     const uniqueTutorIds = new Set(mockSystemTimesheets.timesheets.map(timesheet => timesheet.tutorId));
@@ -199,7 +201,8 @@ describe('AdminDashboard Component', () => {
 
     const distributionChart = screen.getByTestId('status-distribution-chart');
 
-    Object.entries(mockAdminSummary.statusBreakdown).forEach(([status, count]) => {
+    const statusEntries = Object.entries(mockAdminSummary.statusBreakdown ?? {}) as [string, number][];
+    statusEntries.forEach(([status, count]) => {
       if (count > 0) {
         const badge = within(distributionChart).getByTestId(`status-badge-${status.toLowerCase()}`);
         const distributionItem = badge.closest('.distribution-item') as HTMLElement | null;
@@ -242,6 +245,10 @@ describe('AdminDashboard Component', () => {
     expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
   });
 });
+
+
+
+
 
 
 

@@ -115,9 +115,9 @@ export const secureLogger = {
     if (DEBUG_LOGGING_FLAG && ENV_CONFIG.features.enableDetailedLogging()) {
       const { message: safeMessage, data: safeData } = createSafeLogMessage(message, data);
       if (safeData !== undefined) {
-        console.debug(`[${getTimestamp()}] ${safeMessage}`, safeData);
+        console.info(`[${getTimestamp()}] ${safeMessage}`, safeData);
       } else {
-        console.debug(`[${getTimestamp()}] ${safeMessage}`);
+        console.info(`[${getTimestamp()}] ${safeMessage}`);
       }
     }
   },
@@ -280,3 +280,4 @@ export const safeConsole = {
   warn: secureLogger.warn,
   error: secureLogger.error
 } as const;
+

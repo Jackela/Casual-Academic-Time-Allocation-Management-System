@@ -5,7 +5,8 @@
  * pay tracking, and course integration for student tutors.
  */
 
-import React, { memo, useMemo, useCallback, useState, useEffect } from 'react';
+import { memo, useMemo, useCallback, useState, useEffect } from 'react';
+import type { FormEvent } from 'react';
 import { 
   useTimesheets,
   useDashboardSummary, 
@@ -15,14 +16,10 @@ import {
 } from '../../../hooks/useTimesheets';
 import { useAuth } from '../../../contexts/AuthContext';
 import TimesheetTable from '../../shared/TimesheetTable/TimesheetTable';
-import StatusBadge from '../../shared/StatusBadge/StatusBadge';
+
 import LoadingSpinner from '../../shared/LoadingSpinner/LoadingSpinner';
 import { formatters } from '../../../utils/formatting';
-import type { 
-  Timesheet, 
-  TimesheetQuery,
-  CreateTimesheetRequest 
-} from '../../../types/api';
+import type { Timesheet, DashboardDeadline } from '../../../types/api';
 import './TutorDashboard.css';
 import { TimesheetService } from '../../../services/timesheets';
 
@@ -172,7 +169,7 @@ CompletionProgress.displayName = 'CompletionProgress';
 // Upcoming Deadlines Component
 // =============================================================================
 
-const UpcomingDeadlines = memo<{ deadlines: any[] }>(({ deadlines }) => (
+const UpcomingDeadlines = memo<{ deadlines: DashboardDeadline[] }>(({ deadlines }) => (
   <div className="upcoming-deadlines">
     <h3>Upcoming Deadlines</h3>
     {deadlines.length === 0 ? (
@@ -180,15 +177,16 @@ const UpcomingDeadlines = memo<{ deadlines: any[] }>(({ deadlines }) => (
     ) : (
       <ul className="deadline-list">
         {deadlines.map((deadline, index) => {
-          const formattedDate = new Intl.DateTimeFormat('en-US', {
-            month: 'short',
-            day: 'numeric'
-          }).format(new Date(deadline.deadline));
+          const dateValue = deadline.deadline ?? deadline.dueDate;
+          const formattedDate = dateValue
+            ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(dateValue))
+            : 'TBD';
+          const courseLabel = deadline.courseName ?? 'Course';
 
           return (
-            <li key={deadline.courseId || index} className="deadline-item">
+            <li key={deadline.id ?? deadline.courseId ?? index} className="deadline-item">
               <span className="deadline-text">
-                {`${deadline.courseName} - Due ${formattedDate}`}
+                {`${courseLabel} - Due ${formattedDate}`}
               </span>
             </li>
           );
@@ -376,7 +374,7 @@ const TimesheetForm = memo<{
     return Object.keys(errors).length === 0;
   }, [formData]);
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
@@ -594,12 +592,10 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
   // Fetch tutor's timesheets
   const {
-    data: timesheetsData,
     loading: timesheetsLoading,
     error: timesheetsError,
     timesheets: allTimesheets,
     isEmpty: noTimesheets,
-    refresh: refreshTimesheets,
     refetch: refetchTimesheets
   } = useTimesheets({ 
     tutorId: user?.id,
@@ -631,6 +627,15 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
   // Calculate tutor statistics
   const tutorStats = useTimesheetStats(allTimesheets);
+
+  const completionRate = useMemo(() => {
+    const total = tutorStats.totalCount || 0;
+    if (!total) {
+      return 0;
+    }
+    const completed = tutorStats.statusCounts?.FINAL_CONFIRMED ?? 0;
+    return completed / total;
+  }, [tutorStats.statusCounts, tutorStats.totalCount]);
 
   // Handle window resize for responsive layout
   useEffect(() => {
@@ -690,7 +695,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const visibleDraftCount = dismissedSet.has('draft-reminder') ? 0 : draftBaseCount;
 
   const visibleDeadlines = useMemo(() => {
-    const deadlines = dashboardData?.upcomingDeadlines || [];
+    const deadlines = (dashboardData?.upcomingDeadlines ?? []) as DashboardDeadline[];
     return deadlines.filter((deadline, index) => {
       const identifier = `deadline-${deadline.courseId ?? index}`;
       return !dismissedSet.has(identifier);
@@ -892,7 +897,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
         <UpcomingDeadlines deadlines={dashboardData?.upcomingDeadlines || []} />
         
         {/* Completion Progress */}
-        <CompletionProgress completionRate={tutorStats.completionRate || 0.89} />
+        <CompletionProgress completionRate={completionRate || 0.89} />
       </header>
 
       {/* Error Display */}
@@ -901,7 +906,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           {timesheetsError && (
             <div className="error-message" data-testid="error-message">
               <span>Failed to load timesheets: {timesheetsError}</span>
-              <button data-testid="retry-button" onClick={refetchTimesheets}>Retry</button>
+              <button data-testid="retry-button" onClick={() => refetchTimesheets()}>Retry</button>
             </div>
           )}
           {dashboardError && (
@@ -1092,6 +1097,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             <TimesheetTable
               timesheets={filteredTimesheets}
               loading={timesheetsLoading}
+              loadingMessage="Loading timesheets to review..."
               actionLoading={actionLoadingId}
               onApprovalAction={(id, action) => {
                 // Handle timesheet actions for tutor (edit, submit, confirm)
@@ -1238,4 +1244,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 TutorDashboard.displayName = 'TutorDashboard';
 
 export default TutorDashboard;
+
+
 

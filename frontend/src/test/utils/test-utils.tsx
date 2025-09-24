@@ -5,9 +5,11 @@
  * CATAMS frontend components following TDD methodology.
  */
 
-import React, { ReactElement } from 'react';
-import { render, RenderOptions, RenderResult } from '@testing-library/react';
-import { vi, MockedFunction, expect } from 'vitest';
+import React from 'react';
+import type { ReactElement, ReactNode, ComponentType } from 'react';
+import { render } from '@testing-library/react';
+import type { RenderOptions, RenderResult } from '@testing-library/react';
+import { vi, expect } from 'vitest';
 import type { 
   User, 
   Timesheet, 
@@ -29,12 +31,10 @@ export function createMockUser(overrides: Partial<User> = {}): User {
   return {
     id: 1,
     email: 'test@example.com',
+    name: 'Test User',
     firstName: 'Test',
     lastName: 'User',
     role: 'TUTOR',
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
     ...overrides
   };
 }
@@ -137,10 +137,13 @@ export function createMockTimesheetPage(
 export function createMockDashboardSummary(overrides: Partial<DashboardSummary> = {}): DashboardSummary {
   return {
     totalTimesheets: 50,
+    pendingApprovals: 10,
+    pendingApproval: 10,
     pendingConfirmations: 12,
     approvedTimesheets: 25,
     rejectedTimesheets: 3,
     totalHours: 250.5,
+    totalPayroll: 8867.50,
     totalPay: 8867.50,
     thisWeekHours: 40,
     thisWeekPay: 1420,
@@ -152,6 +155,12 @@ export function createMockDashboardSummary(overrides: Partial<DashboardSummary> 
       FINAL_CONFIRMED: 10,
       REJECTED: 3,
       MODIFICATION_REQUESTED: 2
+    },
+    systemMetrics: {
+      systemLoad: 0.55,
+      activeUsers: 42,
+      averageApprovalTime: 2.3,
+      alerts: []
     },
     recentActivity: [
       {
@@ -249,7 +258,7 @@ export const mockAuthContext = {
  * Mock AuthContext Provider that creates a direct mock context
  */
 export const MockAuthProvider: React.FC<{ 
-  children: React.ReactNode;
+  children: ReactNode;
   value?: Partial<typeof mockAuthContext>;
 }> = ({ children, value = {} }) => {
   const contextValue = { ...mockAuthContext, ...value };
@@ -263,7 +272,7 @@ export const MockAuthProvider: React.FC<{
     const mockUseAuth = () => contextValue;
     vi.doMock('../../contexts/AuthContext', () => ({
       useAuth: mockUseAuth,
-      AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
+      AuthProvider: ({ children }: { children: ReactNode }) => <>{children}</>
     }));
   }, [contextValue]);
   
@@ -278,7 +287,7 @@ export const MockAuthProvider: React.FC<{
  * Test wrapper with all providers
  */
 export const TestWrapper: React.FC<{
-  children: React.ReactNode;
+  children: ReactNode;
   authContext?: Partial<typeof mockAuthContext>;
 }> = ({ children, authContext = {} }) => {
   return (
@@ -305,7 +314,7 @@ export function renderWithProviders(
 ): RenderResult {
   const { authContext, ...renderOptions } = options;
 
-  function Wrapper({ children }: { children: React.ReactNode }) {
+  function Wrapper({ children }: { children: ReactNode }) {
     return <TestWrapper authContext={authContext}>{children}</TestWrapper>;
   }
 
@@ -466,7 +475,7 @@ export function measureRenderTime(renderFn: () => void): number {
  * Test component with many items for performance
  */
 export function testPerformanceWithManyItems<T>(
-  Component: React.ComponentType<{ items: T[] }>,
+  Component: ComponentType<{ items: T[] }>,
   createItem: (index: number) => T,
   itemCount: number = 1000,
   maxRenderTime: number = 100
@@ -493,3 +502,7 @@ export { renderWithProviders as render };
 
 // Make the original render available as renderRaw if needed
 export { render as renderRaw } from '@testing-library/react';
+
+
+
+

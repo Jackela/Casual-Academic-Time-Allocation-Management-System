@@ -16,7 +16,6 @@ import type {
   DashboardSummary,
   ApprovalRequest,
   ApprovalResponse,
-  ApiErrorResponse
 } from '../types/api';
 
 // =============================================================================
@@ -267,16 +266,15 @@ function useMutation<TData, TVariables>(
       const data = await mutationFn(variables, token);
       setState({ data, loading: false, error: null });
       onSuccess?.(data, variables);
-    } catch (err) {
-      let errorMessage = 'An unexpected error occurred';
-      
-      if (err.message) {
-        errorMessage = err.message;
-      }
-      
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : 'An unexpected error occurred';
+
       setState({ data: null, loading: false, error: errorMessage });
       onError?.(errorMessage, variables);
-      console.error('Mutation Error:', err);
+      secureLogger.error('Mutation Error', error);
     }
   }, [mutationFn, token, onSuccess, onError]);
   
@@ -292,7 +290,7 @@ function useMutation<TData, TVariables>(
  */
 export function useApprovalAction(options: UseMutationOptions<ApprovalResponse, ApprovalRequest> = {}) {
   return useMutation<ApprovalResponse, ApprovalRequest>(
-    async (variables, token) => {
+    async (variables) => {
       const response = await secureApiClient.post<ApprovalResponse>(
         '/api/approvals',
         variables
@@ -308,7 +306,7 @@ export function useApprovalAction(options: UseMutationOptions<ApprovalResponse, 
  */
 export function useCreateTimesheet(options: UseMutationOptions<Timesheet, Omit<Timesheet, 'id' | 'createdAt' | 'updatedAt'>> = {}) {
   return useMutation<Timesheet, Omit<Timesheet, 'id' | 'createdAt' | 'updatedAt'>>(
-    async (variables, token) => {
+    async (variables) => {
       const response = await secureApiClient.post<Timesheet>(
         '/api/timesheets',
         variables
@@ -324,7 +322,7 @@ export function useCreateTimesheet(options: UseMutationOptions<Timesheet, Omit<T
  */
 export function useUpdateTimesheet(options: UseMutationOptions<Timesheet, { id: number } & Partial<Timesheet>> = {}) {
   return useMutation<Timesheet, { id: number } & Partial<Timesheet>>(
-    async (variables, token) => {
+    async (variables) => {
       const { id, ...updateData } = variables;
       const response = await secureApiClient.put<Timesheet>(
         `/api/timesheets/${id}`,
@@ -335,3 +333,7 @@ export function useUpdateTimesheet(options: UseMutationOptions<Timesheet, { id: 
     options
   );
 }
+
+
+
+

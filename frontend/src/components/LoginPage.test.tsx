@@ -11,14 +11,14 @@ import type { MockedFunction } from 'vitest';
 import LoginPage from './LoginPage';
 import { AuthProvider } from '../contexts/AuthContext';
 import { authManager } from '../services/auth-manager';
+import type { ApiResponse, LoginResponse } from '../types/api';
 
 // Mock secure API client
 vi.mock('../services/api-secure', () => {
   return {
     secureApiClient: {
       post: vi.fn(),
-      setAuthToken: vi.fn(),
-      clearAuthToken: vi.fn()
+      setAuthToken: vi.fn()
     }
   };
 });
@@ -27,6 +27,27 @@ import { secureApiClient } from '../services/api-secure';
 const mockedSecureClient = vi.mocked(secureApiClient, true);
 
 vi.stubGlobal('__DEV_CREDENTIALS__', true);
+const buildLoginResponse = (overrides?: Partial<LoginResponse>): ApiResponse<LoginResponse> => {
+  const baseUser = {
+    id: 1,
+    email: 'user@example.com',
+    name: 'Test User',
+    role: 'TUTOR' as const,
+  };
+
+  const user = { ...baseUser, ...(overrides?.user ?? {}) };
+  const token = overrides?.token ?? 'mock-jwt-token';
+
+  return {
+    success: true,
+    message: 'OK',
+    timestamp: '2024-01-01T00:00:00.000Z',
+    data: {
+      token,
+      user,
+    },
+  };
+};
 
 // Mock react-router-dom hooks
 const mockNavigate = vi.fn() as MockedFunction<(to: string | number, options?: { replace?: boolean }) => void>;
@@ -60,7 +81,6 @@ describe('LoginPage Component Tests', () => {
     // Reset secure API client mocks
     mockedSecureClient.post.mockReset();
     mockedSecureClient.setAuthToken.mockReset();
-    mockedSecureClient.clearAuthToken.mockReset();
 
     // Clear localStorage and auth manager state
     localStorage.clear();
@@ -246,17 +266,17 @@ describe('LoginPage Component Tests', () => {
       mockedSecureClient.post.mockImplementation(() => {
         return new Promise(resolve => {
           setTimeout(() => {
-            resolve({
-              data: {
+            resolve(
+              buildLoginResponse({
                 token: 'mock-jwt-token',
                 user: {
                   id: 1,
                   email: 'user@example.com',
                   name: 'Test User',
-                  role: 'LECTURER'
-                }
-              }
-            });
+                  role: 'LECTURER',
+                },
+              })
+            );
           }, 100); // 100ms delay to observe loading state
         });
       });
@@ -298,17 +318,15 @@ describe('LoginPage Component Tests', () => {
       const user = userEvent.setup();
       
       // Mock successful login response with realistic delay
-      const mockLoginResponse = {
-        data: {
-          token: 'mock-jwt-token-12345',
-          user: {
-            id: 1,
-            email: 'lecturer@example.com',
-            name: 'Test Lecturer',
-            role: 'LECTURER'
-          }
-        }
-      };
+      const mockLoginResponse = buildLoginResponse({
+        token: 'mock-jwt-token-12345',
+        user: {
+          id: 1,
+          email: 'lecturer@example.com',
+          name: 'Test Lecturer',
+          role: 'LECTURER',
+        },
+      });
       
       // Add a small delay to simulate network request
       mockedSecureClient.post.mockImplementation(() => 
@@ -366,18 +384,24 @@ describe('LoginPage Component Tests', () => {
       const user = userEvent.setup();
       
       // Mock with small delay to simulate real API
-      mockedSecureClient.post.mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve({
-          data: {
-            token: 'mock-token',
-            user: {
-              id: 1,
-              email: 'user@example.com',
-              name: 'Test User',
-              role: 'TUTOR'
-            }
-          }
-        }), 50))
+      mockedSecureClient.post.mockImplementation(() =>
+        new Promise(resolve =>
+          setTimeout(
+            () =>
+              resolve(
+                buildLoginResponse({
+                  token: 'mock-token',
+                  user: {
+                    id: 1,
+                    email: 'user@example.com',
+                    name: 'Test User',
+                    role: 'TUTOR',
+                  },
+                })
+              ),
+            50
+          )
+        )
       );
 
       render(
@@ -539,18 +563,24 @@ describe('LoginPage Component Tests', () => {
       };
 
       // Mock with realistic delay
-      mockedSecureClient.post.mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve({
-          data: {
-            token: 'mock-token',
-            user: {
-              id: 1,
-              email: 'user@example.com',
-              name: 'Test User',
-              role: 'ADMIN'
-            }
-          }
-        }), 50))
+      mockedSecureClient.post.mockImplementation(() =>
+        new Promise(resolve =>
+          setTimeout(
+            () =>
+              resolve(
+                buildLoginResponse({
+                  token: 'mock-token',
+                  user: {
+                    id: 1,
+                    email: 'user@example.com',
+                    name: 'Test User',
+                    role: 'ADMIN',
+                  },
+                })
+              ),
+            50
+          )
+        )
       );
 
       render(
@@ -634,4 +664,11 @@ describe('LoginPage Component Tests', () => {
     });
   });
 });
+
+
+
+
+
+
+
 

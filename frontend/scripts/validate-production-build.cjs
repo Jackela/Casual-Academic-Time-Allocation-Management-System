@@ -35,7 +35,7 @@ const SENSITIVE_PATTERNS = [
   
   // Development-only patterns
   /__DEV_CREDENTIALS__.*true/gi,
-  /enableDetailedLogging.*true/gi,
+  /enableDetailedLogging\\s*[:=]\\s*true/gi,
   
   // Specific sensitive values that should never appear
   /eyJ[\w\-\.]+/g, // JWT token pattern

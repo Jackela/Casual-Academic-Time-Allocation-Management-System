@@ -10,7 +10,16 @@ import { STORAGE_KEYS } from '../../utils/storage-keys';
 import type { User, AuthState } from '../../types/auth';
 
 // Mock localStorage
-const mockLocalStorage = {
+type MockFn<TArgs extends any[], TResult> = ReturnType<typeof vi.fn<TArgs, TResult>>;
+type MockStorage = {
+  store: Record<string, string>;
+  getItem: MockFn<[string], string | null>;
+  setItem: MockFn<[string, string], void>;
+  removeItem: MockFn<[string], void>;
+  clear: MockFn<[], void>;
+};
+
+const mockLocalStorage: MockStorage = {
   store: {} as Record<string, string>,
   getItem: vi.fn((key: string) => mockLocalStorage.store[key] || null),
   setItem: vi.fn((key: string, value: string) => {
@@ -323,3 +332,4 @@ describe('AuthManager', () => {
     });
   });
 });
+

@@ -184,7 +184,6 @@ export const ENV_CONFIG = {
      */
     isConsistentConfig: (): boolean => {
       try {
-        const mode = ENV_CONFIG.getMode();
         const isDev = ENV_CONFIG.isDevelopment();
         const isProd = ENV_CONFIG.isProduction();
         const isE2E = ENV_CONFIG.isE2E();
@@ -235,4 +234,5 @@ export const envErrorHandler = (error: Error, context: string): void => {
 };
 
 export default ENV_CONFIG;
+
 

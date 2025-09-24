@@ -54,6 +54,7 @@ const mockLecturerUser = createMockUser({
 const mockPendingTimesheets = createMockTimesheetPage(6, {}, { status: 'PENDING_TUTOR_CONFIRMATION' });
 
 const mockDashboardSummary = createMockDashboardSummary({
+  pendingApprovals: 6,
   pendingApproval: 6,
   totalTimesheets: 42,
   thisWeekHours: 18,
@@ -61,7 +62,7 @@ const mockDashboardSummary = createMockDashboardSummary({
     PENDING_TUTOR_CONFIRMATION: 6,
     LECTURER_CONFIRMED: 12,
     FINAL_CONFIRMED: 18,
-    FINAL_CONFIRMED: 6
+    REJECTED: 2
   }
 });
 
@@ -128,7 +129,8 @@ describe('LecturerDashboard Component', () => {
     const statistics = screen.getByTestId('statistics-cards');
     const statCards = within(statistics).getAllByTestId('stat-card');
     expect(statCards.length).toBeGreaterThanOrEqual(4);
-    expect(within(statistics).getByText(String(mockDashboardSummary.pendingApproval))).toBeInTheDocument();
+    const pendingValue = mockDashboardSummary.pendingApproval ?? mockDashboardSummary.pendingApprovals ?? 0;
+    expect(within(statistics).getByText(String(pendingValue))).toBeInTheDocument();
     expect(within(statistics).getByText(String(mockDashboardSummary.totalTimesheets))).toBeInTheDocument();
   });
 
@@ -174,7 +176,8 @@ describe('LecturerDashboard Component', () => {
     const statusChart = screen.getByTestId('status-breakdown-chart');
     const countValues = Array.from(statusChart.querySelectorAll('.status-breakdown__count')).map(node => node.textContent?.trim());
 
-    Object.values(mockDashboardSummary.statusBreakdown)
+    const lecturerStatusEntries = Object.values(mockDashboardSummary.statusBreakdown ?? {}) as number[];
+    lecturerStatusEntries
       .filter(count => count > 0)
       .map(count => String(count))
       .forEach(expectedCount => {
@@ -198,3 +201,5 @@ describe('LecturerDashboard Component', () => {
     expect(screen.getAllByRole('button', { name: /Retry/i }).length).toBeGreaterThanOrEqual(1);
   });
 });
+
+

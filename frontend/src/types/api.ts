@@ -14,6 +14,9 @@ export interface User {
   email: string;
   name: string;
   role: 'ADMIN' | 'LECTURER' | 'TUTOR';
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
 }
 
 export interface AuthResult {
@@ -108,18 +111,55 @@ export interface PendingTimesheetsResponse extends TimesheetsResponse {}
 // Dashboard & Summary Types  
 // =============================================================================
 
+export interface DashboardActivity {
+  id: number | string;
+  type?: string;
+  description: string;
+  timestamp: string;
+  timesheetId?: number;
+  userId?: number;
+  userName?: string;
+}
+
+export interface DashboardSystemMetrics {
+  systemLoad: number;
+  activeUsers: number;
+  averageApprovalTime: number;
+  activeCourses?: number;
+  alerts?: string[];
+}
+
+export interface DashboardDeadline {
+  id?: number | string;
+  courseId?: number;
+  courseName?: string;
+  title?: string;
+  dueDate?: string;
+  deadline?: string;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+}
+
 export interface DashboardSummary {
-  totalTimesheets: number;
-  pendingApprovals: number;
-  totalHours: number;
-  totalPayroll: number;
-  // Admin-specific metrics
-  activeUsers?: number;
-  systemHealth?: 'HEALTHY' | 'WARNING' | 'ERROR';
-  // Role-specific counts
+  totalTimesheets?: number;
+  pendingApprovals?: number;
+  pendingApproval?: number;
+  pendingConfirmations?: number;
+  approvedTimesheets?: number;
+  rejectedTimesheets?: number;
+  totalHours?: number;
+  totalPayroll?: number;
+  totalPay?: number;
+  thisWeekHours?: number;
+  thisWeekPay?: number;
+  statusBreakdown?: Record<string, number>;
+  recentActivity?: DashboardActivity[];
+  upcomingDeadlines?: DashboardDeadline[];
+  systemMetrics?: DashboardSystemMetrics;
   lecturerCount?: number;
   tutorCount?: number;
   courseCount?: number;
+  activeUsers?: number;
+  systemHealth?: 'HEALTHY' | 'WARNING' | 'ERROR';
 }
 
 // =============================================================================
@@ -137,6 +177,7 @@ export type ApprovalAction =
   | 'TUTOR_CONFIRM' 
   | 'LECTURER_CONFIRM'
   | 'HR_CONFIRM'
+  | 'FINAL_APPROVAL'
   | 'REJECT'
   | 'REQUEST_MODIFICATION'
   | 'EDIT'
@@ -192,6 +233,11 @@ export interface TimesheetQuery {
   weekStartDate?: string;
   startDate?: string;
   endDate?: string;
+  tutorName?: string;
+  courseName?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  search?: string;
   sortBy?: 'createdAt' | 'weekStartDate' | 'hours' | 'status';
   sortDirection?: 'asc' | 'desc';
 }

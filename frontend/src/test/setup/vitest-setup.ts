@@ -5,9 +5,11 @@
  * Includes DOM setup, mocks, and test utilities.
  */
 
-import { afterEach, beforeAll, afterAll, vi } from 'vitest';
+import { afterEach, afterAll, vi } from 'vitest';
+import * as React from 'react';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { URL as NodeURL, URLSearchParams as NodeURLSearchParams } from 'url';
 
 // =============================================================================
 // Global Test Setup
@@ -199,22 +201,23 @@ Object.defineProperty(window, 'getComputedStyle', {
 
 // Mock React.lazy for component tests
 vi.mock('react', async () => {
-  const actual = await vi.importActual('react');
+  const actual = await vi.importActual<typeof import('react')>('react');
+
   return {
     ...actual,
-    lazy: vi.fn((factory) => {
-      const Component = React.forwardRef((props, ref) => {
-        const [LazyComponent, setLazyComponent] = React.useState(null);
-        
-        React.useEffect(() => {
-          factory().then((module) => {
+    lazy: vi.fn((factory: () => Promise<{ default: React.ComponentType<any> }> ) => {
+      const Component = actual.forwardRef<any, any>((props, ref) => {
+        const [LazyComponent, setLazyComponent] = actual.useState<React.ComponentType<any> | null>(null);
+
+        actual.useEffect(() => {
+          void factory().then((module) => {
             setLazyComponent(() => module.default);
           });
         }, []);
-        
-        return LazyComponent ? React.createElement(LazyComponent, { ...props, ref }) : null;
+
+        return LazyComponent ? actual.createElement(LazyComponent, { ...props, ref }) : null;
       });
-      
+
       Component.displayName = 'LazyComponent';
       return Component;
     })
@@ -225,54 +228,13 @@ vi.mock('react', async () => {
 // API and Network Mocks
 // =============================================================================
 
-// Mock URL and URLSearchParams for Node.js environment
-if (typeof global.URL === 'undefined') {
-  global.URL = class URL {
-    constructor(public href: string, base?: string) {
-      if (base) {
-        this.href = new (global as any).originalURL(href, base).href;
-      }
-    }
-    
-    get origin() { return this.href.split('/').slice(0, 3).join('/'); }
-    get pathname() { return this.href.split('/').slice(3).join('/').split('?')[0]; }
-    get search() { 
-      const parts = this.href.split('?');
-      return parts.length > 1 ? '?' + parts[1].split('#')[0] : '';
-    }
-  };
+if (typeof globalThis.URL === 'undefined') {
+  (globalThis as any).URL = NodeURL as any;
 }
 
-if (typeof global.URLSearchParams === 'undefined') {
-  global.URLSearchParams = class URLSearchParams {
-    private params = new Map<string, string>();
-    
-    constructor(init?: string | string[][] | Record<string, string>) {
-      if (typeof init === 'string') {
-        init.split('&').forEach(pair => {
-          const [key, value] = pair.split('=');
-          if (key) this.params.set(decodeURIComponent(key), decodeURIComponent(value || ''));
-        });
-      } else if (Array.isArray(init)) {
-        init.forEach(([key, value]) => this.params.set(key, value));
-      } else if (init) {
-        Object.entries(init).forEach(([key, value]) => this.params.set(key, value));
-      }
-    }
-    
-    append(name: string, value: string) { this.params.set(name, value); }
-    delete(name: string) { this.params.delete(name); }
-    get(name: string) { return this.params.get(name); }
-    has(name: string) { return this.params.has(name); }
-    set(name: string, value: string) { this.params.set(name, value); }
-    toString() { 
-      return Array.from(this.params.entries())
-        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-        .join('&');
-    }
-  };
+if (typeof globalThis.URLSearchParams === 'undefined') {
+  (globalThis as any).URLSearchParams = NodeURLSearchParams as any;
 }
-
 // =============================================================================
 // Error Handling
 // =============================================================================
@@ -284,13 +246,13 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Mock error boundary for testing error states
-global.ErrorBoundary = class ErrorBoundary extends React.Component {
+(global as any).ErrorBoundary = class ErrorBoundary extends React.Component {
   constructor(props: any) {
     super(props);
     this.state = { hasError: false };
   }
   
-  static getDerivedStateFromError(error: Error) {
+  static getDerivedStateFromError(_error: Error) {
     return { hasError: true };
   }
   
@@ -340,3 +302,8 @@ afterAll(() => {
   // Reset all mocks
   vi.restoreAllMocks();
 });
+
+
+
+
+

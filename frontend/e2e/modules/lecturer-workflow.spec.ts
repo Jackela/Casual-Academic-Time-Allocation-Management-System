@@ -19,12 +19,8 @@ test.describe('Lecturer Dashboard Workflow', () => {
   });
 
   test('Lecturer can login and view dashboard', async ({ page }) => {
-    // Login as lecturer
-    await loginPage.fillCredentials('lecturer@example.com', 'Lecturer123!');
-    await loginPage.submitForm();
-
-    // Wait for navigation to dashboard
-    await page.waitForURL('**/dashboard');
+    // Login as lecturer using enhanced method
+    await loginPage.loginAsLecturer();
     
     // Should redirect to dashboard page
     await expect(page).toHaveURL(/.*dashboard/);
@@ -37,12 +33,8 @@ test.describe('Lecturer Dashboard Workflow', () => {
   });
 
   test('Lecturer dashboard shows pending timesheets section', async ({ page }) => {
-    // Login as lecturer
-    await loginPage.fillCredentials('lecturer@example.com', 'Lecturer123!');
-    await loginPage.submitForm();
-
-    // Wait for navigation to dashboard
-    await page.waitForURL('**/dashboard');
+    // Login as lecturer using enhanced method
+    await loginPage.loginAsLecturer();
     
     // Should show timesheets section
     await expect(page.getByRole('region', { name: 'Pending Approvals' })).toBeVisible();
@@ -59,12 +51,8 @@ test.describe('Lecturer Dashboard Workflow', () => {
   });
 
   test('Lecturer can interact with timesheet approval buttons if timesheets exist', async ({ page }) => {
-    // Login as lecturer
-    await loginPage.fillCredentials('lecturer@example.com', 'Lecturer123!');
-    await loginPage.submitForm();
-
-    // Wait for navigation to dashboard
-    await page.waitForURL('**/dashboard');
+    // Login as lecturer using enhanced method
+    await loginPage.loginAsLecturer();
     
     // Robust detection: either dedicated test id or plain table element
     const tableCandidate = page.locator('[data-testid="timesheets-table"], table');
@@ -108,12 +96,8 @@ test.describe('Lecturer Dashboard Workflow', () => {
   });
 
   test('Lecturer dashboard handles loading state', async ({ page }) => {
-    // Login as lecturer
-    await loginPage.fillCredentials('lecturer@example.com', 'Lecturer123!');
-    await loginPage.submitForm();
-
-    // Wait for navigation to dashboard
-    await page.waitForURL('**/dashboard');
+    // Login as lecturer using enhanced method
+    await loginPage.loginAsLecturer();
     
     // Ensure main content anchor is present
     await page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
@@ -122,13 +106,168 @@ test.describe('Lecturer Dashboard Workflow', () => {
       await page.locator('[data-testid="loading-state"]').first().waitFor({ state: 'hidden', timeout: 5000 });
     } catch {}  });
 
-  test('Lecturer can refresh dashboard data', async ({ page }) => {
-    // Login as lecturer
-    await loginPage.fillCredentials('lecturer@example.com', 'Lecturer123!');
-    await loginPage.submitForm();
 
-    // Wait for navigation to dashboard
-    await page.waitForURL('**/dashboard');
+  test('当 Lecturer 审批失败时，UI应显示错误提示并且按钮可再次点击', async ({ page }) => {
+    const now = new Date().toISOString();
+    const timesheet = {
+      id: 98765,
+      tutorId: 501,
+      courseId: 42,
+      weekStartDate: '2025-02-10',
+      hours: 8,
+      hourlyRate: 45,
+      description: 'Mock lecturer approval failure',
+      status: 'TUTOR_CONFIRMED',
+      createdAt: now,
+      updatedAt: now,
+      tutorName: 'John Doe',
+      courseName: 'Advanced Algorithms',
+      courseCode: 'COMP3001'
+    };
+
+    await page.route('**/api/timesheets/pending-final-approval**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          timesheets: [timesheet],
+          pageInfo: {
+            currentPage: 0,
+            pageSize: 20,
+            totalElements: 1,
+            totalPages: 1,
+            first: true,
+            last: true,
+            numberOfElements: 1,
+            empty: false
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/approvals', async route => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Internal Server Error' })
+      });
+    });
+
+    const pendingResponse = page.waitForResponse('**/api/timesheets/pending-final-approval**');
+    await loginPage.loginAsLecturer();
+    await pendingResponse;
+
+    const timesheetRow = page.locator(`tr:has-text("${timesheet.description}")`);
+    await expect(timesheetRow).toBeVisible();
+
+    const approveButton = timesheetRow.getByTestId(`approve-btn-${timesheet.id}`);
+    await expect(approveButton).toBeVisible();
+
+    await approveButton.click();
+
+    const errorBanner = page.getByTestId('approval-error-banner');
+    await expect(errorBanner).toBeVisible();
+    await expect(errorBanner).toContainText('Approval could not be completed');
+
+    const errorDetails = page.locator('[data-testid="approval-error-raw"]');
+    await expect(errorDetails).toHaveCount(0);
+
+    await page.getByTestId('approval-error-details-toggle').click();
+    await expect(page.getByTestId('approval-error-raw')).toContainText('Internal Server Error');
+
+    await expect(approveButton).toBeEnabled();
+  });
+
+
+  test('当 Lecturer 加载待审批数据时，UI 显示加载状态并在完成后隐藏', async ({ page }) => {
+    const now = new Date().toISOString();
+    const timesheet = {
+      id: 67890,
+      tutorId: 777,
+      courseId: 21,
+      weekStartDate: '2025-03-03',
+      hours: 6,
+      hourlyRate: 48,
+      description: 'Mock lecturer loading state',
+      status: 'TUTOR_CONFIRMED',
+      createdAt: now,
+      updatedAt: now,
+      tutorName: 'Alex Lee',
+      courseName: 'Interactive Computing',
+      courseCode: 'COMP2500'
+    };
+
+    await page.route('**/api/timesheets/pending-final-approval**', async route => {
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          timesheets: [timesheet],
+          pageInfo: {
+            currentPage: 0,
+            pageSize: 20,
+            totalElements: 1,
+            totalPages: 1,
+            first: true,
+            last: true,
+            numberOfElements: 1,
+            empty: false
+          }
+        })
+      });
+    });
+
+    const pendingResponse = page.waitForResponse('**/api/timesheets/pending-final-approval**');
+    await loginPage.loginAsLecturer();
+
+    const loadingState = page.getByTestId('loading-state');
+    await expect(loadingState).toBeVisible({ timeout: 2000 });
+
+    await pendingResponse;
+    await expect(loadingState).toBeHidden({ timeout: 5000 });
+
+    const table = page.getByTestId('timesheets-table');
+    await expect(table).toBeVisible({ timeout: 5000 });
+    await expect(table.getByText(timesheet.description)).toBeVisible();
+  });
+
+  test('当没有待审批的时间表时，UI 显示空状态视图', async ({ page }) => {
+    await page.route('**/api/timesheets/pending-final-approval**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          timesheets: [],
+          pageInfo: {
+            currentPage: 0,
+            pageSize: 20,
+            totalElements: 0,
+            totalPages: 0,
+            first: true,
+            last: true,
+            numberOfElements: 0,
+            empty: true
+          }
+        })
+      });
+    });
+
+    await loginPage.loginAsLecturer();
+
+    const emptyState = page.getByTestId('empty-state');
+    await expect(emptyState).toBeVisible({ timeout: 5000 });
+    await expect(emptyState).toContainText('No Pending Timesheets', { timeout: 5000 });
+
+    await expect(page.locator('[data-testid="timesheets-table"]')).toHaveCount(0);
+  });
+
+  test('Lecturer can refresh dashboard data', async ({ page }) => {
+    // Login as lecturer using enhanced method
+    await loginPage.loginAsLecturer();
     
     // Look for retry/refresh button if there's an error state
     const retryButton = page.locator('[data-testid="retry-button"]');
@@ -146,5 +285,6 @@ test.describe('Lecturer Dashboard Workflow', () => {
     }
   });
 });
+
 
 

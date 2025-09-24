@@ -260,11 +260,23 @@ export async function finalizeTimesheet(
   tokens: AuthContext,
   timesheetId: number
 ) {
+  const shouldIgnore = (error: unknown): boolean => {
+    const message = String((error as Error)?.message ?? '').toLowerCase();
+    return message.includes('already') || message.includes('cannot final');
+  };
+
+  try {
+    await submitApproval(request, tokens.lecturer.token, timesheetId, 'LECTURER_CONFIRM', 'Auto-confirm for cleanup');
+  } catch (error) {
+    if (!shouldIgnore(error)) {
+      throw error;
+    }
+  }
+
   try {
     await submitApproval(request, tokens.admin.token, timesheetId, 'HR_CONFIRM', 'Finalized for cleanup');
   } catch (error) {
-    const message = (error as Error).message || '';
-    if (!message.includes('already final') && !message.includes('Cannot final confirm')) {
+    if (!shouldIgnore(error)) {
       throw error;
     }
   }

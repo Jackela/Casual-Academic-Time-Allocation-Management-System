@@ -48,7 +48,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 name: `Test ${bypassRole}`,
                 role: bypassRole
               };
-              const fallbackToken = `test-token-${Date.now()}`;
+              const fallbackToken = `bypass-token-${Date.now()}`;
+
               
               // Use AuthManager for E2E bypass
               authManager.setAuth(fallbackToken, fallbackUser);

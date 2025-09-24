@@ -91,7 +91,6 @@ export interface UnifiedConfiguration {
 // =============================================================================
 
 class ConfigurationBuilder {
-  private config: Partial<UnifiedConfiguration> = {};
 
   /**
    * Build API configuration based on environment
@@ -401,17 +400,11 @@ export function validateConfiguration(): boolean {
 // Type Exports
 // =============================================================================
 
-export type {
-  ApiConfiguration,
-  SecurityConfiguration,
-  PerformanceConfiguration,
-  FeatureFlags,
-  UnifiedConfiguration
-};
-
 // =============================================================================
 // Default Export
 // =============================================================================
 
 export default getConfig;
+
+
 

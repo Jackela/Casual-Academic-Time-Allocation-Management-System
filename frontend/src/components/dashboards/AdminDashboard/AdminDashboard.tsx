@@ -5,7 +5,7 @@
  * analytics, and administrative controls with advanced filtering and monitoring.
  */
 
-import React, { memo, useMemo, useCallback, useState, useEffect } from 'react';
+import { memo, useMemo, useCallback, useState, useEffect } from 'react';
 import { 
   useTimesheets,
   useDashboardSummary, 
@@ -18,10 +18,8 @@ import StatusBadge from '../../shared/StatusBadge/StatusBadge';
 import LoadingSpinner from '../../shared/LoadingSpinner/LoadingSpinner';
 import { formatters } from '../../../utils/formatting';
 import type { 
-  Timesheet, 
   ApprovalAction, 
   TimesheetQuery,
-  DashboardSummary 
 } from '../../../types/api';
 import './AdminDashboard.css';
 
@@ -474,7 +472,6 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
 
   // Fetch all timesheets for admin overview
   const {
-    data: allTimesheetsData,
     loading: timesheetsLoading,
     error: timesheetsError,
     timesheets: allTimesheets,
