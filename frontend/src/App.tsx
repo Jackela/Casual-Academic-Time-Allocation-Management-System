@@ -13,7 +13,7 @@ import './App.css';
 
 // Initialize configuration system
 if (!initializeConfiguration()) {
-  console.error('Failed to initialize configuration system');
+  secureLogger.error('Failed to initialize configuration system');
 }
 
 // Initialize global error handling
@@ -43,7 +43,7 @@ function App() {
   return (
     <ErrorBoundary level="critical" onError={(error, errorInfo) => {
       // Additional error handling for app-level errors
-      console.error('App-level error:', error, errorInfo);
+      secureLogger.error('App-level error', { error, errorInfo });
     }}>
       <AuthProvider>
         <Router>

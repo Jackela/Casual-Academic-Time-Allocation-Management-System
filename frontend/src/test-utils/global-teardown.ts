@@ -1,3 +1,4 @@
+import { secureLogger } from '../utils/secure-logger';
 /**
  * Global Teardown Configuration for Vitest
  * 
@@ -30,7 +31,7 @@ import { handleMonitorGlobalTeardown } from './handle-monitor';
  * ```
  */
 export default async function globalTeardown(): Promise<void> {
-  console.log('\n🧹 Running global teardown...');
+  secureLogger.info('🧹 Running global teardown...');
 
   try {
     // Run handle monitoring teardown
@@ -39,13 +40,13 @@ export default async function globalTeardown(): Promise<void> {
     // Additional cleanup checks
     await performFinalChecks();
 
-    console.log('✅ Global teardown completed successfully');
+    secureLogger.info('✅ Global teardown completed successfully');
   } catch (error) {
-    console.error('❌ Global teardown failed:', error);
+    secureLogger.error('❌ Global teardown failed', error);
     
     // In CI environment, fail the entire test run if cleanup fails
     if (process.env.CI === 'true') {
-      console.error('💥 Critical cleanup failure in CI environment');
+      secureLogger.error('💥 Critical cleanup failure in CI environment');
       process.exit(1);
     }
     
@@ -90,7 +91,7 @@ async function checkActiveHandles(): Promise<void> {
     const handles = process._getActiveHandles();
     
     if (handles.length > 0) {
-      console.warn(`⚠️  ${handles.length} active handles remaining:`);
+      secureLogger.warn(`⚠️  ${handles.length} active handles remaining:`);
       
       const handleSummary: Record<string, number> = {};
       handles.forEach((handle: any) => {
@@ -99,13 +100,13 @@ async function checkActiveHandles(): Promise<void> {
       });
       
       Object.entries(handleSummary).forEach(([type, count]) => {
-        console.warn(`   - ${type}: ${count}`);
+        secureLogger.warn(`   - ${type}: ${count}`);
       });
 
       // Try to use why-is-node-running if available for detailed analysis
       await tryDetailedHandleAnalysis();
     } else {
-      console.log('✅ No active handles remaining');
+      secureLogger.info('✅ No active handles remaining');
     }
   }
 }
@@ -122,7 +123,7 @@ async function checkActiveTimers(): Promise<void> {
     const requests = process._getActiveRequests();
     
     if (requests.length > 0) {
-      console.warn(`⚠️  ${requests.length} active requests remaining:`);
+      secureLogger.warn(`⚠️  ${requests.length} active requests remaining:`);
       
       const requestSummary: Record<string, number> = {};
       requests.forEach((request: any) => {
@@ -131,10 +132,10 @@ async function checkActiveTimers(): Promise<void> {
       });
       
       Object.entries(requestSummary).forEach(([type, count]) => {
-        console.warn(`   - ${type}: ${count}`);
+        secureLogger.warn(`   - ${type}: ${count}`);
       });
     } else {
-      console.log('✅ No active requests remaining');
+      secureLogger.info('✅ No active requests remaining');
     }
   }
 }
@@ -164,9 +165,9 @@ async function checkFileDescriptors(): Promise<void> {
     await new Promise<void>((resolve) => {
       lsof.on('close', () => {
         if (fdCount > 100) {
-          console.warn(`⚠️  High file descriptor usage: ${fdCount} open files`);
+          secureLogger.warn(`⚠️  High file descriptor usage: ${fdCount} open files`);
         } else {
-          console.log(`✅ File descriptor usage normal: ${fdCount} open files`);
+          secureLogger.info(`✅ File descriptor usage normal: ${fdCount} open files`);
         }
         resolve();
       });
@@ -207,9 +208,9 @@ async function checkNetworkConnections(): Promise<void> {
         connectionCount = lines.length;
         
         if (connectionCount > 10) {
-          console.warn(`⚠️  Multiple network connections active: ${connectionCount}`);
+          secureLogger.warn(`⚠️  Multiple network connections active: ${connectionCount}`);
         } else {
-          console.log(`✅ Network connections normal: ${connectionCount} active`);
+          secureLogger.info(`✅ Network connections normal: ${connectionCount} active`);
         }
         resolve();
       });
@@ -230,7 +231,7 @@ async function checkNetworkConnections(): Promise<void> {
 async function tryDetailedHandleAnalysis(): Promise<void> {
   try {
     const whyIsNodeRunning = require('why-is-node-running');
-    console.log('\n📊 Detailed handle analysis:');
+    secureLogger.info('📊 Detailed handle analysis:');
     
     // Give a moment for output to flush
     setTimeout(() => {
@@ -240,6 +241,6 @@ async function tryDetailedHandleAnalysis(): Promise<void> {
     // Wait for analysis to complete
     await new Promise(resolve => setTimeout(resolve, 1000));
   } catch {
-    console.log('\n💡 For detailed handle analysis, install: npm install --save-dev why-is-node-running');
+    secureLogger.info('💡 For detailed handle analysis, install: npm install --save-dev why-is-node-running');
   }
 }

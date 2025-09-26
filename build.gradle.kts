@@ -105,6 +105,7 @@ dependencies {
     testImplementation(libs.org.testcontainers.junit.jupiter)
     testImplementation(libs.org.testcontainers.postgresql)
     testImplementation(libs.org.testcontainers.testcontainers)
+    runtimeOnly("com.h2database:h2:2.2.224")
     testImplementation("com.h2database:h2:2.2.224")
     // ArchUnit for architecture rules
     testImplementation("com.tngtech.archunit:archunit-junit5:1.2.1")
@@ -280,6 +281,9 @@ tasks.named<BootRun>("bootRun") {
         }
     }
 }
+
+
+
 
 
 

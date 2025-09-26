@@ -1,5 +1,4 @@
-/**
- * Status Badge Component
+/**\r\n * Status Badge Component
  * 
  * Reusable status badge with consistent styling and accessibility.
  * Supports all timesheet statuses with appropriate visual indicators.
@@ -7,7 +6,9 @@
 
 import React, { memo } from 'react';
 import type { TimesheetStatus } from '../../../types/api';
-import './StatusBadge.css';
+import { Badge } from '../../ui/badge';
+import type { BadgeProps } from '../../ui/badge';
+// import './StatusBadge.css'; // REMOVED
 
 // =============================================================================
 // Component Props & Types
@@ -15,84 +16,56 @@ import './StatusBadge.css';
 
 export interface StatusBadgeProps {
   status: TimesheetStatus;
-  size?: 'small' | 'medium' | 'large';
   className?: string;
   dataTestId?: string;
-  showIcon?: boolean;
-  interactive?: boolean;
-  onClick?: () => void;
 }
 
 // =============================================================================
-// Status Configuration
+// Status Configuration & Mapping
 // =============================================================================
 
 interface StatusConfig {
   label: string;
-  icon: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
+  variant: BadgeProps['variant'];
   description: string;
 }
 
 const statusConfigs: Record<TimesheetStatus, StatusConfig> = {
   DRAFT: {
     label: 'Draft',
-    icon: '📝',
-    color: '#6B7280',
-    bgColor: '#F9FAFB',
-    borderColor: '#E5E7EB',
-    description: 'Timesheet is in draft status'
+    variant: 'draft',
+    description: 'Timesheet is in draft status',
   },
   PENDING_TUTOR_CONFIRMATION: {
     label: 'Pending Tutor Confirmation',
-    icon: '📤',
-    color: '#1D4ED8',
-    bgColor: '#EFF6FF',
-    borderColor: '#DBEAFE',
-    description: 'Awaiting tutor confirmation'
+    variant: 'info',
+    description: 'Awaiting tutor confirmation',
   },
   TUTOR_CONFIRMED: {
     label: 'Tutor Confirmed',
-    icon: '✅',
-    color: '#059669',
-    bgColor: '#ECFDF5',
-    borderColor: '#D1FAE5',
-    description: 'Confirmed by tutor, awaiting lecturer confirmation'
+    variant: 'success',
+    description: 'Confirmed by tutor, awaiting lecturer confirmation',
   },
   LECTURER_CONFIRMED: {
     label: 'Lecturer Confirmed',
-    icon: '✅',
-    color: '#059669',
-    bgColor: '#ECFDF5',
-    borderColor: '#D1FAE5',
-    description: 'Confirmed by lecturer, awaiting HR confirmation'
+    variant: 'success',
+    description: 'Confirmed by lecturer, awaiting HR confirmation',
   },
   FINAL_CONFIRMED: {
     label: 'Final Confirmed',
-    icon: '🎉',
-    color: '#7C3AED',
-    bgColor: '#F3E8FF',
-    borderColor: '#E9D5FF',
-    description: 'Final confirmation completed, ready for payment'
+    variant: 'final',
+    description: 'Final confirmation completed, ready for payment',
   },
   REJECTED: {
     label: 'Rejected',
-    icon: '❌',
-    color: '#DC2626',
-    bgColor: '#FEF2F2',
-    borderColor: '#FECACA',
-    description: 'Rejected during confirmation process'
+    variant: 'destructive',
+    description: 'Rejected during confirmation process',
   },
   MODIFICATION_REQUESTED: {
     label: 'Modification Requested',
-    icon: '🔄',
-    color: '#D97706',
-    bgColor: '#FFFBEB',
-    borderColor: '#FED7AA',
-    description: 'Modifications requested before confirmation'
-  }
+    variant: 'warning',
+    description: 'Modifications requested before confirmation',
+  },
 };
 
 // =============================================================================
@@ -101,76 +74,35 @@ const statusConfigs: Record<TimesheetStatus, StatusConfig> = {
 
 const StatusBadge = memo<StatusBadgeProps>(({
   status,
-  size = 'medium',
   className = '',
-  showIcon = true,
-  interactive = false,
-  onClick,
-  dataTestId
+  dataTestId,
 }) => {
   const config = statusConfigs[status] || statusConfigs.DRAFT;
-
-  const handleClick = () => {
-    if (interactive && onClick) {
-      onClick();
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (interactive && onClick && (e.key === 'Enter' || e.key === ' ')) {
-      e.preventDefault();
-      onClick();
-    }
-  };
-
-  const badgeClasses = [
-    'status-badge',
-    `status-badge--${size}`,
-    `status-badge--${status.toLowerCase().replace(/_/g, '-')}`,
-    interactive ? 'status-badge--interactive' : '',
-    className
-  ].filter(Boolean).join(' ');
-
-  const badgeStyle = {
-    color: config.color,
-    backgroundColor: config.bgColor,
-    borderColor: config.borderColor
-  };
+  const testId = dataTestId ?? `status-badge-${(status || 'unknown').toLowerCase()}`;
 
   return (
-    <span
-      className={badgeClasses}
-      style={badgeStyle}
+    <Badge
+      variant={config.variant}
+      className={className}
       title={config.description}
-      onClick={interactive ? handleClick : undefined}
-      onKeyDown={interactive ? handleKeyDown : undefined}
-      role={interactive ? 'button' : undefined}
-      tabIndex={interactive ? 0 : undefined}
+      data-testid={testId}
       aria-label={`Status: ${config.label}. ${config.description}`}
-      data-testid={dataTestId ?? `status-badge-${status.toLowerCase()}`}
     >
-      {showIcon && (
-        <span className="status-badge__icon" aria-hidden="true">
-          {config.icon}
-        </span>
-      )}
-      <span className="status-badge__label">
-        {config.label}
-      </span>
-    </span>
+      {config.label}
+    </Badge>
   );
 });
 
 StatusBadge.displayName = 'StatusBadge';
 
 // =============================================================================
-// Utility Functions
+// Utility Functions (Maintained for business logic)
 // =============================================================================
 
 /**
  * Get status badge configuration
  */
-export function getStatusConfig(status: TimesheetStatus): StatusConfig {
+export function getStatusConfig(status: TimesheetStatus) {
   return statusConfigs[status] || statusConfigs.DRAFT;
 }
 
@@ -288,5 +220,6 @@ export const StatusBadgeGroup = memo<StatusBadgeGroupProps>(({
 StatusBadgeGroup.displayName = 'StatusBadgeGroup';
 
 export default StatusBadge;
+
 
 

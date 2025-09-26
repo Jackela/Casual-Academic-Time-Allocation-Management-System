@@ -1,3 +1,4 @@
+import { secureLogger } from '../utils/secure-logger';
 /**
  * Handle Leak Detection and Monitoring System
  * 
@@ -99,7 +100,7 @@ class HandleMonitorRegistry {
   async runFinalChecks(): Promise<void> {
     const promises = Array.from(this.monitors).map(monitor => 
       monitor.finalCheck().catch(error => {
-        console.error('Handle monitor final check failed:', error);
+        secureLogger.error('Handle monitor final check failed', error);
         return false;
       })
     );
@@ -172,7 +173,7 @@ export class HandleMonitor {
     this.captureInitialHandles();
 
     if (this.config.verbose) {
-      console.log(`Handle monitor started (timeout: ${this.config.timeout}ms)`);
+      secureLogger.info(`Handle monitor started (timeout: ${this.config.timeout}ms)`);
     }
   }
 
@@ -215,7 +216,7 @@ export class HandleMonitor {
     try {
       return await this.detectLeaks();
     } catch (error) {
-      console.error('Final handle check failed:', error);
+      secureLogger.error('Final handle check failed', error);
       return false;
     }
   }
@@ -280,7 +281,7 @@ export class HandleMonitor {
     }
 
     if (this.config.verbose) {
-      console.log('✅ No resource leaks detected');
+      secureLogger.info('✅ No resource leaks detected');
     }
 
     return false;
@@ -325,18 +326,18 @@ export class HandleMonitor {
    * @postcondition Leak information is logged with appropriate detail level
    */
   private async reportLeaks(handles: any[], requests: any[]): Promise<void> {
-    console.error('🚨 Resource leaks detected:');
-    console.error(`  - ${handles.length} active handles`);
-    console.error(`  - ${requests.length} active requests`);
+    secureLogger.error('🚨 Resource leaks detected');
+    secureLogger.error(`  - ${handles.length} active handles`);
+    secureLogger.error(`  - ${requests.length} active requests`);
 
     if (this.config.verbose) {
       // Detailed handle information
       handles.forEach((handle, index) => {
-        console.error(`  Handle ${index + 1}: ${handle?.constructor?.name || 'Unknown'}`);
+        secureLogger.error(`  Handle ${index + 1}: ${handle?.constructor?.name || 'Unknown'}`);
       });
 
       requests.forEach((request, index) => {
-        console.error(`  Request ${index + 1}: ${request?.constructor?.name || 'Unknown'}`);
+        secureLogger.error(`  Request ${index + 1}: ${request?.constructor?.name || 'Unknown'}`);
       });
 
       // Try to use why-is-node-running if available
@@ -354,11 +355,11 @@ export class HandleMonitor {
   private async tryWhyIsNodeRunning(): Promise<void> {
     try {
       const whyIsNodeRunning = require('why-is-node-running');
-      console.error('\n📊 Detailed handle analysis:');
+      secureLogger.error('📊 Detailed handle analysis');
       whyIsNodeRunning.default();
     } catch (error) {
-      console.error('\n💡 Install "why-is-node-running" for detailed handle analysis:');
-      console.error('  npm install --save-dev why-is-node-running');
+      secureLogger.error('💡 Install "why-is-node-running" for detailed handle analysis');
+      secureLogger.error('  npm install --save-dev why-is-node-running');
     }
   }
 }
@@ -424,7 +425,7 @@ export function setupGlobalHandleMonitoring(config?: HandleMonitorConfig): void 
         try {
           await currentMonitor.stop();
         } catch (error) {
-          console.error('Handle monitor cleanup failed:', error);
+          secureLogger.error('Handle monitor cleanup failed', error);
           throw error;
         } finally {
           currentMonitor = null;

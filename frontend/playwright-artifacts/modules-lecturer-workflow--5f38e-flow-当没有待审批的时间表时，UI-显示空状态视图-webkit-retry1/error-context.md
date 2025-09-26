@@ -1,0 +1,11 @@
+# Page snapshot
+
+```yaml
+- text: "[plugin:vite:import-analysis] Failed to resolve import \"../../ui/button\" from \"src/components/dashboards/AdminDashboard/AdminDashboard.tsx\". Does the file exist? D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/src/components/dashboards/AdminDashboard/AdminDashboard.tsx:24:23 28 | import { formatters } from \"../../../utils/formatting\"; 29 | import { Card, CardContent, CardHeader, CardTitle, CardDescription } from \"../../ui/card\"; 30 | import { Button } from \"../../ui/button\"; | ^ 31 | import { Input } from \"../../ui/input\"; 32 | import StatusBadge from \"../../shared/StatusBadge/StatusBadge\"; at TransformPluginContext._formatLog (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:31460:43) at TransformPluginContext.error (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:31457:14) at normalizeUrl (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:29999:18) at process.processTicksAndRejections (node:internal/process/task_queues:105:5) at async file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:30057:32 at async Promise.all (index 10) at async TransformPluginContext.transform (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:30025:4) at async EnvironmentPluginContainer.transform (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:31274:14) at async loadAndTransform (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:26451:26) at async viteTransformMiddleware (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:27536:20) Click outside, press Esc key, or fix the code to dismiss. You can also disable this overlay by setting"
+- code: server.hmr.overlay
+- text: to
+- code: "false"
+- text: in
+- code: vite.config.ts
+- text: .
+```

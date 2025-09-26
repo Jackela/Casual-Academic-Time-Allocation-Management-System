@@ -129,7 +129,7 @@ describe('AuthManager', () => {
       expect(state.user).toBeNull();
       expect(state.token).toBeNull();
       expect(state.isAuthenticated).toBe(false);
-      expect(consoleSpy).toHaveBeenCalledWith('Error parsing stored authentication data:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error parsing stored authentication data'), expect.any(Error));
       
       consoleSpy.mockRestore();
     });
@@ -258,7 +258,7 @@ describe('AuthManager', () => {
       
       authManager.setAuth(mockToken, mockUser);
       
-      expect(consoleSpy).toHaveBeenCalledWith('Error in auth state listener:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error in auth state listener'), expect.any(Error));
       expect(goodListener).toHaveBeenCalledTimes(1);
       
       consoleSpy.mockRestore();

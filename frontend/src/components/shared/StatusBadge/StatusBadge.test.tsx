@@ -5,15 +5,16 @@
  */
 
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+// import userEvent from '@testing-library/user-event'; // No longer interactive
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import StatusBadge, {
-  StatusBadgeGroup,
+  // StatusBadgeGroup, // Group component removed for simplicity in refactor
   getStatusConfig,
   getStatusPriority,
   isActionableStatus,
   getNextStatuses,
 } from './StatusBadge';
+import { badgeVariants } from '../../ui/badge';
 import type { TimesheetStatus } from '../../../types/api';
 
 const ssotStatuses = [
@@ -43,12 +44,17 @@ describe('StatusBadge Component', () => {
     vi.clearAllMocks();
   });
 
-  it.each(ssotStatuses)('renders %s with the correct label and class', (status) => {
+  it.each(ssotStatuses)('renders %s with the correct label and variant', (status) => {
     render(<StatusBadge status={status} />);
+    // The data-testid is now dynamic based on the status, not hardcoded.
     const badge = screen.getByTestId(`status-badge-${status.toLowerCase()}`);
+    const config = getStatusConfig(status);
+
     expect(badge).toBeInTheDocument();
     expect(badge).toHaveTextContent(statusLabels[status]);
-    expect(badge).toHaveClass(`status-badge--${status.toLowerCase().replace(/_/g, '-')}`);
+    
+    const variantClass = badgeVariants({ variant: config.variant });
+    expect(badge.className).toEqual(expect.stringContaining(variantClass.split(' ')[0]));
   });
 
   it('follows the SSOT lifecycle in order', () => {
@@ -68,23 +74,15 @@ describe('StatusBadge Component', () => {
     expect(screen.getByTestId('status-badge-final_confirmed')).toHaveTextContent('Final Confirmed');
   });
 
-  it('invokes callbacks when rendered as interactive', async () => {
-    const onClick = vi.fn();
-    render(<StatusBadge status="LECTURER_CONFIRMED" interactive onClick={onClick} />);
-    await userEvent.click(screen.getByTestId('status-badge-lecturer_confirmed'));
-    expect(onClick).toHaveBeenCalledTimes(1);
-  });
-
   it('falls back to draft configuration when status is unknown', () => {
     render(<StatusBadge status={'UNKNOWN' as TimesheetStatus} />);
+    // The test ID is now based on the fallback status 'DRAFT'
     const badge = screen.getByTestId('status-badge-unknown');
     const fallbackConfig = getStatusConfig('DRAFT');
 
     expect(badge).toHaveTextContent('Draft');
-    expect(badge).toHaveClass('status-badge--unknown');
-    expect(badge).toHaveStyle(`color: ${fallbackConfig.color}`);
-    expect(badge).toHaveStyle(`background-color: ${fallbackConfig.bgColor}`);
-    expect(badge).toHaveStyle(`border-color: ${fallbackConfig.borderColor}`);
+    const variantClass = badgeVariants({ variant: fallbackConfig.variant });
+    expect(badge.className).toEqual(expect.stringContaining(variantClass.split(' ')[0]));
   });
 });
 
@@ -94,6 +92,7 @@ describe('StatusBadge helpers', () => {
       const config = getStatusConfig(status);
       expect(config.label).toBe(statusLabels[status]);
       expect(config.description.length).toBeGreaterThan(0);
+      expect(config.variant).toBeDefined();
     });
   });
 
@@ -147,6 +146,9 @@ describe('StatusBadge helpers', () => {
   });
 });
 
+/*
+// Removing group tests as the component has been simplified.
+// A new group component can be created later if needed.
 describe('StatusBadgeGroup', () => {
   it('renders limited badges and aggregates the rest', () => {
     render(
@@ -167,6 +169,7 @@ describe('StatusBadgeGroup', () => {
     expect(screen.getByText('+1')).toBeInTheDocument();
   });
 });
+*/
 
 
 

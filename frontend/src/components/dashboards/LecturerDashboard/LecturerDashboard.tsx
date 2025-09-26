@@ -14,15 +14,13 @@ import {
 } from '../../../hooks/useTimesheets';
 import { useAuth } from '../../../contexts/AuthContext';
 import TimesheetTable from '../../shared/TimesheetTable/TimesheetTable';
-import StatusBadge from '../../shared/StatusBadge/StatusBadge';
 import LoadingSpinner from '../../shared/LoadingSpinner/LoadingSpinner';
 import { formatters } from '../../../utils/formatting';
+import { secureLogger } from '../../../utils/secure-logger';
 import type { ApprovalAction } from '../../../types/api';
-import './LecturerDashboard.css';
-
-// =============================================================================
-// Component Props & Types
-// =============================================================================
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../ui/card';
+import { Button } from '../../ui/button';
+import StatusBadge from '../../shared/StatusBadge/StatusBadge';
 
 export interface LecturerDashboardProps {
   className?: string;
@@ -33,181 +31,68 @@ interface StatCardProps {
   value: string | number;
   subtitle?: string;
   trend?: 'up' | 'down' | 'stable';
-  color?: 'primary' | 'success' | 'warning' | 'error';
   icon?: string;
 }
-
-interface QuickActionProps {
-  label: string;
-  description: string;
-  icon: string;
-  onClick: () => void;
-  disabled?: boolean;
-  shortcut?: string;
-}
-
-// =============================================================================
-// Statistics Card Component
-// =============================================================================
 
 const StatCard = memo<StatCardProps>(({
   title,
   value,
   subtitle,
   trend = 'stable',
-  color = 'primary',
   icon
 }) => (
-  <div className={`stat-card stat-card--${color}`} data-testid="stat-card">
-    <div className="stat-card__header">
-      {icon && <span className="stat-card__icon">{icon}</span>}
-      <h3 className="stat-card__title">{title}</h3>
-    </div>
-    <div className="stat-card__content">
-      <div className="stat-card__value">{value}</div>
+  <Card data-testid="stat-card">
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      {icon && <span className="text-2xl text-muted-foreground">{icon}</span>}
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-bold">{value}</div>
       {subtitle && (
-        <div className={`stat-card__subtitle stat-card__subtitle--${trend}`}>
+        <p className="text-xs text-muted-foreground">
           {trend === 'up' && '↗ '}
           {trend === 'down' && '↘ '}
           {subtitle}
-        </div>
+        </p>
       )}
-    </div>
-  </div>
+    </CardContent>
+  </Card>
 ));
 
 StatCard.displayName = 'StatCard';
-
-// =============================================================================
-// Quick Action Component
-// =============================================================================
-
-const QuickAction = memo<QuickActionProps>(({
-  label,
-  description,
-  icon,
-  onClick,
-  disabled = false,
-  shortcut
-}) => (
-  <button
-    className={`quick-action ${disabled ? 'quick-action--disabled' : ''}`}
-    onClick={onClick}
-    disabled={disabled}
-    title={`${description}${shortcut ? ` (${shortcut})` : ''}`}
-  >
-    <span className="quick-action__icon">{icon}</span>
-    <div className="quick-action__content">
-      <span className="quick-action__label">{label}</span>
-      <span className="quick-action__description">{description}</span>
-    </div>
-    {shortcut && <span className="quick-action__shortcut">{shortcut}</span>}
-  </button>
-));
-
-QuickAction.displayName = 'QuickAction';
-
-// =============================================================================
-// Recent Activity Component
-// =============================================================================
-
-const RecentActivity = memo<{ activities: any[] }>(({ activities }) => (
-  <div className="recent-activity">
-    <h3>Recent Activity</h3>
-    {activities.length === 0 ? (
-      <p className="recent-activity__empty">No recent activity</p>
-    ) : (
-      <ul className="recent-activity__list">
-        {activities.map((activity, index) => (
-          <li key={activity.id || index} className="recent-activity__item">
-            <div className="recent-activity__content">
-              <span className="recent-activity__description">{activity.description}</span>
-              <span className="recent-activity__time">
-                {formatters.relativeTime(activity.timestamp)}
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
-    )}
-  </div>
-));
-
-RecentActivity.displayName = 'RecentActivity';
-
-// =============================================================================
-// Status Breakdown Chart Component
-// =============================================================================
 
 const StatusBreakdown = memo<{ statusBreakdown: Record<string, number> }>(({ statusBreakdown }) => {
   const total = Object.values(statusBreakdown).reduce((sum, count) => sum + count, 0);
   
   return (
-    <div className="status-breakdown" data-testid="status-breakdown-chart">
-      <h3>Status Overview</h3>
-      <div className="status-breakdown__chart">
+    <Card data-testid="status-breakdown-chart">
+      <CardHeader>
+        <CardTitle>Status Overview</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
         {Object.entries(statusBreakdown).map(([status, count]) => {
           if (count === 0) return null;
           
           const percentage = total > 0 ? (count / total) * 100 : 0;
           
           return (
-            <div key={status} className="status-breakdown__item">
-              <StatusBadge status={status as any} size="small" />
-              <div className="status-breakdown__stats">
-                <span className="status-breakdown__count">{count}</span>
-                <span className="status-breakdown__percentage">
+            <div key={status} className="flex items-center justify-between">
+              <StatusBadge status={status as any} />
+              <div className="text-right">
+                <p className="font-semibold">{count}</p>
+                <p className="text-xs text-muted-foreground">
                   {percentage.toFixed(1)}%
-                </span>
+                </p>
               </div>
             </div>
           );
         })}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 });
 
 StatusBreakdown.displayName = 'StatusBreakdown';
-
-// =============================================================================
-// Performance Trends Component
-// =============================================================================
-
-const PerformanceTrends = memo(() => (
-  <div className="performance-trends" data-testid="performance-trends">
-    <h3>Performance Metrics</h3>
-    <div className="performance-trends__grid">
-      <div className="performance-metric">
-        <span className="performance-metric__label">Approval Rate</span>
-        <span className="performance-metric__value">94%</span>
-        <span className="performance-metric__trend performance-metric__trend--up">
-          ↗ +2%
-        </span>
-      </div>
-      <div className="performance-metric">
-        <span className="performance-metric__label">Average Processing Time</span>
-        <span className="performance-metric__value">1.2 days</span>
-        <span className="performance-metric__trend performance-metric__trend--down">
-          ↘ -0.3
-        </span>
-      </div>
-      <div className="performance-metric">
-        <span className="performance-metric__label">Weekly Throughput</span>
-        <span className="performance-metric__value">28</span>
-        <span className="performance-metric__trend performance-metric__trend--up">
-          ↗ +5
-        </span>
-      </div>
-    </div>
-  </div>
-));
-
-PerformanceTrends.displayName = 'PerformanceTrends';
-
-// =============================================================================
-// Main LecturerDashboard Component
-// =============================================================================
 
 const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
   const { user } = useAuth();
@@ -219,7 +104,6 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
 
   const [showErrorDetails, setShowErrorDetails] = useState(false);
 
-  // Fetch pending timesheets and dashboard data
   const {
     loading: pendingLoading,
     error: pendingError,
@@ -262,7 +146,6 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
     }).length;
   }, [pendingTimesheets]);
 
-  // Event handlers
   const handleApprovalAction = useCallback(async (timesheetId: number, action: ApprovalAction) => {
     try {
       if (action === 'REJECT') {
@@ -283,7 +166,7 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
       await Promise.all([refetchPending(), refetchDashboard()]);
       setSelectedTimesheets(prev => prev.filter(id => id !== timesheetId));
     } catch (error) {
-      console.error('Failed to process approval:', error);
+      secureLogger.error('Failed to process approval', error);
     }
   }, [approveTimesheet, refetchPending, refetchDashboard]);
 
@@ -298,11 +181,10 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
 
       await batchApprove(requests);
       
-      // Refresh data and clear selection
       await Promise.all([refetchPending(), refetchDashboard()]);
       setSelectedTimesheets([]);
     } catch (error) {
-      console.error('Failed to batch approve:', error);
+      secureLogger.error('Failed to batch approve', error);
     }
   }, [selectedTimesheets, batchApprove, refetchPending, refetchDashboard]);
 
@@ -318,333 +200,244 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
       await Promise.all([refetchPending(), refetchDashboard()]);
       setSelectedTimesheets(prev => prev.filter(id => id !== rejectionModal.timesheetId));
     } catch (error) {
-      console.error('Failed to reject timesheet:', error);
+      secureLogger.error('Failed to reject timesheet', error);
     }
   }, [rejectionModal.timesheetId, approveTimesheet, refetchPending, refetchDashboard]);
 
-  const handleQuickAction = useCallback((action: string) => {
-    switch (action) {
-      case 'viewAll':
-        // Navigate to all timesheets view
-        break;
-      case 'export':
-        // Export functionality
-        break;
-      case 'manageCourses':
-        // Navigate to course management
-        break;
-      case 'settings':
-        // Navigate to settings
-        break;
-    }
-  }, []);
-
-  // Loading state
   if (pendingLoading || dashboardLoading) {
     return (
-      <div className={`lecturer-dashboard loading ${className}`}>
-        <div className="dashboard-loading" data-testid="loading-state">
+      <div className={`p-4 sm:p-6 lg:p-8 ${className}`}>
+        <div className="flex items-center justify-center" data-testid="loading-state">
           <LoadingSpinner size="large" />
-          <p data-testid="loading-text">Loading pending timesheets...</p>
-          <div className="skeleton-cards" data-testid="statistics-cards">
-            {Array.from({ length: 3 }, (_, i) => (
-              <div key={i} className="skeleton-card" data-testid="skeleton-card" />
-            ))}
-          </div>
+          <p className="ml-4 text-muted-foreground" data-testid="loading-text">Loading pending timesheets...</p>
         </div>
       </div>
     );
   }
 
-  // Error handling
   const hasErrors = pendingError || dashboardError || approvalError;
   
   return (
     <div 
-      className={`dashboard-container lecturer-dashboard ${className}`}
+      className={`p-4 sm:p-6 lg:p-8 ${className}`}
       data-testid="lecturer-dashboard"
       role="main"
       aria-label="Lecturer Dashboard"
     >
-      {/* Header Section */}
-      <header className="dashboard-header" data-testid="main-dashboard-header">
-        <div className="dashboard-header__content">
-          <h1 className="dashboard-header__title" data-testid="main-welcome-message">{welcomeMessage}</h1>
-          <p className="dashboard-header__subtitle" data-testid="main-dashboard-title">Lecturer Dashboard</p>
-          
+      <header className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight" data-testid="main-welcome-message">{welcomeMessage}</h1>
+          <p className="text-muted-foreground">Lecturer Dashboard</p>
           {urgentCount > 0 && (
-            <div className="urgent-notification">
-              <span className="count-badge urgent">{urgentCount}</span>
-              <span>urgent approvals needed</span>
+            <div className="mt-2 flex items-center text-sm font-semibold text-destructive">
+              <span className="relative mr-2 flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500"></span>
+              </span>
+              {urgentCount} urgent approvals needed
             </div>
           )}
         </div>
-        
-        <div className="dashboard-header__actions">
-          <button className="refresh-button" onClick={() => {
-            refetchPending();
-            refetchDashboard();
-          }}>
-            🔄 Refresh
-          </button>
-        </div>
+        <Button variant="outline" onClick={() => {
+          refetchPending();
+          refetchDashboard();
+        }}>
+          Refresh
+        </Button>
       </header>
 
-      {/* Error Display */}
       {hasErrors && (
-        <div className="dashboard-errors" data-testid="error-message">
+        <div className="mb-6 space-y-4">
           {pendingError && (
-            <div className="error-message">
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
               <span>Failed to fetch pending timesheets: {pendingError}</span>
-              <button onClick={refetchPending} data-testid="retry-button">Retry</button>
+              <Button variant="destructive" size="sm" className="ml-4" onClick={() => refetchPending()}>Retry</Button>
             </div>
           )}
           {dashboardError && (
-            <div className="error-message">
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
               <span>Failed to fetch dashboard summary: {dashboardError}</span>
-              <button onClick={refetchDashboard}>Retry</button>
+              <Button variant="destructive" size="sm" className="ml-4" onClick={() => refetchDashboard()}>Retry</Button>
             </div>
           )}
           {approvalError && (
-            <div className="error-message" role="alert" data-testid="approval-error-banner">
-              <div className="error-message__content">
-                <span>Approval could not be completed. Please try again or contact admin.</span>
-                <div className="error-message__actions">
-                  <button
-                    type="button"
-                    className="error-message__toggle"
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" role="alert" data-testid="approval-error-banner">
+              <div className="flex items-center justify-between">
+                <span>Approval could not be completed. Please try again.</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setShowErrorDetails(prev => !prev)}
-                    data-testid="approval-error-details-toggle"
                   >
                     {showErrorDetails ? 'Hide details' : 'Details'}
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       setShowErrorDetails(false);
                       resetApproval();
                     }}
                   >
                     Dismiss
-                  </button>
+                  </Button>
                 </div>
               </div>
               {showErrorDetails && (
-                <pre className="error-message__details" data-testid="approval-error-raw">
-                  {approvalError}
-                </pre>
+                <pre className="mt-2 rounded-md bg-black/10 p-2 text-xs">{approvalError}</pre>
               )}
             </div>
           )}
         </div>
       )}
 
-      {/* Statistics Cards */}
       <section 
-        className="dashboard-statistics"
+        className="mb-8"
         role="region"
         aria-label="Dashboard Summary"
       >
-        <div className="statistics-grid" data-testid="statistics-cards">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="statistics-cards">
           <StatCard
             title="Pending Approvals"
             value={dashboardData?.pendingApproval || 0}
             subtitle={urgentCount > 0 ? `${urgentCount} urgent` : 'All current'}
             trend={urgentCount > 0 ? 'up' : 'stable'}
-            color={urgentCount > 0 ? 'warning' : 'primary'}
             icon="📋"
           />
-          
           <StatCard
             title="Total Timesheets"
             value={dashboardData?.totalTimesheets || 0}
             subtitle="This semester"
-            color="success"
             icon="📊"
           />
-          
           <StatCard
             title="This Week Hours"
             value={`${dashboardData?.thisWeekHours || 0}h`}
             subtitle={`$${formatters.currencyValue(dashboardData?.thisWeekPay || 0)}`}
-            color="primary"
             icon="⏰"
           />
-          
           <StatCard
             title="Approved by You"
             value={dashboardData?.statusBreakdown?.LECTURER_CONFIRMED || 0}
             subtitle="Lecturer approvals"
             trend="up"
-            color="success"
             icon="✅"
           />
         </div>
       </section>
 
-      {/* Main Content Grid */}
-      <div className="dashboard-grid">
-        {/* Pending Approvals Section */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section 
-          className="dashboard-section pending-approvals-section"
+          className="lg:col-span-2"
           role="region"
           aria-label="Pending Approvals"
         >
-          <div className="section-header">
-            <h2>Pending Approvals</h2>
-            <div className="section-header__actions">
-              {selectedTimesheets.length > 0 && (
-                <>
-                  <button 
-                    className="batch-action-btn batch-approve"
-                    onClick={handleBatchApproval}
-                    disabled={approvalLoading}
-                  >
-                    {approvalLoading ? <LoadingSpinner size="small" /> : 'Batch Approve'}
-                  </button>
-                  <button 
-                    className="batch-action-btn batch-reject"
-                    onClick={() => setRejectionModal({ timesheetId: 0, open: true })}
-                  >
-                    Batch Reject
-                  </button>
-                  <span className="selection-count">
-                    {selectedTimesheets.length} selected
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {noPendingTimesheets ? (
-            <div className="empty-state-wrapper">
-              <div className="empty-state" data-testid="empty-state">
-                <div className="empty-state__content">
-                  <span className="empty-state__icon">🎉</span>
-                  <h3 data-testid="empty-state-title">No Pending Timesheets</h3>
-                  <p>All caught up! No timesheets are waiting for your review.</p>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Pending Approvals</CardTitle>
+                  <CardDescription>
+                    Review and approve timesheets submitted by tutors.
+                  </CardDescription>
                 </div>
+                {selectedTimesheets.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={handleBatchApproval}
+                      disabled={approvalLoading}
+                    >
+                      {approvalLoading ? <LoadingSpinner size="small" /> : 'Batch Approve'}
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      {selectedTimesheets.length} selected
+                    </span>
+                  </div>
+                )}
               </div>
-              <Link
-                to="/approvals/history"
-                className="lecturer-empty-state-link"
-                data-testid="cta-view-approval-history"
-              >
-                View Approval History
-              </Link>
-            </div>
-          ) : (
-            <TimesheetTable
-              timesheets={pendingTimesheets}
-              loading={pendingLoading}
-              loadingMessage="Loading pending approvals..."
-              onApprovalAction={handleApprovalAction}
-              actionLoading={approvalLoading ? pendingTimesheets[0]?.id : null}
-              showActions={true}
-              showTutorInfo={true}
-              showCourseInfo={true}
-              showSelection={true}
-              selectedIds={selectedTimesheets}
-              onSelectionChange={setSelectedTimesheets}
-              virtualizeThreshold={50}
-              className="lecturer-timesheet-table"
-              approvalRole="LECTURER"
-            />
-          )}
+            </CardHeader>
+            <CardContent>
+              {noPendingTimesheets ? (
+                <div className="py-12 text-center">
+                  <div className="mx-auto max-w-xs">
+                    <h3 className="text-lg font-semibold">No Pending Timesheets</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      All caught up! No timesheets are waiting for your review.
+                    </p>
+                    <Button asChild variant="link" className="mt-4">
+                      <Link to="/approvals/history">View Approval History</Link>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <TimesheetTable
+                  timesheets={pendingTimesheets}
+                  loading={pendingLoading}
+                  loadingMessage="Loading pending approvals..."
+                  onApprovalAction={handleApprovalAction}
+                  actionLoading={approvalLoading ? pendingTimesheets[0]?.id : null}
+                  showActions={true}
+                  showTutorInfo={true}
+                  showCourseInfo={true}
+                  showSelection={true}
+                  selectedIds={selectedTimesheets}
+                  onSelectionChange={setSelectedTimesheets}
+                  className="lecturer-timesheet-table"
+                  approvalRole="LECTURER"
+                />
+              )}
+            </CardContent>
+          </Card>
         </section>
 
-        {/* Dashboard Summary Sidebar */}
-        <aside className="dashboard-sidebar" data-testid="dashboard-sidebar">
-          {/* Status Breakdown */}
+        <aside className="space-y-6 lg:col-span-1" data-testid="dashboard-sidebar">
           {dashboardData?.statusBreakdown && (
             <StatusBreakdown statusBreakdown={dashboardData.statusBreakdown} />
-          )}
-
-          {/* Performance Trends */}
-          <PerformanceTrends />
-
-          {/* Recent Activity */}
-          {dashboardData?.recentActivity && (
-            <RecentActivity activities={dashboardData.recentActivity} />
           )}
         </aside>
       </div>
 
-      {/* Quick Actions Section */}
-      <section 
-        className="dashboard-section quick-actions-section"
-        role="region"
-        aria-label="Quick Actions"
-      >
-        <h2>Quick Actions</h2>
-        <div className="quick-actions-grid">
-          <QuickAction
-            label="View All Timesheets"
-            description="Browse all submitted timesheets"
-            icon="📄"
-            onClick={() => handleQuickAction('viewAll')}
-            shortcut="Ctrl+A"
-          />
-          
-          <QuickAction
-            label="Export Reports"
-            description="Generate approval reports"
-            icon="📊"
-            onClick={() => handleQuickAction('export')}
-            shortcut="Ctrl+E"
-          />
-          
-          <QuickAction
-            label="Manage Courses"
-            description="Update course information"
-            icon="🎓"
-            onClick={() => handleQuickAction('manageCourses')}
-          />
-          
-          <QuickAction
-            label="Settings"
-            description="Configure dashboard preferences"
-            icon="⚙️"
-            onClick={() => handleQuickAction('settings')}
-          />
-        </div>
-      </section>
-
-      {/* Rejection Modal */}
       {rejectionModal.open && (
-        <div className="modal-overlay" onClick={() => setRejectionModal({ timesheetId: 0, open: false })}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>Reject Timesheet</h3>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const reason = formData.get('reason') as string;
-              if (reason.trim()) {
-                handleRejectionSubmit(reason);
-              }
-            }}>
-              <label htmlFor="reason">Reason for rejection:</label>
-              <textarea
-                id="reason"
-                name="reason"
-                required
-                placeholder="Please provide a clear reason for rejection..."
-                rows={4}
-              />
-              <div className="modal-actions">
-                <button type="button" onClick={() => setRejectionModal({ timesheetId: 0, open: false })}>
-                  Cancel
-                </button>
-                <button type="submit" className="reject-confirm">
-                  Reject Timesheet
-                </button>
-              </div>
-            </form>
-          </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Reject Timesheet</CardTitle>
+              <CardDescription>
+                Please provide a clear reason for rejection. This will be sent to the tutor.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const reason = formData.get('reason') as string;
+                if (reason.trim()) {
+                  handleRejectionSubmit(reason);
+                }
+              }}>
+                <textarea
+                  id="reason"
+                  name="reason"
+                  required
+                  placeholder="e.g., Incorrect hours logged for CS101..."
+                  rows={4}
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setRejectionModal({ timesheetId: 0, open: false })}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="destructive">
+                    Reject Timesheet
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* Status announcement for screen readers */}
       <div role="status" aria-live="polite" className="sr-only">
         {approvalLoading && 'Processing approval...'}
         {pendingLoading && 'Loading pending timesheets...'}

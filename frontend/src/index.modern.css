@@ -1,7 +1,7 @@
 /* Modern CSS with Tailwind integration */
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* =============================================================================
    CSS Variables and Theme Definitions

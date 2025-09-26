@@ -1,3 +1,4 @@
+import { secureLogger } from '../utils/secure-logger';
 /**
  * Cleanup System Validation Tests
  * 
@@ -233,7 +234,7 @@ describe('Cleanup System Validation', () => {
         proc.kill('SIGTERM');
       } catch (error) {
         // Process creation might fail in test environment, which is expected
-        console.log('Process creation test skipped in test environment');
+        secureLogger.debug('Process creation test skipped in test environment');
       }
     });
 

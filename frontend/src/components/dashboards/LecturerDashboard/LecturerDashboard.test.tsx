@@ -6,6 +6,7 @@ import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 
 const authContextMock = vi.hoisted(() => ({
   useAuth: vi.fn(() => ({
@@ -44,6 +45,13 @@ const mockHooks = timesheetHooks as unknown as {
   useApprovalAction: ReturnType<typeof vi.fn>;
   useTimesheetStats: ReturnType<typeof vi.fn>;
 };
+
+const renderWithRouter = (ui: React.ReactElement, { route = '/' } = {}) => {
+  window.history.pushState({}, 'Test page', route);
+
+  return render(ui, { wrapper: MemoryRouter });
+};
+
 
 const mockLecturerUser = createMockUser({
   role: 'LECTURER',
@@ -116,7 +124,7 @@ beforeEach(() => {
 
 describe('LecturerDashboard Component', () => {
   it('renders lecturer greeting with pending summary', () => {
-    render(<LecturerDashboard />);
+    renderWithRouter(<LecturerDashboard />);
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Welcome back, Dr. Jane/i);
     const summaryRegion = screen.getByRole('region', { name: /Dashboard Summary/i });
@@ -124,7 +132,7 @@ describe('LecturerDashboard Component', () => {
   });
 
   it('shows key statistic cards for lecturer overview', () => {
-    render(<LecturerDashboard />);
+    renderWithRouter(<LecturerDashboard />);
 
     const statistics = screen.getByTestId('statistics-cards');
     const statCards = within(statistics).getAllByTestId('stat-card');
@@ -135,7 +143,7 @@ describe('LecturerDashboard Component', () => {
   });
 
   it('renders pending timesheet table with selectable rows', () => {
-    render(<LecturerDashboard />);
+    renderWithRouter(<LecturerDashboard />);
 
     const rows = screen.getAllByTestId(/timesheet-row-/i);
     expect(rows).toHaveLength(mockPendingTimesheets.timesheets.length);
@@ -162,7 +170,7 @@ describe('LecturerDashboard Component', () => {
     });
 
     const user = userEvent.setup();
-    render(<LecturerDashboard />);
+    renderWithRouter(<LecturerDashboard />);
 
     await user.click(screen.getByRole('button', { name: /refresh/i }));
 
@@ -171,10 +179,11 @@ describe('LecturerDashboard Component', () => {
   });
 
   it('displays status breakdown chart with lecturer-specific totals', () => {
-    render(<LecturerDashboard />);
+    renderWithRouter(<LecturerDashboard />);
 
     const statusChart = screen.getByTestId('status-breakdown-chart');
-    const countValues = Array.from(statusChart.querySelectorAll('.status-breakdown__count')).map(node => node.textContent?.trim());
+    const countNodes = statusChart.querySelectorAll('p.font-semibold');
+    const countValues = Array.from(countNodes).map(node => node.textContent?.trim());
 
     const lecturerStatusEntries = Object.values(mockDashboardSummary.statusBreakdown ?? {}) as number[];
     lecturerStatusEntries
@@ -195,7 +204,7 @@ describe('LecturerDashboard Component', () => {
       refetch: vi.fn()
     });
 
-    render(<LecturerDashboard />);
+    renderWithRouter(<LecturerDashboard />);
 
     expect(screen.getByText(/Failed to fetch pending timesheets: Network timeout/i)).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /Retry/i }).length).toBeGreaterThanOrEqual(1);

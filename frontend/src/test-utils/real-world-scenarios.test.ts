@@ -1,3 +1,4 @@
+import { secureLogger } from '../utils/secure-logger';
 /**
  * Real-World Scenarios Test
  * 
@@ -90,11 +91,11 @@ describe('Real-World Cleanup Scenarios', () => {
       
       // Simulate creating intervals (common cause of hanging)
       const interval1 = setInterval(() => {
-        console.log('Background work');
+        secureLogger.debug('Background work');
       }, 1000) as NodeJS.Timeout;
       
       const interval2 = setInterval(() => {
-        console.log('Polling');  
+        secureLogger.debug('Polling');  
       }, 5000) as NodeJS.Timeout;
       
       timers.push(interval1, interval2);
@@ -117,11 +118,11 @@ describe('Real-World Cleanup Scenarios', () => {
       
       // Create long-running timeouts
       const timeout1 = setTimeout(() => {
-        console.log('Delayed operation');
+        secureLogger.debug('Delayed operation');
       }, 30000) as NodeJS.Timeout; // 30 seconds
       
       const timeout2 = setTimeout(() => {
-        console.log('Another delay');
+        secureLogger.debug('Another delay');
       }, 60000) as NodeJS.Timeout; // 1 minute
       
       timers.push(timeout1, timeout2);

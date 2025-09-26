@@ -659,7 +659,7 @@ describe('LoginPage Component Tests', () => {
       await waitFor(() => {
         const errorMessage = screen.getByText(/login failed/i);
         expect(errorMessage).toBeInTheDocument();
-        expect(errorMessage).toHaveClass('error-message');
+        expect(errorMessage.getAttribute('data-testid')).toBe('error-message');
       });
     });
   });

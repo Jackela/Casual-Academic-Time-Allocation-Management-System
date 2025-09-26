@@ -1,0 +1,11 @@
+# Page snapshot
+
+```yaml
+- text: "[plugin:vite:import-analysis] Failed to resolve import \"../../ui/button\" from \"src/components/dashboards/LecturerDashboard/LecturerDashboard.tsx\". Does the file exist? D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/src/components/dashboards/LecturerDashboard/LecturerDashboard.tsx:22:23 29 | import { secureLogger } from \"../../../utils/secure-logger\"; 30 | import { Card, CardContent, CardHeader, CardTitle, CardDescription } from \"../../ui/card\"; 31 | import { Button } from \"../../ui/button\"; | ^ 32 | import StatusBadge from \"../../shared/StatusBadge/StatusBadge\"; 33 | const StatCard = memo( at TransformPluginContext._formatLog (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:31460:43) at TransformPluginContext.error (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:31457:14) at normalizeUrl (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:29999:18) at process.processTicksAndRejections (node:internal/process/task_queues:105:5) at async file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:30057:32 at async Promise.all (index 12) at async TransformPluginContext.transform (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:30025:4) at async EnvironmentPluginContainer.transform (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:31274:14) at async loadAndTransform (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:26451:26) Click outside, press Esc key, or fix the code to dismiss. You can also disable this overlay by setting"
+- code: server.hmr.overlay
+- text: to
+- code: "false"
+- text: in
+- code: vite.config.ts
+- text: .
+```

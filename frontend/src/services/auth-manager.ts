@@ -7,6 +7,7 @@
 
 import { STORAGE_KEYS } from '../utils/storage-keys';
 import type { User, AuthState, AuthStateListener } from '../types/auth';
+import { secureLogger } from '../utils/secure-logger';
 
 /**
  * Centralized authentication manager implementing singleton pattern.
@@ -51,7 +52,7 @@ export class AuthManager {
         this.token = storedToken;
       }
     } catch (error) {
-      console.error('Error parsing stored authentication data:', error);
+      secureLogger.error('Error parsing stored authentication data', error as any);
       this.token = null;
       this.user = null;
       this.clearStorageAndState();
@@ -196,7 +197,7 @@ export class AuthManager {
       try {
         listener(currentState);
       } catch (error) {
-        console.error('Error in auth state listener:', error);
+        secureLogger.error('Error in auth state listener', error as any);
       }
     });
   }

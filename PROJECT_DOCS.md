@@ -33,6 +33,48 @@ graph TD
   S --> S6[run-e2e.js]
 ```
 
+## Frontend Updates (2025-09-24)
+
+### Logging Standardization
+- Centralized `secureLogger` at `frontend/src/utils/secure-logger.ts` wraps console methods.
+- Output controlled via Vite flags: `__DEBUG_LOGGING__`, with production-safe sanitization.
+- Replaced raw `console.*` across app and test-utils with `secureLogger`.
+
+### Import Path Casing & File Naming
+- UI primitives normalized to kebab-case under `frontend/src/components/ui/`:
+  - `button.tsx`, `input.tsx`, `card.tsx`, `badge.tsx`.
+- Updated all imports to match exact filesystem casing, e.g., `import { Button } from './ui/button'`.
+
+### Tutor Dashboard Consolidation
+- Merged unique logic from `TutorDashboard.enhanced.tsx` into `TutorDashboard.tsx` and removed the enhanced file to enforce SSOT.
+
+### Vitest Setup Unification
+- Removed deprecated `frontend/src/test/setup/vitest-setup.ts`; `frontend/src/test-setup.ts` is the single setup point.
+
+### Diagrams
+```mermaid
+graph TD
+  UI[UI Components (kebab-case)] --> App[App]
+  App --> SecureLogger[secureLogger]
+  App --> Env[ENV_CONFIG]
+  App --> Dashboards
+  Dashboards --> TutorDashboard
+  Dashboards --> LecturerDashboard
+  Dashboards --> AdminDashboard
+```
+
+```mermaid
+sequenceDiagram
+  participant UI
+  participant App
+  participant Logger as secureLogger
+  participant Env as ENV_CONFIG
+  UI->>App: User action
+  App->>Logger: debug/info/warn/error
+  Logger->>Env: check flags/mode
+  Logger-->>App: conditional output
+```
+
 ## Core Components & Logic
 
 - ApprovalStateMachine

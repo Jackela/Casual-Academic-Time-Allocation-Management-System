@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { authManager } from '../services/auth-manager';
 import { secureApiClient } from '../services/api-secure';
 import { ENV_CONFIG } from '../utils/environment';
+import { secureLogger } from '../utils/secure-logger';
 import type { User, AuthContextType } from '../types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,7 +58,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error('Error in E2E auth bypass:', error);
+        secureLogger.error('Error in E2E auth bypass', error);
       } finally {
         setIsLoading(false);
       }

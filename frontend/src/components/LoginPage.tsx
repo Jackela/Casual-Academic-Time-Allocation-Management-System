@@ -3,7 +3,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { secureApiClient } from '../services/api-secure';
 import { secureLogger } from '../utils/secure-logger';
-import './LoginPage.css';
+// import './LoginPage.css'; // REMOVED
+
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 
 interface LoginFormData {
   email: string;
@@ -107,90 +111,111 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="login-container" data-testid="login-container">
-      <div className="login-card" data-testid="login-card">
-        <div className="login-header" data-testid="login-header">
-          <h1 data-testid="login-title">CATAMS</h1>
-          <p data-testid="login-subtitle">Casual Academic Time Allocation Management System</p>
-        </div>
+    <div
+      className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-primary to-brand-secondary p-4"
+      data-testid="login-container"
+    >
+      <Card className="w-full max-w-md" data-testid="login-card">
+        <CardHeader className="text-center">
+          <CardTitle className="text-3xl font-bold tracking-tight" data-testid="login-title">
+            CATAMS
+          </CardTitle>
+          <CardDescription data-testid="login-subtitle">
+            Casual Academic Time Allocation Management System
+          </CardDescription>
+        </CardHeader>
 
-        {success && (
-          <div className="success-message" data-testid="success-message">
-            Login successful! Welcome to CATAMS.
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="login-form" data-testid="login-form">
-          <div className="form-group" data-testid="email-form-group">
-            <label htmlFor="email" data-testid="email-label">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-              disabled={loading}
-              placeholder="Enter your email"
-              data-testid="email-input"
-            />
-          </div>
-
-          <div className="form-group" data-testid="password-form-group">
-            <label htmlFor="password" data-testid="password-label">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              required
-              disabled={loading}
-              placeholder="Enter your password"
-              data-testid="password-input"
-            />
-          </div>
-
-          {error && (
-            <div className="error-message" data-testid="error-message">
-              {error}
+        <CardContent>
+          {success && (
+            <div
+              className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-center text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300"
+              data-testid="success-message"
+            >
+              Login successful! Welcome to CATAMS.
             </div>
           )}
 
-          <button 
-            type="submit" 
-            disabled={loading || !formData.email || !formData.password}
-            className="login-button"
-            data-testid="login-submit-button"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form">
+            <div className="space-y-2" data-testid="email-form-group">
+              <label htmlFor="email" className="text-sm font-medium" data-testid="email-label">
+                Email
+              </label>
+              <Input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                required
+                disabled={loading}
+                placeholder="Enter your email"
+                data-testid="email-input"
+              />
+            </div>
+
+            <div className="space-y-2" data-testid="password-form-group">
+              <label htmlFor="password" className="text-sm font-medium" data-testid="password-label">
+                Password
+              </label>
+              <Input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                required
+                disabled={loading}
+                placeholder="Enter your password"
+                data-testid="password-input"
+              />
+            </div>
+
+            {error && (
+              <div
+                className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-center text-sm text-destructive"
+                data-testid="error-message"
+              >
+                {error}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={loading || !formData.email || !formData.password}
+              className="w-full"
+              data-testid="login-submit-button"
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </Button>
+          </form>
+        </CardContent>
 
         {/* Testing credentials for development only */}
         {__DEV_CREDENTIALS__ && (
-          <div className="login-footer" data-testid="login-footer">
-            <p data-testid="credentials-title">Testing Credentials:</p>
-            <div className="credentials-list" data-testid="credentials-list">
-              <div className="credential-group">
+          <CardFooter className="mt-4 flex-col items-start" data-testid="login-footer">
+            <p className="text-sm font-semibold text-muted-foreground" data-testid="credentials-title">
+              Testing Credentials:
+            </p>
+            <div className="mt-2 space-y-1 text-sm text-muted-foreground" data-testid="credentials-list">
+              <div className="flex justify-between gap-4">
                 <strong>Admin:</strong>
                 <span>admin@example.com</span>
               </div>
-              <div className="credential-group">
+              <div className="flex justify-between gap-4">
                 <strong>Lecturer:</strong>
                 <span>lecturer@example.com</span>
               </div>
-              <div className="credential-group">
+              <div className="flex justify-between gap-4">
                 <strong>Tutor:</strong>
                 <span>tutor@example.com</span>
               </div>
-              <small style={{ marginTop: '8px', display: 'block', opacity: 0.7 }}>
+              <small className="mt-2 block opacity-70">
                 Use any password for testing
               </small>
             </div>
-          </div>
+          </CardFooter>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

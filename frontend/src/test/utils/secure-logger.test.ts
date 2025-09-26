@@ -43,7 +43,15 @@ const loggerGlobals = globalThis as LoggerTestGlobals;
 const originalGlobals = {
   debug: loggerGlobals.__DEBUG_LOGGING__,
   e2e: loggerGlobals.__E2E_GLOBALS__,
-  productionBuild: loggerGlobals.__PRODUCTION_BUILD__
+  productionBuild: loggerGlobals.__PRODUCTION_BUILD__,
+  stripSensitive: loggerGlobals.__STRIP_SENSITIVE_DATA__
+};
+
+const originalEnv = {
+  nodeEnv: process.env.NODE_ENV,
+  forceProd: process.env.SECURE_LOGGER_FORCE_PROD,
+  forceE2E: process.env.SECURE_LOGGER_FORCE_E2E,
+  viteE2E: process.env.VITE_E2E
 };
 
 // Mock console methods
@@ -55,11 +63,38 @@ const mockConsole = {
   log: vi.fn()
 };
 
+const enableProductionSafety = () => {
+  loggerGlobals.__PRODUCTION_BUILD__ = true;
+  loggerGlobals.__STRIP_SENSITIVE_DATA__ = true;
+  process.env.SECURE_LOGGER_FORCE_PROD = 'true';
+};
+
+const disableProductionSafety = () => {
+  loggerGlobals.__PRODUCTION_BUILD__ = false;
+  loggerGlobals.__STRIP_SENSITIVE_DATA__ = false;
+  delete process.env.SECURE_LOGGER_FORCE_PROD;
+};
+
+const enableE2EEnvironment = () => {
+  process.env.SECURE_LOGGER_FORCE_E2E = 'true';
+  process.env.VITE_E2E = 'true';
+};
+
+const disableE2EEnvironment = () => {
+  delete process.env.SECURE_LOGGER_FORCE_E2E;
+  delete process.env.VITE_E2E;
+};
+
 describe('Secure Logger Security Tests', () => {
   beforeAll(() => {
     loggerGlobals.__DEBUG_LOGGING__ = true;
     loggerGlobals.__E2E_GLOBALS__ = true;
     loggerGlobals.__PRODUCTION_BUILD__ = false;
+    loggerGlobals.__STRIP_SENSITIVE_DATA__ = false;
+
+    delete process.env.SECURE_LOGGER_FORCE_PROD;
+    delete process.env.SECURE_LOGGER_FORCE_E2E;
+    delete process.env.VITE_E2E;
   });
 
   afterAll(() => {
@@ -80,6 +115,30 @@ describe('Secure Logger Security Tests', () => {
     } else {
       loggerGlobals.__PRODUCTION_BUILD__ = originalGlobals.productionBuild;
     }
+
+    if (originalGlobals.stripSensitive === undefined) {
+      delete loggerGlobals.__STRIP_SENSITIVE_DATA__;
+    } else {
+      loggerGlobals.__STRIP_SENSITIVE_DATA__ = originalGlobals.stripSensitive;
+    }
+
+    if (originalEnv.forceProd !== undefined) {
+      process.env.SECURE_LOGGER_FORCE_PROD = originalEnv.forceProd;
+    } else {
+      delete process.env.SECURE_LOGGER_FORCE_PROD;
+    }
+
+    if (originalEnv.forceE2E !== undefined) {
+      process.env.SECURE_LOGGER_FORCE_E2E = originalEnv.forceE2E;
+    } else {
+      delete process.env.SECURE_LOGGER_FORCE_E2E;
+    }
+
+    if (originalEnv.viteE2E !== undefined) {
+      process.env.VITE_E2E = originalEnv.viteE2E;
+    } else {
+      delete process.env.VITE_E2E;
+    }
   });
   beforeEach(() => {
     // Mock console
@@ -98,10 +157,15 @@ describe('Secure Logger Security Tests', () => {
     vi.mocked(ENV_CONFIG.getMode).mockReturnValue('development');
     vi.mocked(ENV_CONFIG.features.enableDetailedLogging).mockReturnValue(true);
     vi.mocked(ENV_CONFIG.features.enableDebugMode).mockReturnValue(true);
+
+    disableProductionSafety();
+    disableE2EEnvironment();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    disableProductionSafety();
+    disableE2EEnvironment();
   });
 
   describe('Sensitive Data Protection', () => {
@@ -110,6 +174,11 @@ describe('Secure Logger Security Tests', () => {
       vi.mocked(ENV_CONFIG.isProduction).mockReturnValue(true);
       vi.mocked(ENV_CONFIG.isDevelopment).mockReturnValue(false);
       vi.mocked(ENV_CONFIG.features.enableDetailedLogging).mockReturnValue(false);
+      enableProductionSafety();
+    });
+
+    afterEach(() => {
+      disableProductionSafety();
     });
 
     it('should redact sensitive strings in production', () => {
@@ -181,7 +250,6 @@ describe('Secure Logger Security Tests', () => {
 
       const logCall = mockConsole.info.mock.calls[0];
       const loggedData = logCall[1];
-      
       expect(loggedData).toBeDefined();
       expect(loggedData.user.id).toBe(123);
       expect(loggedData.user.credentials).toBe('[REDACTED]');
@@ -212,7 +280,12 @@ describe('Secure Logger Security Tests', () => {
       const sensitiveError = new Error('Authentication failed with token jwt-123');
       sensitiveError.stack = 'Error: Authentication failed with token jwt-123\n    at Function.login';
 
-      secureLogger.info('Login error', sensitiveError);
+      enableProductionSafety();
+      try {
+        secureLogger.info('Login error', sensitiveError);
+      } finally {
+        disableProductionSafety();
+      }
 
       const logCall = mockConsole.info.mock.calls[0];
       const loggedData = logCall[1];
@@ -247,9 +320,14 @@ describe('Secure Logger Security Tests', () => {
 
     it('should always show errors but sanitize in production', () => {
       vi.mocked(ENV_CONFIG.isProduction).mockReturnValue(true);
-      
+
       const error = new Error('Test error with token abc123');
-      secureLogger.error('Error occurred', error);
+      enableProductionSafety();
+      try {
+        secureLogger.error('Error occurred', error);
+      } finally {
+        disableProductionSafety();
+      }
 
       expect(mockConsole.error).toHaveBeenCalled();
       const logCall = mockConsole.error.mock.calls[0];
@@ -273,9 +351,14 @@ describe('Secure Logger Security Tests', () => {
     it('should log E2E messages only in E2E mode', () => {
       vi.mocked(ENV_CONFIG.isE2E).mockReturnValue(true);
       mockConsole.log.mockClear();
-      
-      secureLogger.e2e('E2E test message', { testData: 'value' });
-      
+
+      enableE2EEnvironment();
+      try {
+        secureLogger.e2e('E2E test message', { testData: 'value' });
+      } finally {
+        disableE2EEnvironment();
+      }
+
       expect(mockConsole.log).toHaveBeenCalled();
       const logCall = mockConsole.log.mock.calls[0];
       expect(logCall[0]).toBe('[E2E]');
@@ -284,9 +367,10 @@ describe('Secure Logger Security Tests', () => {
     it('should not log E2E messages outside E2E mode', () => {
       vi.mocked(ENV_CONFIG.isE2E).mockReturnValue(false);
       mockConsole.log.mockClear();
-      
+
+      disableE2EEnvironment();
       secureLogger.e2e('E2E test message', { testData: 'value' });
-      
+
       expect(mockConsole.log).not.toHaveBeenCalled();
     });
   });
@@ -306,12 +390,17 @@ describe('Secure Logger Security Tests', () => {
 
     it('should sanitize security context in production', () => {
       vi.mocked(ENV_CONFIG.isProduction).mockReturnValue(true);
-      
-      secureLogger.security('auth_failure', { 
-        token: 'jwt-123',
-        user: 'john',
-        reason: 'invalid_credentials'
-      });
+
+      enableProductionSafety();
+      try {
+        secureLogger.security('auth_failure', { 
+          token: 'jwt-123',
+          user: 'john',
+          reason: 'invalid_credentials'
+        });
+      } finally {
+        disableProductionSafety();
+      }
 
       const logCall = mockConsole.info.mock.calls[0];
       const context = logCall[1].context;
@@ -336,11 +425,16 @@ describe('Secure Logger Security Tests', () => {
 
     it('should sanitize performance context in production', () => {
       vi.mocked(ENV_CONFIG.isProduction).mockReturnValue(true);
-      
-      secureLogger.performance('request', 200, 'ms', { 
-        token: 'jwt-123',
-        endpoint: '/api/secure' 
-      });
+
+      enableProductionSafety();
+      try {
+        secureLogger.performance('request', 200, 'ms', { 
+          token: 'jwt-123',
+          endpoint: '/api/secure' 
+        });
+      } finally {
+        disableProductionSafety();
+      }
 
       const logCall = mockConsole.info.mock.calls[0];
       const context = logCall[1].context;

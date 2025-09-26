@@ -2,6 +2,7 @@ import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ErrorFallback } from './ErrorFallback';
 import { ErrorLogger } from '../utils/error-logger';
 import { type User } from '../contexts/AuthContext';
+import { secureLogger } from '../utils/secure-logger';
 
 interface Props {
   children: ReactNode;
@@ -80,11 +81,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // Log to console in development
     if (process.env.NODE_ENV === 'development') {
-      console.group('🚨 Error Boundary Caught Error');
-      console.error('Error:', error);
-      console.error('Error Info:', errorInfo);
-      console.error('Context:', errorContext);
-      console.groupEnd();
+      secureLogger.error('Error Boundary Caught Error', { error, errorInfo, errorContext });
     }
 
     // Log to external service
@@ -112,14 +109,14 @@ export class ErrorBoundary extends Component<Props, State> {
     // 2. Redirect to a safe page
     // 3. Show a more prominent error message
     
-    console.error('Critical error detected:', error);
+    secureLogger.error('Critical error detected', error);
     
     // Clear localStorage if it might be corrupted
     if (error.message.includes('localStorage') || error.message.includes('storage')) {
       try {
         localStorage.clear();
       } catch (e) {
-        console.error('Failed to clear localStorage:', e);
+        secureLogger.error('Failed to clear localStorage', e);
       }
     }
   };

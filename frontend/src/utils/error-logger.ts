@@ -181,11 +181,17 @@ export class ErrorLogger {
   private performLogging(error: Error, context: ErrorContext): void {
     // Console logging
     if (this.config.enableConsoleLogging) {
-      const logMethod = context.level === 'critical' ? console.error : console.warn;
-      logMethod(`[ErrorLogger] ${context.level.toUpperCase()}: ${error.message}`, {
-        error,
-        context
-      });
+      try {
+        const { secureLogger } = require('./secure-logger');
+        if (context.level === 'critical') {
+          secureLogger.error(`[ErrorLogger] ${context.level.toUpperCase()}: ${error.message}`, { error, context });
+        } else {
+          secureLogger.warn(`[ErrorLogger] ${context.level.toUpperCase()}: ${error.message}`, { error, context });
+        }
+      } catch {
+        const logMethod = context.level === 'critical' ? console.error : console.warn;
+        logMethod(`[ErrorLogger] ${context.level.toUpperCase()}: ${error.message}`, { error, context });
+      }
     }
 
     // External reporting
@@ -214,10 +220,20 @@ export class ErrorLogger {
       });
 
       if (!response.ok) {
-        console.warn('Failed to report error to external service:', response.statusText);
+        try {
+          const { secureLogger } = require('./secure-logger');
+          secureLogger.warn('Failed to report error to external service', response.statusText);
+        } catch {
+          console.warn('Failed to report error to external service:', response.statusText);
+        }
       }
     } catch (reportingError) {
-      console.warn('Error while reporting to external service:', reportingError);
+      try {
+        const { secureLogger } = require('./secure-logger');
+        secureLogger.warn('Error while reporting to external service', reportingError);
+      } catch {
+        console.warn('Error while reporting to external service:', reportingError);
+      }
     }
   }
 
@@ -293,7 +309,12 @@ export class ErrorLogger {
         this.errorCache = new Map(errors);
       }
     } catch (error) {
-      console.warn('Failed to load errors from storage:', error);
+      try {
+        const { secureLogger } = require('./secure-logger');
+        secureLogger.warn('Failed to load errors from storage', error);
+      } catch {
+        console.warn('Failed to load errors from storage:', error);
+      }
     }
   }
 
@@ -302,7 +323,12 @@ export class ErrorLogger {
       const errors = Array.from(this.errorCache.entries());
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(errors));
     } catch (error) {
-      console.warn('Failed to save errors to storage:', error);
+      try {
+        const { secureLogger } = require('./secure-logger');
+        secureLogger.warn('Failed to save errors to storage', error);
+      } catch {
+        console.warn('Failed to save errors to storage:', error);
+      }
     }
   }
 }

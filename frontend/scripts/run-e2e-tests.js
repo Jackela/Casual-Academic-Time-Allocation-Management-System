@@ -30,6 +30,10 @@ function log(message, color = colors.reset) {
   console.log(`${color}${message}${colors.reset}`);
 }
 
+function isTruthy(value) {
+  return typeof value === 'string' && ['1', 'true', 'yes', 'y'].includes(value.toLowerCase());
+}
+
 function logStep(step, message) {
   log(`${colors.bright}[${step}]${colors.reset} ${colors.cyan}${message}${colors.reset}`);
 }
@@ -321,17 +325,14 @@ async function runPlaywrightTests() {
     if (!process.env.E2E_FRONTEND_URL && params.frontendUrl) process.env.E2E_FRONTEND_URL = params.frontendUrl;
     if (!process.env.E2E_BACKEND_URL && params._effectiveBackendUrl) process.env.E2E_BACKEND_URL = params._effectiveBackendUrl;
     // Limit projects to desktop runs by default (api-tests + ui-tests). Mobile can be enabled explicitly via CLI if needed.
-    const pwArgs = ['playwright', 'test', '--reporter=json'];
-    const hasProjectArg = process.argv.some(a => a.startsWith('--project='));
-    if (!hasProjectArg) {
-      pwArgs.push('--project=api-tests', '--project=ui-tests');
-    } else {
-      // Pass through provided project argument(s)
-      for (const arg of process.argv.slice(2)) {
-        if (arg.startsWith('--project=')) pwArgs.push(arg);
-      }
+    const reportOutput = params.jsonReportPath || 'playwright-report/results.json';
+    const pwArgs = ['playwright', 'test'];
+    // Pass through project filters when explicitly provided
+    for (const arg of process.argv.slice(2)) {
+      if (arg.startsWith('--project=')) pwArgs.push(arg);
     }
 
+    log(`  🧪 Playwright command: npx ${pwArgs.join(' ')}`);
     const result = await spawnProcess('npx', pwArgs, {
       cwd: join(projectRoot, 'frontend'),
       showOutput: false
@@ -448,19 +449,59 @@ ${colors.reset}`);
   let playwrightExit = 1;
 
   try {
+    let backendAlreadyUp = false;
     // Check Docker availability first
     logStep('STEP 0', 'Checking Docker availability...');
     const dockerAvailable = await checkDockerAvailability();
-    if (!dockerAvailable) {
-      logError('Docker is not available or not running!');
-      logError('📋 To run E2E tests locally, please:');
-      logError('   1. Install Docker Desktop');
-      logError('   2. Start Docker Desktop');
-      logError('   3. Verify with: docker --version');
-      logError('💡 Alternative: Run unit/integration tests instead');
-      process.exit(1);
+    backendAlreadyUp = await checkBackendAlreadyRunning();
+    const dockerSkipRequested = isTruthy(process.env.E2E_SKIP_DOCKER_CHECK);
+    let skipBackend = isTruthy(process.env.E2E_SKIP_BACKEND);
+    const requireDocker = isTruthy(process.env.E2E_REQUIRE_DOCKER);
+
+    if (!dockerAvailable && !requireDocker && !backendAlreadyUp) {
+      skipBackend = true;
     }
-    logSuccess('Docker is available and running');
+
+    if (skipBackend) {
+      process.env.E2E_SKIP_BACKEND = 'true';
+      if (!process.env.VITE_E2E_USE_MSW) {
+        process.env.VITE_E2E_USE_MSW = 'true';
+      }
+      if (!process.env.VITE_E2E_AUTH_BYPASS_ROLE) {
+        process.env.VITE_E2E_AUTH_BYPASS_ROLE = 'TUTOR';
+      }
+    }
+
+    const skipDockerCheck = dockerSkipRequested || backendAlreadyUp || skipBackend;
+
+    if (!dockerAvailable) {
+      if (requireDocker && !skipDockerCheck) {
+        logError('Docker is not available or not running!');
+        logError('📋 To run E2E tests locally, please:');
+        logError('   1. Install Docker Desktop');
+        logError('   2. Start Docker Desktop');
+        logError('   3. Verify with: docker --version');
+        logError('💡 Alternative: Run unit/integration tests instead');
+        process.exit(1);
+      }
+      let reason;
+      if (skipDockerCheck) {
+        if (dockerSkipRequested) {
+          reason = 'E2E_SKIP_DOCKER_CHECK requested bypass';
+        } else if (backendAlreadyUp) {
+          reason = 'detected healthy backend';
+        } else if (skipBackend) {
+          reason = 'E2E_SKIP_BACKEND requested mocked run';
+        } else {
+          reason = 'skip conditions met';
+        }
+      } else {
+        reason = 'E2E_REQUIRE_DOCKER is not enabled';
+      }
+      logWarning(`Docker is not available; continuing because ${reason}.`);
+    } else {
+      logSuccess('Docker is available and running');
+    }
 
     // Install dependencies if needed
     logStep('STEP 1', 'Installing dependencies...');
@@ -484,13 +525,15 @@ ${colors.reset}`);
 
     // Start backend with E2E profile (with health checking) iff not already running
     logStep('STEP 2', 'Checking backend status...');
-    const alreadyUp = await checkBackendAlreadyRunning();
-    if (alreadyUp) {
+    if (skipBackend) {
+      logWarning('Skipping backend provisioning because E2E_SKIP_BACKEND is enabled.');
+    } else if (backendAlreadyUp) {
       logSuccess('Detected healthy backend. Skipping backend start.');
     } else {
       await startBackend();
+      backendAlreadyUp = true;
     }
-    
+
     // Start frontend
     await startFrontend();
     
@@ -533,3 +576,22 @@ main().catch((error) => {
   logError(`Unhandled error: ${error.message}`);
   process.exit(1);
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,11 @@
+# Page snapshot
+
+```yaml
+- text: "[plugin:vite:import-analysis] Failed to resolve import \"../../ui/button\" from \"src/components/dashboards/TutorDashboard/TutorDashboard.tsx\". Does the file exist? D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/src/components/dashboards/TutorDashboard/TutorDashboard.tsx:26:23 31 | import { TimesheetService } from \"../../../services/timesheets\"; 32 | import { Card, CardContent, CardHeader, CardTitle } from \"../../ui/card\"; 33 | import { Button } from \"../../ui/button\"; | ^ 34 | import { Input } from \"../../ui/input\"; 35 | const TutorStatCard = memo( at TransformPluginContext._formatLog (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:31460:43) at TransformPluginContext.error (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:31457:14) at normalizeUrl (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:29999:18) at process.processTicksAndRejections (node:internal/process/task_queues:105:5) at async file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:30057:32 at async Promise.all (index 12) at async TransformPluginContext.transform (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:30025:4) at async EnvironmentPluginContainer.transform (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:31274:14) at async loadAndTransform (file:///D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/node_modules/vite/dist/node/chunks/dep-BHkUv4Z8.js:26451:26) Click outside, press Esc key, or fix the code to dismiss. You can also disable this overlay by setting"
+- code: server.hmr.overlay
+- text: to
+- code: "false"
+- text: in
+- code: vite.config.ts
+- text: .
+```

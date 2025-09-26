@@ -226,9 +226,21 @@ export const legacyCompat = {
  */
 export const envErrorHandler = (error: Error, context: string): void => {
   if (ENV_CONFIG.isDevelopment()) {
-    console.error(`[${context}] Environment detection error:`, error);
+    // Use secure logger in development to keep output consistent
+    try {
+      const { secureLogger } = require('./secure-logger');
+      secureLogger.error(`[${context}] Environment detection error`, error);
+    } catch {
+      // Fallback if circular import during early bootstrap
+      console.error(`[${context}] Environment detection error:`, error);
+    }
   } else if (ENV_CONFIG.isE2E()) {
-    console.warn(`[E2E] Environment issue in ${context}:`, error.message);
+    try {
+      const { secureLogger } = require('./secure-logger');
+      secureLogger.warn(`[E2E] Environment issue in ${context}`, error.message);
+    } catch {
+      console.warn(`[E2E] Environment issue in ${context}:`, error.message);
+    }
   }
   // In production, fail silently to avoid exposing internal details
 };

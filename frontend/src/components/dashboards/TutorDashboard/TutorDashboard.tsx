@@ -19,9 +19,12 @@ import TimesheetTable from '../../shared/TimesheetTable/TimesheetTable';
 
 import LoadingSpinner from '../../shared/LoadingSpinner/LoadingSpinner';
 import { formatters } from '../../../utils/formatting';
+import { secureLogger } from '../../../utils/secure-logger';
 import type { Timesheet, DashboardDeadline } from '../../../types/api';
-import './TutorDashboard.css';
 import { TimesheetService } from '../../../services/timesheets';
+import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
+import { Button } from '../../ui/button';
+import { Input } from '../../ui/input';
 
 // =============================================================================
 // Component Props & Types
@@ -73,12 +76,11 @@ const TutorStatCard = memo<TutorStatCardProps>(({
   value,
   subtitle,
   trend = 'stable',
-  color = 'primary',
   icon,
   onClick
 }) => (
-  <div 
-    className={`tutor-stat-card tutor-stat-card--${color} ${onClick ? 'clickable' : ''}`}
+  <Card
+    className={`flex flex-col ${onClick ? 'cursor-pointer hover:bg-accent' : ''}`}
     data-testid="stat-card"
     onClick={onClick}
     role={onClick ? 'button' : undefined}
@@ -90,21 +92,21 @@ const TutorStatCard = memo<TutorStatCardProps>(({
       }
     } : undefined}
   >
-    <div className="tutor-stat-card__header">
-      {icon && <span className="tutor-stat-card__icon">{icon}</span>}
-      <h4 className="tutor-stat-card__title">{title}</h4>
-    </div>
-    <div className="tutor-stat-card__content">
-      <div className="tutor-stat-card__value">{value}</div>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      {icon && <span className="text-2xl text-muted-foreground">{icon}</span>}
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-bold">{value}</div>
       {subtitle && (
-        <div className={`tutor-stat-card__subtitle tutor-stat-card__subtitle--${trend}`}>
+        <p className="text-xs text-muted-foreground">
           {trend === 'up' && '↗ '}
           {trend === 'down' && '↘ '}
           {subtitle}
-        </div>
+        </p>
       )}
-    </div>
-  </div>
+    </CardContent>
+  </Card>
 ));
 
 TutorStatCard.displayName = 'TutorStatCard';
@@ -121,20 +123,20 @@ const QuickAction = memo<QuickActionProps>(({
   disabled = false,
   shortcut
 }) => (
-  <button
-    className={`quick-action ${disabled ? 'quick-action--disabled' : ''}`}
+  <Button
+    variant="outline"
+    className="h-auto w-full justify-start p-4 text-left"
     onClick={onClick}
-    tabIndex={0}
     disabled={disabled}
     title={`${description}${shortcut ? ` (${shortcut})` : ''}`}
   >
-    <span className="quick-action__icon">{icon}</span>
-    <div className="quick-action__content">
-      <span className="quick-action__label">{label}</span>
-      <span className="quick-action__description">{description}</span>
+    <span className="mr-4 text-2xl">{icon}</span>
+    <div className="flex flex-col">
+      <span className="font-semibold">{label}</span>
+      <span className="text-sm text-muted-foreground">{description}</span>
     </div>
-    {shortcut && <span className="quick-action__shortcut">{shortcut}</span>}
-  </button>
+    {shortcut && <span className="ml-auto text-xs text-muted-foreground">{shortcut}</span>}
+  </Button>
 ));
 
 QuickAction.displayName = 'QuickAction';
@@ -144,20 +146,20 @@ QuickAction.displayName = 'QuickAction';
 // =============================================================================
 
 const CompletionProgress = memo<{ completionRate: number }>(({ completionRate }) => (
-  <div className="completion-progress" data-testid="completion-progress">
-    <h4>Semester Progress</h4>
-    <div className="progress-container">
-      <div className="progress-bar">
-        <div 
-          className="progress-fill"
+  <div className="rounded-lg border bg-card p-4" data-testid="completion-progress">
+    <h4 className="mb-2 font-semibold">Semester Progress</h4>
+    <div className="flex items-center gap-2">
+      <div className="h-2 w-full flex-1 rounded-full bg-secondary">
+        <div
+          className="h-2 rounded-full bg-primary"
           style={{ width: `${completionRate * 100}%` }}
         />
       </div>
-      <span className="progress-text">
-        {Math.round(completionRate * 100)}% Complete
+      <span className="text-sm font-medium text-muted-foreground">
+        {Math.round(completionRate * 100)}%
       </span>
     </div>
-    <p className="progress-description">
+    <p className="mt-2 text-xs text-muted-foreground">
       Keep up the great work! You're on track for this semester.
     </p>
   </div>
@@ -170,12 +172,12 @@ CompletionProgress.displayName = 'CompletionProgress';
 // =============================================================================
 
 const UpcomingDeadlines = memo<{ deadlines: DashboardDeadline[] }>(({ deadlines }) => (
-  <div className="upcoming-deadlines">
-    <h3>Upcoming Deadlines</h3>
+  <div className="rounded-lg border bg-card p-4">
+    <h3 className="mb-2 font-semibold">Upcoming Deadlines</h3>
     {deadlines.length === 0 ? (
-      <p className="no-deadlines">No upcoming deadlines</p>
+      <p className="text-sm text-muted-foreground">No upcoming deadlines</p>
     ) : (
-      <ul className="deadline-list">
+      <ul className="space-y-2">
         {deadlines.map((deadline, index) => {
           const dateValue = deadline.deadline ?? deadline.dueDate;
           const formattedDate = dateValue
@@ -184,10 +186,11 @@ const UpcomingDeadlines = memo<{ deadlines: DashboardDeadline[] }>(({ deadlines 
           const courseLabel = deadline.courseName ?? 'Course';
 
           return (
-            <li key={deadline.id ?? deadline.courseId ?? index} className="deadline-item">
-              <span className="deadline-text">
-                {`${courseLabel} - Due ${formattedDate}`}
+            <li key={deadline.id ?? deadline.courseId ?? index} className="flex items-center justify-between text-sm">
+              <span className="font-medium text-foreground">
+                {`${courseLabel} - Due`}
               </span>
+              <span className="text-muted-foreground">{formattedDate}</span>
             </li>
           );
         })}
@@ -215,49 +218,40 @@ const PaySummary = memo<{
     .replace(/\.00$/, '');
 
   return (
-    <div className="pay-summary">
-      <h3>Pay Summary</h3>
-      <div className="pay-stats">
-        <div className="pay-stat">
-          <span className="pay-label">
-            Total Earned: <strong className="pay-value">${totalEarnedText}</strong>
-          </span>
+    <Card className="p-4">
+      <CardTitle className="mb-2 text-lg font-semibold">Pay Summary</CardTitle>
+      <CardContent className="space-y-2 p-0">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Total Earned:</span>
+          <strong className="text-foreground">${totalEarnedText}</strong>
         </div>
-        <div className="pay-stat">
-          <span className="pay-label">
-            This Week: <strong className="pay-value">${thisWeekText}</strong>
-          </span>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">This Week:</span>
+          <strong className="text-foreground">${thisWeekText}</strong>
         </div>
-        <div className="pay-stat">
-          <span className="pay-label">
-            Average per Timesheet: <strong className="pay-value">${averageText}</strong>
-          </span>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Average per Timesheet:</span>
+          <strong className="text-foreground">${averageText}</strong>
         </div>
-      </div>
-      
-      <div className="payment-status">
-        <h4>Payment Status</h4>
-        <div className="payment-breakdown">
-          <div className="payment-item">
-            <span>{paymentStatus.FINAL_CONFIRMED || 0} Final Confirmed</span>
-          </div>
-          <div className="payment-item">
-            <span>{paymentStatus.LECTURER_CONFIRMED || 0} Awaiting Final Approval</span>
-          </div>
-          <div className="payment-item">
-            <span className="next-payment">Next Payment Date: Jan 31, 2024</span>
+
+        <div className="pt-4">
+          <h4 className="mb-2 font-semibold">Payment Status</h4>
+          <div className="space-y-1 text-sm text-muted-foreground">
+            <p>{paymentStatus.FINAL_CONFIRMED || 0} Final Confirmed</p>
+            <p>{paymentStatus.LECTURER_CONFIRMED || 0} Awaiting Final Approval</p>
+            <p className="font-medium text-primary">Next Payment Date: Jan 31, 2024</p>
           </div>
         </div>
-      </div>
-      
-      <div className="tax-information">
-        <h4>Tax Information</h4>
-        <div className="tax-stats">
-          <span>Year-to-Date Earnings: ${totalEarnedText}</span>
-          <button className="download-tax-summary">Download Tax Summary</button>
+
+        <div className="pt-4">
+          <h4 className="mb-2 font-semibold">Tax Information</h4>
+          <div className="space-y-1 text-sm text-muted-foreground">
+            <p>Year-to-Date Earnings: ${totalEarnedText}</p>
+            <Button variant="outline" size="sm" className="mt-2 w-full">Download Tax Summary</Button>
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 });
 
@@ -287,20 +281,20 @@ const EarningsBreakdown = memo<{ timesheets: Timesheet[] }>(({ timesheets }) => 
   }, [timesheets]);
 
   return (
-    <div className="earnings-breakdown" data-testid="earnings-breakdown">
-      <h3>Earnings by Course</h3>
-      <div className="course-earnings">
+    <Card className="p-4" data-testid="earnings-breakdown">
+      <CardTitle className="mb-2 text-lg font-semibold">Earnings by Course</CardTitle>
+      <CardContent className="space-y-2 p-0">
         {courseEarnings.map(({ course, hours, pay }) => (
-          <div key={course} className="course-earning">
-            <span className="course-name">{course}</span>
-            <div className="course-stats">
-              <span className="course-hours">{hours}h</span>
-              <span className="course-pay">${formatters.currencyValue(pay)}</span>
+          <div key={course} className="flex justify-between text-sm">
+            <span className="font-medium text-foreground">{course}</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span>{hours}h</span>
+              <span>${formatters.currencyValue(pay)}</span>
             </div>
           </div>
         ))}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 });
 
@@ -349,7 +343,7 @@ const TimesheetForm = memo<{
     return () => {
       clearTimeout(timeout);
     };
-  }, [formData.description, isEdit, autoSaveDelay]);
+  }, [formData.description, isEdit, autoSaveDelay, autoSaveTimeout]);
 
   const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};
@@ -368,7 +362,7 @@ const TimesheetForm = memo<{
       errors.weekStartDate = 'Week start date is required';
     }
 
-    console.log('validation run', formData, errors);
+    secureLogger.debug('validation run', { formData, errors });
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -378,13 +372,13 @@ const TimesheetForm = memo<{
     e.preventDefault();
     
     if (validateForm()) {
-      console.log('submitting form', formData);
+      secureLogger.debug('submitting form', formData);
       onSubmit(formData);
     }
   }, [formData, validateForm, onSubmit]);
 
-  const handleFieldChange = useCallback((field: keyof TimesheetFormData, value: any) => {
-    console.log('field change', field, value);
+  const handleFieldChange = useCallback((field: keyof TimesheetFormData, value: string | number) => {
+    secureLogger.debug('field change', { field, value });
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear validation error when user starts typing
     if (validationErrors[field]) {
@@ -393,52 +387,54 @@ const TimesheetForm = memo<{
   }, [validationErrors]);
 
   return (
-    <div className="timesheet-form-modal">
-      <h3>{isEdit ? 'Edit Timesheet' : 'New Timesheet Form'}</h3>
-      
+    <Card className="timesheet-form-modal p-6">
+      <CardHeader className="p-0 mb-4">
+        <CardTitle className="text-xl font-semibold">{isEdit ? 'Edit Timesheet' : 'New Timesheet Form'}</CardTitle>
+      </CardHeader>
+
       {error && (
-        <div className="form-error">{error}</div>
+        <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-center text-sm text-destructive">{error}</div>
       )}
 
-      <form onSubmit={handleSubmit} className="timesheet-form">
-        <div className="form-field">
-          <label htmlFor="course">Course</label>
+      <form onSubmit={handleSubmit} className="timesheet-form space-y-4">
+        <div className="form-field space-y-1">
+          <label htmlFor="course" className="text-sm font-medium">Course</label>
           <select
             id="course"
             value={formData.courseId}
             onChange={(e) => handleFieldChange('courseId', parseInt(e.target.value))}
-            className={validationErrors.courseId ? 'error' : ''}
+            className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${validationErrors.courseId ? 'border-destructive ring-destructive/20' : ''}`}
             aria-describedby={[ 'course-help', validationErrors.courseId ? 'course-error' : null ].filter(Boolean).join(' ')}
           >
             <option value={0}>Select a course</option>
             <option value={1}>CS101 - Computer Science 101</option>
             <option value={2}>CS102 - Data Structures</option>
           </select>
-          <span id="course-help" className="field-help">Select the course this timesheet applies to</span>
+          <span id="course-help" className="text-xs text-muted-foreground">Select the course this timesheet applies to</span>
           {validationErrors.courseId && (
-            <span id="course-error" className="error-text">{validationErrors.courseId}</span>
+            <span id="course-error" className="text-xs text-destructive">{validationErrors.courseId}</span>
           )}
         </div>
 
-        <div className="form-field">
-          <label htmlFor="week-start">Week Starting</label>
-          <input
+        <div className="form-field space-y-1">
+          <label htmlFor="week-start" className="text-sm font-medium">Week Starting</label>
+          <Input
             id="week-start"
             type="date"
             value={formData.weekStartDate}
             onChange={(e) => handleFieldChange('weekStartDate', e.target.value)}
-            className={validationErrors.weekStartDate ? 'error' : ''}
+            className={validationErrors.weekStartDate ? 'border-destructive ring-destructive/20' : ''}
             aria-describedby={[ 'week-start-help', validationErrors.weekStartDate ? 'week-start-error' : null ].filter(Boolean).join(' ')}
           />
-          <span id="week-start-help" className="field-help">Choose the Monday that starts this work week</span>
+          <span id="week-start-help" className="text-xs text-muted-foreground">Choose the Monday that starts this work week</span>
           {validationErrors.weekStartDate && (
-            <span id="week-start-error" className="error-text">{validationErrors.weekStartDate}</span>
+            <span id="week-start-error" className="text-xs text-destructive">{validationErrors.weekStartDate}</span>
           )}
         </div>
 
-        <div className="form-field">
-          <label htmlFor="hours">Hours Worked</label>
-          <input
+        <div className="form-field space-y-1">
+          <label htmlFor="hours" className="text-sm font-medium">Hours Worked</label>
+          <Input
             id="hours"
             type="number"
             step="0.5"
@@ -447,43 +443,44 @@ const TimesheetForm = memo<{
             value={formData.hours || ''}
             onChange={(e) => handleFieldChange('hours', parseFloat(e.target.value) || 0)}
             onBlur={() => validateForm()}
-            className={validationErrors.hours ? 'error' : ''}
+            className={validationErrors.hours ? 'border-destructive ring-destructive/20' : ''}
             aria-describedby="hours-error hours-help"
           />
-          <span id="hours-help" className="field-help">Enter hours worked (0.1 - 60)</span>
+          <span id="hours-help" className="text-xs text-muted-foreground">Enter hours worked (0.1 - 60)</span>
           {validationErrors.hours && (
-            <span id="hours-error" className="error-text">{validationErrors.hours}</span>
+            <span id="hours-error" className="text-xs text-destructive">{validationErrors.hours}</span>
           )}
         </div>
 
-        <div className="form-field">
-          <label htmlFor="description">Description</label>
+        <div className="form-field space-y-1">
+          <label htmlFor="description" className="text-sm font-medium">Description</label>
           <textarea
             id="description"
             value={formData.description}
             onChange={(e) => handleFieldChange('description', e.target.value)}
             placeholder="Describe the work performed..."
             rows={4}
+            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             aria-describedby="description-help"
           />
-          <span id="description-help" className="field-help">Provide details about your tutoring activities</span>
+          <span id="description-help" className="text-xs text-muted-foreground">Provide details about your tutoring activities</span>
         </div>
 
-        <div className="form-actions">
-          <button type="button" onClick={onCancel}>
+        <div className="form-actions flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
-          </button>
-          <button type="submit" disabled={loading} className="primary">
+          </Button>
+          <Button type="submit" disabled={loading}>
             {loading ? <LoadingSpinner size="small" /> : (isEdit ? 'Update Timesheet' : 'Create Timesheet')}
-          </button>
+          </Button>
         </div>
       </form>
       {autoSaveMessage && (
-        <p className="auto-save-message" role="status" aria-live="polite">
+        <p className="auto-save-message mt-2 text-xs text-muted-foreground" role="status" aria-live="polite">
           {autoSaveMessage}
         </p>
       )}
-    </div>
+    </Card>
   );
 });
 
@@ -496,53 +493,53 @@ TimesheetForm.displayName = 'TimesheetForm';
 const NotificationsPanel = memo<{
   rejectedCount: number;
   draftCount: number;
-  deadlines: any[];
+  deadlines: DashboardDeadline[];
   onDismiss: (notificationId: string) => void;
 }>(({ rejectedCount, draftCount, deadlines, onDismiss }) => (
-  <div className="notifications-panel" data-testid="notifications-panel">
-    <h3>Notifications</h3>
-    
+  <Card className="p-4" data-testid="notifications-panel">
+    <CardTitle className="mb-2 text-lg font-semibold">Notifications</CardTitle>
+
     {rejectedCount > 0 && (
-      <div className="notification action-required" data-testid="action-required">
-        <div className="notification-content">
-          <span className="notification-icon">⚠️</span>
-          <div className="notification-text">
-            <strong>Action Required</strong>
-            <p>{rejectedCount} timesheets need your attention</p>
-            <p>{rejectedCount} rejected timesheets need your attention</p>
-          </div>
+      <div className="notification mb-2 flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300" data-testid="action-required">
+        <span className="notification-icon text-xl">⚠️</span>
+        <div className="notification-content flex-1">
+          <strong className="block font-semibold">Action Required</strong>
+          <p>{rejectedCount} timesheets need your attention</p>
+          <p>{rejectedCount} rejected timesheets need your attention</p>
         </div>
-        <button 
-          className="notification-dismiss"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => onDismiss('rejected-reminder')}
           aria-label="Dismiss action required alert"
+          className="h-auto p-1 text-muted-foreground hover:bg-red-100 hover:text-red-800"
         >
           ×
-        </button>
+        </Button>
       </div>
     )}
 
     {draftCount > 0 && (
-      <div className="notification reminder">
-        <div className="notification-content">
-          <span className="notification-icon">📝</span>
-          <div className="notification-text">
-            <strong>Don't forget to submit</strong>
-            <p>{draftCount} draft timesheets are waiting</p>
-          </div>
+      <div className="notification mb-2 flex items-start gap-3 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300">
+        <span className="notification-icon text-xl">📝</span>
+        <div className="notification-content flex-1">
+          <strong className="block font-semibold">Don't forget to submit</strong>
+          <p>{draftCount} draft timesheets are waiting</p>
         </div>
-        <button 
-          className="notification-dismiss"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => onDismiss('draft-reminder')}
           aria-label="Dismiss draft reminder"
+          className="h-auto p-1 text-muted-foreground hover:bg-yellow-100 hover:text-yellow-800"
         >
           ×
-        </button>
+        </Button>
       </div>
     )}
 
     {deadlines.map((deadline, index) => {
-      const formattedDate = formatters.date(deadline.deadline, {
+      const formattedDate = formatters.date(deadline.deadline ?? '', {
         month: 'short',
         day: 'numeric'
       });
@@ -551,25 +548,25 @@ const NotificationsPanel = memo<{
         : `Dismiss ${deadline.courseName} deadline alert`;
 
       return (
-        <div key={deadline.courseId || index} className="notification deadline">
-          <div className="notification-content">
-            <span className="notification-icon">📅</span>
-            <div className="notification-text">
-              <strong>Deadline approaching for {deadline.courseName}</strong>
-              <p>Due {formattedDate}</p>
-            </div>
+        <div key={deadline.courseId || index} className="notification mb-2 flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+          <span className="notification-icon text-xl">📅</span>
+          <div className="notification-content flex-1">
+            <strong className="block font-semibold">Deadline approaching for {deadline.courseName}</strong>
+            <p>Due {formattedDate}</p>
           </div>
-          <button 
-            className="notification-dismiss"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => onDismiss(`deadline-${deadline.courseId ?? index}`)}
             aria-label={dismissLabel}
+            className="h-auto p-1 text-muted-foreground hover:bg-blue-100 hover:text-blue-800"
           >
             ×
-          </button>
+          </Button>
         </div>
       );
     })}
-  </div>
+  </Card>
 ));
 
 NotificationsPanel.displayName = 'NotificationsPanel';
@@ -584,8 +581,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const [currentTab, setCurrentTab] = useState<'all' | 'drafts' | 'submitted' | 'needAction'>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingTimesheet, setEditingTimesheet] = useState<Timesheet | null>(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [dismissedNotifications, setDismissedNotifications] = useState<string[]>([]);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -636,16 +631,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     const completed = tutorStats.statusCounts?.FINAL_CONFIRMED ?? 0;
     return completed / total;
   }, [tutorStats.statusCounts, tutorStats.totalCount]);
-
-  // Handle window resize for responsive layout
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Tab configuration with filters and counts
   const tabs: TabConfig[] = useMemo(() => {
@@ -732,7 +717,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
   const handleFormSubmit = useCallback(async (data: TimesheetFormData) => {
     try {
-      console.log('createTimesheet fn', createTimesheet);
+      secureLogger.debug('createTimesheet fn', Boolean(createTimesheet));
       if (editingTimesheet) {
         await updateTimesheet(editingTimesheet.id, {
           ...data,
@@ -751,7 +736,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       setShowForm(false);
       setEditingTimesheet(null);
     } catch (error) {
-      console.error('Failed to save timesheet:', error);
+      secureLogger.error('Failed to save timesheet', error);
     }
   }, [editingTimesheet, user?.id, updateTimesheet, createTimesheet, refetchTimesheets, refetchDashboard]);
 
@@ -825,16 +810,13 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       case 'refresh':
         Promise.all([refetchTimesheets(), refetchDashboard()]).catch(console.error);
         break;
-      case 'viewPay':
-        setExpandedSections(prev => ({ ...prev, paySummary: !prev.paySummary }));
-        break;
       case 'export':
         // Export functionality
         break;
       default:
         break;
     }
-  }, [handleCreateTimesheet, handleSubmitAllDrafts, refetchTimesheets, refetchDashboard, setExpandedSections]);
+  }, [handleCreateTimesheet, handleSubmitAllDrafts, refetchTimesheets, refetchDashboard]);
 
   const handleNotificationDismiss = useCallback((notificationId: string) => {
     setDismissedNotifications(prev => {
@@ -848,10 +830,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const handleTabChange = useCallback((tab: typeof currentTab) => {
     setCurrentTab(tab);
     setSelectedTimesheets([]);
-  }, []);
-
-  const handleSectionToggle = useCallback((section: string) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   }, []);
 
   // Loading state
@@ -871,72 +849,53 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
   return (
     <div 
-      className={`dashboard-container tutor-dashboard ${className} ${isMobile ? 'mobile-layout' : ''}`}
+      className={`p-4 sm:p-6 lg:p-8 ${className}`}
       data-testid="tutor-dashboard"
       role="main"
       aria-label="Tutor Dashboard"
     >
       {/* Header Section */}
-      <header className="tutor-dashboard-header">
-        <div className="tutor-header__content">
-          <h1 className="tutor-header__title" data-testid="main-welcome-message">{welcomeMessage}</h1>
-          <p className="tutor-header__subtitle" data-testid="main-dashboard-title">Tutor Dashboard</p>
-          <p className="tutor-header__description" data-testid="main-dashboard-description">Let's manage your timesheets</p>
-          
-          {/* This Week Summary */}
-          <div className="week-summary">
-            <h2>This Week</h2>
-            <div className="week-stats">
-              <span className="week-hours">{thisWeekSummary.hours}h</span>
-              <span className="week-pay">${formatters.currencyValue(thisWeekSummary.pay).replace(/\.00$/, '')}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Upcoming Deadlines */}
-        <UpcomingDeadlines deadlines={dashboardData?.upcomingDeadlines || []} />
-        
-        {/* Completion Progress */}
-        <CompletionProgress completionRate={completionRate || 0.89} />
+      <header className="mb-8 space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight" data-testid="main-welcome-message">{welcomeMessage}</h1>
+        <p className="text-muted-foreground" data-testid="main-dashboard-description">
+          Here's an overview of your timesheets and earnings. Let's get started.
+        </p>
       </header>
 
       {/* Error Display */}
       {hasErrors && (
-        <div className="dashboard-errors">
+        <div className="mb-6 space-y-4">
           {timesheetsError && (
-            <div className="error-message" data-testid="error-message">
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
               <span>Failed to load timesheets: {timesheetsError}</span>
-              <button data-testid="retry-button" onClick={() => refetchTimesheets()}>Retry</button>
+              <Button variant="destructive" size="sm" className="ml-4" onClick={() => refetchTimesheets()}>Retry</Button>
             </div>
           )}
           {dashboardError && (
-            <div className="error-message" data-testid="error-message">
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
               <span>Failed to load dashboard: {dashboardError}</span>
-              <button data-testid="retry-button" onClick={refetchDashboard}>Retry</button>
+              <Button variant="destructive" size="sm" className="ml-4" onClick={refetchDashboard}>Retry</Button>
             </div>
           )}
           {(createError || updateError) && (
-            <div className="error-message" data-testid="error-message">
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
               <span>{createError || updateError}</span>
-              <button onClick={() => {
-                resetCreate();
-                resetUpdate();
-              }}>Dismiss</button>
+              <Button variant="ghost" size="sm" className="ml-4" onClick={() => { resetCreate(); resetUpdate(); }}>Dismiss</Button>
             </div>
           )}
           {actionError && (
-            <div className="error-message" data-testid="error-message">
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
               <span>{actionError}</span>
-              <button onClick={() => setActionError(null)}>Dismiss</button>
+              <Button variant="ghost" size="sm" className="ml-4" onClick={() => setActionError(null)}>Dismiss</Button>
             </div>
           )}
         </div>
       )}
 
       {/* Quick Actions Section */}
-      <section className="quick-actions-section" role="region" aria-label="Quick Actions">
-        <h2>Quick Actions</h2>
-        <div className={`quick-actions-grid ${isMobile ? 'mobile-quick-actions' : ''}`} data-testid={isMobile ? 'mobile-quick-actions' : 'quick-actions'}>
+      <section className="mb-8" role="region" aria-label="Quick Actions">
+        <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="quick-actions">
           <QuickAction
             label="Create New Timesheet"
             description="Start a new timesheet entry"
@@ -974,24 +933,12 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             onClick={() => handleQuickAction('export')}
           />
         </div>
-
-        {/* Mobile Floating Action Button */}
-        {isMobile && (
-          <button
-            className="floating-action-btn"
-            onClick={handleCreateTimesheet}
-            aria-label="Create new timesheet (mobile)"
-            title="Create new timesheet (mobile)"
-          >
-            +
-          </button>
-        )}
       </section>
 
       {/* Statistics Cards */}
-      <section className="tutor-statistics" role="region" aria-label="Your Statistics">
-        <h2>Your Statistics</h2>
-        <div className="tutor-stats-grid">
+      <section className="mb-8" role="region" aria-label="Your Statistics">
+        <h2 className="mb-4 text-xl font-semibold">Your Statistics</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <TutorStatCard
             title="Total Earned"
             value={`$${formatters.currencyValue(tutorStats.totalPay)}`}
@@ -1018,8 +965,8 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           
           <TutorStatCard
             title="Status at a Glance"
-            value=""
-            subtitle={`${draftBaseCount} Drafts, ${inProgressCount} In Progress, ${rejectedBaseCount} Needs Attention`}
+            value={`${draftBaseCount} Drafts`}
+            subtitle={`${inProgressCount} In Progress`}
             color="warning"
             icon="📋"
           />
@@ -1027,195 +974,156 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       </section>
 
       {/* Main Content Grid */}
-      <div className="tutor-content-grid">
-        {/* My Timesheets Section */}
-        <section className="my-timesheets-section" role="region" aria-label="My Timesheets">
-          <div className="section-header">
-            <h2 data-testid="timesheets-section-title">My Timesheets</h2>
-            <span className="count-badge" data-testid="count-badge">{filteredTimesheets.length} total</span>
-          </div>
-
-          {/* Tab Navigation */}
-          <div className="timesheet-tabs">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                className={`tab-button ${currentTab === tab.id ? 'active' : ''}`}
-                onClick={() => handleTabChange(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Bulk Actions for Drafts */}
-          {currentTab === 'drafts' && (
-            <div className="bulk-actions">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={filteredTimesheets.length > 0 && selectedTimesheets.length === filteredTimesheets.length}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedTimesheets(filteredTimesheets.map(t => t.id));
-                    } else {
-                      setSelectedTimesheets([]);
-                    }
-                  }}
-                  aria-label="Select all drafts"
-                />
-                Select All Drafts
-              </label>
-              <button 
-                className="submit-selected-btn"
-                disabled={selectedTimesheets.length === 0}
-              >
-                Submit Selected ({selectedTimesheets.length})
-              </button>
-              {selectedTimesheets.length > 0 && (
-                <div className="submission-preview">
-                  <strong>Confirm Submission</strong>
-                  <p>{selectedTimesheets.length} timesheets will be submitted</p>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Left Column (Main Content) */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* My Timesheets Section */}
+          <section aria-label="My Timesheets">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle data-testid="timesheets-section-title">My Timesheets</CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Manage all your work logs here.
+                    </p>
+                  </div>
+                  <Button onClick={handleCreateTimesheet}>Create New</Button>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Timesheets Table */}
-          {noTimesheets ? (
-            <div className="empty-state" data-testid="empty-state">
-              <div className="empty-state__content">
-                <span className="empty-state__icon">📝</span>
-                <h3 data-testid="empty-state-title">No Timesheets Found</h3>
-                <p data-testid="empty-state-description">Create your first timesheet to get started.</p>
-                <button className="create-first-btn" onClick={handleCreateTimesheet}>
-                  Create First Timesheet
-                </button>
-              </div>
-            </div>
-          ) : (
-            <TimesheetTable
-              timesheets={filteredTimesheets}
-              loading={timesheetsLoading}
-              loadingMessage="Loading timesheets to review..."
-              actionLoading={actionLoadingId}
-              onApprovalAction={(id, action) => {
-                // Handle timesheet actions for tutor (edit, submit, confirm)
-                const timesheet = filteredTimesheets.find(t => t.id === id);
-                if (!timesheet) return;
-
-                if (action === 'EDIT') {
-                  handleEditTimesheet(timesheet);
-                  return;
-                }
-
-                if (action === 'SUBMIT_DRAFT') {
-                  handleSubmitTimesheet(id);
-                  return;
-                }
-
-                if (action === 'TUTOR_CONFIRM') {
-                  handleConfirmTimesheet(id);
-                }
-              }}
-              showActions={true}
-              showTutorInfo={false} // Don't show tutor info on tutor dashboard
-              showCourseInfo={true}
-              showSelection={currentTab === 'drafts'}
-              selectedIds={selectedTimesheets}
-              onSelectionChange={setSelectedTimesheets}
-              className="tutor-timesheet-table"
-              data-testid="timesheet-table"
-              actionMode="tutor"
-            />
-          )}
-        </section>
-
-        {/* Sidebar Content */}
-        <aside className="tutor-sidebar">
-          {/* Pay Summary */}
-          <div className={`pay-summary-section ${isMobile && !expandedSections.paySummary ? 'collapsed' : ''}`}>
-            {isMobile && (
-              <button 
-                className="section-toggle"
-                onClick={() => handleSectionToggle('paySummary')}
-              >
-                {expandedSections.paySummary ? 'Collapse' : 'Expand'} Pay Summary
-              </button>
-            )}
-            
-            {(!isMobile || expandedSections.paySummary) && (
-              <div data-testid="expanded-pay-summary">
-                <PaySummary
-                  totalEarned={tutorStats.totalPay}
-                  thisWeekPay={thisWeekSummary.pay}
-                  averagePerTimesheet={tutorStats.averagePayPerTimesheet}
-                  paymentStatus={tutorStats.statusCounts || {}}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Earnings Breakdown */}
-          <EarningsBreakdown timesheets={allTimesheets} />
-
-          {/* My Courses */}
-          <div className="my-courses">
-            <h3>My Courses</h3>
-            <div className="course-list">
-              <div className="course-item">
-                <span className="course-name">CS101 - Computer Science 101</span>
-                <span className="course-rate">$35.50/hr</span>
-              </div>
-              <div className="course-item">
-                <span className="course-name">CS102 - Data Structures</span>
-                <span className="course-rate">$37.00/hr</span>
-              </div>
-            </div>
-            
-            <div className="course-stats" data-testid="course-stats">
-              <h4>Hours per Course</h4>
-              <div className="course-hours">
-                <div className="course-hour-item">
-                  <span>CS101: 85h</span>
+              </CardHeader>
+              <CardContent>
+                {/* Tab Navigation */}
+                <div className="mb-4 border-b">
+                  <nav className="-mb-px flex space-x-4" aria-label="Tabs">
+                    {tabs.map(tab => (
+                      <button
+                        key={tab.id}
+                        className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium ${
+                          currentTab === tab.id
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+                        }`}
+                        onClick={() => handleTabChange(tab.id)}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </nav>
                 </div>
-                <div className="course-hour-item">
-                  <span>CS102: 62h</span>
-                </div>
-              </div>
-            </div>
 
-            <div className="hourly-rates">
-              <h4>Hourly Rates</h4>
-              <div className="rate-list">
-                <span>CS101: $35.50/hr</span>
-                <span>CS102: $37.00/hr</span>
-              </div>
-            </div>
-          </div>
+                {/* Bulk Actions for Drafts */}
+                {currentTab === 'drafts' && (
+                  <div className="bulk-actions">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={filteredTimesheets.length > 0 && selectedTimesheets.length === filteredTimesheets.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedTimesheets(filteredTimesheets.map(t => t.id));
+                          } else {
+                            setSelectedTimesheets([]);
+                          }
+                        }}
+                        aria-label="Select all drafts"
+                      />
+                      Select All Drafts
+                    </label>
+                    <Button 
+                      className="submit-selected-btn"
+                      disabled={selectedTimesheets.length === 0}
+                    >
+                      Submit Selected ({selectedTimesheets.length})
+                    </Button>
+                    {selectedTimesheets.length > 0 && (
+                      <div className="submission-preview">
+                        <strong>Confirm Submission</strong>
+                        <p>{selectedTimesheets.length} timesheets will be submitted</p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-          {/* Course Calendar */}
-          <div className="course-calendar" data-testid="course-calendar">
-            <h3>This Week's Schedule</h3>
-            <div className="calendar-content">
-              <p>Schedule integration would go here</p>
-            </div>
-          </div>
+                {/* Timesheets Table */}
+                {noTimesheets ? (
+                  <div className="py-12 text-center" data-testid="empty-state">
+                    <div className="mx-auto max-w-xs">
+                      <h3 className="text-lg font-semibold" data-testid="empty-state-title">
+                        No Timesheets Yet
+                      </h3>
+                      <p className="mt-2 text-sm text-muted-foreground" data-testid="empty-state-description">
+                        Create your first timesheet to get started.
+                      </p>
+                      <Button className="mt-4" onClick={handleCreateTimesheet}>
+                        Create First Timesheet
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <TimesheetTable
+                    timesheets={filteredTimesheets}
+                    loading={timesheetsLoading}
+                    loadingMessage="Loading timesheets to review..."
+                    actionLoading={actionLoadingId}
+                    onApprovalAction={(id, action) => {
+                      // Handle timesheet actions for tutor (edit, submit, confirm)
+                      const timesheet = filteredTimesheets.find(t => t.id === id);
+                      if (!timesheet) return;
 
-          {/* Notifications */}
+                      if (action === 'EDIT') {
+                        handleEditTimesheet(timesheet);
+                        return;
+                      }
+
+                      if (action === 'SUBMIT_DRAFT') {
+                        handleSubmitTimesheet(id);
+                        return;
+                      }
+
+                      if (action === 'TUTOR_CONFIRM') {
+                        handleConfirmTimesheet(id);
+                      }
+                    }}
+                    showActions={true}
+                    showTutorInfo={false} // Don't show tutor info on tutor dashboard
+                    showCourseInfo={true}
+                    showSelection={currentTab === 'drafts'}
+                    selectedIds={selectedTimesheets}
+                    onSelectionChange={setSelectedTimesheets}
+                    className="tutor-timesheet-table"
+                    data-testid="timesheet-table"
+                    actionMode="tutor"
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </section>
+        </div>
+
+        {/* Right Column (Sidebar) */}
+        <div className="space-y-6 lg:col-span-1">
           <NotificationsPanel
             rejectedCount={visibleRejectedCount}
             draftCount={visibleDraftCount}
             deadlines={visibleDeadlines}
             onDismiss={handleNotificationDismiss}
           />
-        </aside>
+          <UpcomingDeadlines deadlines={dashboardData?.upcomingDeadlines || []} />
+          <CompletionProgress completionRate={completionRate || 0} />
+          <PaySummary
+            totalEarned={tutorStats.totalPay}
+            thisWeekPay={thisWeekSummary.pay}
+            averagePerTimesheet={tutorStats.averagePayPerTimesheet}
+            paymentStatus={tutorStats.statusCounts || {}}
+          />
+          <EarningsBreakdown timesheets={allTimesheets} />
+        </div>
       </div>
 
       {/* Timesheet Form Modal */}
       {showForm && (
-        <div className="modal-overlay" onClick={() => setShowForm(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>
+          <div className="relative w-full max-w-lg rounded-lg bg-card shadow-lg" onClick={e => e.stopPropagation()}>
             <TimesheetForm
               isEdit={!!editingTimesheet}
               initialData={editingTimesheet || undefined}

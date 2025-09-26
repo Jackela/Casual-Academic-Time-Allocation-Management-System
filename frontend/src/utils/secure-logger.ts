@@ -7,6 +7,63 @@
 
 import { ENV_CONFIG } from './environment';
 
+type MacroGlobals = typeof globalThis & {
+  __PRODUCTION_BUILD__?: boolean;
+  __STRIP_SENSITIVE_DATA__?: boolean;
+  __E2E_GLOBALS__?: boolean;
+};
+
+const macroGlobals = globalThis as MacroGlobals;
+
+const isProductionMode = (): boolean => {
+  if (ENV_CONFIG.isProduction()) {
+    return true;
+  }
+
+  if (typeof __PRODUCTION_BUILD__ !== 'undefined' && __PRODUCTION_BUILD__) {
+    return true;
+  }
+
+  if (typeof __STRIP_SENSITIVE_DATA__ !== 'undefined' && __STRIP_SENSITIVE_DATA__) {
+    return true;
+  }
+
+  if (macroGlobals.__PRODUCTION_BUILD__ || macroGlobals.__STRIP_SENSITIVE_DATA__) {
+    return true;
+  }
+
+  if (typeof process !== 'undefined') {
+    if (process.env?.NODE_ENV === 'production') {
+      return true;
+    }
+    if (process.env?.SECURE_LOGGER_FORCE_PROD === 'true') {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const isE2EMode = (): boolean => {
+  if (ENV_CONFIG.isE2E()) {
+    return true;
+  }
+
+  if (typeof process !== 'undefined') {
+    if (process.env?.NODE_ENV === 'e2e') {
+      return true;
+    }
+    if (process.env?.VITE_E2E === 'true') {
+      return true;
+    }
+    if (process.env?.SECURE_LOGGER_FORCE_E2E === 'true') {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 const DEBUG_LOGGING_FLAG = typeof __DEBUG_LOGGING__ !== 'undefined'
   ? __DEBUG_LOGGING__
   : false;
@@ -55,10 +112,11 @@ const sanitizeObject = (obj: any, depth = 0): any => {
   }
   
   if (obj instanceof Error) {
+    const exposeStack = !isProductionMode() && ENV_CONFIG.isDevelopment();
     return {
       name: obj.name,
       message: containsSensitiveData(obj.message) ? '[REDACTED ERROR]' : obj.message,
-      stack: ENV_CONFIG.isDevelopment() ? obj.stack : '[REDACTED]'
+      stack: exposeStack ? obj.stack : '[REDACTED]'
     };
   }
   
@@ -85,14 +143,16 @@ const sanitizeObject = (obj: any, depth = 0): any => {
  * Create production-safe log message
  */
 const createSafeLogMessage = (message: string, data?: any) => {
-  const safeMessage = ENV_CONFIG.isProduction() && containsSensitiveData(message) 
-    ? '[REDACTED]' 
+  const productionMode = isProductionMode();
+
+  const safeMessage = productionMode && containsSensitiveData(message)
+    ? '[REDACTED]'
     : message;
-    
-  const safeData = ENV_CONFIG.isProduction() && data !== undefined 
-    ? sanitizeObject(data) 
+
+  const safeData = productionMode && data !== undefined
+    ? sanitizeObject(data)
     : data;
-    
+
   return { message: safeMessage, data: safeData };
 };
 
@@ -103,10 +163,8 @@ const getTimestamp = (): string => {
   return new Date().toISOString();
 };
 
-/**
- * Secure logger interface
- */
 export const secureLogger = {
+
   /**
    * Debug logging - only in development and E2E environments
    * Completely stripped from production builds via conditional compilation
@@ -150,7 +208,7 @@ export const secureLogger = {
    * Error logging - always shown but sanitized in production
    */
   error: (message: string, error?: any): void => {
-    if (ENV_CONFIG.isProduction()) {
+    if (isProductionMode()) {
       // Production: Log minimal error information without sensitive details
       const sanitizedError = error instanceof Error 
         ? {
@@ -177,7 +235,7 @@ export const secureLogger = {
    * Security logging - for authentication and authorization events
    */
   security: (event: string, context?: any): void => {
-    const sanitizedContext = ENV_CONFIG.isProduction() 
+    const sanitizedContext = isProductionMode() 
       ? sanitizeObject(context)
       : context;
       
@@ -195,13 +253,13 @@ export const secureLogger = {
    * Performance logging - for monitoring and optimization
    */
   performance: (metric: string, value: number, unit: string = 'ms', context?: any): void => {
-    if (ENV_CONFIG.features.enableDetailedLogging() || ENV_CONFIG.isProduction()) {
+    if (ENV_CONFIG.features.enableDetailedLogging() || isProductionMode()) {
       const logData = {
         metric,
         value,
         unit,
         timestamp: getTimestamp(),
-        context: ENV_CONFIG.isProduction() ? sanitizeObject(context) : context
+        context: isProductionMode() ? sanitizeObject(context) : context
       };
       
       console.info(`[PERF] ${metric}: ${value}${unit}`, logData);
@@ -224,7 +282,7 @@ export const secureLogger = {
     };
     
     if (error) {
-      const sanitizedError = ENV_CONFIG.isProduction() ? sanitizeObject(error) : error;
+      const sanitizedError = isProductionMode() ? sanitizeObject(error) : error;
       secureLogger.error(`API ${method} ${sanitizedUrl} failed`, sanitizedError);
     } else {
       if (ENV_CONFIG.features.enableDetailedLogging()) {
@@ -238,7 +296,18 @@ export const secureLogger = {
    * Completely stripped from production builds via conditional compilation
    */
   e2e: (message: string, data?: any): void => {
-    if (__E2E_GLOBALS__ && ENV_CONFIG.isE2E()) {
+    const hasE2EFlag = (() => {
+      try {
+        if (typeof __E2E_GLOBALS__ !== 'undefined' && __E2E_GLOBALS__) {
+          return true;
+        }
+      } catch {
+        // ignore
+      }
+      return Boolean(macroGlobals.__E2E_GLOBALS__);
+    })();
+
+    if (hasE2EFlag && isE2EMode()) {
       console.log('[E2E]', message, data);
     }
   },
@@ -258,7 +327,7 @@ export const secureLogger = {
   getConfig: () => {
     return {
       environment: ENV_CONFIG.getMode(),
-      productionMode: ENV_CONFIG.isProduction(),
+      productionMode: isProductionMode(),
       developmentMode: ENV_CONFIG.isDevelopment(),
       e2eMode: ENV_CONFIG.isE2E(),
       detailedLogging: ENV_CONFIG.features.enableDetailedLogging(),

@@ -14,8 +14,9 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.context.annotation.DependsOn;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.beans.factory.ObjectProvider;
+import org.flywaydb.core.Flyway;
 // E2E DB is provided by profile-specific datasource config
 
 /**
@@ -36,13 +37,20 @@ public class E2EDataInitializer {
      * Initialize E2E test data on application startup.
      */
     @Bean
-    @DependsOn("flyway")
     public CommandLineRunner initE2ETestData(
             UserRepository userRepository, 
             CourseRepository courseRepository,
             TimesheetRepository timesheetRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            ObjectProvider<Flyway> flywayProvider) {
         return args -> {
+            flywayProvider.ifAvailable(flyway -> {
+                try {
+                    flyway.migrate();
+                } catch (Exception ignored) {
+                    System.out.println("⚠️  Flyway migration skipped or already applied: " + ignored.getMessage());
+                }
+            });
             System.out.println("\uD83D\uDE80 Starting E2E data initialization...");
             System.out.println("\uD83D\uDCCB Active profiles: " + System.getProperty("spring.profiles.active"));
             
@@ -224,3 +232,7 @@ public class E2EDataInitializer {
         };
     }
 }
+
+
+
+

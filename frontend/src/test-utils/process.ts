@@ -1,3 +1,4 @@
+import { secureLogger } from '../utils/secure-logger';
 /**
  * Process Management Utilities
  * Handles child process creation with proper cleanup to prevent hanging processes
@@ -68,7 +69,7 @@ export async function killProcessTree(pid: number, signal: NodeJS.Signals = 'SIG
       }
     }
   } catch (error) {
-    console.warn(`Failed to kill process tree ${pid}:`, error);
+    secureLogger.warn(`Failed to kill process tree ${pid}:`, error);
   }
 }
 
@@ -207,7 +208,7 @@ export async function killProcessesByPattern(pattern: string): Promise<void> {
       });
     }
   } catch (error) {
-    console.warn(`Failed to kill processes by pattern "${pattern}":`, error);
+    secureLogger.warn(`Failed to kill processes by pattern "${pattern}":`, error);
   }
 }
 
@@ -279,7 +280,7 @@ export async function cleanupPorts(...ports: number[]): Promise<void> {
       });
     }
   } catch (error) {
-    console.warn(`Failed to cleanup ports ${ports.join(', ')}:`, error);
+    secureLogger.warn(`Failed to cleanup ports ${ports.join(', ')}:`, error);
   }
 }
 

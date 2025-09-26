@@ -1,5 +1,15 @@
-import type { Config } from 'tailwindcss'
+import type { Config } from 'tailwindcss';
 
+/**
+ * @type {import('tailwindcss').Config}
+ * @description Tailwind CSS configuration file for the new design system.
+ *
+ * This configuration establishes a single source of truth for all styling-related
+ * constants (design tokens) such as colors, spacing, typography, and shadows.
+ *
+ * All CSS variables (`var(--variable-name)`) are expected to be defined in
+ * `src/index.css` to support theming (e.g., light and dark modes).
+ */
 const config: Config = {
   content: [
     './index.html',
@@ -17,8 +27,13 @@ const config: Config = {
           'sans-serif'
         ],
       },
+      /**
+       * Defines the application's color palette.
+       * We use CSS variables to allow for easy theming.
+       * For example, `--background` can be a different color for light and dark themes.
+       */
       colors: {
-        // Preserve existing brand colors from the original design
+        // Legacy brand colors - use with caution. Prefer the theme-aware colors below.
         brand: {
           primary: '#667eea',
           secondary: '#764ba2',
@@ -58,10 +73,29 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground))',
         },
       },
+      /**
+       * Defines the border radius scale for elements like cards and inputs.
+       * The values are tied to a CSS variable to allow for global adjustments.
+       */
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+      },
+      /**
+       * Defines a consistent typographic scale for the application.
+       * This ensures all text elements are harmonious and readable.
+       * Use these classes (e.g., `text-lg`, `text-body`) instead of arbitrary font sizes.
+       */
+      fontSize: {
+        'xs': ['0.75rem', { lineHeight: '1rem' }],
+        'sm': ['0.875rem', { lineHeight: '1.25rem' }],
+        'base': ['1rem', { lineHeight: '1.5rem' }],
+        'lg': ['1.125rem', { lineHeight: '1.75rem' }],
+        'xl': ['1.25rem', { lineHeight: '1.75rem' }],
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
       },
       keyframes: {
         'accordion-down': {
@@ -96,6 +130,6 @@ const config: Config = {
     },
   },
   plugins: [],
-}
+};
 
-export default config
+export default config;
