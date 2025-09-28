@@ -55,6 +55,39 @@ test.describe('Admin Dashboard Workflow', () => {
     }
   });
 
+
+  test('Admin end-to-end approval journey updates pending queue', async ({ page, request }) => {
+    const description = uniqueDescription('Admin Journey Approve');
+    const { id } = await createTimesheetWithStatus(request, tokens, {
+      description,
+      targetStatus: 'LECTURER_CONFIRMED'
+    });
+    seeded.push(id);
+
+    const loginPage = new LoginPage(page);
+    await loginPage.navigateTo();
+    await loginPage.loginAsAdmin();
+    await expect(page).toHaveURL(/\/dashboard$/);
+
+    const dashboardNav = page.getByRole('link', { name: 'Dashboard' });
+    await expect(dashboardNav).toHaveAttribute('aria-current', 'page');
+
+    await page.getByRole('button', { name: 'Pending Review' }).click();
+
+    const row = page.getByTestId(`timesheet-row-${id}`);
+    await expect(row).toBeVisible({ timeout: 15000 });
+
+    const approveButton = row.getByTestId(`approve-btn-${id}`);
+    await expect(approveButton).toBeEnabled();
+
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/api/approvals') && response.request().method() === 'POST'),
+      approveButton.click()
+    ]);
+
+    await expect(page.getByTestId(`timesheet-row-${id}`)).toHaveCount(0, { timeout: 10000 });
+  });
+
   test('Admin can reject lecturer confirmed timesheet with justification', async ({ page, request }) => {
     const description = uniqueDescription('Admin Reject');
     const { id } = await createTimesheetWithStatus(request, tokens, {

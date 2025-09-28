@@ -78,6 +78,12 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
   const [currentTab, setCurrentTab] = useState<'overview' | 'pending' | 'users' | 'analytics' | 'settings'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterQuery, setFilterQuery] = useState<TimesheetQuery>({});
+  const [rejectionModal, setRejectionModal] = useState<{ open: boolean; timesheetId: number | null }>({
+    open: false,
+    timesheetId: null
+  });
+  const [rejectionComment, setRejectionComment] = useState('');
+  const [rejectionValidationError, setRejectionValidationError] = useState<string | null>(null);
   
   const {
     loading: timesheetsLoading,
@@ -90,6 +96,8 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
     ...filterQuery,
     size: 50
   });
+
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
   const {
     data: dashboardData,
@@ -145,6 +153,72 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
     setCurrentTab(tab);
     setSelectedTimesheets([]);
   }, []);
+
+  const handleApprovalAction = useCallback(async (timesheetId: number, action: ApprovalAction) => {
+    if (action === 'REJECT') {
+      setRejectionModal({ open: true, timesheetId });
+      setRejectionComment('');
+      setRejectionValidationError(null);
+      return;
+    }
+
+    setActionLoadingId(timesheetId);
+    try {
+      await approveTimesheet({ timesheetId, action });
+      setSelectedTimesheets(prev => prev.filter(id => id !== timesheetId));
+      refreshTimesheets();
+      await refetchDashboard();
+    } catch (error) {
+      // Intentionally let existing error handling surface via approvalError
+    } finally {
+      setActionLoadingId(null);
+    }
+  }, [approveTimesheet, refreshTimesheets, refetchDashboard]);
+
+  const rejectionTargetTimesheet = useMemo(() => {
+    if (!rejectionModal.open || !rejectionModal.timesheetId) {
+      return null;
+    }
+    return allTimesheets.find(timesheet => timesheet.id === rejectionModal.timesheetId) ?? null;
+  }, [allTimesheets, rejectionModal]);
+
+  const handleRejectionCancel = useCallback(() => {
+    setRejectionModal({ open: false, timesheetId: null });
+    setRejectionComment('');
+    setRejectionValidationError(null);
+    resetApproval();
+  }, [resetApproval]);
+
+  const handleRejectionSubmit = useCallback(async () => {
+    if (!rejectionModal.open || !rejectionModal.timesheetId) {
+      return;
+    }
+
+    const trimmedComment = rejectionComment.trim();
+    if (trimmedComment.length < 3) {
+      setRejectionValidationError('Please provide a short justification before rejecting the timesheet.');
+      return;
+    }
+
+    setRejectionValidationError(null);
+    setActionLoadingId(rejectionModal.timesheetId);
+    try {
+      await approveTimesheet({
+        timesheetId: rejectionModal.timesheetId,
+        action: 'REJECT',
+        comment: trimmedComment
+      });
+      setSelectedTimesheets(prev => prev.filter(id => id !== rejectionModal.timesheetId));
+      refreshTimesheets();
+      await refetchDashboard();
+      setRejectionModal({ open: false, timesheetId: null });
+      setRejectionComment('');
+    } catch (error) {
+      // Error banner is handled via approvalError state
+    } finally {
+      setActionLoadingId(null);
+    }
+  }, [approveTimesheet, refetchDashboard, refreshTimesheets, rejectionComment, rejectionModal]);
 
   const handleGlobalSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -209,7 +283,7 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
       </header>
 
       <nav className="mb-8 border-b">
-        <div className="-mb-px flex space-x-6">
+        <div className="-mb-px flex space-x-6" data-testid="filters-section">
           {[
             { id: 'overview', label: 'System Overview' },
             { id: 'pending', label: 'Pending Review' },
@@ -260,6 +334,10 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
           role="region"
           aria-label="System Overview"
         >
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold" data-testid="system-overview-title">System Overview</h2>
+            <p className="text-sm text-muted-foreground">Key metrics tracking the health of the allocation programme.</p>
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5" data-testid="statistics-cards">
             <AdminStatCard
               title="Total Timesheets"
@@ -316,18 +394,78 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
               <TimesheetTable
                 timesheets={filteredTimesheets}
                 loading={timesheetsLoading}
+                actionLoading={actionLoadingId}
                 showActions={true}
                 showTutorInfo={true}
                 showCourseInfo={true}
                 showSelection={true}
                 selectedIds={selectedTimesheets}
                 onSelectionChange={setSelectedTimesheets}
+                onApprovalAction={handleApprovalAction}
                 className="admin-timesheet-table"
                 approvalRole="ADMIN"
               />
             </CardContent>
           </Card>
         </section>
+      )}
+
+      {rejectionModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-lg">
+            <CardHeader>
+              <CardTitle>Confirm Emergency Action</CardTitle>
+              <CardDescription>
+                Provide a brief justification before rejecting this timesheet. Your note will be shared with the tutor and lecturer.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {rejectionTargetTimesheet && (
+                <div className="mb-4 rounded-md border border-muted bg-muted/40 p-4 text-sm">
+                  <p className="font-semibold">{rejectionTargetTimesheet.tutorName ?? 'Tutor'} · {rejectionTargetTimesheet.courseName ?? 'Course'}</p>
+                  <p className="text-muted-foreground">
+                    Week starting {rejectionTargetTimesheet.weekStartDate} · {rejectionTargetTimesheet.description}
+                  </p>
+                </div>
+              )}
+              <label htmlFor="admin-rejection-comment" className="block text-sm font-medium text-foreground">
+                Reason for rejection:
+              </label>
+              <textarea
+                id="admin-rejection-comment"
+                name="admin-rejection-comment"
+                rows={4}
+                className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="e.g., Adjust the recorded hours to match the signed log sheet."
+                value={rejectionComment}
+                onChange={(event) => setRejectionComment(event.target.value)}
+                disabled={actionLoadingId === rejectionModal.timesheetId}
+              />
+              {rejectionValidationError && (
+                <p className="mt-2 text-sm text-destructive">{rejectionValidationError}</p>
+              )}
+              <div className="mt-6 flex justify-end gap-2">
+                <Button variant="outline" onClick={handleRejectionCancel}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleRejectionSubmit}
+                  disabled={actionLoadingId === rejectionModal.timesheetId}
+                >
+                  {actionLoadingId === rejectionModal.timesheetId ? (
+                    <div className="flex items-center gap-2">
+                      <LoadingSpinner size="small" />
+                      <span>Processing...</span>
+                    </div>
+                  ) : (
+                    'Confirm Action'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

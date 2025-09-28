@@ -857,6 +857,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       {/* Header Section */}
       <header className="mb-8 space-y-2">
         <h1 className="text-3xl font-bold tracking-tight" data-testid="main-welcome-message">{welcomeMessage}</h1>
+        <p className="text-muted-foreground" data-testid="main-dashboard-title">Tutor Dashboard</p>
         <p className="text-muted-foreground" data-testid="main-dashboard-description">
           Here's an overview of your timesheets and earnings. Let's get started.
         </p>
@@ -868,13 +869,13 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           {timesheetsError && (
             <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
               <span>Failed to load timesheets: {timesheetsError}</span>
-              <Button variant="destructive" size="sm" className="ml-4" onClick={() => refetchTimesheets()}>Retry</Button>
+              <Button variant="destructive" size="sm" className="ml-4" data-testid="retry-button-timesheets" onClick={() => refetchTimesheets()}>Retry</Button>
             </div>
           )}
           {dashboardError && (
             <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
               <span>Failed to load dashboard: {dashboardError}</span>
-              <Button variant="destructive" size="sm" className="ml-4" onClick={refetchDashboard}>Retry</Button>
+              <Button variant="destructive" size="sm" className="ml-4" data-testid="retry-button-dashboard" onClick={refetchDashboard}>Retry</Button>
             </div>
           )}
           {(createError || updateError) && (
@@ -983,7 +984,15 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle data-testid="timesheets-section-title">My Timesheets</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle data-testid="timesheets-section-title">My Timesheets</CardTitle>
+                      <span 
+                        className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary" 
+                        data-testid="count-badge"
+                      >
+                        {allTimesheets.length} total
+                      </span>
+                    </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       Manage all your work logs here.
                     </p>
@@ -1049,7 +1058,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                   <div className="py-12 text-center" data-testid="empty-state">
                     <div className="mx-auto max-w-xs">
                       <h3 className="text-lg font-semibold" data-testid="empty-state-title">
-                        No Timesheets Yet
+                        No Timesheets Found
                       </h3>
                       <p className="mt-2 text-sm text-muted-foreground" data-testid="empty-state-description">
                         Create your first timesheet to get started.

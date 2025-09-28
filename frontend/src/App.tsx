@@ -1,5 +1,6 @@
 // React import removed as it's not needed in React 17+
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import DashboardLayout from './components/DashboardLayout';
@@ -23,6 +24,83 @@ setupGlobalErrorHandling(errorLogger);
 // Log application startup
 secureLogger.info('CATAMS Application starting up');
 
+// Helper to wrap protected dashboard routes
+function createDashboardElement(content: ReactNode) {
+  return (
+    <ErrorBoundary level="page">
+      <ProtectedRoute>
+        <DashboardLayout>
+          <ErrorBoundary level="component">{content}</ErrorBoundary>
+        </DashboardLayout>
+      </ProtectedRoute>
+    </ErrorBoundary>
+  );
+}
+
+type PlaceholderPageProps = {
+  title: string;
+  description?: string;
+  children?: ReactNode;
+};
+
+function PlaceholderPage({ title, description, children }: PlaceholderPageProps) {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
+      {description && (
+        <p className="text-muted-foreground">{description}</p>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function TimesheetsPage() {
+  return (
+    <PlaceholderPage
+      title="Timesheets"
+      description="Full timesheet management is being restored. For now, continue using the dashboard actions to manage drafts and submissions."
+    />
+  );
+}
+
+function ApprovalsPage() {
+  return (
+    <PlaceholderPage
+      title="Approvals"
+      description="Approval workflows are available from the dashboard while we finish re-enabling dedicated approval screens."
+    />
+  );
+}
+
+function UsersPage() {
+  return (
+    <PlaceholderPage
+      title="User Management"
+      description="Administrator tools for managing users will return shortly. Existing data remains accessible from the dashboard summaries."
+    />
+  );
+}
+
+function ReportsPage() {
+  return (
+    <PlaceholderPage
+      title="Reports & Analytics"
+      description="Detailed reports are under reconstruction. Use the dashboard KPIs for the most up-to-date metrics."
+    />
+  );
+}
+
+function ApprovalsHistoryPage() {
+  return (
+    <PlaceholderPage
+      title="Approval History"
+      description="The archived approval log is being migrated. We'll surface the complete history here once the migration is complete."
+    >
+      <Link to="/approvals" className="text-primary underline">Return to approvals</Link>
+    </PlaceholderPage>
+  );
+}
 // Component to determine which dashboard to show based on user role
 const DashboardRoute = () => {
   const { user } = useAuth();
@@ -60,21 +138,12 @@ function App() {
               />
               
               {/* Protected routes */}
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ErrorBoundary level="page">
-                    <ProtectedRoute>
-                      <DashboardLayout>
-                        <ErrorBoundary level="component">
-                          <DashboardRoute />
-                        </ErrorBoundary>
-                      </DashboardLayout>
-                    </ProtectedRoute>
-                  </ErrorBoundary>
-                } 
-              />
-              
+              <Route path="/dashboard" element={createDashboardElement(<DashboardRoute />)} />
+              <Route path="/timesheets" element={createDashboardElement(<TimesheetsPage />)} />
+              <Route path="/approvals" element={createDashboardElement(<ApprovalsPage />)} />
+              <Route path="/approvals/history" element={createDashboardElement(<ApprovalsHistoryPage />)} />
+              <Route path="/users" element={createDashboardElement(<UsersPage />)} />
+              <Route path="/reports" element={createDashboardElement(<ReportsPage />)} />              
               {/* Redirect root to dashboard */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
@@ -89,4 +158,8 @@ function App() {
 }
 
 export default App;
+
+
+
+
 

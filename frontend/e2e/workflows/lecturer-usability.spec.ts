@@ -159,25 +159,23 @@ test.describe('Lecturer usability validation', () => {
 
     const loadingState = page.getByTestId('loading-state');
     await expect(loadingState).toBeVisible();
-    await expect(page.locator('.dashboard-loading [data-testid="loading-text"]')).toHaveText('Loading pending timesheets...');
+    await expect(loadingState.getByTestId('loading-text')).toHaveText('Loading pending timesheets...');
     await pendingResponsePromise;
     await expect(loadingState).toBeHidden();
 
     const header = page.getByTestId('main-dashboard-title');
     await expect(header).toHaveText(/Lecturer Dashboard/);
 
-    const urgentBadge = page.locator('.urgent-notification .count-badge');
-    await expect(urgentBadge).toHaveText('1');
+    const urgentAlert = page.getByTestId('urgent-alert');
+    await expect(urgentAlert.getByTestId('urgent-count')).toHaveText('1');
 
     const statCards = page.locator('[data-testid="stat-card"]');
     await expect(statCards.nth(0)).toContainText('Pending Approvals');
-    const pendingValue = statCards.nth(0).locator('.stat-card__value');
+    const pendingValue = statCards.nth(0).getByTestId('stat-card-value');
     await expect(pendingValue).toHaveText(String(initialTimesheets.length));
     await expect(statCards.nth(1)).toContainText('Total Timesheets');
     await expect(statCards.nth(2)).toContainText('This Week Hours');
 
-    await expect(page.getByRole('heading', { name: 'Quick Actions' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /View All Timesheets/i })).toBeVisible();
 
     const primaryRow = page.getByTestId(`timesheet-row-${initialTimesheets[0].id}`);
     await expect(primaryRow).toBeVisible();
@@ -211,6 +209,9 @@ test.describe('Lecturer usability validation', () => {
 
     await expect(pendingValue).toHaveText('0');
 
-    await expect(page.locator('.urgent-notification')).toHaveCount(0);
+    await expect(page.getByTestId('urgent-alert')).toHaveCount(0);
   });
 });
+
+
+

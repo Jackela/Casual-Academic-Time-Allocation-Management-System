@@ -114,7 +114,12 @@ export class TutorDashboardPage {
 
   async expectErrorState() {
     await expect(this.errorMessage).toBeVisible();
-    await expect(this.retryButton).toBeVisible();
+    // Check for either specific retry button
+    const retryTimesheets = this.page.getByTestId('retry-button-timesheets');
+    const retryDashboard = this.page.getByTestId('retry-button-dashboard');
+    const hasRetryButton = await retryTimesheets.isVisible().catch(() => false) || 
+                          await retryDashboard.isVisible().catch(() => false);
+    expect(hasRetryButton).toBe(true);
   }
 
   async expectEmptyState() {
@@ -361,20 +366,22 @@ export class TutorDashboardPage {
 
   // Utility methods
   async retryDataLoad() {
-    const buttons = this.page.getByTestId('retry-button');
-    const count = await buttons.count();
-    if (count === 0) {
-      return;
-    }
+    // Try to find specific retry buttons
+    const retryTimesheets = this.page.getByTestId('retry-button-timesheets');
+    const retryDashboard = this.page.getByTestId('retry-button-dashboard');
+    
     const responsePromise = this.page.waitForResponse((response) =>
       response.url().includes('/api/timesheets') && response.request().method() === 'GET'
     ).catch(() => null);
-    await buttons.nth(0).click();
-    if (count > 1) {
-      for (let i = 1; i < count; i++) {
-        await buttons.nth(i).click();
-      }
+    
+    // Click retry buttons if they exist
+    if (await retryTimesheets.isVisible().catch(() => false)) {
+      await retryTimesheets.click();
     }
+    if (await retryDashboard.isVisible().catch(() => false)) {
+      await retryDashboard.click();
+    }
+    
     await responsePromise;
   }
 

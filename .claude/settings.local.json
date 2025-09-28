@@ -23,7 +23,8 @@
       "Bash(findstr:*)",
       "Bash(npm test:*)",
       "Bash(npm run lint)",
-      "Bash(./gradlew:*)"
+      "Bash(./gradlew:*)",
+      "Bash(npm run test:ai:fast:*)"
     ],
     "deny": []
   }

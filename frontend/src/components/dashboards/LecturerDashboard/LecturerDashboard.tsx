@@ -47,7 +47,7 @@ const StatCard = memo<StatCardProps>(({
       {icon && <span className="text-2xl text-muted-foreground">{icon}</span>}
     </CardHeader>
     <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-2xl font-bold" data-testid="stat-card-value">{value}</div>
       {subtitle && (
         <p className="text-xs text-muted-foreground">
           {trend === 'up' && '↗ '}
@@ -227,14 +227,14 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
       <header className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" data-testid="main-welcome-message">{welcomeMessage}</h1>
-          <p className="text-muted-foreground">Lecturer Dashboard</p>
+          <p className="text-muted-foreground" data-testid="main-dashboard-title">Lecturer Dashboard</p>
           {urgentCount > 0 && (
-            <div className="mt-2 flex items-center text-sm font-semibold text-destructive">
+            <div className="mt-2 flex items-center text-sm font-semibold text-destructive" data-testid="urgent-alert">
               <span className="relative mr-2 flex h-3 w-3">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
                 <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500"></span>
               </span>
-              {urgentCount} urgent approvals needed
+              <span data-testid="urgent-count">{urgentCount}</span> urgent approvals needed
             </div>
           )}
         </div>
@@ -251,13 +251,13 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
           {pendingError && (
             <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
               <span>Failed to fetch pending timesheets: {pendingError}</span>
-              <Button variant="destructive" size="sm" className="ml-4" onClick={() => refetchPending()}>Retry</Button>
+              <Button variant="destructive" size="sm" className="ml-4" data-testid="retry-button-pending" onClick={() => refetchPending()}>Retry</Button>
             </div>
           )}
           {dashboardError && (
             <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
               <span>Failed to fetch dashboard summary: {dashboardError}</span>
-              <Button variant="destructive" size="sm" className="ml-4" onClick={() => refetchDashboard()}>Retry</Button>
+              <Button variant="destructive" size="sm" className="ml-4" data-testid="retry-button-dashboard" onClick={() => refetchDashboard()}>Retry</Button>
             </div>
           )}
           {approvalError && (
@@ -268,6 +268,7 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
                   <Button
                     variant="ghost"
                     size="sm"
+                    data-testid="approval-error-details-toggle"
                     onClick={() => setShowErrorDetails(prev => !prev)}
                   >
                     {showErrorDetails ? 'Hide details' : 'Details'}
@@ -285,7 +286,7 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
                 </div>
               </div>
               {showErrorDetails && (
-                <pre className="mt-2 rounded-md bg-black/10 p-2 text-xs">{approvalError}</pre>
+                <pre className="mt-2 rounded-md bg-black/10 p-2 text-xs" data-testid="approval-error-raw">{approvalError}</pre>
               )}
             </div>
           )}
@@ -359,14 +360,14 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
             </CardHeader>
             <CardContent>
               {noPendingTimesheets ? (
-                <div className="py-12 text-center">
+                <div className="py-12 text-center" data-testid="empty-state">
                   <div className="mx-auto max-w-xs">
-                    <h3 className="text-lg font-semibold">No Pending Timesheets</h3>
+                    <h3 className="text-lg font-semibold" data-testid="empty-state-title">No Pending Timesheets</h3>
                     <p className="mt-2 text-sm text-muted-foreground">
                       All caught up! No timesheets are waiting for your review.
                     </p>
                     <Button asChild variant="link" className="mt-4">
-                      <Link to="/approvals/history">View Approval History</Link>
+                      <Link to="/approvals/history" data-testid="cta-view-approval-history">View Approval History</Link>
                     </Button>
                   </div>
                 </div>
@@ -449,6 +450,10 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = '' }) => {
 LecturerDashboard.displayName = 'LecturerDashboard';
 
 export default LecturerDashboard;
+
+
+
+
 
 
 

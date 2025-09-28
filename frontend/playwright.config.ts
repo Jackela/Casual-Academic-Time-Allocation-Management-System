@@ -145,7 +145,7 @@ export default defineConfig({
         webServer: {
           command: `npm run dev -- --mode e2e --port ${FRONTEND_PORT}`,
           url: E2E_CONFIG.FRONTEND.URL,
-          reuseExistingServer: false,
+          reuseExistingServer: !process.env.CI, // Reuse in dev, fresh in CI
           timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.STARTUP,
           env: {
             ...process.env,

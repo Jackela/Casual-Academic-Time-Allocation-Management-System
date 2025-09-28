@@ -48,6 +48,10 @@ const mockHooks = timesheetHooks as unknown as {
   useTimesheetStats: ReturnType<typeof vi.fn>;
 };
 
+let approveTimesheetMock: ReturnType<typeof vi.fn>;
+let batchApproveMock: ReturnType<typeof vi.fn>;
+let resetApprovalMock: ReturnType<typeof vi.fn>;
+
 const mockAdminUser = createMockUser({
   role: 'ADMIN',
   firstName: 'Sarah',
@@ -113,6 +117,10 @@ beforeEach(() => {
     logout: vi.fn()
   });
 
+  approveTimesheetMock = vi.fn();
+  batchApproveMock = vi.fn();
+  resetApprovalMock = vi.fn();
+
   mockHooks.useTimesheets.mockReturnValue({
     data: mockSystemTimesheets,
     loading: false,
@@ -134,9 +142,9 @@ beforeEach(() => {
   mockHooks.useApprovalAction.mockReturnValue({
     loading: false,
     error: null,
-    approveTimesheet: vi.fn(),
-    batchApprove: vi.fn(),
-    reset: vi.fn()
+    approveTimesheet: approveTimesheetMock,
+    batchApprove: batchApproveMock,
+    reset: resetApprovalMock
   });
 
   mockHooks.useTimesheetStats.mockReturnValue(mockAdminStats);
@@ -246,6 +254,78 @@ describe('AdminDashboard Component', () => {
     expect(screen.getByText(/Failed to load admin dashboard data/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
   });
+
+  it('triggers admin approval action when Final Approve is clicked', async () => {
+    const approvalTimesheets = createMockTimesheetPage(1, { idStart: 901 }, {
+      status: 'LECTURER_CONFIRMED',
+    });
+
+    mockHooks.useTimesheets.mockReturnValue({
+      data: approvalTimesheets,
+      loading: false,
+      error: null,
+      timesheets: approvalTimesheets.timesheets,
+      isEmpty: false,
+      updateQuery: vi.fn(),
+      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue(undefined)
+    });
+
+    approveTimesheetMock.mockResolvedValue({ success: true, message: 'approved', timesheetId: approvalTimesheets.timesheets[0].id, newStatus: 'HR_CONFIRM' } as any);
+
+    const user = userEvent.setup();
+    render(<AdminDashboard />);
+
+    const navigation = screen.getByRole('navigation');
+    await user.click(within(navigation).getByRole('button', { name: /pending review/i }));
+
+    const approveButton = await screen.findByRole('button', { name: /final approve/i });
+    await user.click(approveButton);
+
+    expect(approveTimesheetMock).toHaveBeenCalledWith({
+      timesheetId: approvalTimesheets.timesheets[0].id,
+      action: 'HR_CONFIRM'
+    });
+  });
+
+  it('triggers admin rejection action when Reject is clicked', async () => {
+    const rejectionTimesheets = createMockTimesheetPage(1, { idStart: 915 }, {
+      status: 'LECTURER_CONFIRMED',
+    });
+
+    mockHooks.useTimesheets.mockReturnValue({
+      data: rejectionTimesheets,
+      loading: false,
+      error: null,
+      timesheets: rejectionTimesheets.timesheets,
+      isEmpty: false,
+      updateQuery: vi.fn(),
+      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue(undefined)
+    });
+
+    approveTimesheetMock.mockResolvedValue({ success: true, message: 'rejected', timesheetId: rejectionTimesheets.timesheets[0].id, newStatus: 'REJECTED' } as any);
+
+    const user = userEvent.setup();
+    render(<AdminDashboard />);
+
+    const navigation = screen.getByRole('navigation');
+    await user.click(within(navigation).getByRole('button', { name: /pending review/i }));
+
+    const rejectButton = await screen.findByRole('button', { name: /^Reject$/i });
+    await user.click(rejectButton);
+
+    const reasonField = await screen.findByLabelText(/Reason for rejection/i);
+    await user.type(reasonField, 'Timesheet needs correction');
+    await user.click(screen.getByRole('button', { name: /Confirm Action/i }));
+
+    expect(approveTimesheetMock).toHaveBeenCalledWith({
+      timesheetId: rejectionTimesheets.timesheets[0].id,
+      action: 'REJECT',
+      comment: 'Timesheet needs correction'
+    });
+  });
+
 });
 
 
