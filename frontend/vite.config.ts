@@ -1,9 +1,22 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "@/components": path.resolve(__dirname, "./src/components"),
+      "@/lib": path.resolve(__dirname, "./src/lib"),
+      "@/utils": path.resolve(__dirname, "./src/utils"),
+      "@/hooks": path.resolve(__dirname, "./src/hooks"),
+      "@/types": path.resolve(__dirname, "./src/types"),
+      "@/services": path.resolve(__dirname, "./src/services"),
+      "@/contexts": path.resolve(__dirname, "./src/contexts"),
+    },
+  },
   server: {
     port: 5174,
     strictPort: true
@@ -15,7 +28,8 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
-          api: ['axios']
+          api: ['axios'],
+          ui: ['@radix-ui/react-slot', 'class-variance-authority', 'clsx', 'tailwind-merge'],
         }
       }
     },

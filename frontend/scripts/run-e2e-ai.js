@@ -14,6 +14,8 @@ const projectRoot = join(__dirname, "..");
 
 const FRONTEND_PORT = Number(process.env.E2E_FRONTEND_PORT || 5174);
 const BACKEND_PORT = Number(process.env.E2E_BACKEND_PORT || 8084);
+const FRONTEND_HOST = process.env.E2E_FRONTEND_HOST || 'localhost';
+const BACKEND_HOST = process.env.E2E_BACKEND_HOST || '127.0.0.1';
 const BACKEND_HEALTH_PATH = process.env.E2E_BACKEND_HEALTH || "/actuator/health";
 const FRONTEND_HEALTH_PATH = process.env.E2E_FRONTEND_HEALTH || "/";
 const PLAYWRIGHT_CMD = process.env.PLAYWRIGHT_CMD || "npx";
@@ -57,14 +59,14 @@ function spawnFrontend() {
   return child;
 }
 
-async function waitForHttpReady({ port, path, label, timeoutMs = 120000 }) {
+async function waitForHttpReady({ host, port, path, label, timeoutMs = 120000 }) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
       await new Promise((resolve, reject) => {
         const req = http.request(
           {
-            hostname: "127.0.0.1",
+            hostname: host,
             port,
             path,
             method: "GET"
@@ -161,7 +163,7 @@ async function main() {
     log("backend", `Port ${BACKEND_PORT} already in use. Assuming backend is running`, "\x1b[33m");
   } else {
     backendProcess = spawnBackend();
-    await waitForHttpReady({ port: BACKEND_PORT, path: BACKEND_HEALTH_PATH, label: "backend" });
+    await waitForHttpReady({ host: BACKEND_HOST, port: BACKEND_PORT, path: BACKEND_HEALTH_PATH, label: "backend" });
   }
 
   const frontendBusy = await portInUse(FRONTEND_PORT);
@@ -169,7 +171,7 @@ async function main() {
     log("frontend", `Port ${FRONTEND_PORT} already in use. Will reuse existing server`, "\x1b[33m");
   } else {
     frontendProcess = spawnFrontend();
-    await waitForHttpReady({ port: FRONTEND_PORT, path: FRONTEND_HEALTH_PATH, label: "frontend" });
+    await waitForHttpReady({ host: FRONTEND_HOST, port: FRONTEND_PORT, path: FRONTEND_HEALTH_PATH, label: "frontend" });
   }
 
   const exitCode = await runPlaywright();

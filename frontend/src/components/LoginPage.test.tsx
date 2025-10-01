@@ -53,6 +53,9 @@ const buildLoginResponse = (overrides?: Partial<LoginResponse>): ApiResponse<Log
 const mockNavigate = vi.fn() as MockedFunction<(to: string | number, options?: { replace?: boolean }) => void>;
 const mockLocation = { state: null as any };
 
+let bypassRoleSnapshot: string | undefined;
+let e2eBypassSnapshot: string | undefined;
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
@@ -88,6 +91,11 @@ describe('LoginPage Component Tests', () => {
 
     // Reset navigation mock
     mockNavigate.mockClear();
+    bypassRoleSnapshot = process.env.VITE_E2E_AUTH_BYPASS_ROLE;
+    e2eBypassSnapshot = process.env.E2E_AUTH_BYPASS_ROLE;
+
+    delete process.env.VITE_E2E_AUTH_BYPASS_ROLE;
+    delete process.env.E2E_AUTH_BYPASS_ROLE;
 
     // Reset location mock state
     mockLocation.state = null;
@@ -95,6 +103,18 @@ describe('LoginPage Component Tests', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+
+    if (bypassRoleSnapshot !== undefined) {
+      process.env.VITE_E2E_AUTH_BYPASS_ROLE = bypassRoleSnapshot;
+    } else {
+      delete process.env.VITE_E2E_AUTH_BYPASS_ROLE;
+    }
+
+    if (e2eBypassSnapshot !== undefined) {
+      process.env.E2E_AUTH_BYPASS_ROLE = e2eBypassSnapshot;
+    } else {
+      delete process.env.E2E_AUTH_BYPASS_ROLE;
+    }
   });
 
   describe('Rendering and Initial State', () => {
@@ -664,6 +684,10 @@ describe('LoginPage Component Tests', () => {
     });
   });
 });
+
+
+
+
 
 
 

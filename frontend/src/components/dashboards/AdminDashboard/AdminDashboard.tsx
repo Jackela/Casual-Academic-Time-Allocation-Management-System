@@ -7,11 +7,11 @@
 
 import { memo, useMemo, useCallback, useState, useEffect } from 'react';
 import { 
-  useTimesheets,
-  useDashboardSummary, 
+  useTimesheetQuery,
+  useTimesheetDashboardSummary, 
   useApprovalAction,
   useTimesheetStats 
-} from '../../../hooks/useTimesheets';
+} from '../../../hooks/timesheets';
 import { useAuth } from '../../../contexts/AuthContext';
 import TimesheetTable from '../../shared/TimesheetTable/TimesheetTable';
 import LoadingSpinner from '../../shared/LoadingSpinner/LoadingSpinner';
@@ -92,7 +92,7 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
     isEmpty: noTimesheets,
     updateQuery,
     refresh: refreshTimesheets
-  } = useTimesheets({ 
+  } = useTimesheetQuery({ 
     ...filterQuery,
     size: 50
   });
@@ -104,7 +104,7 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
     loading: dashboardLoading,
     error: dashboardError,
     refetch: refetchDashboard
-  } = useDashboardSummary(true);
+  } = useTimesheetDashboardSummary({ scope: 'admin' });
 
   const {
     loading: approvalLoading,
@@ -166,14 +166,17 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
     try {
       await approveTimesheet({ timesheetId, action });
       setSelectedTimesheets(prev => prev.filter(id => id !== timesheetId));
-      refreshTimesheets();
-      await refetchDashboard();
+      await Promise.all([
+        refreshTimesheets(),
+        refetchDashboard()
+      ]);
+      resetApproval();
     } catch (error) {
       // Intentionally let existing error handling surface via approvalError
     } finally {
       setActionLoadingId(null);
     }
-  }, [approveTimesheet, refreshTimesheets, refetchDashboard]);
+  }, [approveTimesheet, refreshTimesheets, refetchDashboard, resetApproval]);
 
   const rejectionTargetTimesheet = useMemo(() => {
     if (!rejectionModal.open || !rejectionModal.timesheetId) {
@@ -474,4 +477,6 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
 AdminDashboard.displayName = 'AdminDashboard';
 
 export default AdminDashboard;
+
+
 

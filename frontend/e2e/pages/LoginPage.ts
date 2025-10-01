@@ -31,8 +31,8 @@ export class LoginPage {
   }
 
   async navigateTo() {
-    await this.page.goto('/login');
-    await this.page.waitForLoadState('networkidle');
+    const targetUrl = `${E2E_CONFIG.FRONTEND.URL}/login`;
+    await this.page.goto(targetUrl, { waitUntil: 'networkidle' });
   }
 
   async fillCredentials(email: string, password: string) {
@@ -44,22 +44,95 @@ export class LoginPage {
     await this.submitButton.click();
   }
 
+  private isDashboardUrl(url: string | URL): boolean {
+    try {
+      const parsed = typeof url === 'string' ? new URL(url, this.page.url()) : url;
+      return parsed.pathname.startsWith('/dashboard');
+    } catch {
+      return false;
+    }
+  }
+
+  private isLoginUrl(url: string | URL): boolean {
+    try {
+      const parsed = typeof url === "string" ? new URL(url, this.page.url()) : url;
+      return parsed.pathname.startsWith('/login');
+    } catch {
+      return false;
+    }
+  }
+  private async navigateToLoginWithFreshSession(loginUrl: string) {
+    const context = this.page.context();
+
+    try {
+      await context.clearCookies();
+    } catch {
+      // ignore cookie clearing issues in unsupported environments
+    }
+
+    try {
+      await context.clearPermissions();
+    } catch {
+      // ignore permission clearing issues in unsupported environments
+    }
+
+    await this.page.goto(loginUrl, { waitUntil: 'domcontentloaded' });
+    await this.page.evaluate(() => {
+      try {
+        window.localStorage.clear();
+        window.sessionStorage.clear();
+      } catch {
+        // ignore storage clearing issues
+      }
+    });
+    await this.page.goto(loginUrl, { waitUntil: 'domcontentloaded' });
+  }
+
+
+  private async ensureOnLoginPage() {
+    const loginUrl = `${E2E_CONFIG.FRONTEND.URL}/login`;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await this.navigateToLoginWithFreshSession(loginUrl);
+      if (this.isLoginUrl(this.page.url())) {
+        break;
+      }
+    }
+
+    await expect(this.page).toHaveURL(url => this.isLoginUrl(url), { timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.PAGE_LOAD });
+    await expect(this.loginForm).toBeVisible({ timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.PAGE_LOAD });
+    await expect(this.emailInput).toBeVisible();
+    await expect(this.passwordInput).toBeVisible();
+    await expect(this.submitButton).toBeVisible();
+  }
+
   async login(email: string, password: string) {
+    await this.ensureOnLoginPage();
     await this.fillCredentials(email, password);
-    
-    // Wait for both backend auth response and navigation to dashboard to avoid race conditions
-    const [response] = await Promise.all([
-      this.page.waitForResponse(`**${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`),
-      this.page.waitForURL('/dashboard', { timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.PAGE_LOAD }),
-      this.submitForm()
-    ]);
-    // Post-navigation stabilization: ensure network is idle and main content is present
-    try {
-      await this.page.waitForLoadState('networkidle');
-    } catch {}
-    try {
-      await this.page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
-    } catch {}
+
+    const authEndpoint = E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN;
+    const loginResponsePromise = this.page.waitForResponse((response) => {
+      if (!response.url().includes(authEndpoint)) {
+        return false;
+      }
+      return response.request().method().toUpperCase() === 'POST';
+    }, { timeout: E2E_CONFIG.BACKEND.TIMEOUTS.API_REQUEST });
+
+    const navigationPromise = this.page.waitForURL((url) => this.isDashboardUrl(url), {
+      timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.PAGE_LOAD,
+      waitUntil: 'networkidle',
+    });
+
+    await this.submitForm();
+
+    const response = await loginResponsePromise;
+    await navigationPromise;
+
+    await this.page.waitForLoadState('networkidle');
+    await expect(this.page).toHaveURL((url) => this.isDashboardUrl(url));
+
+    const dashboardMarker = this.page.locator('[data-testid="main-content"], [data-testid="dashboard-root"], [data-testid="dashboard-shell"]');
+    await dashboardMarker.first().waitFor({ timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.PAGE_LOAD }).catch(() => undefined);
 
     return response;
   }

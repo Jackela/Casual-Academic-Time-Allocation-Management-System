@@ -47,12 +47,7 @@ test.describe('Admin Dashboard Workflow', () => {
       approveButton.click()
     ]);
 
-    const remainingRows = await row.count();
-    if (remainingRows === 0) {
-      await expect(page.getByTestId(`timesheet-row-${id}`)).toHaveCount(0);
-    } else {
-      await expect(row.getByTestId(`status-badge-${id}`)).toContainText(/Final Confirmed|HR Confirmed/i, { timeout: 10000 });
-    }
+    await expect(page.getByTestId(`timesheet-row-${id}`)).toHaveCount(0, { timeout: 15000 });
   });
 
 
@@ -125,12 +120,7 @@ test.describe('Admin Dashboard Workflow', () => {
     const rejectionResponse = await rejectionResponsePromise;
     expect(rejectionResponse.ok()).toBeTruthy();
 
-    const remainingRows = await row.count();
-    if (remainingRows === 0) {
-      await expect(page.getByTestId(`timesheet-row-${id}`)).toHaveCount(0);
-    } else {
-      await expect(row.getByTestId(`status-badge-${id}`)).toContainText(/Rejected/i, { timeout: 10000 });
-    }
+    await expect(page.getByTestId(`timesheet-row-${id}`)).toHaveCount(0, { timeout: 15000 });
   });
 
   test('Admin dashboard shows system overview metrics and filters', async ({ page }) => {

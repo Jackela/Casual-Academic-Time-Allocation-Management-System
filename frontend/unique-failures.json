@@ -1,0 +1,79 @@
+[
+  {
+    "Spec": "当 Lecturer 加载待审批数据时，UI 显示加载状态并在完成后隐藏",
+    "File": "modules/lecturer-workflow.spec.ts",
+    "Projects": [
+      "chromium",
+      "firefox"
+    ],
+    "Message": "Error: \u001b[31mTimed out 2000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m"
+  },
+  {
+    "Spec": "当 Lecturer 审批失败时，UI应显示错误提示并且按钮可再次点击",
+    "File": "modules/lecturer-workflow.spec.ts",
+    "Projects": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "Message": "Error: \u001b[31mTimed out 5000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m"
+  },
+  {
+    "Spec": "Admin can final approve lecturer confirmed timesheet",
+    "File": "modules/admin-workflow.spec.ts",
+    "Projects": [
+      "firefox",
+      "webkit"
+    ],
+    "Message": "Error: \u001b[31mTimed out 10000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m"
+  },
+  {
+    "Spec": "Admin can reject lecturer confirmed timesheet with justification",
+    "File": "modules/admin-workflow.spec.ts",
+    "Projects": [
+      "firefox",
+      "webkit"
+    ],
+    "Message": "Error: \u001b[31mTimed out 10000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m"
+  },
+  {
+    "Spec": "handles API errors and recovers after retry",
+    "File": "modules/tutor-workflow.spec.ts",
+    "Projects": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "Message": "Error: \u001b[31mTimed out 5000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m"
+  },
+  {
+    "Spec": "renders empty state when there are no timesheets",
+    "File": "modules/tutor-workflow.spec.ts",
+    "Projects": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "Message": "Error: \u001b[31mTimed out 15000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m"
+  },
+  {
+    "Spec": "should authenticate via UI and maintain session",
+    "File": "tests/working-auth.spec.ts",
+    "Projects": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "Message": "Error: \u001b[31mTimed out 5000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m"
+  },
+  {
+    "Spec": "shows loading state while fetching data",
+    "File": "modules/tutor-workflow.spec.ts",
+    "Projects": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "Message": "Error: \u001b[31mTimed out 5000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m"
+  }
+]

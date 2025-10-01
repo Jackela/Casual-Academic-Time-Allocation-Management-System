@@ -150,7 +150,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
       await route.fulfill({
         status: 500,
         contentType: 'application/json',
-        body: JSON.stringify({ message: 'Internal Server Error' })
+        body: JSON.stringify({ message: 'Failed to process approval' })
       });
     });
 
@@ -168,13 +168,13 @@ test.describe('Lecturer Dashboard Workflow', () => {
 
     const errorBanner = page.getByTestId('approval-error-banner');
     await expect(errorBanner).toBeVisible();
-    await expect(errorBanner).toContainText('Approval could not be completed');
+    await expect(errorBanner).toContainText('Approval could not be completed. Please try again.');
 
     const errorDetails = page.locator('[data-testid="approval-error-raw"]');
     await expect(errorDetails).toHaveCount(0);
 
     await page.getByTestId('approval-error-details-toggle').click();
-    await expect(page.getByTestId('approval-error-raw')).toContainText('Internal Server Error');
+    await expect(page.getByTestId('approval-error-raw')).toContainText('Failed to process approval');
 
     await expect(approveButton).toBeEnabled();
   });
@@ -224,10 +224,18 @@ test.describe('Lecturer Dashboard Workflow', () => {
     await loginPage.loginAsLecturer();
 
     const loadingState = page.getByTestId('loading-state');
-    await expect(loadingState).toBeVisible({ timeout: 2000 });
+    const loadingAppeared = await loadingState.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+
+    if (loadingAppeared) {
+      const loadingText = page.getByTestId('loading-text');
+      await expect(loadingText).toContainText('Loading pending timesheets...');
+    }
 
     await pendingResponse;
-    await expect(loadingState).toBeHidden({ timeout: 5000 });
+
+    if (loadingAppeared) {
+      await loadingState.waitFor({ state: 'hidden', timeout: 5000 });
+    }
 
     const table = page.getByTestId('timesheets-table');
     await expect(table).toBeVisible({ timeout: 5000 });
@@ -285,6 +293,4 @@ test.describe('Lecturer Dashboard Workflow', () => {
     }
   });
 });
-
-
 

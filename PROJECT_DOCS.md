@@ -149,3 +149,11 @@ sequenceDiagram
 - Scope: This document reflects the current green baseline. Future, exploratory, or microservices-oriented documents are marked as "future (not adopted in baseline v1)" to avoid confusion.
 
 
+
+## Frontend Maintenance Cleanup (2025-09-28)
+
+- Removed unused dev dependencies (`@vitest/ui`, `tsx`) to shrink install footprint; retained `@vitest/coverage-v8` for coverage reports.
+- Deleted legacy scripts (`scripts/claude-code-preflight.*`, `scripts/start-test-infrastructure.js`) and the redundant `test:e2e:ai-legacy`/`test:clean` npm commands to reduce duplicate orchestration paths.
+- Dropped stale assets and generated artifacts (`src/assets/react.svg`, nested `frontend/frontend/`, `playwright/.cache`) that were no longer referenced.
+- Simplified `vite.config.ts` manual chunk config to match the active dependency graph.
+- Added this maintenance note so future engineers know the redundant tooling was intentionally removed.

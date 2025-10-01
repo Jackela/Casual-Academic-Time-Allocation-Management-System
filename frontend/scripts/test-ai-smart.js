@@ -79,6 +79,29 @@ const TEST_CATEGORIES = {
   }
 };
 
+const KNOWN_RUN_MODES = new Set([
+  ...Object.keys(TEST_CATEGORIES),
+  'fast',
+  'pyramid',
+  'all'
+].map((mode) => mode.toLowerCase()));
+
+function parseCliArgs(rawArgs) {
+  const args = Array.isArray(rawArgs) ? [...rawArgs] : [];
+  let mode = 'pyramid';
+
+  if (args.length) {
+    const candidateMode = args[0];
+    if (candidateMode && KNOWN_RUN_MODES.has(candidateMode.toLowerCase())) {
+      mode = candidateMode;
+      args.shift();
+    }
+  }
+
+  const extraArgs = args.filter((arg) => arg !== '--');
+  return { mode, extraArgs };
+}
+
 /**
  * Cross-platform process manager with robust cleanup
  */
@@ -242,9 +265,16 @@ class TestRunner {
       throw new Error(`Unknown test category: ${category}`);
     }
 
+    const extraArgs = options.extraArgs ?? [];
+    const spawnOverrides = { ...options };
+    delete spawnOverrides.extraArgs;
+
     console.log(`📋 Running ${test.name}...`);
     console.log(`   Description: ${test.description}`);
     console.log(`   Binary: ${test.binary} ${test.args.join(' ')}`);
+    if (extraArgs.length) {
+      console.log(`   Additional args: ${extraArgs.join(' ')}`);
+    }
     console.log(`   Timeout: ${test.timeout}ms`);
 
     const startTime = Date.now();
@@ -260,19 +290,31 @@ class TestRunner {
         FORCE_COLOR: '0' // Disable colors for cleaner output
       };
       
+      let effectiveArgs = [...test.args];
+
+      if (extraArgs.length) {
+        const isAiE2EScript = test.binary === 'node' && test.args.some(arg => arg.includes('run-e2e-ai.js'));
+        if (isAiE2EScript) {
+          const basePlaywrightArgs = (testEnv.PLAYWRIGHT_ARGS
+            ? testEnv.PLAYWRIGHT_ARGS.split(' ').filter(Boolean)
+            : ['playwright', 'test']);
+          testEnv.PLAYWRIGHT_ARGS = [...basePlaywrightArgs, ...extraArgs].join(' ');
+        }
+        effectiveArgs = [...effectiveArgs, ...extraArgs];
+      }
+
       let command, args;
-      
+
       // Special handling for vitest and playwright since we use direct entry points
       if (test.binary === 'vitest' || test.binary === 'playwright') {
         command = process.execPath; // Use node
-        args = [binaryPath, ...test.args]; // Run node with entry point + test args
-        console.log(`🔧 Executing: node ${binaryPath} ${test.args.join(' ')}`);
+        args = [binaryPath, ...effectiveArgs]; // Run node with entry point + test args
+        console.log(`🔧 Executing: node ${binaryPath} ${effectiveArgs.join(' ')}`);
       } else {
         command = binaryPath;
-        args = test.args;
-        console.log(`🔧 Executing: ${binaryPath} ${test.args.join(' ')}`);
+        args = effectiveArgs;
+        console.log(`🔧 Executing: ${binaryPath} ${effectiveArgs.join(' ')}`);
       }
-      
       const result = await this.processManager.spawn(
         command,
         args,
@@ -280,7 +322,7 @@ class TestRunner {
           timeout: test.timeout,
           cwd: this.rootDir,
           env: testEnv,
-          ...options
+          ...spawnOverrides
         }
       );
 
@@ -383,11 +425,12 @@ class BackendManager {
  * Main test orchestrator with strategy patterns
  */
 class TestOrchestrator {
-  constructor() {
+  constructor(extraArgs = []) {
     this.processManager = new ProcessManager();
     this.portManager = new PortManager();
     this.testRunner = new TestRunner(this.processManager);
     this.backendManager = new BackendManager(this.processManager, this.portManager);
+    this.extraArgs = extraArgs;
   }
 
   async runFastTests() {
@@ -407,7 +450,7 @@ class TestOrchestrator {
     return true;
   }
 
-  async runBackendTests(categories) {
+  async runBackendTests(categories, extraArgs = []) {
     console.log('🔧 [AI-TEST] Running Backend Tests');
     console.log('='.repeat(50));
     
@@ -420,7 +463,7 @@ class TestOrchestrator {
       
       // Run backend-dependent tests
       for (const category of categories) {
-        const result = await this.testRunner.runTest(category);
+        const result = await this.testRunner.runTest(category, { extraArgs });
         if (!result.success) {
           return false;
         }
@@ -458,7 +501,7 @@ class TestOrchestrator {
     
     // Step 3: E2E tests
     console.log('\n📋 STEP 3: E2E Tests');
-    const e2ePassed = await this.runBackendTests(['e2e']);
+    const e2ePassed = await this.runBackendTests(['e2e'], this.extraArgs);
     
     if (!e2ePassed) {
       console.error('❌ E2E tests failed');
@@ -479,9 +522,9 @@ class TestOrchestrator {
     console.log(`📋 Running ${test.name} only...`);
 
     if (test.needsBackend) {
-      return await this.runBackendTests([category]) ? 0 : 1;
+      return await this.runBackendTests([category], this.extraArgs) ? 0 : 1;
     } else {
-      const result = await this.testRunner.runTest(category);
+      const result = await this.testRunner.runTest(category, { extraArgs: this.extraArgs });
       return result.success ? 0 : 1;
     }
   }
@@ -496,10 +539,13 @@ class TestOrchestrator {
  * Main execution function
  */
 async function main() {
-  const testType = process.argv[2] || 'pyramid';
-  const orchestrator = new TestOrchestrator();
+  const { mode: testType, extraArgs } = parseCliArgs(process.argv.slice(2));
+  const orchestrator = new TestOrchestrator(extraArgs);
   
   console.log(`🤖 AI Smart Test Runner - ${testType} mode`);
+  if (extraArgs.length) {
+    console.log(`⏩ Pass-through args: ${extraArgs.join(' ')}`);
+  }
   
   try {
     let exitCode = 0;
@@ -542,6 +588,3 @@ main().catch(async (error) => {
   console.error('❌ Unhandled error:', error.message);
   process.exit(1);
 });
-
-
-
