@@ -74,8 +74,10 @@ npm run test:ai
 This installs deps if needed, ensures backend availability (uses `E2E_*` env overrides), launches the Vite E2E server, executes API contracts, and finally the full Playwright matrix. Logs are emitted with host awareness so localhost/127.0.0.1 differences no longer block readiness checks.
 
 ## Housekeeping Notes
-- Technical-debt cleanup (Sept 2025) removed obsolete AI scripts, temporary test files, and unused dependencies (`@vitest/ui`, `tsx`).
+- Technical-debt cleanup (Sept 2025) removed obsolete AI scripts, temporary test files, and unused dependencies (`@vitest/ui`, `tsx`).
 - `scripts/run-e2e-ai.js` and `scripts/test-ai-smart.js` are the supported entry points for automation; deprecated scripts were deleted to keep the surface area lean.
 - Coverage artifacts, Playwright reports, and other generated outputs stay ignored—see `.gitignore` for the authoritative list.
+- Latest cleanup (Oct 2025) purged generated Playwright artefacts (`playwright-report/`, `test-results/`, `temp/`) so the repo stays lean; rerun `npm run test:ai` to regenerate them locally as needed.
 
 Happy hacking! 🎉
+
