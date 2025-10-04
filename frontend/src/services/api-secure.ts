@@ -8,6 +8,7 @@ import axios, { AxiosHeaders } from 'axios';
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { getConfig } from '../config/unified-config';
 import { secureLogger } from '../utils/secure-logger';
+import { authManager } from './auth-manager';
 import { ENV_CONFIG } from '../utils/environment';
 import type { ApiResponse, ApiErrorResponse } from '../types/api';
 
@@ -45,6 +46,9 @@ type InternalRequestConfigWithMeta = InternalAxiosRequestConfig & {
     });
 
     this.setupInterceptors();
+    authManager.registerApiClientTokenSetter((token) => {
+      this.setAuthToken(token);
+    });
     secureLogger.debug('Secure ApiClient initialized', { 
       baseURL: apiBaseURL,
       timeout: config.api.timeout,
@@ -376,6 +380,7 @@ if (hasWindow) {
 }
 
 export default secureApiClient;
+
 
 
 

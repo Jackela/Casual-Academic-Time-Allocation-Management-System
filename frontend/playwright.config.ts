@@ -1,8 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
+import { URL } from 'node:url';
 import { E2E_CONFIG } from './e2e/config/e2e.config';
 
 const useExternalWebServer = !!process.env.E2E_EXTERNAL_WEBSERVER;
-const FRONTEND_PORT = process.env.E2E_FRONTEND_PORT || '5174';
+const frontendUrl = new URL(E2E_CONFIG.FRONTEND.URL);
+const FRONTEND_PORT = process.env.E2E_FRONTEND_PORT || frontendUrl.port || '5174';
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -143,9 +145,9 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: `npm run dev -- --mode e2e --port ${FRONTEND_PORT}`,
+          command: `npm run dev -- --mode e2e --strictPort --port ${FRONTEND_PORT}`,
           url: E2E_CONFIG.FRONTEND.URL,
-          reuseExistingServer: !process.env.CI, // Reuse in dev, fresh in CI
+          reuseExistingServer: true,
           timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.STARTUP,
           env: {
             ...process.env,

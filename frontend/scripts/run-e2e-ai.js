@@ -1,186 +1,349 @@
-import detect from "detect-port";
-import { spawn } from "cross-spawn";
-import treeKill from "tree-kill";
-import { promisify } from "node:util";
-import { once } from "node:events";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-import http from "node:http";
+import { spawn } from 'cross-spawn';
+import treeKill from 'tree-kill';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import http from 'node:http';
+import https from 'node:https';
+import tcpPortUsed from 'tcp-port-used';
+
+import {
+  resolveBackendPort,
+  resolveFrontendPort,
+  resolveBackendHost,
+  resolveFrontendHost,
+  resolveBackendUrl,
+  resolveFrontendUrl,
+  sanitizeEnv,
+  isWindows,
+  resolveNpmCommand,
+  resolveGradleCommand,
+  resolveCmdShim,
+  createHealthConfig,
+  waitForHttpHealth,
+} from './env-utils.js';
 
 const kill = promisify(treeKill);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const projectRoot = join(__dirname, "..");
+const projectRoot = join(__dirname, '..');
+const projectRootParent = join(projectRoot, '..');
 
-const FRONTEND_PORT = Number(process.env.E2E_FRONTEND_PORT || 5174);
-const BACKEND_PORT = Number(process.env.E2E_BACKEND_PORT || 8084);
-const FRONTEND_HOST = process.env.E2E_FRONTEND_HOST || 'localhost';
-const BACKEND_HOST = process.env.E2E_BACKEND_HOST || '127.0.0.1';
-const BACKEND_HEALTH_PATH = process.env.E2E_BACKEND_HEALTH || "/actuator/health";
-const FRONTEND_HEALTH_PATH = process.env.E2E_FRONTEND_HEALTH || "/";
-const PLAYWRIGHT_CMD = process.env.PLAYWRIGHT_CMD || "npx";
-const PLAYWRIGHT_ARGS = process.env.PLAYWRIGHT_ARGS ? process.env.PLAYWRIGHT_ARGS.split(" ") : ["playwright", "test"];
+const BACKEND_PORT = resolveBackendPort();
+const FRONTEND_PORT = resolveFrontendPort();
+const BACKEND_HOST = resolveBackendHost();
+const FRONTEND_HOST = resolveFrontendHost();
+const BACKEND_URL = resolveBackendUrl();
+const FRONTEND_URL = resolveFrontendUrl();
+const BACKEND_PROFILE = process.env.E2E_BACKEND_PROFILE || 'e2e-local';
+const BACKEND_HEALTH_PATH = process.env.E2E_BACKEND_HEALTH || '/actuator/health';
+const FRONTEND_HEALTH_PATH = process.env.E2E_FRONTEND_HEALTH || '/';
+const BACKEND_HEALTH_URL = new URL(BACKEND_HEALTH_PATH, BACKEND_URL).toString();
+const FRONTEND_HEALTH_URL = new URL(FRONTEND_HEALTH_PATH, FRONTEND_URL).toString();
+const RESET_ENDPOINT_PATH = process.env.E2E_RESET_PATH || '/api/test-data/reset';
+const RESET_TOKEN = process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset';
+const RESET_DISABLED = ['0', 'false', 'no'].includes((process.env.E2E_DISABLE_RESET || '').toLowerCase());
+
+const backendHealthConfig = createHealthConfig('BACKEND');
+const frontendHealthConfig = createHealthConfig('FRONTEND');
+
+const PLAYWRIGHT_ENTRY = join(projectRoot, 'node_modules', '@playwright', 'test', 'cli.js');
 
 let backendProcess;
 let frontendProcess;
 let shuttingDown = false;
 
-function log(prefix, message, color = "\x1b[0m") {
-  const reset = "\x1b[0m";
+function log(prefix, message, color = '\u001b[0m') {
+  const reset = '\u001b[0m';
   console.log(`${color}[${prefix}]${reset} ${message}`);
 }
 
-async function portInUse(port) {
-  const available = await detect(port);
-  return available !== port;
+function buildGradleCommand() {
+  const wrapper = resolveGradleCommand(projectRootParent);
+  const baseArgs = ['bootRun', '-x', 'test'];
+
+  if (isWindows()) {
+    const shim = resolveCmdShim(wrapper);
+    return { command: shim.command, args: [...shim.args, ...baseArgs] };
+  }
+
+  return { command: wrapper, args: baseArgs };
+}
+
+function spawnProcess(command, args = [], options = {}) {
+  const child = spawn(command, args, {
+    cwd: options.cwd || projectRoot,
+    stdio: options.stdio || 'inherit',
+    env: sanitizeEnv(options.env),
+    shell: false,
+    windowsHide: true,
+  });
+  return child;
+}
+
+async function terminateProcess(child) {
+  if (!child || !child.pid) {
+    return;
+  }
+
+  try {
+    if (isWindows()) {
+      await new Promise((resolve, reject) => {
+        const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+          windowsHide: true,
+          stdio: 'ignore',
+          shell: false,
+          env: sanitizeEnv(),
+        });
+        killer.on('close', resolve);
+        killer.on('error', reject);
+      });
+    } else {
+      try {
+        process.kill(child.pid, 'SIGTERM');
+      } catch (error) {
+        if (error.code !== 'ESRCH') {
+          log('runner', `process.kill warning: ${error.message}`, '\u001b[33m');
+        }
+      }
+      await kill(child.pid, 'SIGTERM');
+    }
+  } catch (error) {
+    log('runner', `Cleanup warning: ${error.message}`, '\u001b[33m');
+  }
+}
+
+async function portInUse(port, host) {
+  try {
+    return await tcpPortUsed.check(port, host);
+  } catch {
+    return false;
+  }
+}
+
+async function isServiceHealthy(url, config) {
+  try {
+    await waitForHttpHealth({
+      url,
+      label: url,
+      config: { ...config, retries: 1, interval: 0 },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function issueResetRequest(url) {
+  if (typeof fetch === 'function') {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-Test-Reset-Token': RESET_TOKEN,
+        'Content-Type': 'application/json',
+      },
+    });
+    const bodyText = await response.text().catch(() => '');
+    return {
+      status: response.status,
+      ok: response.ok,
+      body: bodyText,
+    };
+  }
+
+  return await new Promise((resolve, reject) => {
+    try {
+      const target = new URL(url);
+      const lib = target.protocol === 'https:' ? https : http;
+      const options = {
+        method: 'POST',
+        hostname: target.hostname,
+        port: target.port || (target.protocol === 'https:' ? 443 : 80),
+        path: `${target.pathname}${target.search}`,
+        headers: {
+          'X-Test-Reset-Token': RESET_TOKEN,
+          'Content-Type': 'application/json',
+          'Content-Length': '0',
+        },
+      };
+
+      const req = lib.request(options, (res) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          const body = Buffer.concat(chunks).toString('utf8');
+          const status = res.statusCode ?? 0;
+          resolve({
+            status,
+            ok: status >= 200 && status < 300,
+            body,
+          });
+        });
+      });
+
+      req.on('error', reject);
+      req.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+async function resetBackendData() {
+  if (RESET_DISABLED) {
+    log('backend', 'Skipping test data reset (E2E_DISABLE_RESET flag detected)', '\u001b[33m');
+    return;
+  }
+
+  const resetUrl = new URL(RESET_ENDPOINT_PATH, BACKEND_URL).toString();
+  log('backend', `Resetting backend test data via ${resetUrl}`, '\u001b[36m');
+
+  try {
+    const response = await issueResetRequest(resetUrl);
+    if (!response.ok) {
+      throw new Error(`status ${response.status}${response.body ? ` - ${response.body}` : ''}`);
+    }
+    log('backend', 'Test data reset completed', '\u001b[32m');
+  } catch (error) {
+    throw new Error(`Failed to reset backend test data: ${error.message}`);
+  }
+}
+function parseArgList(raw) {
+  if (!raw || !raw.trim()) {
+    return [];
+  }
+  const matches = raw.match(/[^\s"']+|"([^"]*)"|'([^']*)'/g) || [];
+  return matches.map((token) => token.replace(/^("|')|("|')$/g, ''));
+}
+
+function resolvePlaywrightArgs() {
+  const envArgs = parseArgList(process.env.PLAYWRIGHT_ARGS || '');
+  const cliArgs = process.argv.slice(2);
+  const merged = [...envArgs, ...cliArgs];
+  if (merged.length === 0 || merged[0].startsWith('-')) {
+    merged.unshift('test');
+  }
+  return merged;
 }
 
 function spawnBackend() {
-  log("backend", "Starting backend server (gradlew bootRun --profile e2e)", "\x1b[36m");
-  const command = process.platform === "win32" ? "cmd" : "./gradlew";
-  const args = process.platform === "win32"
-    ? ["/c", "gradlew.bat", "bootRun", "--args=--spring.profiles.active=e2e"]
-    : ["bootRun", "--args=--spring.profiles.active=e2e"];
-  const child = spawn(command, args, {
-    cwd: join(projectRoot, ".."),
-    stdio: "inherit"
+  const { command, args } = buildGradleCommand();
+  log('backend', `Starting backend (${command} ${args.join(' ')})`, '\u001b[36m');
+  return spawnProcess(command, args, {
+    cwd: projectRootParent,
+    env: {
+      SPRING_PROFILES_ACTIVE: BACKEND_PROFILE,
+      SERVER_PORT: String(BACKEND_PORT),
+      SPRING_OUTPUT_ANSI_ENABLED: 'never',
+      E2E_BACKEND_PORT: String(BACKEND_PORT),
+    },
   });
-  return child;
 }
 
 function spawnFrontend() {
-  log("frontend", "Starting Vite dev server in e2e mode", "\x1b[36m");
-  const command = process.platform === "win32" ? "npm.cmd" : "npm";
-  const args = ["run", "dev:e2e"];
-  const child = spawn(command, args, {
+  const npmCommand = resolveNpmCommand();
+  log('frontend', 'Starting Vite dev server in e2e mode', '\u001b[36m');
+  return spawnProcess(npmCommand, ['run', 'dev', '--', '--mode', 'e2e', '--strictPort', '--port', String(FRONTEND_PORT)], {
     cwd: projectRoot,
-    stdio: "inherit"
+    env: {
+      E2E_FRONTEND_PORT: String(FRONTEND_PORT),
+      E2E_BACKEND_PORT: String(BACKEND_PORT),
+      E2E_BACKEND_URL: BACKEND_URL,
+      E2E_FRONTEND_URL: FRONTEND_URL,
+      VITE_API_BASE_URL: BACKEND_URL,
+      NODE_ENV: 'test',
+    },
   });
-  return child;
-}
-
-async function waitForHttpReady({ host, port, path, label, timeoutMs = 120000 }) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      await new Promise((resolve, reject) => {
-        const req = http.request(
-          {
-            hostname: host,
-            port,
-            path,
-            method: "GET"
-          },
-          (res) => {
-            if (res.statusCode && res.statusCode < 500) {
-              res.resume();
-              resolve();
-            } else {
-              reject(new Error(`Status ${res.statusCode}`));
-            }
-          }
-        );
-        req.on("error", reject);
-        req.end();
-      });
-      log(label, "Service is healthy", "\x1b[32m");
-      return;
-    } catch (error) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-  }
-  throw new Error(`${label} did not become ready on port ${port}`);
 }
 
 async function runPlaywright() {
-  log("playwright", "Launching Playwright test suite", "\x1b[34m");
-  const env = {
-    ...process.env,
-    E2E_EXTERNAL_WEBSERVER: "1",
-    E2E_FRONTEND_PORT: String(FRONTEND_PORT),
-  };
-  const child = spawn(PLAYWRIGHT_CMD, PLAYWRIGHT_ARGS, {
-    cwd: projectRoot,
-    stdio: "inherit",
-    env,
+  log('playwright', 'Launching Playwright test suite', '\u001b[34m');
+  const args = resolvePlaywrightArgs();
+  const child = spawnProcess(process.execPath, [PLAYWRIGHT_ENTRY, ...args], {
+    env: sanitizeEnv({
+      E2E_EXTERNAL_WEBSERVER: '1',
+      E2E_FRONTEND_PORT: String(FRONTEND_PORT),
+      E2E_FRONTEND_URL: FRONTEND_URL,
+      E2E_BACKEND_PORT: String(BACKEND_PORT),
+      E2E_BACKEND_URL: BACKEND_URL,
+    }),
   });
-  const [code] = await once(child, "close");
-  return code;
+  return await new Promise((resolve) => {
+    child.on('close', (code) => resolve(code ?? 1));
+    child.on('error', () => resolve(1));
+  });
 }
 
-async function shutdown(signal) {
-  if (shuttingDown) return;
+async function shutdown(reason = 'exit') {
+  if (shuttingDown) {
+    return;
+  }
   shuttingDown = true;
-  log("runner", `Received ${signal}, cleaning up`, "\x1b[33m");
-  const kills = [];
-  
-  // HARDENED: Enhanced cross-platform process cleanup following orchestrator pattern
-  if (frontendProcess) {
-    kills.push(
-      kill(frontendProcess.pid, "SIGTERM").catch((error) => {
-        // Git Bash compatibility fallback
-        if (process.platform === 'win32' && error.message?.includes('Invalid argument')) {
-          log("frontend", "Using fallback process termination for Git Bash compatibility", "\x1b[33m");
-          try {
-            process.kill(frontendProcess.pid, 'SIGTERM');
-          } catch (fallbackErr) {
-            log("frontend", `Fallback termination warning: ${fallbackErr.message}`, "\x1b[31m");
-          }
-        } else {
-          log("frontend", `Failed to terminate frontend process: ${error}`, "\x1b[31m");
-        }
-      })
-    );
-  }
-  
-  if (backendProcess) {
-    kills.push(
-      kill(backendProcess.pid, "SIGTERM").catch((error) => {
-        // Git Bash compatibility fallback
-        if (process.platform === 'win32' && error.message?.includes('Invalid argument')) {
-          log("backend", "Using fallback process termination for Git Bash compatibility", "\x1b[33m");
-          try {
-            process.kill(backendProcess.pid, 'SIGTERM');
-          } catch (fallbackErr) {
-            log("backend", `Fallback termination warning: ${fallbackErr.message}`, "\x1b[31m");
-          }
-        } else {
-          log("backend", `Failed to terminate backend process: ${error}`, "\x1b[31m");
-        }
-      })
-    );
-  }
-  
-  await Promise.all(kills);
+  log('runner', `Received ${reason}, cleaning up`, '\u001b[33m');
+  await Promise.all([terminateProcess(frontendProcess), terminateProcess(backendProcess)]);
 }
 
 async function main() {
-  process.on("SIGINT", () => shutdown("SIGINT").then(() => process.exit(130)));
-  process.on("SIGTERM", () => shutdown("SIGTERM").then(() => process.exit(143)));
+  process.on('SIGINT', () => shutdown('SIGINT').then(() => process.exit(130)));
+  process.on('SIGTERM', () => shutdown('SIGTERM').then(() => process.exit(143)));
 
-  const backendBusy = await portInUse(BACKEND_PORT);
-  if (backendBusy) {
-    log("backend", `Port ${BACKEND_PORT} already in use. Assuming backend is running`, "\x1b[33m");
-  } else {
+  const backendHealthy = await isServiceHealthy(BACKEND_HEALTH_URL, backendHealthConfig);
+  const backendPortBusy = await portInUse(BACKEND_PORT, BACKEND_HOST);
+  const skipBackend = ['1', 'true', 'yes'].includes((process.env.E2E_SKIP_BACKEND || '').toLowerCase());
+  let backendReadyForReset = false;
+
+  if (backendHealthy) {
+    log('backend', `Reusing healthy backend at ${BACKEND_HEALTH_URL}`, '\u001b[33m');
+    backendReadyForReset = true;
+  } else if (backendPortBusy && !skipBackend) {
+    throw new Error(`Backend port ${BACKEND_PORT} is in use but service is not healthy.`);
+  } else if (!skipBackend) {
     backendProcess = spawnBackend();
-    await waitForHttpReady({ host: BACKEND_HOST, port: BACKEND_PORT, path: BACKEND_HEALTH_PATH, label: "backend" });
+    await waitForHttpHealth({
+      url: BACKEND_HEALTH_URL,
+      label: 'backend',
+      config: backendHealthConfig,
+    });
+    log('backend', 'Service is healthy', '\u001b[32m');
+    backendReadyForReset = true;
+  } else {
+    log('backend', 'Skipping backend startup (E2E_SKIP_BACKEND enabled)', '\u001b[33m');
   }
 
-  const frontendBusy = await portInUse(FRONTEND_PORT);
-  if (frontendBusy) {
-    log("frontend", `Port ${FRONTEND_PORT} already in use. Will reuse existing server`, "\x1b[33m");
+  if (backendReadyForReset) {
+    await resetBackendData();
+  } else {
+    log('backend', 'Skipping test data reset because backend is unavailable', '\u001b[33m');
+  }
+
+
+  const frontendHealthy = await isServiceHealthy(FRONTEND_HEALTH_URL, frontendHealthConfig);
+  const frontendPortBusy = await portInUse(FRONTEND_PORT, FRONTEND_HOST);
+
+  if (frontendHealthy) {
+    log('frontend', `Reusing healthy frontend at ${FRONTEND_HEALTH_URL}`, '\u001b[33m');
+  } else if (frontendPortBusy) {
+    throw new Error(`Frontend port ${FRONTEND_PORT} is in use but service is not healthy.`);
   } else {
     frontendProcess = spawnFrontend();
-    await waitForHttpReady({ host: FRONTEND_HOST, port: FRONTEND_PORT, path: FRONTEND_HEALTH_PATH, label: "frontend" });
+    await waitForHttpHealth({
+      url: FRONTEND_HEALTH_URL,
+      label: 'frontend',
+      config: frontendHealthConfig,
+    });
+    log('frontend', 'Service is healthy', '\u001b[32m');
   }
 
   const exitCode = await runPlaywright();
-  await shutdown("exit");
-  process.exit(exitCode ?? 0);
+  await shutdown('exit');
+  process.exit(exitCode);
 }
 
 main().catch(async (error) => {
-  log("runner", `Unhandled error: ${error}`, "\x1b[31m");
-  await shutdown("error");
+  log('runner', `Unhandled error: ${error.message}`, '\u001b[31m');
+  await shutdown('error');
   process.exit(1);
 });
+
+
+

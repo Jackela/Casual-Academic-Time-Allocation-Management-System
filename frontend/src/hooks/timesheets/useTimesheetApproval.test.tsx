@@ -1,4 +1,4 @@
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useTimesheetApproval } from "./useTimesheetApproval";
 import { TimesheetService } from "../../services/timesheets";
@@ -71,13 +71,15 @@ describe("useTimesheetApproval", () => {
 
     const { result } = renderHook(() => useTimesheetApproval());
 
-    await expect(
-      act(async () => {
-        await result.current.approveTimesheet(buildApprovalRequest());
-      }),
-    ).rejects.toThrow("approval failed");
+    await act(async () => {
+      await expect(
+        result.current.approveTimesheet(buildApprovalRequest()),
+      ).rejects.toThrow("approval failed");
+    });
 
-    expect(result.current.error).toBe("approval failed");
+    await waitFor(() =>
+      expect(result.current.error).toBe("approval failed"),
+    );
   });
 
   it("batch approves multiple requests", async () => {
@@ -102,12 +104,14 @@ describe("useTimesheetApproval", () => {
 
     const { result } = renderHook(() => useTimesheetApproval());
 
-    await expect(
-      act(async () => {
-        await result.current.batchApprove([buildApprovalRequest()]);
-      }),
-    ).rejects.toThrow("batch failed");
+    await act(async () => {
+      await expect(
+        result.current.batchApprove([buildApprovalRequest()]),
+      ).rejects.toThrow("batch failed");
+    });
 
-    expect(result.current.error).toBe("batch failed");
+    await waitFor(() =>
+      expect(result.current.error).toBe("batch failed"),
+    );
   });
 });

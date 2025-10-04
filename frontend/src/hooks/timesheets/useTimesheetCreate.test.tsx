@@ -1,4 +1,4 @@
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useTimesheetCreate } from "./useTimesheetCreate";
 import { TimesheetService } from "../../services/timesheets";
@@ -51,13 +51,15 @@ describe("useTimesheetCreate", () => {
 
     const { result } = renderHook(() => useTimesheetCreate());
 
-    await expect(
-      act(async () => {
-        await result.current.createTimesheet(baseRequest);
-      }),
-    ).rejects.toThrow("Invalid tutor");
+    await act(async () => {
+      await expect(
+        result.current.createTimesheet(baseRequest),
+      ).rejects.toThrow("Invalid tutor");
+    });
 
-    expect(result.current.error).toBe("Invalid tutor");
+    await waitFor(() =>
+      expect(result.current.error).toBe("Invalid tutor"),
+    );
     expect(mockService.createTimesheet).not.toHaveBeenCalled();
   });
 
@@ -68,13 +70,15 @@ describe("useTimesheetCreate", () => {
 
     const { result } = renderHook(() => useTimesheetCreate());
 
-    await expect(
-      act(async () => {
-        await result.current.createTimesheet(baseRequest);
-      }),
-    ).rejects.toThrow("Network down");
+    await act(async () => {
+      await expect(
+        result.current.createTimesheet(baseRequest),
+      ).rejects.toThrow("Network down");
+    });
 
-    expect(result.current.error).toBe("Network down");
+    await waitFor(() =>
+      expect(result.current.error).toBe("Network down"),
+    );
   });
 
   it("can reset mutation state", async () => {
@@ -84,17 +88,21 @@ describe("useTimesheetCreate", () => {
 
     const { result } = renderHook(() => useTimesheetCreate());
 
-    await expect(
-      act(async () => {
-        await result.current.createTimesheet(baseRequest);
-      }),
-    ).rejects.toThrow("Network down");
+    await act(async () => {
+      await expect(
+        result.current.createTimesheet(baseRequest),
+      ).rejects.toThrow("Network down");
+    });
+
+    await waitFor(() =>
+      expect(result.current.error).toBe("Network down"),
+    );
 
     act(() => {
       result.current.reset();
     });
 
-    expect(result.current.error).toBeNull();
-    expect(result.current.data).toBeNull();
+    await waitFor(() => expect(result.current.error).toBeNull());
+    await waitFor(() => expect(result.current.data).toBeNull());
   });
 });

@@ -10,16 +10,19 @@ import userEvent from "@testing-library/user-event";
 import { formatters } from "../../../utils/formatting";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const authContextMock = vi.hoisted(() => ({
-  useAuth: vi.fn(() => ({
-    user: null,
-    token: null,
-    isAuthenticated: false,
-    isLoading: false,
-    login: vi.fn(),
-    logout: vi.fn(),
-  })),
-  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+const sessionHooksMock = vi.hoisted(() => ({
+  __esModule: true,
+  useSession: vi.fn(),
+}));
+
+const userProfileHooksMock = vi.hoisted(() => ({
+  __esModule: true,
+  useUserProfile: vi.fn(),
+}));
+
+const accessControlHooksMock = vi.hoisted(() => ({
+  __esModule: true,
+  useAccessControl: vi.fn(),
 }));
 
 const timesheetHooksMock = vi.hoisted(() => ({
@@ -30,10 +33,14 @@ const timesheetHooksMock = vi.hoisted(() => ({
   useTimesheetStats: vi.fn(),
 }));
 
-vi.mock("../../../contexts/AuthContext", () => authContextMock);
+vi.mock("../../../auth/SessionProvider", () => sessionHooksMock);
+vi.mock("../../../auth/UserProfileProvider", () => userProfileHooksMock);
+vi.mock("../../../auth/access-control", () => accessControlHooksMock);
 vi.mock("../../../hooks/timesheets", () => timesheetHooksMock);
 
-const useAuthMock = authContextMock.useAuth as ReturnType<typeof vi.fn>;
+const mockSession = sessionHooksMock.useSession as ReturnType<typeof vi.fn>;
+const mockUserProfile = userProfileHooksMock.useUserProfile as ReturnType<typeof vi.fn>;
+const mockAccessControl = accessControlHooksMock.useAccessControl as ReturnType<typeof vi.fn>;
 
 const mockTimesheetModule = timesheetHooksMock as unknown as {
   useTimesheetQuery: ReturnType<typeof vi.fn>;
@@ -112,18 +119,37 @@ const formatCurrency = (value: number): string =>
 beforeEach(() => {
   vi.clearAllMocks();
 
-  useAuthMock.mockReturnValue({
-    user: mockAdminUser,
-    token: "mock-admin-token",
+  mockSession.mockReturnValue({
+    status: 'authenticated',
     isAuthenticated: true,
-    isLoading: false,
-    login: vi.fn(),
-    logout: vi.fn(),
+    token: 'mock-admin-token',
+    refreshToken: null,
+    expiresAt: null,
+    error: null,
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    refresh: vi.fn(),
+  });
+
+  mockUserProfile.mockReturnValue({
+    profile: mockAdminUser,
+    loading: false,
+    error: null,
+    reload: vi.fn(),
+    setProfile: vi.fn(),
+  });
+
+  mockAccessControl.mockReturnValue({
+    role: 'ADMIN',
+    isTutor: false,
+    isLecturer: false,
+    isAdmin: true,
+    canApproveTimesheets: true,
+    canViewAdminDashboard: true,
+    hasRole: vi.fn((role: string) => role.toUpperCase() === 'ADMIN'),
   });
 
   approveTimesheetMock = vi.fn();
-  batchApproveMock = vi.fn();
-  resetApprovalMock = vi.fn();
 
   mockTimesheetModule.useTimesheetQuery.mockReturnValue({
     data: mockSystemTimesheets,
@@ -138,6 +164,9 @@ beforeEach(() => {
     updateQuery: vi.fn(),
   });
 
+  approveTimesheetMock = vi.fn();
+  batchApproveMock = vi.fn();
+  resetApprovalMock = vi.fn();
   mockTimesheetModule.useTimesheetDashboardSummary.mockReturnValue({
     data: mockAdminSummary,
     loading: false,

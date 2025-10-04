@@ -1,7 +1,8 @@
 // React import removed as it's not needed in React 17+
 import type { ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { useUserProfile } from './auth/UserProfileProvider';
 import LoginPage from './components/LoginPage';
 import DashboardLayout from './components/DashboardLayout';
 import { AdminDashboard, LecturerDashboard, TutorDashboard } from './components/dashboards';
@@ -103,9 +104,9 @@ function ApprovalsHistoryPage() {
 }
 // Component to determine which dashboard to show based on user role
 const DashboardRoute = () => {
-  const { user } = useAuth();
-  
-  switch (user?.role) {
+  const { profile } = useUserProfile();
+
+  switch (profile?.role) {
     case 'LECTURER':
       return <LecturerDashboard />;
     case 'TUTOR':
@@ -113,7 +114,7 @@ const DashboardRoute = () => {
     case 'ADMIN':
       return <AdminDashboard />;
     default:
-      return <div>Unknown role: {user?.role}</div>;
+      return <div>Unknown role: {profile?.role}</div>;
   }
 };
 
@@ -158,6 +159,9 @@ function App() {
 }
 
 export default App;
+
+
+
 
 
 

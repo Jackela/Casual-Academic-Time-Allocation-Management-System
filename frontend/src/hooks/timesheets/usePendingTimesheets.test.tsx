@@ -7,7 +7,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import {
   createMockTimesheetPage,
   createMockUser,
-  waitForAsync,
 } from "../../test/utils/test-utils";
 
 vi.mock("../../services/timesheets", () => ({
@@ -83,10 +82,10 @@ describe("usePendingTimesheets", () => {
 
     const { result } = renderHook(() => usePendingTimesheets(), { wrapper });
 
-    await waitForAsync(50);
-
-    expect(mockTimesheetService.getPendingTimesheets).not.toHaveBeenCalled();
-    expect(result.current.error).toBe("Not authenticated");
-    expect(result.current.isEmpty).toBe(true);
+    await waitFor(() =>
+      expect(mockTimesheetService.getPendingTimesheets).not.toHaveBeenCalled(),
+    );
+    await waitFor(() => expect(result.current.error).toBe("Not authenticated"));
+    await waitFor(() => expect(result.current.isEmpty).toBe(true));
   });
 });

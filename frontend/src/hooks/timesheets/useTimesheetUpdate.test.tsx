@@ -1,4 +1,4 @@
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useTimesheetUpdate } from "./useTimesheetUpdate";
 import { TimesheetService } from "../../services/timesheets";
@@ -44,13 +44,15 @@ describe("useTimesheetUpdate", () => {
 
     const { result } = renderHook(() => useTimesheetUpdate());
 
-    await expect(
-      act(async () => {
-        await result.current.updateTimesheet(123, updateRequest);
-      }),
-    ).rejects.toThrow("update failed");
+    await act(async () => {
+      await expect(
+        result.current.updateTimesheet(123, updateRequest),
+      ).rejects.toThrow("update failed");
+    });
 
-    expect(result.current.error).toBe("update failed");
+    await waitFor(() =>
+      expect(result.current.error).toBe("update failed"),
+    );
   });
 
   it("resets mutation state", async () => {
@@ -58,17 +60,21 @@ describe("useTimesheetUpdate", () => {
 
     const { result } = renderHook(() => useTimesheetUpdate());
 
-    await expect(
-      act(async () => {
-        await result.current.updateTimesheet(123, updateRequest);
-      }),
-    ).rejects.toThrow("update failed");
+    await act(async () => {
+      await expect(
+        result.current.updateTimesheet(123, updateRequest),
+      ).rejects.toThrow("update failed");
+    });
+
+    await waitFor(() =>
+      expect(result.current.error).toBe("update failed"),
+    );
 
     act(() => {
       result.current.reset();
     });
 
-    expect(result.current.error).toBeNull();
-    expect(result.current.data).toBeNull();
+    await waitFor(() => expect(result.current.error).toBeNull());
+    await waitFor(() => expect(result.current.data).toBeNull());
   });
 });

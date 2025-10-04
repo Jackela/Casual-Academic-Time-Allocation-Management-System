@@ -35,3 +35,8 @@ logging:
   level:
     com.usyd.catams: DEBUG
     org.springframework.security: DEBUG
+
+app:
+  testing:
+    reset-token: ${TEST_DATA_RESET_TOKEN:test-reset-token}
+

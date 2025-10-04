@@ -12,7 +12,9 @@ import {
   useApprovalAction,
   useTimesheetStats 
 } from '../../../hooks/timesheets';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useSession } from '../../../auth/SessionProvider';
+import { useUserProfile } from '../../../auth/UserProfileProvider';
+import { useAccessControl } from '../../../auth/access-control';
 import TimesheetTable from '../../shared/TimesheetTable/TimesheetTable';
 import LoadingSpinner from '../../shared/LoadingSpinner/LoadingSpinner';
 import { formatters } from '../../../utils/formatting';
@@ -73,7 +75,9 @@ const AdminStatCard = memo<AdminStatCardProps>(({
 AdminStatCard.displayName = 'AdminStatCard';
 
 const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
-  const { user } = useAuth();
+  const { status: sessionStatus, isAuthenticated } = useSession();
+  const { profile } = useUserProfile();
+  const { role, canViewAdminDashboard } = useAccessControl();
   const [selectedTimesheets, setSelectedTimesheets] = useState<number[]>([]);
   const [currentTab, setCurrentTab] = useState<'overview' | 'pending' | 'users' | 'analytics' | 'settings'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,12 +138,16 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
   }, [allTimesheets, searchQuery, currentTab]);
 
   const welcomeMessage = useMemo(() => {
-    if (user) {
-      const name = user.firstName || user.name || 'Admin';
+    if (profile) {
+      const name = profile.firstName || profile.name || 'Admin';
       return `Welcome back, ${name}`;
     }
+    if (role) {
+      const formattedRole = role.charAt(0) + role.slice(1).toLowerCase();
+      return `Welcome back, ${formattedRole}`;
+    }
     return 'Welcome back, Administrator';
-  }, [user]);
+  }, [profile?.firstName, profile?.name, role]);
 
   const urgentCount = useMemo(() => {
     return filteredTimesheets.filter(t => {
@@ -226,7 +234,25 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
   const handleGlobalSearch = useCallback((query: string) => {
     setSearchQuery(query);
   }, []);
-  
+
+  const canManageUsers = isAuthenticated && canViewAdminDashboard;
+  const navigationTabs = useMemo(() => {
+    const baseTabs = [
+      { id: 'overview', label: 'System Overview' },
+      { id: 'pending', label: 'Pending Review' },
+    ];
+
+    if (canManageUsers) {
+      baseTabs.push(
+        { id: 'users', label: 'User Management' },
+        { id: 'analytics', label: 'Reports & Analytics' },
+        { id: 'settings', label: 'System Settings' },
+      );
+    }
+
+    return baseTabs;
+  }, [canManageUsers]);
+
   if (timesheetsLoading || dashboardLoading) {
     return (
       <div className={`p-4 sm:p-6 lg:p-8 ${className}`}>
@@ -245,13 +271,12 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
   const totalPayrollValue = dashboardData?.totalPayroll ?? 0;
   const tutorCountValue = dashboardData?.tutorCount ?? 0;
 
-
   return (
     <div 
       className={`p-4 sm:p-6 lg:p-8 ${className}`}
       data-testid="admin-dashboard"
       role="main"
-      aria-label="Admin Dashboard"
+      aria-label={`Admin Dashboard (${sessionStatus})`}
     >
       <header className="mb-8">
         <div className="flex items-center justify-between">
@@ -287,13 +312,7 @@ const AdminDashboard = memo<AdminDashboardProps>(({ className = '' }) => {
 
       <nav className="mb-8 border-b">
         <div className="-mb-px flex space-x-6" data-testid="filters-section">
-          {[
-            { id: 'overview', label: 'System Overview' },
-            { id: 'pending', label: 'Pending Review' },
-            { id: 'users', label: 'User Management' },
-            { id: 'analytics', label: 'Reports & Analytics' },
-            { id: 'settings', label: 'System Settings' }
-          ].map(tab => (
+          {navigationTabs.map((tab) => (
             <button
               key={tab.id}
               className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium ${

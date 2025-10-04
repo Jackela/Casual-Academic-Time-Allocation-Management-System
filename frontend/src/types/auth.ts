@@ -1,6 +1,6 @@
 /**
  * Authentication type definitions
- * 
+ *
  * Centralized type definitions for authentication-related data structures
  */
 
@@ -41,6 +41,56 @@ export interface AuthResult {
   token?: string;
   user?: User;
   message?: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  refreshToken?: string | null;
+  expiresAt?: number | null;
+  user: User;
+}
+
+export type SessionStatus =
+  | 'unauthenticated'
+  | 'authenticating'
+  | 'authenticated'
+  | 'refreshing'
+  | 'error';
+
+export interface SessionState {
+  status: SessionStatus;
+  isAuthenticated: boolean;
+  token: string | null;
+  refreshToken: string | null;
+  expiresAt: number | null;
+  error: Error | null;
+}
+
+export interface SessionContextValue extends SessionState {
+  signIn: (credentials: LoginCredentials, options?: { remember?: boolean }) => Promise<void>;
+  signOut: () => Promise<void>;
+  refresh: () => Promise<void>;
+}
+
+export interface UserProfileState {
+  profile: User | null;
+  loading: boolean;
+  error: Error | null;
+}
+
+export interface UserProfileContextValue extends UserProfileState {
+  reload: () => Promise<void>;
+  setProfile: (profile: User | null) => void;
+}
+
+export interface AccessControlState {
+  role: string | null;
+  isTutor: boolean;
+  isLecturer: boolean;
+  isAdmin: boolean;
+  canApproveTimesheets: boolean;
+  canViewAdminDashboard: boolean;
+  hasRole: (role: string) => boolean;
 }
 
 export interface ErrorContext {

@@ -1,5 +1,7 @@
 import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useSession } from '../auth/SessionProvider';
+import { useUserProfile } from '../auth/UserProfileProvider';
+import { useAccessControl } from '../auth/access-control';
 import { useNavigate, NavLink } from 'react-router-dom';
 import { Badge } from './ui/badge';
 
@@ -10,11 +12,13 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  const { user, logout } = useAuth();
+  const session = useSession();
+  const { profile } = useUserProfile();
+  const access = useAccessControl();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await session.signOut();
     navigate('/login');
   };
 
@@ -89,12 +93,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-4" data-testid="header-right">
-            {user && (
+            {profile && (
               <div className="flex items-center gap-4" data-testid="user-info">
                 <div className="hidden text-right sm:block" data-testid="user-details">
-                  <span className="font-semibold" data-testid="user-name">{user.name}</span>
-                  <Badge variant={getRoleVariant(user.role)} data-testid="user-role-badge">
-                    {getRoleDisplayName(user.role)}
+                  <span className="font-semibold" data-testid="user-name">{profile.name}</span>
+                  <Badge variant={profile ? getRoleVariant(profile.role) : 'secondary'} data-testid="user-role-badge">
+                    {profile ? getRoleDisplayName(profile.role) : ''}
                   </Badge>
                 </div>
                 <button
@@ -142,7 +146,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               Dashboard
             </NavLink>
 
-            {user?.role === 'LECTURER' && (
+            {access.isLecturer && (
               <>
                 <NavLink
                   to="/timesheets"
@@ -168,7 +172,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               </>
             )}
 
-            {user?.role === 'ADMIN' && (
+            {access.isAdmin && (
               <>
                 <NavLink
                   to="/users"
@@ -207,3 +211,5 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 };
 
 export default DashboardLayout;
+
+

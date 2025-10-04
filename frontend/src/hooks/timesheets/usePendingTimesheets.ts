@@ -22,6 +22,12 @@ const createInitialState = (): PendingTimesheetsState => ({
   error: null,
 });
 
+const createAuthErrorState = (): PendingTimesheetsState => ({
+  data: null,
+  loading: false,
+  error: "Not authenticated",
+});
+
 export const usePendingTimesheets = (): UsePendingTimesheetsResult => {
   const { isAuthenticated } = useAuth();
   const [state, setState] = useState<PendingTimesheetsState>(createInitialState);
@@ -29,10 +35,7 @@ export const usePendingTimesheets = (): UsePendingTimesheetsResult => {
 
   const fetchPendingTimesheets = useCallback(async () => {
     if (!isAuthenticated) {
-      setState((previous) => ({
-        ...previous,
-        error: "Not authenticated",
-      }));
+      setState(createAuthErrorState());
       return;
     }
 
@@ -72,7 +75,7 @@ export const usePendingTimesheets = (): UsePendingTimesheetsResult => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setState(createInitialState());
+      setState(createAuthErrorState());
       return;
     }
 

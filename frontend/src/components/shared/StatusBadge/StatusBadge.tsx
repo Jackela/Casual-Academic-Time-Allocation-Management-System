@@ -1,4 +1,5 @@
-/**\r\n * Status Badge Component
+/**
+ * Status Badge Component
  * 
  * Reusable status badge with consistent styling and accessibility.
  * Supports all timesheet statuses with appropriate visual indicators.

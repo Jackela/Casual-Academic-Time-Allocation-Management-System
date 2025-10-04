@@ -3,6 +3,7 @@
  * Comprehensive test suite covering form validation, loading states, and API interaction
  */
 
+import React from 'react';
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -27,6 +28,20 @@ import { secureApiClient } from '../services/api-secure';
 const mockedSecureClient = vi.mocked(secureApiClient, true);
 
 vi.stubGlobal('__DEV_CREDENTIALS__', true);
+const mockUseAuth = vi.fn(() => ({
+  user: null,
+  token: null,
+  login: vi.fn(),
+  logout: vi.fn(),
+  isAuthenticated: false,
+  isLoading: false,
+}));
+
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => mockUseAuth(),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 const buildLoginResponse = (overrides?: Partial<LoginResponse>): ApiResponse<LoginResponse> => {
   const baseUser = {
     id: 1,
@@ -80,6 +95,15 @@ describe('LoginPage Component Tests', () => {
   beforeEach(() => {
     // Clear all mocks before each test
     vi.clearAllMocks();
+    mockUseAuth.mockClear();
+    mockUseAuth.mockReturnValue({
+      user: null,
+      token: null,
+      login: vi.fn(),
+      logout: vi.fn(),
+      isAuthenticated: false,
+      isLoading: false,
+    });
 
     // Reset secure API client mocks
     mockedSecureClient.post.mockReset();

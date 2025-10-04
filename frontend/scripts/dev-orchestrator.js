@@ -22,20 +22,25 @@
 import { execa } from 'execa';
 import tcpPortUsed from 'tcp-port-used';
 import treeKill from 'tree-kill';
-import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { resolveBackendPort, resolveBackendHost, resolveBackendUrl, createHealthConfig, waitForHttpHealth } from './env-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuration
-const BACKEND_PORT = Number(process.env.BACKEND_PORT || 8084);
-const BACKEND_HEALTH = `http://localhost:${BACKEND_PORT}/actuator/health`;
+const BACKEND_PORT = resolveBackendPort();
+const BACKEND_HOST = resolveBackendHost();
+const BACKEND_URL = resolveBackendUrl();
+const BACKEND_HEALTH_PATH = process.env.BACKEND_HEALTH_PATH || '/actuator/health';
+const BACKEND_HEALTH_URL = new URL(BACKEND_HEALTH_PATH, BACKEND_URL).toString();
+const BACKEND_PROFILE = process.env.BACKEND_PROFILE || process.env.E2E_BACKEND_PROFILE || 'e2e-local';
 const BACKEND_CWD = path.resolve(__dirname, '..', '..');
 const BACKEND_READY_TIMEOUT_MS = Number(process.env.BACKEND_READY_TIMEOUT_MS || 120_000); // 2 minutes
-const HEALTH_INTERVAL_MS = 2000;
+const BACKEND_HEALTH_CONFIG = createHealthConfig('BACKEND');
+const HEALTH_INTERVAL_MS = BACKEND_HEALTH_CONFIG.interval;
 
 // State tracking
 let backendProcess = null;
@@ -77,7 +82,7 @@ class BinaryResolver {
       const gradlewPath = path.join(this.projectRoot, 'gradlew.bat');
       return {
         command: 'cmd',
-        args: ['/c', gradlewPath, 'bootRun', '-x', 'test', '--args=--spring.profiles.active=e2e-local'],
+        args: ['/c', gradlewPath, 'bootRun', '-x', 'test', `--args=--spring.profiles.active=${BACKEND_PROFILE}`],
         description: 'Windows Gradle wrapper via cmd'
       };
     } else {
@@ -85,7 +90,7 @@ class BinaryResolver {
       const gradlewPath = path.join(this.projectRoot, 'gradlew');
       return {
         command: gradlewPath,
-        args: ['bootRun', '-x', 'test', '--args=--spring.profiles.active=e2e-local'],
+        args: ['bootRun', '-x', 'test', `--args=--spring.profiles.active=${BACKEND_PROFILE}`],
         description: 'Unix Gradle wrapper direct execution'
       };
     }
@@ -99,6 +104,10 @@ class BinaryResolver {
     return {
       ...process.env,
       SPRING_OUTPUT_ANSI_ENABLED: 'never',
+      SPRING_PROFILES_ACTIVE: BACKEND_PROFILE,
+      SERVER_PORT: String(BACKEND_PORT),
+      E2E_BACKEND_PORT: String(BACKEND_PORT),
+      E2E_BACKEND_URL: BACKEND_URL,
       // Disable Gradle daemon via environment variables
       GRADLE_OPTS: '-Dorg.gradle.daemon=false',
       ORG_GRADLE_DAEMON: 'false',
@@ -147,7 +156,7 @@ class EnvironmentValidator {
     
     // Check Java availability (basic check)
     try {
-      const javaCheck = await execa('java', ['-version'], { timeout: 5000 });
+      const javaCheck = await execa('java', ['-version'], { stdio: 'ignore' });
       log('validator', 'Java runtime detected');
     } catch (e) {
       errors.push('Java runtime not found or not accessible');
@@ -161,7 +170,7 @@ class EnvironmentValidator {
    */
   static async validatePort(port) {
     try {
-      const inUse = await tcpPortUsed.check(port, '127.0.0.1');
+      const inUse = await tcpPortUsed.check(port, BACKEND_HOST);
       return { available: !inUse, inUse };
     } catch (error) {
       return { available: false, inUse: false, error: error.message };
@@ -208,18 +217,16 @@ function clearState() {
   }
 }
 
-// Fast health check with timeout
-async function checkBackendHealth(timeoutMs = 5000) {
+// Fast health check using configurable retries
+async function checkBackendHealth(timeoutMs = BACKEND_HEALTH_CONFIG.requestTimeout) {
   try {
-    const response = await axios.get(BACKEND_HEALTH, { 
-      timeout: timeoutMs,
-      validateStatus: (status) => status === 200 
+    await waitForHttpHealth({
+      url: BACKEND_HEALTH_URL,
+      label: 'backend',
+      config: { ...BACKEND_HEALTH_CONFIG, retries: 1, requestTimeout: timeoutMs },
     });
-    
-    // Check Spring Boot Actuator response format
-    const data = response.data;
-    return data && (data.status === 'UP' || typeof data === 'string');
-  } catch (e) {
+    return true;
+  } catch (error) {
     return false;
   }
 }
@@ -228,28 +235,28 @@ async function checkBackendHealth(timeoutMs = 5000) {
 async function waitForBackendHealth(maxTimeMs) {
   const startTime = Date.now();
   let attempts = 0;
-  
-  log('orchestrator', `Waiting for backend health check (max ${maxTimeMs/1000}s)...`);
-  
+
+  log('orchestrator', `Waiting for backend health check (max ${maxTimeMs / 1000}s)...`);
+
   while (Date.now() - startTime < maxTimeMs) {
-    attempts++;
-    
+    attempts += 1;
+
     if (await checkBackendHealth()) {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       success('orchestrator', `Backend healthy after ${elapsed}s (${attempts} attempts)`);
       return true;
     }
-    
-    // Progress reporting every 15s
-    if (attempts % 8 === 0) {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    if (attempts % Math.max(1, Math.floor(15_000 / HEALTH_INTERVAL_MS)) === 0) {
       const progress = Math.floor((elapsed / (maxTimeMs / 1000)) * 100);
       log('orchestrator', `Health check attempt ${attempts} (${elapsed}s, ${progress}%)`);
     }
-    
-    await new Promise(resolve => setTimeout(resolve, HEALTH_INTERVAL_MS));
+
+    await new Promise((resolve) => setTimeout(resolve, HEALTH_INTERVAL_MS));
   }
-  
+
+  logError('orchestrator', 'Backend health check timeout');
   return false;
 }
 
@@ -477,7 +484,7 @@ async function main() {
       const success = await ensureBackend();
       if (success) {
         log('orchestrator', `Backend ready for ${command} mode`);
-        log('orchestrator', `Health endpoint: ${BACKEND_HEALTH}`);
+        log('orchestrator', `Health endpoint: ${BACKEND_HEALTH_URL}`);
         
         // For dev mode, keep running until interrupted
         if (command === 'dev') {

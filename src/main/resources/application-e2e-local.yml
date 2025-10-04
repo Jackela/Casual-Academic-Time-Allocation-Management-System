@@ -34,6 +34,8 @@ spring:
 app:
   cors:
     allowed-origins: "http://localhost:5174"
+  testing:
+    reset-token: ${TEST_DATA_RESET_TOKEN:local-e2e-reset}
 
 # Server Configuration (E2E port)
 server:
@@ -49,3 +51,4 @@ logging:
     org.springframework.web: INFO
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+

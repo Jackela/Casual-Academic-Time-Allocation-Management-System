@@ -51,10 +51,9 @@ export default defineConfig({
       }
     },
     // Reporter configuration
-    reporter: ['verbose', 'json', 'html'],
+    reporter: ['verbose', 'json'],
     outputFile: {
-      json: './coverage/test-results.json',
-      html: './coverage/test-results.html'
+      json: './coverage/test-results.json'
     }
   },
   resolve: {
@@ -63,3 +62,4 @@ export default defineConfig({
     }
   }
 });
+

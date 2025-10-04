@@ -15,8 +15,9 @@
  */
 
 import { execa } from 'execa';
-import crossSpawn from 'cross-spawn';
 import treeKill from 'tree-kill';
+import fs from 'fs/promises';
+import { resolveBackendPort, resolveFrontendPort, resolveBackendHost, resolveFrontendHost, resolveBackendUrl, resolveFrontendUrl, sanitizeEnv, isWindows, createHealthConfig, waitForHttpHealth } from './env-utils.js';
 import detectPort from 'detect-port';
 import tcpPortUsed from 'tcp-port-used';
 import path from 'path';
@@ -27,6 +28,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const treeKillAsync = promisify(treeKill);
+const TEST_FILE_REGEX = /(\\.test|\\.spec)\./i;
 
 /**
  * Test categories with backend dependencies and direct execution metadata
@@ -38,44 +40,49 @@ const TEST_CATEGORIES = {
     binary: 'vitest',
     args: ['run', '--reporter=verbose', 'src/utils/'],
     needsBackend: false,
-    timeout: 60000,
-    description: 'Fast unit tests with mocking'
+    description: 'Fast unit tests with mocking',
+    expectedDuration: 60000,
+    paths: ['src/utils']
   },
-  
+
   component: {
-    name: 'Component Tests', 
+    name: 'Component Tests',
     binary: 'vitest',
     args: ['run', '--reporter=verbose', 'src/components/'],
     needsBackend: false,
-    timeout: 120000,
-    description: 'Component tests with MSW API mocking'
+    description: 'Component tests with MSW API mocking',
+    expectedDuration: 120000,
+    paths: ['src/components']
   },
-  
+
   api: {
     name: 'API Contract Tests',
     binary: 'playwright',
     args: ['test', '--project=api-tests', '--reporter=line'],
     needsBackend: true,
-    timeout: 180000,
-    description: 'API integration tests requiring real backend'
+    description: 'API integration tests requiring real backend',
+    expectedDuration: 180000,
+    paths: ['e2e/api']
   },
-  
+
   contract: {
     name: 'Contract Tests',
     binary: 'playwright',
     args: ['test', '--project=api-tests', '--grep=contract|schema', '--reporter=line'],
     needsBackend: true,
-    timeout: 120000,
-    description: 'Frontend-backend contract validation'
+    description: 'Frontend-backend contract validation',
+    expectedDuration: 120000,
+    paths: ['e2e/api']
   },
-  
+
   e2e: {
     name: 'E2E Tests',
     binary: 'node',
     args: ['scripts/run-e2e-ai.js'],
     needsBackend: true,
-    timeout: 600000,
-    description: 'Full system end-to-end testing'
+    description: 'Full system end-to-end testing',
+    expectedDuration: 600000,
+    paths: ['e2e']
   }
 };
 
@@ -114,7 +121,7 @@ class ProcessManager {
   setupSignalHandlers() {
     ['SIGINT', 'SIGTERM', 'SIGHUP'].forEach(signal => {
       process.on(signal, async () => {
-        console.log(`\n🛑 Received ${signal}, cleaning up processes...`);
+        console.log(`🛑 Received ${signal}, cleaning up processes...`);
         await this.cleanupAll();
         process.exit(signal === 'SIGINT' ? 130 : 143);
       });
@@ -126,19 +133,23 @@ class ProcessManager {
   }
 
   async spawn(command, args = [], options = {}) {
+    const { env: envOverrides, cwd, ...rest } = options;
+    const env = sanitizeEnv({ FORCE_COLOR: '0', ...(envOverrides || {}) });
     const defaultOptions = {
       stdio: 'inherit',
-      env: { ...process.env, FORCE_COLOR: '0' },
-      cwd: options.cwd || path.join(__dirname, '..'),
-      ...options
+      env,
+      cwd: cwd || path.join(__dirname, '..'),
+      shell: false,
+      windowsHide: isWindows(),
+      ...rest
     };
 
     try {
       const child = execa(command, args, defaultOptions);
-      
+
       if (child.pid) {
         this.managedProcesses.add(child.pid);
-        
+
         child.on('exit', () => {
           this.managedProcesses.delete(child.pid);
         });
@@ -150,14 +161,46 @@ class ProcessManager {
     }
   }
 
+      return child;
+    } catch (error) {
+      throw new Error(`Failed to spawn ${command}: ${error.message}`);
+    }
+  }
+
   async killProcess(pid, signal = 'SIGTERM') {
-    if (!pid) return;
-    
+    if (!pid) {
+      return;
+    }
+
     try {
-      await treeKillAsync(pid, signal);
-      this.managedProcesses.delete(pid);
+      if (isWindows()) {
+        try {
+          await execa('taskkill', ['/pid', String(pid), '/T', '/F'], {
+            windowsHide: true,
+            shell: false,
+            stdio: 'ignore'
+          });
+        } catch (taskkillError) {
+          console.warn(`⚠️  taskkill warning for PID ${pid}:`, taskkillError.message);
+        }
+      } else {
+        try {
+          process.kill(pid, signal);
+        } catch (killError) {
+          if (killError.code !== 'ESRCH') {
+            console.warn(`⚠️  process.kill warning for PID ${pid}:`, killError.message);
+          }
+        }
+        await treeKillAsync(pid, signal).catch((treeError) => {
+          if (treeError.code !== 'ESRCH') {
+            console.warn(`⚠️  tree-kill warning for PID ${pid}:`, treeError.message);
+          }
+        });
+      }
     } catch (error) {
       console.warn(`⚠️  Failed to kill process ${pid}:`, error.message);
+    } finally {
+      this.managedProcesses.delete(pid);
     }
   }
 
@@ -176,8 +219,18 @@ class ProcessManager {
  */
 class PortManager {
   constructor() {
-    this.backendPort = Number(process.env.BACKEND_PORT || 8084);
-    this.frontendPort = 5174;
+    this.backendPort = resolveBackendPort();
+    this.frontendPort = resolveFrontendPort();
+    this.backendHost = resolveBackendHost();
+    this.frontendHost = resolveFrontendHost();
+    this.backendHealthPath = process.env.E2E_BACKEND_HEALTH || process.env.BACKEND_HEALTH_PATH || '/actuator/health';
+    this.frontendHealthPath = process.env.E2E_FRONTEND_HEALTH || process.env.FRONTEND_HEALTH_PATH || '/';
+    this.backendHealthConfig = createHealthConfig('BACKEND');
+    this.frontendHealthConfig = createHealthConfig('FRONTEND');
+    this.backendUrl = resolveBackendUrl();
+    this.frontendUrl = resolveFrontendUrl();
+    this.backendHealthUrl = new URL(this.backendHealthPath, this.backendUrl).toString();
+    this.frontendHealthUrl = new URL(this.frontendHealthPath, this.frontendUrl).toString();
   }
 
   async isPortAvailable(port) {
@@ -189,23 +242,43 @@ class PortManager {
     }
   }
 
-  async isPortInUse(port) {
+  async isPortInUse(port, host = '127.0.0.1') {
     try {
-      return await tcpPortUsed.check(port, 'localhost');
+      return await tcpPortUsed.check(port, host);
     } catch (error) {
       return false;
     }
   }
 
-  async checkBackendHealth(timeoutMs = 5000) {
-    const isRunning = await this.isPortInUse(this.backendPort);
-    
-    if (!isRunning) {
-      return { healthy: false, reason: 'Backend port not in use' };
-    }
+  async waitForBackendHealth() {
+    await waitForHttpHealth({
+      url: this.backendHealthUrl,
+      label: 'backend',
+      config: this.backendHealthConfig,
+    });
+    return true;
+  }
 
-    // Additional health check could be added here (HTTP request to /health)
-    return { healthy: true, reason: 'Backend responding' };
+  async waitForFrontendHealth() {
+    await waitForHttpHealth({
+      url: this.frontendHealthUrl,
+      label: 'frontend',
+      config: this.frontendHealthConfig,
+    });
+    return true;
+  }
+
+  async checkBackendHealth() {
+    try {
+      await waitForHttpHealth({
+        url: this.backendHealthUrl,
+        label: 'backend',
+        config: { ...this.backendHealthConfig, retries: 1, interval: this.backendHealthConfig.interval },
+      });
+      return { healthy: true, reason: 'Backend responding' };
+    } catch (error) {
+      return { healthy: false, reason: error.message };
+    }
   }
 }
 
@@ -269,80 +342,227 @@ class TestRunner {
     const spawnOverrides = { ...options };
     delete spawnOverrides.extraArgs;
 
+    const hasFiles = await this.hasTestFiles(test);
+    if (!hasFiles) {
+      console.log(`⚠️  Skipping ${test.name} (no matching test files found).`);
+      return { success: true, skipped: true, duration: 0 };
+    }
+
     console.log(`📋 Running ${test.name}...`);
     console.log(`   Description: ${test.description}`);
     console.log(`   Binary: ${test.binary} ${test.args.join(' ')}`);
     if (extraArgs.length) {
       console.log(`   Additional args: ${extraArgs.join(' ')}`);
     }
-    console.log(`   Timeout: ${test.timeout}ms`);
+    if (typeof test.expectedDuration === 'number') {
+      console.log(`   Expected duration: ${test.expectedDuration}ms`);
+    }
 
     const startTime = Date.now();
-    
+
     try {
-      // FIXED: Direct binary execution bypassing npm run
       const binaryPath = this.resolveBinaryPath(test.binary);
-      
-      // Set up environment with NODE_ENV=test for vitest tests
-      const testEnv = {
-        ...process.env,
-        NODE_ENV: 'test',
-        FORCE_COLOR: '0' // Disable colors for cleaner output
-      };
-      
       let effectiveArgs = [...test.args];
 
-      if (extraArgs.length) {
-        const isAiE2EScript = test.binary === 'node' && test.args.some(arg => arg.includes('run-e2e-ai.js'));
-        if (isAiE2EScript) {
-          const basePlaywrightArgs = (testEnv.PLAYWRIGHT_ARGS
-            ? testEnv.PLAYWRIGHT_ARGS.split(' ').filter(Boolean)
-            : ['playwright', 'test']);
-          testEnv.PLAYWRIGHT_ARGS = [...basePlaywrightArgs, ...extraArgs].join(' ');
-        }
+      const spawnEnv = sanitizeEnv({
+        NODE_ENV: 'test',
+        FORCE_COLOR: '0',
+        ...(spawnOverrides.env || {}),
+      });
+      delete spawnOverrides.env;
+
+      const isAiE2EScript =
+        test.binary === 'node' && test.args.some((arg) => arg.includes('run-e2e-ai.js'));
+
+      if (isAiE2EScript) {
+        const existingArgs = (spawnEnv.PLAYWRIGHT_ARGS || '').split(' ').filter(Boolean);
+        const baseArgs = existingArgs.length ? existingArgs : ['playwright', 'test'];
+        spawnEnv.PLAYWRIGHT_ARGS = extraArgs.length
+          ? [...baseArgs, ...extraArgs].join(' ')
+          : baseArgs.join(' ');
+      } else if (extraArgs.length) {
         effectiveArgs = [...effectiveArgs, ...extraArgs];
       }
 
-      let command, args;
+      let command;
+      let args;
 
-      // Special handling for vitest and playwright since we use direct entry points
       if (test.binary === 'vitest' || test.binary === 'playwright') {
-        command = process.execPath; // Use node
-        args = [binaryPath, ...effectiveArgs]; // Run node with entry point + test args
+        command = process.execPath;
+        args = [binaryPath, ...effectiveArgs];
         console.log(`🔧 Executing: node ${binaryPath} ${effectiveArgs.join(' ')}`);
       } else {
         command = binaryPath;
         args = effectiveArgs;
         console.log(`🔧 Executing: ${binaryPath} ${effectiveArgs.join(' ')}`);
       }
-      const result = await this.processManager.spawn(
-        command,
-        args,
-        {
-          timeout: test.timeout,
-          cwd: this.rootDir,
-          env: testEnv,
-          ...spawnOverrides
-        }
-      );
+
+      const spawnOptions = {
+        cwd: this.rootDir,
+        env: spawnEnv,
+        ...spawnOverrides,
+      };
+
+      await this.processManager.spawn(command, args, spawnOptions);
 
       const duration = Date.now() - startTime;
       console.log(`✅ ${test.name} passed (${duration}ms)`);
       return { success: true, duration };
-      
     } catch (error) {
       const duration = Date.now() - startTime;
       console.error(`❌ ${test.name} failed (${duration}ms)`);
-      
-      if (error.timedOut) {
-        console.error(`   Reason: Timeout after ${test.timeout}ms`);
-      } else if (error.exitCode) {
+
+      if (typeof error?.exitCode !== 'undefined') {
         console.error(`   Exit code: ${error.exitCode}`);
-      } else {
-        console.error(`   Error: ${error.message}`);
       }
-      
-      return { success: false, duration, error: error.message };
+      if (error?.shortMessage) {
+        console.error(`   Message: ${error.shortMessage}`);
+      } else if (error?.message) {
+        console.error(`   Message: ${error.message}`);
+      }
+
+      return { success: false, duration, error: error?.message || 'unknown error' };
+    }
+  }
+
+  async hasTestFiles(test) {
+    if (!Array.isArray(test.paths) || test.paths.length === 0) {
+      return true;
+    }
+
+    for (const relativePath of test.paths) {
+      const absolutePath = path.join(this.rootDir, relativePath);
+      if (await this.directoryHasTests(absolutePath, 6)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  async directoryHasTests(targetPath, depthRemaining) {
+    if (depthRemaining < 0) {
+      return false;
+    }
+
+    try {
+      const stats = await fs.stat(targetPath);
+      if (stats.isFile()) {
+        return TEST_FILE_REGEX.test(path.basename(targetPath));
+      }
+
+      if (!stats.isDirectory()) {
+        return false;
+      }
+    } catch (error) {
+      return false;
+    }
+
+    try {
+      const dirEntries = await fs.readdir(targetPath, { withFileTypes: true });
+      for (const entry of dirEntries) {
+        if (entry.name.startsWith('.')) {
+          continue;
+        }
+        const entryPath = path.join(targetPath, entry.name);
+        if (entry.isFile() && TEST_FILE_REGEX.test(entry.name)) {
+          return true;
+        }
+        if (entry.isDirectory()) {
+          const found = await this.directoryHasTests(entryPath, depthRemaining - 1);
+          if (found) {
+            return true;
+          }
+        }
+      }
+    } catch (error) {
+      return false;
+    }
+
+    return false;
+  }
+
+    const extraArgs = options.extraArgs ?? [];
+    const spawnOverrides = { ...options };
+    delete spawnOverrides.extraArgs;
+
+    const hasFiles = await this.hasTestFiles(test);
+    if (!hasFiles) {
+      console.log(`⚠️  Skipping ${test.name} (no matching test files found).`);
+      return { success: true, skipped: true, duration: 0 };
+    }
+
+    console.log(`📋 Running ${test.name}...`);
+    console.log(`   Description: ${test.description}`);
+    console.log(`   Binary: ${test.binary} ${test.args.join(' ')}`);
+    if (extraArgs.length) {
+      console.log(`   Additional args: ${extraArgs.join(' ')}`);
+    }
+    if (typeof test.expectedDuration === 'number') {
+      console.log(`   Expected duration: ${test.expectedDuration}ms`);
+    }
+
+    const startTime = Date.now();
+
+    try {
+      const binaryPath = this.resolveBinaryPath(test.binary);
+      let effectiveArgs = [...test.args];
+
+      const spawnEnv = sanitizeEnv({
+        NODE_ENV: 'test',
+        FORCE_COLOR: '0',
+        ...(spawnOverrides.env || {}),
+      });
+      delete spawnOverrides.env;
+
+      const isAiE2EScript = test.binary === 'node' && test.args.some(arg => arg.includes('run-e2e-ai.js'));
+
+      if (isAiE2EScript) {
+        const existingArgs = (spawnEnv.PLAYWRIGHT_ARGS || '').split(' ').filter(Boolean);
+        const baseArgs = existingArgs.length ? existingArgs : ['playwright', 'test'];
+        spawnEnv.PLAYWRIGHT_ARGS = extraArgs.length
+          ? [...baseArgs, ...extraArgs].join(' ')
+          : baseArgs.join(' ');
+      } else if (extraArgs.length) {
+        effectiveArgs = [...effectiveArgs, ...extraArgs];
+      }
+
+      let command;
+      let args;
+
+      if (test.binary === 'vitest' || test.binary === 'playwright') {
+        command = process.execPath;
+        args = [binaryPath, ...effectiveArgs];
+        console.log(`🔧 Executing: node ${binaryPath} ${effectiveArgs.join(' ')}`);
+      } else {
+        command = binaryPath;
+        args = effectiveArgs;
+        console.log(`🔧 Executing: ${binaryPath} ${effectiveArgs.join(' ')}`);
+      }
+
+      const spawnOptions = {
+        cwd: this.rootDir,
+        env: spawnEnv,
+        ...spawnOverrides,
+      };
+
+      await this.processManager.spawn(command, args, spawnOptions);
+
+      const duration = Date.now() - startTime;
+      console.log(`✅ ${test.name} passed (${duration}ms)`);
+      return { success: true, duration };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`❌ ${test.name} failed (${duration}ms)`);
+
+      if (error and getattr(error, 'exitCode', None) is not None):
+        console.error(`   Exit code: ${error.exitCode}`);
+      if (error and getattr(error, 'shortMessage', None)):
+        console.error(`   Message: ${error.shortMessage}`);
+      elif (error and getattr(error, 'message', None)):
+        console.error(`   Message: ${error.message}`);
+
+      return { success: false, duration, error: getattr(error, 'message', 'unknown error') };
     }
   }
 }
@@ -354,69 +574,70 @@ class BackendManager {
   constructor(processManager, portManager) {
     this.processManager = processManager;
     this.portManager = portManager;
-    this.backendProcess = null;
     this.orchestratorPath = path.join(__dirname, 'dev-orchestrator.js');
+    this.backendOwned = false;
+  }
+
+  shouldSkipStartup() {
+    const flag = process.env.E2E_SKIP_BACKEND || '';
+    return ['1', 'true', 'yes'].includes(flag.toLowerCase());
   }
 
   async start() {
     console.log('📋 Starting backend...');
-    
+
+    if (this.shouldSkipStartup()) {
+      console.log('⚙️  Skipping backend startup (E2E_SKIP_BACKEND enabled)');
+      this.backendOwned = false;
+      return true;
+    }
+
+    const existingHealth = await this.portManager.checkBackendHealth();
+    if (existingHealth.healthy) {
+      console.log(`♻️  Reusing backend on ${this.portManager.backendHost}:${this.portManager.backendPort}`);
+      this.backendOwned = false;
+      return true;
+    }
+
     try {
-      // Start backend via orchestrator
-      this.backendProcess = await this.processManager.spawn(
+      await this.processManager.spawn(
         'node',
-        [this.orchestratorPath, 'test']
+        [this.orchestratorPath, 'test'],
+        {
+          env: sanitizeEnv({ BACKEND_PORT: String(this.portManager.backendPort) })
+        }
       );
 
-      // Wait for backend to be ready
-      console.log('⏳ Waiting for backend health check...');
-      
-      let attempts = 0;
-      const maxAttempts = 30;
-      
-      while (attempts < maxAttempts) {
-        const health = await this.portManager.checkBackendHealth();
-        
-        if (health.healthy) {
-          console.log('✅ Backend ready and healthy');
-          return true;
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        attempts++;
-      }
-      
-      throw new Error('Backend failed to start within timeout');
-      
+      await this.portManager.waitForBackendHealth();
+      console.log('✅ Backend ready and healthy');
+      this.backendOwned = true;
+      return true;
     } catch (error) {
       console.error('❌ Backend startup failed:', error.message);
-      await this.stop();
+      this.backendOwned = false;
       return false;
     }
   }
 
   async stop() {
-    if (!this.backendProcess) return;
-    
+    if (!this.backendOwned) {
+      return;
+    }
+
     console.log('🧹 Stopping backend...');
-    
+
     try {
-      // Use orchestrator cleanup
       await this.processManager.spawn(
         'node',
         [this.orchestratorPath, 'cleanup'],
-        { timeout: 10000 }
+        {
+          env: sanitizeEnv({ BACKEND_PORT: String(this.portManager.backendPort) })
+        }
       );
-      
-      // Kill the backend process tree
-      if (this.backendProcess.pid) {
-        await this.processManager.killProcess(this.backendProcess.pid);
-      }
-      
     } catch (error) {
       console.warn('⚠️  Backend cleanup warning:', error.message);
     } finally {
-      this.backendProcess = null;
+      this.backendOwned = false;
     }
   }
 }
@@ -482,7 +703,7 @@ class TestOrchestrator {
     console.log('='.repeat(50));
     
     // Step 1: Fast feedback loop
-    console.log('\n📋 STEP 1: Fast Feedback Loop');
+    console.log('📋 STEP 1: Fast Feedback Loop');
     const fastPassed = await this.runFastTests();
     
     if (!fastPassed) {
@@ -491,7 +712,7 @@ class TestOrchestrator {
     }
     
     // Step 2: Integration tests
-    console.log('\n📋 STEP 2: Integration Tests');  
+    console.log('📋 STEP 2: Integration Tests');  
     const integrationPassed = await this.runBackendTests(['api', 'contract']);
     
     if (!integrationPassed) {
@@ -500,7 +721,7 @@ class TestOrchestrator {
     }
     
     // Step 3: E2E tests
-    console.log('\n📋 STEP 3: E2E Tests');
+    console.log('📋 STEP 3: E2E Tests');
     const e2ePassed = await this.runBackendTests(['e2e'], this.extraArgs);
     
     if (!e2ePassed) {
@@ -508,7 +729,7 @@ class TestOrchestrator {
       return 3;
     }
     
-    console.log('\n🎉 Complete test pyramid passed!');
+    console.log('🎉 Complete test pyramid passed!');
     return 0;
   }
 
@@ -588,3 +809,21 @@ main().catch(async (error) => {
   console.error('❌ Unhandled error:', error.message);
   process.exit(1);
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

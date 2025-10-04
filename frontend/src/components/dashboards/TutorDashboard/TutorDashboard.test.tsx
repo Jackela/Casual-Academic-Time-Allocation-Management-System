@@ -18,7 +18,21 @@ import {
   MockAuthProvider,
 } from "../../../test/utils/test-utils";
 import * as timesheetReadHooks from "../../../hooks/timesheets";
-import * as authContext from "../../../contexts/AuthContext";
+const sessionHooksMock = vi.hoisted(() => ({
+  __esModule: true,
+  useSession: vi.fn(),
+}));
+
+const userProfileHooksMock = vi.hoisted(() => ({
+  __esModule: true,
+  useUserProfile: vi.fn(),
+}));
+
+const accessControlHooksMock = vi.hoisted(() => ({
+  __esModule: true,
+  useAccessControl: vi.fn(),
+}));
+
 import { getStatusConfig } from "../../shared/StatusBadge/StatusBadge";
 import type { TimesheetStatus } from "../../../types/api";
 
@@ -35,13 +49,15 @@ vi.mock("../../../hooks/timesheets", () => ({
   useTimesheetStats: vi.fn(),
 }));
 
-vi.mock("../../../contexts/AuthContext", () => ({
-  useAuth: vi.fn(),
-}));
+vi.mock("../../../auth/SessionProvider", () => sessionHooksMock);
+vi.mock("../../../auth/UserProfileProvider", () => userProfileHooksMock);
+vi.mock("../../../auth/access-control", () => accessControlHooksMock);
 
 const mockReadHooks = timesheetReadHooks as any;
 const mockStatHooks = timesheetReadHooks as any;
-const mockAuth = authContext as any;
+const mockSession = sessionHooksMock.useSession as ReturnType<typeof vi.fn>;
+const mockUserProfile = userProfileHooksMock.useUserProfile as ReturnType<typeof vi.fn>;
+const mockAccessControl = accessControlHooksMock.useAccessControl as ReturnType<typeof vi.fn>;
 const mockTutorUser = createMockAuthUser({
   role: "TUTOR",
   name: "Michael Chen",
@@ -104,14 +120,34 @@ describe("TutorDashboard Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Setup useAuth mock
-    mockAuth.useAuth.mockReturnValue({
-      user: mockTutorUser,
-      token: "mock-token",
+    mockSession.mockReturnValue({
+      status: 'authenticated',
       isAuthenticated: true,
-      isLoading: false,
-      login: vi.fn(),
-      logout: vi.fn(),
+      token: 'mock-token',
+      refreshToken: null,
+      expiresAt: null,
+      error: null,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      refresh: vi.fn(),
+    });
+
+    mockUserProfile.mockReturnValue({
+      profile: mockTutorUser,
+      loading: false,
+      error: null,
+      reload: vi.fn(),
+      setProfile: vi.fn(),
+    });
+
+    mockAccessControl.mockReturnValue({
+      role: 'TUTOR',
+      isTutor: true,
+      isLecturer: false,
+      isAdmin: false,
+      canApproveTimesheets: false,
+      canViewAdminDashboard: false,
+      hasRole: vi.fn((role: string) => role.toUpperCase() === 'TUTOR'),
     });
 
     // Setup default hook returns for tutor context

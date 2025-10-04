@@ -1,37 +1,53 @@
 #!/usr/bin/env node
 
-import { spawn, execSync } from 'child_process';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import waitOn from 'wait-on';
-import fs from 'fs';
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import tcpPortUsed from 'tcp-port-used';
+
+import {
+  resolveBackendPort,
+  resolveFrontendPort,
+  resolveBackendHost,
+  resolveFrontendHost,
+  resolveBackendUrl,
+  resolveFrontendUrl,
+  resolveNpmCommand,
+  resolveGradleCommand,
+  resolveCmdShim,
+  sanitizeEnv,
+  toPlatformCommand,
+  createHealthConfig,
+  waitForHttpHealth,
+  buildUrl,
+  isWindows,
+} from './env-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..', '..');
+const frontendDir = join(projectRoot, 'frontend');
+const playwrightCli = join(frontendDir, 'node_modules', '@playwright', 'test', 'cli.js');
 
-let backendProcess = null;
-let frontendProcess = null;
-let allSpawnedProcesses = new Set(); // Track all spawned processes for cleanup
-
-// Colors for console output
 const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan: '\x1b[36m'
+  reset: '\u001b[0m',
+  bright: '\u001b[1m',
+  red: '\u001b[31m',
+  green: '\u001b[32m',
+  yellow: '\u001b[33m',
+  blue: '\u001b[34m',
+  magenta: '\u001b[35m',
+  cyan: '\u001b[36m',
 };
+
+const TEST_FILE_REGEX = /\.(test|spec)\.[jt]sx?$/i;
+
+const managedChildren = new Set();
 
 function log(message, color = colors.reset) {
   console.log(`${color}${message}${colors.reset}`);
-}
-
-function isTruthy(value) {
-  return typeof value === 'string' && ['1', 'true', 'yes', 'y'].includes(value.toLowerCase());
 }
 
 function logStep(step, message) {
@@ -42,556 +58,455 @@ function logSuccess(message) {
   log(`${colors.green}✅ ${message}${colors.reset}`);
 }
 
-function logError(message) {
-  log(`${colors.red}❌ ${message}${colors.reset}`);
-}
-
 function logWarning(message) {
   log(`${colors.yellow}⚠️  ${message}${colors.reset}`);
 }
 
-function spawnProcess(command, args, options = {}) {
+function logError(message) {
+  log(`${colors.red}❌ ${message}${colors.reset}`);
+}
+
+function isTruthy(value) {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  return ['1', 'true', 'yes', 'y'].includes(value.toLowerCase());
+}
+
+function parseArgList(raw) {
+  if (!raw || !raw.trim()) {
+    return [];
+  }
+  const matches = raw.match(/[^\s"']+|"([^"]*)"|'([^']*)'/g) || [];
+  return matches.map((token) => token.replace(/^("|')|("|')$/g, ''));
+}
+
+function spawnBackground(command, args = [], options = {}) {
+  const { command: binary, args: finalArgs } = toPlatformCommand(command, args);
+  const child = spawn(binary, finalArgs, {
+    cwd: options.cwd || projectRoot,
+    env: sanitizeEnv(options.env),
+    stdio: options.stdio ?? 'pipe',
+    shell: false,
+    windowsHide: true,
+  });
+
+  managedChildren.add(child);
+  child.once('exit', () => managedChildren.delete(child));
+  child.once('error', () => managedChildren.delete(child));
+
+  return child;
+}
+
+function runCommand(command, args = [], options = {}) {
+  const { command: binary, args: finalArgs } = toPlatformCommand(command, args);
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      stdio: 'pipe',
-      shell: true,
-      ...options
+    const child = spawn(binary, finalArgs, {
+      cwd: options.cwd || projectRoot,
+      env: sanitizeEnv(options.env),
+      stdio: options.stdio ?? 'inherit',
+      shell: false,
+      windowsHide: true,
     });
 
-    // Track all spawned processes for cleanup
-    allSpawnedProcesses.add(child);
-    child.on('close', () => allSpawnedProcesses.delete(child));
+    let stdout = '';
+    let stderr = '';
 
-    let output = '';
-    let errorOutput = '';
+    if (child.stdout) {
+      child.stdout.on('data', (chunk) => {
+        stdout += chunk.toString();
+        if (options.onStdout) {
+          options.onStdout(chunk.toString());
+        }
+      });
+    }
 
-    child.stdout?.on('data', (data) => {
-      output += data.toString();
-      if (options.showOutput) {
-        console.log(data.toString().trim());
-      }
-    });
+    if (child.stderr) {
+      child.stderr.on('data', (chunk) => {
+        stderr += chunk.toString();
+        if (options.onStderr) {
+          options.onStderr(chunk.toString());
+        }
+      });
+    }
 
-    child.stderr?.on('data', (data) => {
-      errorOutput += data.toString();
-      if (options.showOutput) {
-        console.error(data.toString().trim());
-      }
-    });
-
-    child.on('close', (code) => {
+    child.once('error', reject);
+    child.once('exit', (code, signal) => {
       if (code === 0) {
-        resolve({ code, output, errorOutput });
+        resolve({ code, signal, stdout, stderr });
       } else {
-        reject({ code, output, errorOutput });
+        const reason = signal ? `signal ${signal}` : `code ${code ?? 1}`;
+        const error = new Error(`${binary} exited with ${reason}`);
+        error.stdout = stdout;
+        error.stderr = stderr;
+        error.code = code;
+        error.signal = signal;
+        reject(error);
       }
     });
-
-    child.on('error', (error) => {
-      reject({ error, output, errorOutput });
-    });
-
-    return child;
   });
 }
 
-function loadParams() {
-  const paramsPath = join(__dirname, 'e2e.params.json');
-  const raw = fs.readFileSync(paramsPath, 'utf8');
-  const base = JSON.parse(raw);
-  const fePort = process.env.E2E_FRONTEND_PORT || undefined;
-  const bePort = process.env.E2E_BACKEND_PORT || undefined;
-  const feUrl = process.env.E2E_FRONTEND_URL || (fePort ? `http://localhost:${fePort}` : undefined);
-  const beUrl = process.env.E2E_BACKEND_URL || (bePort ? `http://127.0.0.1:${bePort}` : undefined);
-  return {
-    ...base,
-    frontendUrl: feUrl || base.frontendUrl,
-    backendPort: bePort ? Number(bePort) : base.backendPort,
-    backendHealthCheckPath: base.backendHealthCheckPath || '/actuator/health',
-    _effectiveBackendUrl: beUrl || `http://127.0.0.1:${bePort || base.backendPort}`
-  };
-}
-
-const params = loadParams();
-
-function getGradleCommand() {
-  // For cross-platform compatibility, we need to handle Windows specifically
-  if (process.platform === 'win32') {
-    // In Windows, we use the shell to run gradlew.bat through cmd
-    return 'cmd';
-  } else {
-    return './gradlew';
+async function cleanupChild(child, label) {
+  if (!child || !child.pid) {
+    return;
   }
-}
 
-function getGradleArgs(bootRunArgs) {
-  if (process.platform === 'win32') {
-    // Windows: use cmd /c to run gradlew.bat
-    return ['/c', 'gradlew.bat', 'bootRun', '-x', 'test', `--args=${bootRunArgs}`];
-  } else {
-    // Unix-like systems: direct gradlew execution
-    return ['bootRun', '-x', 'test', `--args=${bootRunArgs}`];
-  }
-}
-
-async function startBackend() {
-  logStep('STEP 3', 'Starting Spring Boot backend with E2E profile...');
-  
+  log(`  🛑 Stopping ${label} (PID ${child.pid})`, colors.yellow);
   try {
-    // Start backend process in background (non-blocking)
-    const gradleCmd = getGradleCommand();
-    const backendArgs = `--spring.profiles.active=${params.backendProfile} --server.port=${params.backendPort}`;
-    const gradleArgs = getGradleArgs(backendArgs);
-    backendProcess = spawn(gradleCmd, gradleArgs, {
-      cwd: projectRoot,
-      stdio: 'pipe',
-      shell: true,
-      detached: false
-    });
-    
-    // Track backend process for cleanup
-    allSpawnedProcesses.add(backendProcess);
-    backendProcess.on('close', () => allSpawnedProcesses.delete(backendProcess));
-
-    // Log backend startup progress
-    backendProcess.stdout.on('data', (data) => {
-      const output = data.toString();
-      if (output.includes('Started CatamsApplication') || 
-          output.includes('Tomcat started on port') ||
-          output.includes('E2E test data initialized')) {
-        log(`  📡 Backend: ${output.trim()}`, colors.blue);
-      }
-    });
-
-    backendProcess.stderr.on('data', (data) => {
-      const output = data.toString();
-      if (output.includes('ERROR')) {
-        log(`  🔥 Backend Error: ${output.trim()}`, colors.red);
-      }
-    });
-
-    const exitPromise = new Promise((_, reject) => {
-      backendProcess.on('close', (code) => {
-        if (code !== 0) {
-          reject(new Error(`Backend process exited with code ${code}`));
-        }
+    if (isWindows()) {
+      await runCommand('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+        stdio: 'ignore',
       });
-      backendProcess.on('error', (error) => {
-        reject(new Error(`Backend process error: ${error.message}`));
-      });
-    });
-
-    // Implement active health checking instead of log parsing
-    logStep('STEP 4', 'Performing active health checks...');
-    log('  📋 This may take 1-2 minutes on first run (Docker image download + TestContainers startup)', colors.blue);
-    
-    const readyPromise = new Promise(async (resolve, reject) => {
-      const maxAttempts = (process.env.E2E_FAST_FAIL === '1' || process.env.E2E_FAST_FAIL === 'true') ? 1 : 120; // fail fast when enabled
-      for (let attempts = 1; attempts <= maxAttempts; attempts++) {
-        try {
-          await waitOn({ resources: [`tcp:localhost:${params.backendPort}`], timeout: 1000, interval: 500 });
-          const healthResponse = await fetch(`http://127.0.0.1:${params.backendPort}${params.backendHealthCheckPath}`, { method: 'GET', timeout: 3000 });
-          if (healthResponse.ok) {
-            log('  ✅ Backend health check passed', colors.green);
-            try {
-              const h2Response = await fetch(`http://localhost:${params.backendPort}/h2-console`, { method: 'GET', timeout: 3000 });
-              if (h2Response.status === 200) log('  ✅ E2E profile confirmed (H2 Console accessible)', colors.green);
-              else log('  ⚠️  H2 Console not accessible - may not be E2E profile', colors.yellow);
-            } catch {}
-            try {
-              const authResponse = await fetch(`http://localhost:${params.backendPort}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'test', password: 'test' }), timeout: 3000 });
-              if (authResponse.status === 401 || authResponse.status === 400) log('  ✅ Auth endpoint accessible', colors.green);
-            } catch {}
-            logSuccess('Backend is fully ready for E2E testing');
-            return resolve(backendProcess);
-          }
-        } catch {}
-        if (attempts % 15 === 0 || attempts === 30 || attempts === 60) {
-          log(`  ⏱️  Health check attempt ${attempts}/${maxAttempts} (${Math.round(attempts/maxAttempts*100)}%)...`, colors.yellow);
+    } else {
+      try {
+        process.kill(child.pid, 'SIGTERM');
+      } catch (error) {
+        if (error.code !== 'ESRCH') {
+          logWarning(`${label} SIGTERM warning: ${error.message}`);
         }
-        await new Promise((r) => setTimeout(r, 1000));
       }
-      reject(new Error('Backend failed to become healthy within timeout period'));
-    });
-
-    return await Promise.race([readyPromise, exitPromise]);
-    
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        process.kill(child.pid, 'SIGKILL');
+      } catch (error) {
+        if (error.code !== 'ESRCH') {
+          logWarning(`${label} SIGKILL warning: ${error.message}`);
+        }
+      }
+    }
   } catch (error) {
-    logError(`Failed to start backend: ${error.message}`);
-    throw error;
+    logWarning(`${label} cleanup warning: ${error.message}`);
+  }
+}
+
+async function cleanupAll() {
+  await Promise.allSettled(
+    Array.from(managedChildren).map((child) => cleanupChild(child, 'process')),
+  );
+}
+
+function loadBaseParams() {
+  const paramsPath = join(__dirname, 'e2e.params.json');
+  if (!fs.existsSync(paramsPath)) {
+    return {};
+  }
+  const raw = fs.readFileSync(paramsPath, 'utf8');
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    logWarning(`Failed to parse e2e.params.json: ${error.message}`);
+    return {};
   }
 }
 
 async function checkDockerAvailability() {
   try {
-    execSync('docker --version', { stdio: 'pipe' });
-    execSync('docker info', { stdio: 'pipe' });
+    await runCommand('docker', ['info'], { stdio: 'ignore' });
     return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkBackendAlreadyRunning() {
-  try {
-    const url = `http://127.0.0.1:${params.backendPort}${params.backendHealthCheckPath}`;
-    const res = await fetch(url, { method: 'GET', timeout: 2000 });
-    return res.ok;
   } catch {
     return false;
   }
 }
 
-async function startFrontend() {
-  logStep('STEP 5', 'Starting Vite development server...');
-  
+async function hasPlaywrightTests(rootDir) {
   try {
-    // Skip if already running (avoid port conflicts)
-    try {
-      const ping = await fetch(params.frontendUrl, { method: 'GET', redirect: 'manual', cache: 'no-store' });
-      if (ping.ok || ping.status === 200 || ping.status === 301 || ping.status === 302) {
-        logSuccess('Detected healthy frontend. Skipping frontend start.');
-        return;
+    const entries = await fsPromises.readdir(rootDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const entryPath = join(rootDir, entry.name);
+      if (entry.isDirectory()) {
+        if (await hasPlaywrightTests(entryPath)) {
+          return true;
+        }
+      } else if (TEST_FILE_REGEX.test(entry.name)) {
+        return true;
       }
-    } catch {}
-
-    // Use spawn without waiting for completion (frontend needs to stay running)
-    const fePort = process.env.E2E_FRONTEND_PORT || (new URL(params.frontendUrl)).port || '5174';
-    frontendProcess = spawn('npm', ['run', 'dev', '--', '--mode', 'e2e', '--port', fePort], {
-      cwd: join(projectRoot, 'frontend'),
-      stdio: 'pipe',
-      shell: true,
-      env: {
-        ...process.env,
-        E2E_FRONTEND_PORT: fePort,
-        E2E_BACKEND_PORT: process.env.E2E_BACKEND_PORT || String(params.backendPort),
-        E2E_BACKEND_URL: process.env.E2E_BACKEND_URL || params._effectiveBackendUrl,
-        // For browser side config resolution via Vite
-        VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || params._effectiveBackendUrl,
-        ...(process.env.VITE_E2E_AUTH_BYPASS_ROLE
-          ? { VITE_E2E_AUTH_BYPASS_ROLE: process.env.VITE_E2E_AUTH_BYPASS_ROLE }
-          : {})
-      }
-    });
-    
-    // Track frontend process for cleanup
-    allSpawnedProcesses.add(frontendProcess);
-    frontendProcess.on('close', () => allSpawnedProcesses.delete(frontendProcess));
-
-    frontendProcess.stdout.on('data', (data) => {
-      const output = data.toString();
-      if (output.includes('Local:') || output.includes('ready in')) {
-        log(`  🚀 Frontend: ${output.trim()}`, colors.magenta);
-      }
-    });
-
-    frontendProcess.stderr.on('data', (data) => {
-      const output = data.toString();
-      if (output.includes('ERROR') || output.includes('Error')) {
-        log(`  🔥 Frontend Error: ${output.trim()}`, colors.red);
-      }
-    });
-
-    // Wait for frontend to be ready
-    logStep('STEP 6', 'Waiting for frontend to be ready...');
-    await waitOn({
-      resources: [params.frontendUrl],
-      timeout: 30000, // 30 seconds
-      interval: 1000
-    });
-
-    logSuccess('Frontend is ready and serving');
-    return frontendProcess;
+    }
   } catch (error) {
-    logError(`Failed to start frontend: ${error.message}`);
+    if (error.code !== 'ENOENT') {
+      logWarning(`Playwright test discovery warning: ${error.message}`);
+    }
+  }
+  return false;
+}
+
+async function isServiceHealthy(url) {
+  try {
+    await waitForHttpHealth({
+      url,
+      label: url,
+      config: { ...createHealthConfig('SERVICE'), retries: 1, interval: 0 },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function collectPlaywrightArgs() {
+  const envArgs = parseArgList(process.env.PLAYWRIGHT_ARGS);
+  const cliArgs = process.argv.slice(2);
+  const merged = [...envArgs, ...cliArgs];
+  if (merged.length === 0 || merged[0].startsWith('-')) {
+    merged.unshift('test');
+  }
+  return merged;
+}
+
+async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backendProfile }) {
+  const skipBackend = isTruthy(process.env.E2E_SKIP_BACKEND);
+  if (skipBackend) {
+    logWarning('Skipping backend startup because E2E_SKIP_BACKEND is enabled.');
+    return;
+  }
+
+  if (await isServiceHealthy(backendHealthUrl)) {
+    logSuccess(`Detected healthy backend at ${backendHealthUrl}. Reusing existing instance.`);
+    return;
+  }
+
+  if (await tcpPortUsed.check(backendPort, backendHost)) {
+    throw new Error(`Port ${backendPort} already in use but backend health check failed. Aborting.`);
+  }
+
+  logStep('STEP 2', 'Starting Spring Boot backend (Gradle bootRun)...');
+
+  const gradleWrapper = resolveGradleCommand(projectRoot);
+  const gradle = resolveCmdShim(gradleWrapper);
+  const gradleArgs = [...gradle.args, 'bootRun', '-x', 'test'];
+  const backendEnv = {
+    SPRING_PROFILES_ACTIVE: backendProfile,
+    SERVER_PORT: String(backendPort),
+    SPRING_OUTPUT_ANSI_ENABLED: 'never',
+    E2E_BACKEND_PORT: String(backendPort),
+  };
+
+  const child = spawnBackground(gradle.command, gradleArgs, {
+    cwd: projectRoot,
+    env: backendEnv,
+  });
+
+  child.stdout?.on('data', (chunk) => {
+    const line = chunk.toString();
+    if (line.includes('Started') || line.toLowerCase().includes('error')) {
+      log(`  [backend] ${line.trim()}`, colors.blue);
+    }
+  });
+
+  child.stderr?.on('data', (chunk) => {
+    const line = chunk.toString();
+    log(`  [backend:err] ${line.trim()}`, colors.red);
+  });
+
+  const healthConfig = createHealthConfig('BACKEND');
+  await Promise.race([
+    waitForHttpHealth({
+      url: backendHealthUrl,
+      label: 'backend',
+      config: healthConfig,
+    }),
+    new Promise((_, reject) => {
+      child.once('exit', (code) => {
+        reject(new Error(`Backend process exited early with code ${code ?? 'unknown'}`));
+      });
+      child.once('error', (error) => reject(error));
+    }),
+  ]);
+
+  logSuccess('Backend is healthy and ready.');
+}
+
+async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, backendPort, backendUrl }) {
+  const frontendAlreadyHealthy = await isServiceHealthy(frontendHealthUrl);
+  if (frontendAlreadyHealthy) {
+    logSuccess(`Detected healthy frontend at ${frontendHealthUrl}. Reusing existing instance.`);
+    return;
+  }
+
+  if (await tcpPortUsed.check(frontendPort, frontendHost)) {
+    throw new Error(`Port ${frontendPort} already in use but frontend health check failed. Aborting.`);
+  }
+
+  logStep('STEP 3', 'Starting Vite frontend dev server...');
+  const npmCommand = resolveNpmCommand();
+  const env = {
+    E2E_FRONTEND_PORT: String(frontendPort),
+    E2E_BACKEND_PORT: String(backendPort),
+    E2E_BACKEND_URL: backendUrl,
+    VITE_API_BASE_URL: backendUrl,
+    NODE_ENV: 'test',
+  };
+
+  const child = spawnBackground(npmCommand, ['run', 'dev', '--', '--mode', 'e2e', '--port', String(frontendPort)], {
+    cwd: frontendDir,
+    env,
+  });
+
+  child.stdout?.on('data', (chunk) => {
+    const line = chunk.toString();
+    if (line.includes('ready in') || line.includes('Local:')) {
+      log(`  [frontend] ${line.trim()}`, colors.magenta);
+    }
+  });
+
+  child.stderr?.on('data', (chunk) => {
+    const line = chunk.toString();
+    log(`  [frontend:err] ${line.trim()}`, colors.red);
+  });
+
+  const healthConfig = createHealthConfig('FRONTEND');
+  await Promise.race([
+    waitForHttpHealth({
+      url: frontendHealthUrl,
+      label: 'frontend',
+      config: healthConfig,
+    }),
+    new Promise((_, reject) => {
+      child.once('exit', (code) => {
+        reject(new Error(`Frontend process exited early with code ${code ?? 'unknown'}`));
+      });
+      child.once('error', (error) => reject(error));
+    }),
+  ]);
+
+  logSuccess('Frontend is serving requests.');
+}
+
+async function runPlaywright(frontendUrl, backendPort, frontendPort) {
+  logStep('STEP 4', 'Executing Playwright test suite...');
+
+  const hasTests = await hasPlaywrightTests(join(frontendDir, 'e2e'));
+  if (!hasTests) {
+    logWarning('No Playwright test files found. Skipping E2E execution.');
+    return 0;
+  }
+
+  const args = collectPlaywrightArgs();
+  const env = {
+    E2E_EXTERNAL_WEBSERVER: '1',
+    E2E_FRONTEND_URL: frontendUrl,
+    E2E_FRONTEND_PORT: String(new URL(frontendUrl).port || frontendPort),
+    E2E_BACKEND_PORT: String(backendPort),
+    NODE_ENV: 'test',
+  };
+
+  log(`  ▶️  node ${playwrightCli} ${args.join(' ')}`, colors.cyan);
+
+  try {
+    const result = await runCommand(process.execPath, [playwrightCli, ...args], {
+      cwd: frontendDir,
+      env,
+    });
+    return result.code ?? 0;
+  } catch (error) {
+    if (typeof error.code === 'number') {
+      logWarning(`Playwright exited with code ${error.code}`);
+      return error.code;
+    }
     throw error;
   }
 }
 
-async function runPlaywrightTests() {
-  logStep('STEP 7', 'Running Playwright E2E tests...');
-  
-  try {
-    const resultsPath = join(projectRoot, 'frontend', params.jsonReportPath);
-    try { fs.mkdirSync(join(projectRoot, 'frontend', 'playwright-report'), { recursive: true }); } catch {}
-    // Clear previous report to avoid legacy/preamble contamination
-    try { if (fs.existsSync(resultsPath)) fs.unlinkSync(resultsPath); } catch {}
+async function main() {
+  const params = loadBaseParams();
+  const backendPort = resolveBackendPort();
+  const frontendPort = frontendPort;
+  const backendHost = resolveBackendHost();
+  const frontendHost = resolveFrontendHost();
+  const backendUrl = resolveBackendUrl();
+  const frontendUrl = resolveFrontendUrl();
+  const backendProfile = process.env.E2E_BACKEND_PROFILE || params.backendProfile || 'e2e-local';
+  const backendHealthPath = process.env.E2E_BACKEND_HEALTH || params.backendHealthCheckPath || '/actuator/health';
+  const frontendHealthPath = process.env.E2E_FRONTEND_HEALTH || '/';
+  const backendHealthUrl = buildUrl({
+    protocol: new URL(backendUrl).protocol.replace(':', ''),
+    host: backendHost,
+    port: backendPort,
+    path: backendHealthPath,
+  });
+  const frontendHealthUrl = new URL(frontendHealthPath, frontendUrl).toString();
 
-    // Enforce JSON-only reporter for machine readability
-    // Instruct Playwright to reuse externally managed web server
-    process.env.E2E_EXTERNAL_WEBSERVER = 'true';
-    // Propagate effective URLs/ports to Playwright and the app
-    if (!process.env.E2E_BACKEND_PORT && params.backendPort) process.env.E2E_BACKEND_PORT = String(params.backendPort);
-    if (!process.env.E2E_FRONTEND_URL && params.frontendUrl) process.env.E2E_FRONTEND_URL = params.frontendUrl;
-    if (!process.env.E2E_BACKEND_URL && params._effectiveBackendUrl) process.env.E2E_BACKEND_URL = params._effectiveBackendUrl;
-    // Limit projects to desktop runs by default (api-tests + ui-tests). Mobile can be enabled explicitly via CLI if needed.
-    const reportOutput = params.jsonReportPath || 'playwright-report/results.json';
-    const pwArgs = ['playwright', 'test'];
-    // Pass through project filters when explicitly provided
-    for (const arg of process.argv.slice(2)) {
-      if (arg.startsWith('--project=')) pwArgs.push(arg);
+  process.env.E2E_BACKEND_PORT = String(backendPort);
+  process.env.E2E_FRONTEND_PORT = String(frontendPort);
+
+  logStep('STEP 1', 'Pre-flight checks');
+
+  const requireDocker = isTruthy(process.env.E2E_REQUIRE_DOCKER);
+  const skipDockerCheck = isTruthy(process.env.E2E_SKIP_DOCKER_CHECK);
+  if (!skipDockerCheck) {
+    const dockerAvailable = await checkDockerAvailability();
+    if (!dockerAvailable) {
+      if (requireDocker) {
+        throw new Error('Docker is required but not available.');
+      }
+      logWarning('Docker is not available. Continuing without Docker-dependent checks.');
+    } else {
+      logSuccess('Docker is available.');
     }
+  } else {
+    logWarning('Skipping Docker availability check (E2E_SKIP_DOCKER_CHECK).');
+  }
 
-    log(`  🧪 Playwright command: npx ${pwArgs.join(' ')}`);
-    const result = await spawnProcess('npx', pwArgs, {
-      cwd: join(projectRoot, 'frontend'),
-      showOutput: false
+  if (!isTruthy(process.env.E2E_SKIP_INSTALL)) {
+    try {
+      await runCommand(resolveNpmCommand(), ['install'], {
+        cwd: frontendDir,
+      });
+      logSuccess('npm install completed.');
+    } catch (error) {
+      logWarning(`npm install failed: ${error.message}. Continuing with existing dependencies.`);
+    }
+  }
+
+  try {
+    await ensureBackend({
+      backendPort,
+      backendHost,
+      backendHealthUrl,
+      backendProfile,
     });
 
-    logSuccess('E2E tests execution completed');
-    return result;
-  } catch (error) {
-    logWarning(`E2E tests finished with exit code ${error.code} - analyzing results...`);
-    // Don't throw error here - we'll analyze the JSON results
-    return error;
+    await ensureFrontend({
+      frontendPort,
+      frontendHost,
+      frontendHealthUrl,
+      backendPort,
+      backendUrl,
+    });
+
+    const exitCode = await runPlaywright(frontendUrl, backendPort, frontendPort);
+    return exitCode;
+  } finally {
+    await cleanupAll();
   }
 }
 
-// Analysis removed by design; external agent will read the JSON report.
+function registerSignalHandlers() {
+  const shutdown = async (signal) => {
+    log(`\n🛑 Received ${signal}. Cleaning up...`, colors.yellow);
+    await cleanupAll();
+    process.exit(signal === 'SIGINT' ? 130 : 143);
+  };
 
-function killProcessTreeWindows(pid) {
-  try {
-    // Kill process tree on Windows using taskkill
-    execSync(`taskkill /F /T /PID ${pid}`, { stdio: 'ignore' });
-  } catch (error) {
-    // Fallback to individual process kill
-    try {
-      execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
-    } catch {}
-  }
-}
-
-function killProcessTreeUnix(pid) {
-  try {
-    // Kill process group on Unix-like systems
-    process.kill(-pid, 'SIGTERM');
-    setTimeout(() => {
-      try { process.kill(-pid, 'SIGKILL'); } catch {}
-    }, 2000);
-  } catch (error) {
-    // Fallback to individual process kill
-    try { process.kill(pid, 'SIGTERM'); } catch {}
-    setTimeout(() => {
-      try { process.kill(pid, 'SIGKILL'); } catch {}
-    }, 2000);
-  }
-}
-
-async function cleanup() {
-  logStep('CLEANUP', 'Shutting down services...');
-  
-  const killGracefully = (proc, name) => new Promise((resolve) => {
-    if (!proc || proc.killed || !proc.pid) return resolve();
-    
-    log(`  🛑 Stopping ${name} (PID: ${proc.pid})`);
-    
-    // Platform-specific process tree killing
-    if (process.platform === 'win32') {
-      killProcessTreeWindows(proc.pid);
-    } else {
-      killProcessTreeUnix(proc.pid);
-    }
-    
-    // Wait for process to exit
-    const timeout = setTimeout(() => {
-      log(`  ⚠️  ${name} force killed after timeout`);
-      resolve();
-    }, 3000);
-    
-    proc.on('close', () => {
-      clearTimeout(timeout);
-      log(`  ✅ ${name} stopped gracefully`);
-      resolve();
+  ['SIGINT', 'SIGTERM'].forEach((signal) => {
+    process.on(signal, () => {
+      shutdown(signal).catch((error) => {
+        logError(`Cleanup error: ${error.message}`);
+        process.exit(1);
+      });
     });
   });
-
-  // Kill all tracked spawned processes
-  const cleanupPromises = [];
-  for (const child of allSpawnedProcesses) {
-    if (!child.killed && child.pid) {
-      cleanupPromises.push(killGracefully(child, `Process ${child.pid}`));
-    }
-  }
-
-  // Add main processes
-  if (frontendProcess) cleanupPromises.push(killGracefully(frontendProcess, 'Frontend server'));
-  if (backendProcess) cleanupPromises.push(killGracefully(backendProcess, 'Backend server'));
-
-  await Promise.all(cleanupPromises);
-  
-  // Final comprehensive port cleanup using dedicated script (optional)
-  try {
-    const cleanupScript = join(projectRoot, 'scripts', 'cleanup-ports.js');
-    if (fs.existsSync(cleanupScript)) {
-      log('  🔧 Running comprehensive port cleanup...');
-      execSync(`node "${cleanupScript}"`, { 
-        stdio: 'inherit',
-        cwd: projectRoot 
-      });
-      log('  ✅ Port cleanup script completed');
-    } else {
-      log('  🔧 Skipping port cleanup - no scripts/cleanup-ports.js found');
-    }
-  } catch (error) {
-    log(`  ⚠️  Port cleanup script failed: ${error.message}`);
-  }
-  log('  🧹 Cleanup completed');
 }
 
-async function main() {
-  log(`${colors.bright}${colors.cyan}
-╔═══════════════════════════════════════════════════════════════╗
-║                    CATAMS E2E Test Suite                     ║
-║            REFACTORED NON-BLOCKING ORCHESTRATION             ║
-╚═══════════════════════════════════════════════════════════════╝
-${colors.reset}`);
+registerSignalHandlers();
 
-  let playwrightExit = 1;
-
-  try {
-    let backendAlreadyUp = false;
-    // Check Docker availability first
-    logStep('STEP 0', 'Checking Docker availability...');
-    const dockerAvailable = await checkDockerAvailability();
-    backendAlreadyUp = await checkBackendAlreadyRunning();
-    const dockerSkipRequested = isTruthy(process.env.E2E_SKIP_DOCKER_CHECK);
-    let skipBackend = isTruthy(process.env.E2E_SKIP_BACKEND);
-    const requireDocker = isTruthy(process.env.E2E_REQUIRE_DOCKER);
-
-    if (!dockerAvailable && !requireDocker && !backendAlreadyUp) {
-      skipBackend = true;
-    }
-
-    if (skipBackend) {
-      process.env.E2E_SKIP_BACKEND = 'true';
-      if (!process.env.VITE_E2E_USE_MSW) {
-        process.env.VITE_E2E_USE_MSW = 'true';
-      }
-      if (!process.env.VITE_E2E_AUTH_BYPASS_ROLE) {
-        process.env.VITE_E2E_AUTH_BYPASS_ROLE = 'TUTOR';
-      }
-    }
-
-    const skipDockerCheck = dockerSkipRequested || backendAlreadyUp || skipBackend;
-
-    if (!dockerAvailable) {
-      if (requireDocker && !skipDockerCheck) {
-        logError('Docker is not available or not running!');
-        logError('📋 To run E2E tests locally, please:');
-        logError('   1. Install Docker Desktop');
-        logError('   2. Start Docker Desktop');
-        logError('   3. Verify with: docker --version');
-        logError('💡 Alternative: Run unit/integration tests instead');
-        process.exit(1);
-      }
-      let reason;
-      if (skipDockerCheck) {
-        if (dockerSkipRequested) {
-          reason = 'E2E_SKIP_DOCKER_CHECK requested bypass';
-        } else if (backendAlreadyUp) {
-          reason = 'detected healthy backend';
-        } else if (skipBackend) {
-          reason = 'E2E_SKIP_BACKEND requested mocked run';
-        } else {
-          reason = 'skip conditions met';
-        }
-      } else {
-        reason = 'E2E_REQUIRE_DOCKER is not enabled';
-      }
-      logWarning(`Docker is not available; continuing because ${reason}.`);
-    } else {
-      logSuccess('Docker is available and running');
-    }
-
-    // Install dependencies if needed
-    logStep('STEP 1', 'Installing dependencies...');
-    try {
-      await spawnProcess('npm', ['install'], {
-        cwd: join(projectRoot, 'frontend')
-      });
-      logSuccess('Dependencies installed');
-    } catch (error) {
-      logWarning('Failed to install dependencies, continuing anyway...');
-    }
-
-    // Export E2E credentials from SSOT params (avoid hardcoding)
-    const users = params.testUsers || {};
-    process.env.E2E_TUTOR_EMAIL = users.tutor?.email || 'tutor@example.com';
-    process.env.E2E_TUTOR_PASSWORD = users.tutor?.password || 'Tutor123!';
-    process.env.E2E_LECTURER_EMAIL = users.lecturer?.email || 'lecturer@example.com';
-    process.env.E2E_LECTURER_PASSWORD = users.lecturer?.password || 'Lecturer123!';
-    process.env.E2E_ADMIN_EMAIL = users.admin?.email || 'admin@example.com';
-    process.env.E2E_ADMIN_PASSWORD = users.admin?.password || 'Admin123!';
-
-    // Start backend with E2E profile (with health checking) iff not already running
-    logStep('STEP 2', 'Checking backend status...');
-    if (skipBackend) {
-      logWarning('Skipping backend provisioning because E2E_SKIP_BACKEND is enabled.');
-    } else if (backendAlreadyUp) {
-      logSuccess('Detected healthy backend. Skipping backend start.');
-    } else {
-      await startBackend();
-      backendAlreadyUp = true;
-    }
-
-    // Start frontend
-    await startFrontend();
-    
-    const result = await runPlaywrightTests();
-    playwrightExit = typeof result.code === 'number' ? result.code : 1;
-    
-  } catch (error) {
-    logError('E2E testing pipeline failed during setup/execution');
-    if (error.output) {
-      log('Error output:', colors.red);
-      console.log(error.output);
-    }
-    if (error.errorOutput) {
-      log('Error details:', colors.red);
-      console.log(error.errorOutput);
-    }
-    
+main()
+  .then((code) => {
+    process.exit(code ?? 0);
+  })
+  .catch(async (error) => {
+    logError(`E2E pipeline failed: ${error.message}`);
+    await cleanupAll();
     process.exit(1);
-  } finally {
-    await cleanup();
-    process.exit(playwrightExit);
-  }
-}
-
-// Handle process termination
-process.on('SIGINT', async () => {
-  log('\n🛑 Received SIGINT, cleaning up...', colors.yellow);
-  await cleanup();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  log('\n🛑 Received SIGTERM, cleaning up...', colors.yellow);
-  await cleanup();
-  process.exit(0);
-});
-
-// Start the E2E testing pipeline
-main().catch((error) => {
-  logError(`Unhandled error: ${error.message}`);
-  process.exit(1);
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  });
 

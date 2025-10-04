@@ -12,7 +12,9 @@ import {
   useApprovalAction,
   useTimesheetDashboardSummary,
 } from "../../../hooks/timesheets";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useUserProfile } from "../../../auth/UserProfileProvider";
+import { useSession } from "../../../auth/SessionProvider";
+import { useAccessControl } from "../../../auth/access-control";
 import TimesheetTable from "../../shared/TimesheetTable/TimesheetTable";
 import LoadingSpinner from "../../shared/LoadingSpinner/LoadingSpinner";
 import { formatters } from "../../../utils/formatting";
@@ -103,7 +105,10 @@ const StatusBreakdown = memo<{ statusBreakdown: Record<string, number> }>(
 StatusBreakdown.displayName = "StatusBreakdown";
 
 const LecturerDashboard = memo<LecturerDashboardProps>(({ className = "" }) => {
-  const { user } = useAuth();
+  const { profile } = useUserProfile();
+  const { status: sessionStatus } = useSession();
+  const { role, canApproveTimesheets } = useAccessControl();
+  const canPerformApprovals = canApproveTimesheets;
   const [selectedTimesheets, setSelectedTimesheets] = useState<number[]>([]);
   const [rejectionModal, setRejectionModal] = useState<{
     timesheetId: number;
@@ -145,9 +150,16 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = "" }) => {
   }, [approvalError]);
 
   const welcomeMessage = useMemo(() => {
-    const firstName = user?.firstName || user?.name || "Lecturer";
-    return `Welcome back, ${firstName}`;
-  }, [user?.firstName, user?.name]);
+    if (profile) {
+      const firstName = profile.firstName || profile.name || "Lecturer";
+      return `Welcome back, ${firstName}`;
+    }
+    if (role) {
+      const formattedRole = role.charAt(0) + role.slice(1).toLowerCase();
+      return `Welcome back, ${formattedRole}`;
+    }
+    return "Welcome back, Lecturer";
+  }, [profile?.firstName, profile?.name, role]);
 
   const urgentCount = useMemo(() => {
     return pendingTimesheets.filter((t) => {
@@ -160,6 +172,10 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = "" }) => {
 
   const handleApprovalAction = useCallback(
     async (timesheetId: number, action: ApprovalAction) => {
+      if (!canPerformApprovals) {
+        return;
+      }
+
       try {
         if (action === "REJECT") {
           setRejectionModal({ timesheetId, open: true });
@@ -184,11 +200,16 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = "" }) => {
         secureLogger.error("Failed to process approval", error);
       }
     },
-    [approveTimesheet, refetchPending, refetchDashboard],
+    [
+      approveTimesheet,
+      refetchPending,
+      refetchDashboard,
+      canPerformApprovals,
+    ],
   );
 
   const handleBatchApproval = useCallback(async () => {
-    if (selectedTimesheets.length === 0) return;
+    if (!canPerformApprovals || selectedTimesheets.length === 0) return;
 
     try {
       const requests = selectedTimesheets.map((timesheetId) => ({
@@ -203,10 +224,20 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = "" }) => {
     } catch (error) {
       secureLogger.error("Failed to batch approve", error);
     }
-  }, [selectedTimesheets, batchApprove, refetchPending, refetchDashboard]);
+  }, [
+    selectedTimesheets,
+    batchApprove,
+    refetchPending,
+    refetchDashboard,
+    canPerformApprovals,
+  ]);
 
   const handleRejectionSubmit = useCallback(
     async (reason: string) => {
+      if (!canPerformApprovals) {
+        return;
+      }
+
       try {
         await approveTimesheet({
           timesheetId: rejectionModal.timesheetId,
@@ -228,6 +259,7 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = "" }) => {
       approveTimesheet,
       refetchPending,
       refetchDashboard,
+      canPerformApprovals,
     ],
   );
 
@@ -254,7 +286,7 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = "" }) => {
       className={`p-4 sm:p-6 lg:p-8 ${className}`}
       data-testid="lecturer-dashboard"
       role="main"
-      aria-label="Lecturer Dashboard"
+      aria-label={`Lecturer Dashboard (${sessionStatus})`}
     >
       <header className="mb-8 flex items-center justify-between">
         <div>
@@ -419,11 +451,11 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = "" }) => {
                     Review and approve timesheets submitted by tutors.
                   </CardDescription>
                 </div>
-                {selectedTimesheets.length > 0 && (
+                {canPerformApprovals && selectedTimesheets.length > 0 && (
                   <div className="flex items-center gap-2">
                     <Button
                       onClick={handleBatchApproval}
-                      disabled={approvalLoading}
+                      disabled={approvalLoading || !canPerformApprovals}
                     >
                       {approvalLoading ? (
                         <LoadingSpinner size="small" />
@@ -466,18 +498,20 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = "" }) => {
                   timesheets={pendingTimesheets}
                   loading={pendingLoading}
                   loadingMessage="Loading pending approvals..."
-                  onApprovalAction={handleApprovalAction}
+                  onApprovalAction={canPerformApprovals ? handleApprovalAction : undefined}
                   actionLoading={
-                    approvalLoading ? pendingTimesheets[0]?.id : null
+                    canPerformApprovals && approvalLoading
+                      ? pendingTimesheets[0]?.id ?? null
+                      : null
                   }
-                  showActions={true}
+                  showActions={canPerformApprovals}
                   showTutorInfo={true}
                   showCourseInfo={true}
-                  showSelection={true}
-                  selectedIds={selectedTimesheets}
-                  onSelectionChange={setSelectedTimesheets}
+                  showSelection={canPerformApprovals}
+                  selectedIds={canPerformApprovals ? selectedTimesheets : []}
+                  onSelectionChange={canPerformApprovals ? setSelectedTimesheets : undefined}
                   className="lecturer-timesheet-table"
-                  approvalRole="LECTURER"
+                  approvalRole={canPerformApprovals ? "LECTURER" : undefined}
                 />
               )}
             </CardContent>
@@ -554,4 +588,5 @@ const LecturerDashboard = memo<LecturerDashboardProps>(({ className = "" }) => {
 LecturerDashboard.displayName = "LecturerDashboard";
 
 export default LecturerDashboard;
+
 

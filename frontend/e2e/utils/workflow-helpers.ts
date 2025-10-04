@@ -36,6 +36,26 @@ const approvalsEndpoint = `${backendUrl}${E2E_CONFIG.BACKEND.ENDPOINTS.APPROVALS
 const timesheetsEndpoint = `${backendUrl}${E2E_CONFIG.BACKEND.ENDPOINTS.TIMESHEETS}`;
 const loginEndpoint = `${backendUrl}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`;
 
+
+const parseNumericEnv = (...values: (string | undefined)[]): number | null => {
+  for (const value of values) {
+    if (!value) continue;
+    const match = value.match(/-?\\d+/);
+    if (!match) continue;
+    const parsed = Number.parseInt(match[0], 10);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
+const WORKER_WEEK_STRIDE = parseNumericEnv(process.env.E2E_WORKER_WEEK_STRIDE) ?? 512;
+const WORKER_INDEX = parseNumericEnv(process.env.PLAYWRIGHT_WORKER_INDEX, process.env.PLAYWRIGHT_WORKER_ID) ?? 0;
+const RUN_SALT = parseNumericEnv(process.env.PLAYWRIGHT_RUN_SALT, process.env.GITHUB_RUN_ID, process.env.CI_JOB_ID, String(process.pid)) ?? process.pid ?? Number(String(Date.now()).slice(-7));
+const RUN_WEEK_SHIFT = Math.abs(RUN_SALT % 100000);
+
+
 const toHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
   'Content-Type': 'application/json'
@@ -124,7 +144,8 @@ function buildCandidates(options: TimesheetSeedOptions): CandidateSeed[] {
   }
 
   const courseIds = options.courseId ? [options.courseId] : [1, 2, 3];
-  const offsets = Array.from({ length: 200 }, (_, index) => -index - seedSequence - 12);
+  const workerShift = WORKER_INDEX * WORKER_WEEK_STRIDE + RUN_WEEK_SHIFT;
+  const offsets = Array.from({ length: 200 }, (_, index) => -index - seedSequence - 12 - workerShift);
 
   return courseIds.flatMap(courseId =>
     offsets.map(offset => ({
@@ -148,7 +169,7 @@ export async function createTimesheetWithStatus(
   let lastError: { status: number; body: string } | null = null;
 
   for (const [index, candidate] of candidates.entries()) {
-    const seedKey = `${candidate.courseId}-${candidate.weekStartDate}`;
+    const seedKey = `${WORKER_INDEX}-${candidate.courseId}-${candidate.weekStartDate}`;
     if (!options.weekStartDate && usedSeedCombinations.has(seedKey)) {
       continue;
     }
@@ -318,3 +339,8 @@ export async function transitionTimesheet(
 
   await submitApproval(request, roleToken, timesheetId, action, comment);
 }
+
+
+
+
+

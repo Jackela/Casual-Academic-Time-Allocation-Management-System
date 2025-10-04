@@ -12,9 +12,10 @@ import {
   useUpdateTimesheet,
   useTimesheetStats,
 } from "../../../../hooks/timesheets";
-import { useAuth } from "../../../../contexts/AuthContext";
+import { useUserProfile } from "../../../../auth/UserProfileProvider";
 import { formatters } from "../../../../utils/formatting";
 import type { Timesheet, DashboardDeadline } from "../../../../types/api";
+import type { User } from "../../../../types/auth";
 import type { QuickStat } from "../components/QuickStats";
 import type { SupportResourceItem } from "../components/SupportResources";
 
@@ -35,7 +36,7 @@ type CreateTimesheetMutation = ReturnType<typeof useCreateTimesheet>;
 type UpdateTimesheetMutation = ReturnType<typeof useUpdateTimesheet>;
 
 export interface TutorDashboardViewModel {
-  user: ReturnType<typeof useAuth>["user"];
+  user: User | null;
   welcomeMessage: string;
   completionRate: number;
   thisWeekSummary: { hours: number; pay: number };
@@ -63,7 +64,8 @@ export interface TutorDashboardViewModel {
 }
 
 export const useTutorDashboardViewModel = (): TutorDashboardViewModel => {
-  const { user } = useAuth();
+  const { profile } = useUserProfile();
+  const user = profile;
 
   const timesheetsQuery = useTimesheetQuery({
     tutorId: user?.id,
