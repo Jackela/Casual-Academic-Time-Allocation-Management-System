@@ -52,7 +52,7 @@ const renderWithRouter = (ui: React.ReactElement, { route = "/" } = {}) => {
   window.history.pushState({}, "Test page", route);
   return render(ui, { wrapper: MemoryRouter });
 };
-import LecturerDashboard from "./LecturerDashboard";
+import LecturerDashboard from "./index";
 import {
   createMockTimesheetPage,
   createMockDashboardSummary,

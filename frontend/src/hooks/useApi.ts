@@ -5,7 +5,7 @@
  * and performance optimizations.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { secureApiClient } from '../services/api-secure';
 import { secureLogger } from '../utils/secure-logger';
@@ -58,6 +58,12 @@ function useApi<T>(
   
   const abortControllerRef = useRef<AbortController | null>(null);
   
+  const transformRef = useRef<((data: any) => T) | undefined>(transform);
+  
+  useEffect(() => {
+    transformRef.current = transform;
+  }, [transform]);
+  
   const fetchData = useCallback(async () => {
     if (!token) {
       setState(prev => ({ ...prev, error: 'No authentication token available' }));
@@ -80,7 +86,8 @@ function useApi<T>(
         signal: abortControllerRef.current.signal
       });
       
-      const data = transform ? transform(response.data) : response.data!;
+      const transformFn = transformRef.current;
+      const data = transformFn ? transformFn(response.data) : response.data!;
       
       setState({
         data,
@@ -111,7 +118,7 @@ function useApi<T>(
       
       secureLogger.error(`API Error for ${endpoint}`, err);
     }
-  }, [endpoint, token, transform]);
+  }, [endpoint, token]);
   
   const reset = useCallback(() => {
     if (abortControllerRef.current) {
@@ -147,37 +154,74 @@ function useApi<T>(
 // Specialized API Hooks
 // =============================================================================
 
+const transformPendingTimesheets = (data: any): TimesheetPage => {
+  const timesheets = data.timesheets ?? data.content ?? data.data ?? [];
+  const fallbackCount = timesheets.length ?? 0;
+
+  return {
+    success: data.success ?? true,
+    timesheets,
+    pageInfo: data.pageInfo ?? data.page ?? {
+      currentPage: 0,
+      pageSize: 20,
+      totalElements: data.timesheets?.length ?? fallbackCount,
+      totalPages: 1,
+      first: true,
+      last: true,
+      numberOfElements: data.timesheets?.length ?? fallbackCount,
+      empty: fallbackCount === 0,
+    },
+  };
+};
+
 /**
  * Hook for fetching timesheet data with pagination and filtering
  */
 export function useTimesheets(query: TimesheetQuery = {}) {
-  const queryString = new URLSearchParams({
-    page: (query.page || 0).toString(),
-    size: (query.size || 20).toString(),
-    ...(query.status && { status: query.status }),
-    ...(query.tutorId && { tutorId: query.tutorId.toString() }),
-    ...(query.courseId && { courseId: query.courseId.toString() }),
-    ...(query.weekStartDate && { weekStartDate: query.weekStartDate }),
-    ...(query.sortBy && { sortBy: query.sortBy }),
-    ...(query.sortDirection && { sortDirection: query.sortDirection })
-  }).toString();
-  
+  const stringifiedQuery = useMemo(() => JSON.stringify(query), [query]);
+
+  const normalizedQuery = useMemo<TimesheetQuery>(() => JSON.parse(stringifiedQuery), [stringifiedQuery]);
+
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams({
+      page: ((normalizedQuery.page ?? 0)).toString(),
+      size: ((normalizedQuery.size ?? 20)).toString(),
+      ...(normalizedQuery.status && { status: normalizedQuery.status }),
+      ...(normalizedQuery.tutorId && { tutorId: normalizedQuery.tutorId.toString() }),
+      ...(normalizedQuery.courseId && { courseId: normalizedQuery.courseId.toString() }),
+      ...(normalizedQuery.weekStartDate && { weekStartDate: normalizedQuery.weekStartDate }),
+      ...(normalizedQuery.sortBy && { sortBy: normalizedQuery.sortBy }),
+      ...(normalizedQuery.sortDirection && { sortDirection: normalizedQuery.sortDirection }),
+    });
+
+    return params.toString();
+  }, [normalizedQuery]);
+
+  const transformTimesheets = useMemo(() => {
+    return (data: any): TimesheetPage => {
+      const timesheets = data.timesheets ?? data.content ?? data.data ?? [];
+      const fallbackCount = timesheets.length ?? 0;
+
+      return {
+        success: data.success ?? true,
+        timesheets,
+        pageInfo: data.pageInfo ?? data.page ?? {
+          currentPage: normalizedQuery.page ?? 0,
+          pageSize: normalizedQuery.size ?? 20,
+          totalElements: data.timesheets?.length ?? fallbackCount,
+          totalPages: 1,
+          first: true,
+          last: true,
+          numberOfElements: data.timesheets?.length ?? fallbackCount,
+          empty: fallbackCount === 0,
+        },
+      };
+    };
+  }, [normalizedQuery]);
+
   return useApi<TimesheetPage>(`/api/timesheets?${queryString}`, {
-    dependencies: [JSON.stringify(query)],
-    transform: (data: any) => ({
-      success: data.success ?? true,
-      timesheets: data.timesheets ?? data.content ?? data.data ?? [],
-      pageInfo: data.pageInfo ?? data.page ?? {
-        currentPage: query.page || 0,
-        pageSize: query.size || 20,
-        totalElements: data.timesheets?.length ?? 0,
-        totalPages: 1,
-        first: true,
-        last: true,
-        numberOfElements: data.timesheets?.length ?? 0,
-        empty: !data.timesheets?.length
-      }
-    })
+    dependencies: [stringifiedQuery],
+    transform: transformTimesheets,
   });
 }
 
@@ -186,20 +230,7 @@ export function useTimesheets(query: TimesheetQuery = {}) {
  */
 export function usePendingTimesheets() {
   return useApi<TimesheetPage>('/api/timesheets/pending-final-approval', {
-    transform: (data: any) => ({
-      success: data.success ?? true,
-      timesheets: data.timesheets ?? data.content ?? data.data ?? [],
-      pageInfo: data.pageInfo ?? data.page ?? {
-        currentPage: 0,
-        pageSize: 20,
-        totalElements: data.timesheets?.length ?? 0,
-        totalPages: 1,
-        first: true,
-        last: true,
-        numberOfElements: data.timesheets?.length ?? 0,
-        empty: !data.timesheets?.length
-      }
-    })
+    transform: transformPendingTimesheets,
   });
 }
 
@@ -333,6 +364,9 @@ export function useUpdateTimesheet(options: UseMutationOptions<Timesheet, { id: 
     options
   );
 }
+
+
+
 
 
 

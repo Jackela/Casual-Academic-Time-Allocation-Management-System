@@ -48,7 +48,7 @@ const mockTimesheetModule = timesheetHooksMock as unknown as {
   useApprovalAction: ReturnType<typeof vi.fn>;
   useTimesheetStats: ReturnType<typeof vi.fn>;
 };
-import AdminDashboard from "./AdminDashboard";
+import AdminDashboard from "./index";
 import {
   createMockTimesheetPage,
   createMockDashboardSummary,
@@ -448,6 +448,7 @@ describe("AdminDashboard Component", () => {
     });
   });
 });
+
 
 
 
