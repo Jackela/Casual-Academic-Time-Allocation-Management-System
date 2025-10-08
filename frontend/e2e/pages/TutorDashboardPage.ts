@@ -70,7 +70,7 @@ export class TutorDashboardPage {
 
       // Ensure loading spinner is gone (best effort)
       const loadingSpinner = this.loadingState.or(
-        this.page.locator('[data-testid=\"loading-spinner\"], .loading-spinner, .spinner')
+        this.page.locator('[data-testid="loading-spinner"], .loading-spinner, .spinner')
       );
       
       await loadingSpinner.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {
@@ -398,7 +398,11 @@ export class TutorDashboardPage {
     const viewport = this.page.viewportSize();
     expect(viewport?.width).toBeLessThanOrEqual(768);
     // Ensure main content is present
-    try { await this.page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 }); } catch {}
+    try {
+      await this.page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
+    } catch {
+      // Ignore layout timing issues on responsive views
+    }
   }
 
   async expectResponsiveTable() {
@@ -410,12 +414,16 @@ export class TutorDashboardPage {
     let hasTable = false;
     try {
       hasTable = (await tableLocator.count()) > 0;
-    } catch {}
+    } catch {
+      // Allow absence to keep best-effort responsiveness checks
+    }
     hasTable = hasTable || await tableLocator.first().isVisible().catch(() => false);
     let hasEmpty = false;
     try {
       hasEmpty = (await emptyLocator.count()) > 0;
-    } catch {}
+    } catch {
+      // Allow absence to keep best-effort responsiveness checks
+    }
     hasEmpty = hasEmpty || await emptyLocator.first().isVisible().catch(() => false);
     // Best-effort presence check (do not fail hard on mobile due to layout timing)
     if (!(hasTable || hasEmpty)) {

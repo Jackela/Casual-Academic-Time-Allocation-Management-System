@@ -20,17 +20,16 @@ const buildApprovalRequest = (
   overrides: Partial<ApprovalRequest> = {},
 ): ApprovalRequest => ({
   timesheetId: 1,
-  action: "APPROVE",
+  action: "LECTURER_CONFIRM",
   comment: "Looks good",
   ...overrides,
 });
 
 const mockResponse: ApprovalResponse = {
-  timesheetId: 1,
-  status: "APPROVED",
-  approvedBy: 42,
-  approvedAt: "2024-03-12T00:00:00Z",
+  success: true,
   message: "approved",
+  timesheetId: 1,
+  newStatus: "LECTURER_CONFIRMED",
 };
 
 describe("useTimesheetApproval", () => {

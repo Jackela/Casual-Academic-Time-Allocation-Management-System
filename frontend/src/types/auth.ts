@@ -8,7 +8,7 @@ export interface User {
   id: number;
   email: string;
   name: string;
-  role: string;
+  role: UserRole;
   firstName?: string;
   lastName?: string;
   displayName?: string;

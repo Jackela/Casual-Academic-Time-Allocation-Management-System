@@ -180,14 +180,21 @@ export const validateWeekStartDate = (dateString: string): ValidationResult => {
 /**
  * Validate required field
  */
-export const validateRequired = (value: any, fieldName: string): ValidationResult => {
-  if (value === null || value === undefined || value === '') {
+export const validateRequired = (value: unknown, fieldName: string): ValidationResult => {
+  if (value === null || value === undefined) {
     return { isValid: false, error: `${fieldName} is required` };
   }
-  
-  if (typeof value === 'string' && value.trim() === '') {
-    return { isValid: false, error: `${fieldName} cannot be empty` };
+
+  if (typeof value === 'string') {
+    if (value.length === 0) {
+      return { isValid: false, error: `${fieldName} is required` };
+    }
+
+    if (value.trim().length === 0) {
+      return { isValid: false, error: `${fieldName} cannot be empty` };
+    }
+    return { isValid: true };
   }
-  
+
   return { isValid: true };
 };

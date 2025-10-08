@@ -11,6 +11,15 @@ import { secureLogger } from '../utils/secure-logger';
 
 import { handleMonitorGlobalTeardown } from './handle-monitor';
 
+const describeResource = (resource: unknown): string => {
+  if (typeof resource === 'object' && resource !== null) {
+    const constructorName = (resource as { constructor?: { name?: string } }).constructor?.name;
+    return typeof constructorName === 'string' && constructorName.length > 0 ? constructorName : 'Unknown';
+  }
+
+  return typeof resource;
+};
+
 /**
  * Global teardown function
  * 
@@ -94,8 +103,8 @@ async function checkActiveHandles(): Promise<void> {
       secureLogger.warn(`⚠️  ${handles.length} active handles remaining:`);
       
       const handleSummary: Record<string, number> = {};
-      handles.forEach((handle: any) => {
-        const type = handle?.constructor?.name || 'Unknown';
+      handles.forEach((handle) => {
+        const type = describeResource(handle);
         handleSummary[type] = (handleSummary[type] || 0) + 1;
       });
       
@@ -126,8 +135,8 @@ async function checkActiveTimers(): Promise<void> {
       secureLogger.warn(`⚠️  ${requests.length} active requests remaining:`);
       
       const requestSummary: Record<string, number> = {};
-      requests.forEach((request: any) => {
-        const type = request?.constructor?.name || 'Unknown';
+      requests.forEach((request) => {
+        const type = describeResource(request);
         requestSummary[type] = (requestSummary[type] || 0) + 1;
       });
       
@@ -230,12 +239,14 @@ async function checkNetworkConnections(): Promise<void> {
  */
 async function tryDetailedHandleAnalysis(): Promise<void> {
   try {
-    const whyIsNodeRunning = require('why-is-node-running');
+    const whyIsNodeRunning = await import('why-is-node-running');
     secureLogger.info('📊 Detailed handle analysis:');
     
     // Give a moment for output to flush
     setTimeout(() => {
-      whyIsNodeRunning.default();
+      if (typeof whyIsNodeRunning.default === 'function') {
+        whyIsNodeRunning.default();
+      }
     }, 100);
     
     // Wait for analysis to complete

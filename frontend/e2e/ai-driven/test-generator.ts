@@ -1,28 +1,77 @@
 import { Page } from '@playwright/test';
-import { E2E_CONFIG } from '../config/e2e.config';
+import type { TimesheetCreateRequest } from '../../src/types/api';
 
 /**
  * AI-Driven Test Generator
  * Dynamically generates test scenarios based on application state and patterns
  */
 
+export type ScenarioData = Record<string, unknown>;
+
+export interface ScenarioExecutionError {
+  scenario?: string;
+  step?: TestStep;
+  error: string;
+  data?: ScenarioData;
+}
+
+export interface ScenarioExecutionSummary {
+  success: boolean;
+  duration: number;
+  errors: ScenarioExecutionError[];
+  validationCaught?: boolean;
+}
+
 export interface TestScenario {
   name: string;
   steps: TestStep[];
   expectedOutcome: string;
-  dataVariations: any[];
+  dataVariations: ScenarioData[];
 }
 
 export interface TestStep {
   action: 'navigate' | 'fill' | 'click' | 'verify' | 'api-call';
   target?: string;
-  data?: any;
+  data?: ScenarioData | string | number | boolean | null;
   validation?: string;
+}
+
+interface LearningRecord extends ScenarioExecutionSummary {
+  scenario: string;
+  timestamp: Date;
+}
+
+interface PageFormField {
+  name: string | null;
+  type: string | null;
+  required: boolean;
+}
+
+interface PageFormAnalysis {
+  id: string | null;
+  fields: PageFormField[];
+}
+
+interface PageButtonAnalysis {
+  text: string | null;
+  type: string;
+  disabled: boolean;
+}
+
+interface PageLinkAnalysis {
+  text: string | null;
+  href: string;
+}
+
+interface PageAnalysis {
+  forms: PageFormAnalysis[];
+  buttons: PageButtonAnalysis[];
+  links: PageLinkAnalysis[];
 }
 
 export class AITestGenerator {
   private patterns: Map<string, TestScenario[]> = new Map();
-  private learningData: any[] = [];
+  private learningData: LearningRecord[] = [];
 
   /**
    * Generate test scenarios based on OpenAPI spec and UI analysis
@@ -31,7 +80,7 @@ export class AITestGenerator {
     const scenarios: TestScenario[] = [];
     
     // Analyze current page structure
-    const pageAnalysis = await this.analyzePage(page);
+    await this.analyzePage(page);
     
     // Generate authentication scenarios
     scenarios.push(...this.generateAuthScenarios());
@@ -51,28 +100,28 @@ export class AITestGenerator {
   /**
    * Analyze page structure to understand available actions
    */
-  private async analyzePage(page: Page): Promise<any> {
-    return await page.evaluate(() => {
-      const forms = Array.from(document.querySelectorAll('form')).map(form => ({
-        id: form.id,
-        fields: Array.from(form.querySelectorAll('input, select, textarea')).map(field => ({
+  private async analyzePage(page: Page): Promise<PageAnalysis> {
+    return page.evaluate<PageAnalysis>(() => {
+      const forms = Array.from(document.querySelectorAll('form')).map((form) => ({
+        id: form.id || null,
+        fields: Array.from(form.querySelectorAll('input, select, textarea')).map((field) => ({
           name: field.getAttribute('name'),
           type: field.getAttribute('type'),
-          required: field.hasAttribute('required')
-        }))
+          required: field.hasAttribute('required'),
+        })),
       }));
-      
-      const buttons = Array.from(document.querySelectorAll('button')).map(btn => ({
+
+      const buttons = Array.from(document.querySelectorAll('button')).map((btn) => ({
         text: btn.textContent,
         type: btn.type,
-        disabled: btn.disabled
+        disabled: btn.disabled,
       }));
-      
-      const links = Array.from(document.querySelectorAll('a')).map(link => ({
+
+      const links = Array.from(document.querySelectorAll('a')).map((link) => ({
         text: link.textContent,
-        href: link.href
+        href: link.href,
       }));
-      
+
       return { forms, buttons, links };
     });
   }
@@ -250,40 +299,42 @@ export class AITestGenerator {
   /**
    * Generate test data for entity
    */
-  private generateEntityData(entity: string): any {
-    const baseData: any = {
-      timesheet: {
-        tutorId: 3,
-        courseId: 1,
-        weekStartDate: this.generateWeekStart(),
-        hours: this.randomBetween(1, 38),
-        hourlyRate: this.randomBetween(10, 200),
-        description: this.generateDescription(),
-        status: 'DRAFT'
-      }
+  private generateEntityData(entity: string): ScenarioData {
+    if (entity === 'timesheet') {
+      return this.buildTimesheetData();
+    }
+    return {};
+  }
+
+  private buildTimesheetData(): TimesheetCreateRequest {
+    return {
+      tutorId: 3,
+      courseId: 1,
+      weekStartDate: this.generateWeekStart(),
+      hours: this.randomBetween(1, 38),
+      hourlyRate: this.randomBetween(10, 200),
+      description: this.generateDescription(),
     };
-    
-    return baseData[entity] || {};
   }
 
   /**
    * Generate data variations for testing
    */
-  private generateDataVariations(entity: string): any[] {
-    const variations: any[] = [];
-    const baseData = this.generateEntityData(entity);
-    
-    // Generate variations with different values
-    for (let i = 0; i < 5; i++) {
-      variations.push({
-        ...baseData,
-        hours: this.randomBetween(1, 38),
-        hourlyRate: this.randomBetween(10, 200),
-        description: `Variation ${i}: ${this.generateDescription()}`
-      });
+  private generateDataVariations(entity: string): ScenarioData[] {
+    if (entity === 'timesheet') {
+      const variations: TimesheetCreateRequest[] = [];
+      for (let index = 0; index < 5; index += 1) {
+        variations.push({
+          ...this.buildTimesheetData(),
+          hours: this.randomBetween(1, 38),
+          hourlyRate: this.randomBetween(10, 200),
+          description: `Variation ${index}: ${this.generateDescription()}`,
+        });
+      }
+      return variations;
     }
-    
-    return variations;
+
+    return [this.generateEntityData(entity)];
   }
 
   /**
@@ -337,37 +388,38 @@ export class AITestGenerator {
   }
 
   private getActionButtonForTransition(from: string, to: string): string {
-    const transitions: any = {
+    const transitions: Record<string, string> = {
       'DRAFT->PENDING_TUTOR_REVIEW': 'button:has-text("Submit")',
       'PENDING_TUTOR_REVIEW->APPROVED_BY_TUTOR': 'button:has-text("Approve")',
       'PENDING_TUTOR_REVIEW->REJECTED': 'button:has-text("Reject")',
       'REJECTED->DRAFT': 'button:has-text("Edit")',
-      'APPROVED_BY_TUTOR->FINAL_CONFIRMED': 'button:has-text("Final Approve")'
+      'APPROVED_BY_TUTOR->FINAL_CONFIRMED': 'button:has-text("Final Approve")',
     };
     
-    return transitions[`${from}->${to}`] || 'button:has-text("Next")';
+    return transitions[`${from}->${to}`] ?? 'button:has-text("Next")';
   }
 
   /**
    * Learn from test execution results
    */
-  async learnFromExecution(scenario: TestScenario, result: any): Promise<void> {
+  async learnFromExecution(scenario: TestScenario, result: ScenarioExecutionSummary): Promise<void> {
     this.learningData.push({
       scenario: scenario.name,
       success: result.success,
       duration: result.duration,
       errors: result.errors,
+      validationCaught: result.validationCaught,
       timestamp: new Date()
     });
     
     // Adjust patterns based on results
     if (!result.success) {
       // Identify failure patterns and adjust future test generation
-      this.adjustPatternsForFailure(scenario, result);
+      this.adjustPatternsForFailure();
     }
   }
 
-  private adjustPatternsForFailure(scenario: TestScenario, result: any): void {
+  private adjustPatternsForFailure(): void {
     // Implement learning algorithm to improve test generation
     // This could include:
     // - Adjusting timing for async operations

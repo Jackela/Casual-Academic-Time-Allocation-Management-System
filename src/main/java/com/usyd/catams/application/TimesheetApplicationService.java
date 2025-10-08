@@ -84,7 +84,7 @@ import java.util.Optional;
  */
 @Service
 @Transactional
-public class TimesheetApplicationService implements TimesheetService {
+public class TimesheetApplicationService implements TimesheetApplicationFacade {
 
     private final TimesheetRepository timesheetRepository;
     private final UserRepository userRepository;

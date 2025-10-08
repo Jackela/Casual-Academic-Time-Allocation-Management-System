@@ -19,9 +19,16 @@ export interface User {
   displayName?: string;
 }
 
-export interface AuthResult {
+export interface AuthSession {
   token: string;
+  refreshToken?: string | null;
+  expiresAt?: number | null;
   user: User;
+}
+
+export interface AuthResult extends AuthSession {
+  success: boolean;
+  message?: string;
 }
 
 export interface LoginRequest {
@@ -29,7 +36,7 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface LoginResponse extends AuthResult {}
+export type LoginResponse = AuthSession;
 
 // =============================================================================
 // Timesheet Types
@@ -105,7 +112,7 @@ export interface TimesheetsResponse extends TimesheetPage {
   page?: PageInfo;
 }
 
-export interface PendingTimesheetsResponse extends TimesheetsResponse {}
+export type PendingTimesheetsResponse = TimesheetsResponse;
 
 // =============================================================================
 // Dashboard & Summary Types  
@@ -194,22 +201,38 @@ export interface ApprovalResponse {
 // API Response & Error Types
 // =============================================================================
 
-export interface ApiResponse<T = any> {
-  success: boolean;
-  message?: string;
-  data?: T;
-  timestamp?: string;
+export interface ErrorDetail {
+  field?: string;
+  code?: string;
+  message: string;
 }
 
-export interface ApiErrorResponse {
-  success: false;
-  error: string;
+export interface ErrorEnvelope {
+  code: string;
   message: string;
-  timestamp: string;
-  path: string;
-  status: number;
-  details?: Record<string, any>;
+  details?: ErrorDetail[];
+  meta?: Record<string, unknown>;
 }
+
+export interface ApiResponseMeta {
+  timestamp: string;
+  status?: number;
+  path?: string;
+}
+
+export interface ApiSuccessResponse<T> extends ApiResponseMeta {
+  success: true;
+  message?: string;
+  data: T;
+}
+
+export interface ApiErrorResponse extends ApiResponseMeta {
+  success: false;
+  message: string;
+  error: ErrorEnvelope;
+}
+
+export type ApiResponse<T> = ApiSuccessResponse<T>;
 
 export interface HealthResponse {
   status: 'UP' | 'DOWN';

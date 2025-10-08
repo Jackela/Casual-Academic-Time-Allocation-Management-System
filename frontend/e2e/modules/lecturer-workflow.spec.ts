@@ -104,7 +104,10 @@ test.describe('Lecturer Dashboard Workflow', () => {
     // Best-effort: hide loading if present briefly
     try {
       await page.locator('[data-testid="loading-state"]').first().waitFor({ state: 'hidden', timeout: 5000 });
-    } catch {}  });
+    } catch {
+      // Loading indicator can linger in mocked responses
+    }
+  });
 
 
   test('当 Lecturer 审批失败时，UI应显示错误提示并且按钮可再次点击', async ({ page }) => {

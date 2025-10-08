@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { TimesheetService } from '../../services/timesheets';
-import { TIMESHEET_CACHE_DURATION_MS, DEFAULT_TIMESHEET_SORT, PAGE_SIZE } from './utils';
+import { TIMESHEET_CACHE_DURATION_MS, PAGE_SIZE } from './utils';
 import type { TimesheetPage, TimesheetQuery } from '../../types/api';
 
 interface PaginatedState {
@@ -85,7 +85,8 @@ export const useTimesheetQuery = (initialQuery: UseTimesheetQueryOptions = {}): 
     const mergedQuery: TimesheetQuery = {
       page: 0,
       size: PAGE_SIZE,
-      sort: 'createdAt,DESC',
+      sortBy: 'createdAt',
+      sortDirection: 'desc',
       ...tutorFilter,
       ...queryRef.current,
       ...nextQuery

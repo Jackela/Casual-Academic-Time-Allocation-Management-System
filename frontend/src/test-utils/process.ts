@@ -1,3 +1,4 @@
+import { spawn } from 'child_process';
 import { secureLogger } from '../utils/secure-logger';
 /**
  * Process Management Utilities
@@ -19,6 +20,9 @@ interface ManagedProcess {
   wait: () => Promise<number>;
 }
 
+const isErrnoException = (error: unknown): error is NodeJS.ErrnoException =>
+  typeof error === 'object' && error !== null && 'code' in error;
+
 /**
  * Cross-platform process tree killer
  */
@@ -28,7 +32,6 @@ export async function killProcessTree(pid: number, signal: NodeJS.Signals = 'SIG
   try {
     if (process.platform === 'win32') {
       // Windows - use taskkill to kill process tree
-      const { spawn } = await import('child_process');
       const killer = spawn('taskkill', ['/pid', pid.toString(), '/t', '/f'], {
         stdio: 'ignore'
       });
@@ -57,12 +60,13 @@ export async function killProcessTree(pid: number, signal: NodeJS.Signals = 'SIG
           });
         });
       } catch (importError) {
+        secureLogger.debug('tree-kill module unavailable, falling back to manual process kill', importError);
         // Fallback: kill process group manually
         try {
           process.kill(-pid, signal); // Negative PID kills process group
         } catch (killError) {
           // Process might already be dead, ignore ESRCH
-          if ((killError as any).code !== 'ESRCH') {
+          if (!isErrnoException(killError) || killError.code !== 'ESRCH') {
             throw killError;
           }
         }
@@ -81,8 +85,6 @@ export function startManagedProcess(
   args: string[] = [], 
   options: ProcessOptions = {}
 ): ManagedProcess {
-  const { spawn } = require('child_process');
-
   let spawnCommand = command;
   let spawnArgs = args;
 
@@ -167,7 +169,6 @@ export async function killProcessesByPattern(pattern: string): Promise<void> {
   try {
     if (process.platform === 'win32') {
       // Windows - use wmic to find processes
-      const { spawn } = await import('child_process');
       const finder = spawn('wmic', [
         'process', 'where', 
         `CommandLine like '%${pattern}%'`, 
@@ -199,7 +200,6 @@ export async function killProcessesByPattern(pattern: string): Promise<void> {
       });
     } else {
       // Unix - use pkill
-      const { spawn } = await import('child_process');
       const killer = spawn('pkill', ['-f', pattern], { stdio: 'ignore' });
       
       await new Promise<void>((resolve) => {
@@ -222,13 +222,12 @@ export async function cleanupPorts(...ports: number[]): Promise<void> {
     if (process.platform === 'win32') {
       // Windows - find and kill processes using specified ports
       for (const port of ports) {
-        const { spawn } = await import('child_process');
         const netstat = spawn('netstat', ['-ano'], { stdio: 'pipe' });
         
         let output = '';
         netstat.stdout.on('data', (data) => output += data.toString());
         
-        await new Promise<void>((resolve, _reject) => {
+        await new Promise<void>((resolve) => {
           netstat.on('close', async (code) => {
             if (code === 0) {
               const lines = output.split('\n');
@@ -255,7 +254,6 @@ export async function cleanupPorts(...ports: number[]): Promise<void> {
       }
     } else {
       // Unix - use lsof and kill
-      const { spawn } = await import('child_process');
       const portArgs = ports.flatMap(port => ['-i', `:${port}`]);
       const lsof = spawn('lsof', ['-t', ...portArgs], { stdio: 'pipe' });
       

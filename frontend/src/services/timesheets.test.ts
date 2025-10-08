@@ -36,7 +36,7 @@ vi.mock('./api-secure', () => ({
   }
 }));
 
-const mockApiClient = secureApiClient as any;
+const mockApiClient = vi.mocked(secureApiClient);
 
 // Test data
 const mockTimesheet = createMockTimesheet();
@@ -72,7 +72,10 @@ describe('TimesheetService CRUD Operations', () => {
         sortDirection: 'desc'
       });
 
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets?page=0&size=20&sortBy=createdAt&sortDirection=desc');
+      expect(mockApiClient.get).toHaveBeenCalledWith(
+        '/api/timesheets?page=0&size=20&sortBy=createdAt&sortDirection=desc',
+        { signal: expect.any(Object) }
+      );
       expect(result).toEqual(mockTimesheetPage);
     });
 
@@ -156,7 +159,7 @@ describe('TimesheetService CRUD Operations', () => {
 
       const result = await TimesheetService.getPendingTimesheets();
 
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets/pending-final-approval');
+      expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets/pending-final-approval', { signal: undefined });
       expect(result).toEqual(mockTimesheetPage);
     });
   });
@@ -318,7 +321,7 @@ describe('TimesheetService Approval Operations', () => {
       const results = await TimesheetService.batchApproveTimesheets(approvalRequests);
 
       expect(mockApiClient.post).toHaveBeenCalledTimes(3);
-      const approvalPayloads = mockApiClient.post.mock.calls.map(([, payload]: [unknown, ApprovalRequest]) => payload);
+      const approvalPayloads = mockApiClient.post.mock.calls.map(([, payload]) => payload as ApprovalRequest);
       approvalPayloads.forEach((payload: ApprovalRequest) => expect(payload.action).toBe('HR_CONFIRM'));
       expect(results).toHaveLength(3);
       expect(results[0]).toEqual(approvalResponse);
@@ -665,7 +668,7 @@ describe('TimesheetService Error Handling', () => {
   });
 
   it('should handle malformed API responses', async () => {
-    mockApiClient.get.mockResolvedValue({ data: null });
+    mockApiClient.get.mockResolvedValue(createMockApiResponse(null));
 
     const result = await TimesheetService.getTimesheets();
 

@@ -22,6 +22,7 @@ const baseRequest: TimesheetCreateRequest = {
   courseId: 2,
   weekStartDate: "2024-01-01",
   hours: 5,
+  hourlyRate: 45,
   description: "Tutorial",
 };
 

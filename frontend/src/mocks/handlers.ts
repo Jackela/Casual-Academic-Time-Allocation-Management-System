@@ -1,15 +1,43 @@
 import { http, HttpResponse } from 'msw';
+import type { ApprovalRequest, LoginRequest } from '../types/api';
 
 // Lightweight MSW handlers to stabilize e2e/mobile runs by mocking auth and tutor timesheets.
 // These handlers only activate when explicitly started from entrypoint in e2e mode.
 
+const parseJson = async (request: Request): Promise<unknown> => {
+  try {
+    return await request.json();
+  } catch {
+    return undefined;
+  }
+};
+
+const isLoginRequest = (value: unknown): value is LoginRequest => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const candidate = value as Partial<LoginRequest>;
+  return typeof candidate.email === 'string';
+};
+
+const isApprovalRequest = (value: unknown): value is ApprovalRequest => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const candidate = value as Partial<ApprovalRequest>;
+  return typeof candidate.timesheetId === 'number' && typeof candidate.action === 'string';
+};
+
 export const handlers = [
   http.post('http://localhost:8084/api/auth/login', async ({ request }) => {
-    const body = (await request.json().catch(() => ({}))) as any;
-    const email = body?.email ?? '';
+    const payload = await parseJson(request);
+    const loginRequest = isLoginRequest(payload) ? payload : undefined;
+    const email = loginRequest?.email ?? '';
+
     let role = 'LECTURER';
     if (email.includes('tutor')) role = 'TUTOR';
     if (email.includes('admin')) role = 'ADMIN';
+
     return HttpResponse.json({
       success: true,
       token: `${role.toLowerCase()}-mock-token`,
@@ -45,8 +73,14 @@ export const handlers = [
 
   // Approvals endpoint
   http.post('http://localhost:8084/api/approvals', async ({ request }) => {
-    const body = (await request.json().catch(() => ({}))) as any;
-    return HttpResponse.json({ success: true, message: 'Approval processed', request: body });
+    const payload = await parseJson(request);
+    const approvalRequest = isApprovalRequest(payload) ? payload : undefined;
+
+    return HttpResponse.json({
+      success: true,
+      message: 'Approval processed',
+      request: approvalRequest ?? null,
+    });
   }),
 
   http.get('http://localhost:8084/api/timesheets/me', () => {

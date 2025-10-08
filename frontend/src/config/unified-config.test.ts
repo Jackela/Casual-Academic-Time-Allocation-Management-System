@@ -14,6 +14,7 @@ import {
   getEndpoint,
   validateConfiguration 
 } from './unified-config';
+import type { ApiConfiguration } from './unified-config';
 
 // Mock environment configuration
 vi.mock('../utils/environment', () => ({
@@ -247,12 +248,14 @@ describe('Unified Configuration System', () => {
     });
 
     it('should throw error for invalid endpoint paths', () => {
+      const invalidCategory = 'invalid' as unknown as keyof ApiConfiguration['endpoints'];
       expect(() => {
-        getEndpoint('invalid' as any);
+        getEndpoint(invalidCategory);
       }).toThrow();
       
+      const invalidAuthEndpoint = 'invalid' as unknown as keyof ApiConfiguration['endpoints']['auth'];
       expect(() => {
-        getEndpoint('auth', 'invalid');
+        getEndpoint('auth', invalidAuthEndpoint);
       }).toThrow();
     });
   });

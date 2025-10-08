@@ -9,6 +9,7 @@ import { secureApiClient } from './api-secure';
 import type {
   Timesheet,
   TimesheetPage,
+  PageInfo,
   TimesheetQuery,
   TimesheetCreateRequest,
   TimesheetUpdateRequest,
@@ -24,6 +25,12 @@ type ApiApprovalAction =
   | 'HR_CONFIRM'
   | 'REJECT'
   | 'REQUEST_MODIFICATION';
+
+type TimesheetPagePayload = Partial<TimesheetPage> & {
+  content?: Timesheet[];
+  data?: Timesheet[];
+  page?: PageInfo;
+};
 
 const APPROVAL_ACTION_MAP: Record<string, ApiApprovalAction> = {
   SUBMIT_DRAFT: 'SUBMIT_FOR_APPROVAL',
@@ -67,7 +74,7 @@ export class TimesheetService {
   /**
    * Get paginated timesheets with filtering
    */
-  static async getTimesheets(query: TimesheetQuery = {}): Promise<TimesheetPage> {
+  static async getTimesheets(query: TimesheetQuery = {}, signal?: AbortSignal): Promise<TimesheetPage> {
     const queryString = secureApiClient.createQueryString({
       page: query.page || 0,
       size: query.size || 20,
@@ -81,8 +88,9 @@ export class TimesheetService {
       sortDirection: query.sortDirection || 'desc'
     });
 
-    const response = await secureApiClient.get<TimesheetPage>(`/api/timesheets?${queryString}`);
-    
+    const activeSignal = signal ?? new AbortController().signal;
+    const response = await secureApiClient.get<TimesheetPagePayload>(`/api/timesheets?${queryString}`, { signal: activeSignal });
+
     // Normalize response format for backward compatibility
     return this.normalizeTimesheetPage(response.data);
   }
@@ -90,8 +98,8 @@ export class TimesheetService {
   /**
    * Get pending timesheets for lecturer approval
    */
-  static async getPendingTimesheets(): Promise<TimesheetPage> {
-    const response = await secureApiClient.get<TimesheetPage>('/api/timesheets/pending-final-approval');
+  static async getPendingTimesheets(signal?: AbortSignal): Promise<TimesheetPage> {
+    const response = await secureApiClient.get<TimesheetPagePayload>('/api/timesheets/pending-final-approval', { signal });
     return this.normalizeTimesheetPage(response.data);
   }
 
@@ -111,7 +119,7 @@ export class TimesheetService {
       sortDirection: query.sortDirection || 'desc'
     });
 
-    const response = await secureApiClient.get<TimesheetPage>(`/api/timesheets/tutor/${tutorId}?${queryString}`);
+    const response = await secureApiClient.get<TimesheetPagePayload>(`/api/timesheets/tutor/${tutorId}?${queryString}`);
     return this.normalizeTimesheetPage(response.data);
   }
 
@@ -120,7 +128,7 @@ export class TimesheetService {
    */
   static async getTimesheet(id: number): Promise<Timesheet> {
     const response = await secureApiClient.get<Timesheet>(`/api/timesheets/${id}`);
-    return response.data!;
+    return response.data;
   }
 
   /**
@@ -128,7 +136,7 @@ export class TimesheetService {
    */
   static async createTimesheet(data: TimesheetCreateRequest): Promise<Timesheet> {
     const response = await secureApiClient.post<Timesheet>('/api/timesheets', data);
-    return response.data!;
+    return response.data;
   }
 
   /**
@@ -136,7 +144,7 @@ export class TimesheetService {
    */
   static async updateTimesheet(id: number, data: TimesheetUpdateRequest): Promise<Timesheet> {
     const response = await secureApiClient.put<Timesheet>(`/api/timesheets/${id}`, data);
-    return response.data!;
+    return response.data;
   }
 
   /**
@@ -156,7 +164,7 @@ export class TimesheetService {
   static async approveTimesheet(request: ApprovalRequest): Promise<ApprovalResponse> {
     const payload = { ...request, action: normalizeApprovalAction(request.action) };
     const response = await secureApiClient.post<ApprovalResponse>('/api/approvals', payload);
-    return response.data!;
+    return response.data;
   }
 
   /**
@@ -176,7 +184,7 @@ export class TimesheetService {
    */
   static async getDashboardSummary(): Promise<DashboardSummary> {
     const response = await secureApiClient.get<DashboardSummary>('/api/dashboard/summary');
-    return response.data!;
+    return response.data;
   }
 
   /**
@@ -184,7 +192,7 @@ export class TimesheetService {
    */
   static async getAdminDashboardSummary(): Promise<DashboardSummary> {
     const response = await secureApiClient.get<DashboardSummary>('/api/dashboard/summary');
-    return response.data!;
+    return response.data;
   }
 
   // ---------------------------------------------------------------------------
@@ -261,33 +269,27 @@ export class TimesheetService {
   /**
    * Normalize timesheet page response for backward compatibility
    */
-  private static normalizeTimesheetPage(data: any): TimesheetPage {
-    // Handle different response formats from backend
-    const timesheets = data?.timesheets || data?.content || data?.data || [];
-    
-    let pageInfo;
-    if (data?.pageInfo) {
-      pageInfo = data.pageInfo;
-    } else if (data?.page) {
-      pageInfo = data.page;
-    } else {
-      // Create default page info if not provided
-      pageInfo = {
-        currentPage: 0,
-        pageSize: timesheets.length,
-        totalElements: timesheets.length,
-        totalPages: 1,
-        first: true,
-        last: true,
-        numberOfElements: timesheets.length,
-        empty: timesheets.length === 0
-      };
-    }
+  private static normalizeTimesheetPage(payload: TimesheetPagePayload | undefined): TimesheetPage {
+    const timesheets =
+      payload?.timesheets ?? payload?.content ?? payload?.data ?? [];
+
+    const fallbackPageInfo: PageInfo = {
+      currentPage: 0,
+      pageSize: timesheets.length,
+      totalElements: timesheets.length,
+      totalPages: 1,
+      first: true,
+      last: true,
+      numberOfElements: timesheets.length,
+      empty: timesheets.length === 0,
+    };
+
+    const resolvedPageInfo = payload?.pageInfo ?? payload?.page ?? fallbackPageInfo;
 
     return {
-      success: data?.success ?? true,
+      success: payload?.success ?? true,
       timesheets,
-      pageInfo
+      pageInfo: resolvedPageInfo,
     };
   }
 

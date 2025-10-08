@@ -232,7 +232,7 @@ describe('Cleanup System Validation', () => {
         
         // Kill the process immediately for testing
         proc.kill('SIGTERM');
-      } catch (error) {
+      } catch {
         // Process creation might fail in test environment, which is expected
         secureLogger.debug('Process creation test skipped in test environment');
       }

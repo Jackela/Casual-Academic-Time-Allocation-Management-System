@@ -1,7 +1,7 @@
 import { test, expect } from '../fixtures/base';
 import { TimesheetApiClient } from '../utils/api-client';
 import { E2E_CONFIG } from '../config/e2e.config';
-import type { TimesheetPage } from '../../src/types/api';
+import type { TimesheetPage, ApprovalAction } from '../../src/types/api';
 import { acquireAuthTokens, createTimesheetWithStatus, finalizeTimesheet, type AuthContext } from '../utils/workflow-helpers';
 
 const BACKEND_URL = E2E_CONFIG.BACKEND.URL;
@@ -96,9 +96,10 @@ test.describe('Timesheet API Contract', () => {
     const seeded = await createTimesheetWithStatus(request, tokens, { targetStatus: 'LECTURER_CONFIRMED' });
     seededTimesheets.push(seeded.id);
 
+    const invalidAction = 'INVALID_ACTION' as unknown as ApprovalAction;
     await expect(adminClient.processApproval({
       timesheetId: seeded.id,
-      action: 'INVALID_ACTION' as any,
+      action: invalidAction,
       comment: 'invalid'
     })).rejects.toMatchObject({
       success: false,

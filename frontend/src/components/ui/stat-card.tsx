@@ -5,10 +5,11 @@
  * Compatible with both existing CSS system and new Tailwind system.
  */
 
-import React, { memo } from 'react';
+import { memo } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { Card } from './card';
 import { Badge } from './badge';
-import { cn, formatCurrency, formatPercentage, getTrendColor } from '@/lib/utils';
+import { cn, formatCurrency, formatPercentage } from '../../lib/utils';
 
 // Icons - using simple SVG icons for now, can be replaced with lucide-react
 const TrendingUpIcon = () => (
@@ -43,7 +44,7 @@ export interface StatCardTrend {
 }
 
 export interface StatCardProps {
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   title: string;
   value: string | number;
   trend?: StatCardTrend;
@@ -201,9 +202,9 @@ const StatCard = memo<StatCardProps>(({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (interactive && onClick && (e.key === 'Enter' || e.key === ' ')) {
-      e.preventDefault();
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (interactive && onClick && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
       onClick();
     }
   };

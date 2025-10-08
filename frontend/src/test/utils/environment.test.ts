@@ -95,7 +95,7 @@ describe('ENV_CONFIG', () => {
       // Edge cases
       expect(ENV_CONFIG.validation.isValidBypassRole(undefined)).toBe(false);
       expect(ENV_CONFIG.validation.isValidBypassRole('')).toBe(false);
-      expect(ENV_CONFIG.validation.isValidBypassRole(null as any)).toBe(false);
+      expect(ENV_CONFIG.validation.isValidBypassRole(null as unknown as string)).toBe(false);
     });
 
     it('should check configuration consistency', () => {

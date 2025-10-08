@@ -55,7 +55,8 @@ describe('useTimesheetQuery', () => {
     expect(query).toMatchObject({
       page: 0,
       size: 10,
-      sort: 'createdAt,DESC',
+      sortBy: 'createdAt',
+      sortDirection: 'desc',
       tutorId: baseUser.id,
     });
     expect(signal).toHaveProperty('aborted', false);

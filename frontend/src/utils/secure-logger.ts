@@ -1,11 +1,12 @@
 /**
  * Secure Logger Utility
- * 
+ *
  * Environment-aware logging that prevents sensitive data exposure in production.
  * Provides safe logging methods that automatically filter content based on environment.
  */
 
 import { ENV_CONFIG } from './environment';
+import type { SecureLogPayload, SecureLogValue } from '../types/logging';
 
 type MacroGlobals = typeof globalThis & {
   __PRODUCTION_BUILD__?: boolean;
@@ -14,7 +15,6 @@ type MacroGlobals = typeof globalThis & {
 };
 
 const macroGlobals = globalThis as MacroGlobals;
-
 const isProductionMode = (): boolean => {
   if (ENV_CONFIG.isProduction()) {
     return true;
@@ -68,9 +68,6 @@ const DEBUG_LOGGING_FLAG = typeof __DEBUG_LOGGING__ !== 'undefined'
   ? __DEBUG_LOGGING__
   : false;
 
-/**
- * Sensitive data patterns that should never be logged in production
- */
 const SENSITIVE_PATTERNS = [
   /token/i,
   /password/i,
@@ -88,88 +85,101 @@ const SENSITIVE_PATTERNS = [
   /private[_-]?key/i,
 ];
 
-/**
- * Check if a string contains sensitive information
- */
 const containsSensitiveData = (text: string): boolean => {
-  return SENSITIVE_PATTERNS.some(pattern => pattern.test(text));
+  return SENSITIVE_PATTERNS.some((pattern) => pattern.test(text));
 };
 
-/**
- * Sanitize object by removing or masking sensitive properties
- */
-const sanitizeObject = (obj: any, depth = 0): any => {
-  if (depth > 10) return '[Max Depth Reached]'; // Prevent infinite recursion
-  
-  if (obj === null || obj === undefined) return obj;
-  
-  if (typeof obj === 'string') {
-    return containsSensitiveData(obj) ? '[REDACTED]' : obj;
+const sanitizeObject = (value: unknown, depth = 0): SecureLogValue => {
+  if (depth > 10) {
+    return '[Max Depth Reached]';
   }
-  
-  if (typeof obj === 'number' || typeof obj === 'boolean') {
-    return obj;
+
+  if (value === null || value === undefined) {
+    return value as null | undefined;
   }
-  
-  if (obj instanceof Error) {
+
+  if (typeof value === 'string') {
+    return containsSensitiveData(value) ? '[REDACTED]' : value;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'bigint' || typeof value === 'symbol' || typeof value === 'function') {
+    return String(value);
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (value instanceof Error) {
     const exposeStack = !isProductionMode() && ENV_CONFIG.isDevelopment();
     return {
-      name: obj.name,
-      message: containsSensitiveData(obj.message) ? '[REDACTED ERROR]' : obj.message,
-      stack: exposeStack ? obj.stack : '[REDACTED]'
+      name: value.name,
+      message: containsSensitiveData(value.message) ? '[REDACTED ERROR]' : value.message,
+      stack: exposeStack ? value.stack ?? '[No Stack]' : '[REDACTED]',
     };
   }
-  
-  if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObject(item, depth + 1));
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeObject(item, depth + 1));
   }
-  
-  if (typeof obj === 'object') {
-    const sanitized: any = {};
-    for (const [key, value] of Object.entries(obj)) {
-      if (containsSensitiveData(key)) {
-        sanitized[key] = '[REDACTED]';
-      } else {
-        sanitized[key] = sanitizeObject(value, depth + 1);
-      }
+
+  if (value instanceof Set) {
+    return Array.from(value).map((item) => sanitizeObject(item, depth + 1));
+  }
+
+  if (value instanceof Map) {
+    const mapped: Record<string, SecureLogValue> = {};
+    value.forEach((mapValue, key) => {
+      mapped[String(key)] = sanitizeObject(mapValue, depth + 1);
+    });
+    return mapped;
+  }
+
+  if (typeof value === 'object') {
+    const sanitized: Record<string, SecureLogValue> = {};
+    for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
+      sanitized[key] = containsSensitiveData(key)
+        ? '[REDACTED]'
+        : sanitizeObject(entryValue, depth + 1);
     }
     return sanitized;
   }
-  
-  return obj;
+
+  return String(value);
 };
 
-/**
- * Create production-safe log message
- */
-const createSafeLogMessage = (message: string, data?: any) => {
+const sanitizeValue = (value: SecureLogPayload | undefined): SecureLogValue | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+  return sanitizeObject(value);
+};
+
+const createSafeLogMessage = (message: string, data?: SecureLogPayload) => {
   const productionMode = isProductionMode();
 
   const safeMessage = productionMode && containsSensitiveData(message)
     ? '[REDACTED]'
     : message;
 
-  const safeData = productionMode && data !== undefined
+  const safeData: SecureLogPayload | undefined = productionMode && data !== undefined
     ? sanitizeObject(data)
     : data;
 
   return { message: safeMessage, data: safeData };
 };
 
-/**
- * Get current timestamp for logging
- */
 const getTimestamp = (): string => {
   return new Date().toISOString();
 };
 
 export const secureLogger = {
 
-  /**
-   * Debug logging - only in development and E2E environments
-   * Completely stripped from production builds via conditional compilation
-   */
-  debug: (message: string, data?: any): void => {
+  debug: (message: string, data?: SecureLogPayload): void => {
     if (DEBUG_LOGGING_FLAG && ENV_CONFIG.features.enableDetailedLogging()) {
       const { message: safeMessage, data: safeData } = createSafeLogMessage(message, data);
       if (safeData !== undefined) {
@@ -180,10 +190,7 @@ export const secureLogger = {
     }
   },
 
-  /**
-   * Info logging - filtered in production
-   */
-  info: (message: string, data?: any): void => {
+  info: (message: string, data?: SecureLogPayload): void => {
     const { message: safeMessage, data: safeData } = createSafeLogMessage(message, data);
     if (safeData !== undefined) {
       console.info(`[${getTimestamp()}] ${safeMessage}`, safeData);
@@ -192,10 +199,7 @@ export const secureLogger = {
     }
   },
 
-  /**
-   * Warning logging - always shown but sanitized in production
-   */
-  warn: (message: string, data?: any): void => {
+  warn: (message: string, data?: SecureLogPayload): void => {
     const { message: safeMessage, data: safeData } = createSafeLogMessage(message, data);
     if (safeData !== undefined) {
       console.warn(`[${getTimestamp()}] ${safeMessage}`, safeData);
@@ -204,98 +208,72 @@ export const secureLogger = {
     }
   },
 
-  /**
-   * Error logging - always shown but sanitized in production
-   */
-  error: (message: string, error?: any): void => {
+  error: (message: string, error?: SecureLogPayload): void => {
     if (isProductionMode()) {
-      // Production: Log minimal error information without sensitive details
-      const sanitizedError = error instanceof Error 
-        ? {
-            name: error.name,
-            timestamp: getTimestamp(),
-            context: containsSensitiveData(message) ? '[REDACTED CONTEXT]' : message
-          }
-        : {
-            timestamp: getTimestamp(),
-            context: containsSensitiveData(message) ? '[REDACTED CONTEXT]' : message
-          };
-      console.error(`[${getTimestamp()}] Error occurred`, sanitizedError);
-    } else {
-      // Development: Full error details
-      if (error !== undefined) {
-        console.error(`[${getTimestamp()}] ${message}`, error);
+      const safeMessage = containsSensitiveData(message) ? '[REDACTED]' : message;
+      const sanitizedError = sanitizeValue(error);
+      if (sanitizedError !== undefined) {
+        console.error(`[${getTimestamp()}] ${safeMessage}`, sanitizedError);
       } else {
-        console.error(`[${getTimestamp()}] ${message}`);
+        console.error(`[${getTimestamp()}] ${safeMessage}`);
       }
+      return;
+    }
+
+    if (error !== undefined) {
+      console.error(`[${getTimestamp()}] ${message}`, error);
+    } else {
+      console.error(`[${getTimestamp()}] ${message}`);
     }
   },
 
-  /**
-   * Security logging - for authentication and authorization events
-   */
-  security: (event: string, context?: any): void => {
-    const sanitizedContext = isProductionMode() 
-      ? sanitizeObject(context)
-      : context;
-      
+  security: (event: string, context?: SecureLogPayload): void => {
+    const payload = isProductionMode() ? sanitizeValue(context) : context;
     const logData = {
       event,
       timestamp: getTimestamp(),
       environment: ENV_CONFIG.getMode(),
-      context: sanitizedContext
+      context: payload,
     };
-    
+
     console.info('[SECURITY]', logData);
   },
 
-  /**
-   * Performance logging - for monitoring and optimization
-   */
-  performance: (metric: string, value: number, unit: string = 'ms', context?: any): void => {
+  performance: (metric: string, value: number, unit: string = 'ms', context?: SecureLogPayload): void => {
     if (ENV_CONFIG.features.enableDetailedLogging() || isProductionMode()) {
+      const payload = isProductionMode() ? sanitizeValue(context) : context;
       const logData = {
         metric,
         value,
         unit,
         timestamp: getTimestamp(),
-        context: isProductionMode() ? sanitizeObject(context) : context
+        context: payload,
       };
-      
+
       console.info(`[PERF] ${metric}: ${value}${unit}`, logData);
     }
   },
 
-  /**
-   * API logging - for request/response monitoring
-   */
-  api: (method: string, url: string, status?: number, duration?: number, error?: any): void => {
-    // Sanitize URL to remove potential sensitive query parameters
+  api: (method: string, url: string, status?: number, duration?: number, error?: SecureLogPayload): void => {
     const sanitizedUrl = url.replace(/([?&])(token|key|secret|password)=[^&]*/gi, '$1$2=[REDACTED]');
-    
+
     const logData = {
       method,
       url: sanitizedUrl,
       status,
       duration: duration ? `${duration}ms` : undefined,
-      timestamp: getTimestamp()
+      timestamp: getTimestamp(),
     };
-    
+
     if (error) {
-      const sanitizedError = isProductionMode() ? sanitizeObject(error) : error;
-      secureLogger.error(`API ${method} ${sanitizedUrl} failed`, sanitizedError);
-    } else {
-      if (ENV_CONFIG.features.enableDetailedLogging()) {
-        console.log(`[API] ${method} ${sanitizedUrl}`, logData);
-      }
+      const payload = isProductionMode() ? sanitizeValue(error) : error;
+      secureLogger.error(`API ${method} ${sanitizedUrl} failed`, payload);
+    } else if (ENV_CONFIG.features.enableDetailedLogging()) {
+      console.log(`[API] ${method} ${sanitizedUrl}`, logData);
     }
   },
 
-  /**
-   * E2E logging - only in E2E environment for test debugging
-   * Completely stripped from production builds via conditional compilation
-   */
-  e2e: (message: string, data?: any): void => {
+  e2e: (message: string, data?: SecureLogPayload): void => {
     const hasE2EFlag = (() => {
       try {
         if (typeof __E2E_GLOBALS__ !== 'undefined' && __E2E_GLOBALS__) {
@@ -308,45 +286,37 @@ export const secureLogger = {
     })();
 
     if (hasE2EFlag && isE2EMode()) {
-      console.log('[E2E]', message, data);
+      console.log('E2E', message, data);
     }
   },
 
-  /**
-   * Conditional logging based on environment
-   */
-  conditional: (condition: boolean, level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: any): void => {
+  conditional: (
+    condition: boolean,
+    level: 'debug' | 'info' | 'warn' | 'error',
+    message: string,
+    data?: SecureLogPayload,
+  ): void => {
     if (condition) {
       secureLogger[level](message, data);
     }
   },
 
-  /**
-   * Get current logging configuration for debugging
-   */
-  getConfig: () => {
-    return {
-      environment: ENV_CONFIG.getMode(),
-      productionMode: isProductionMode(),
-      developmentMode: ENV_CONFIG.isDevelopment(),
-      e2eMode: ENV_CONFIG.isE2E(),
-      detailedLogging: ENV_CONFIG.features.enableDetailedLogging(),
-      debugMode: ENV_CONFIG.features.enableDebugMode()
-    };
-  }
+  getConfig: () => ({
+    environment: ENV_CONFIG.getMode(),
+    productionMode: isProductionMode(),
+    developmentMode: ENV_CONFIG.isDevelopment(),
+    e2eMode: ENV_CONFIG.isE2E(),
+    detailedLogging: ENV_CONFIG.features.enableDetailedLogging(),
+    debugMode: ENV_CONFIG.features.enableDebugMode(),
+  }),
 } as const;
 
 export default secureLogger;
 
-/**
- * Legacy console replacement for gradual migration
- * @deprecated Use secureLogger methods instead
- */
 export const safeConsole = {
   log: secureLogger.info,
   debug: secureLogger.debug,
   info: secureLogger.info,
   warn: secureLogger.warn,
-  error: secureLogger.error
+  error: secureLogger.error,
 } as const;
-

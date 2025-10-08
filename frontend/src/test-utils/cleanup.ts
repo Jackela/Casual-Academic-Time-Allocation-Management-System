@@ -5,6 +5,55 @@
 
 export type Cleanup = () => Promise<void> | void;
 
+type Promisable<T> = T | Promise<T>;
+type CloseCallback = (error?: Error | null) => void;
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const hasMethod = <T extends string>(
+  value: unknown,
+  method: T,
+): value is Record<T, (...args: unknown[]) => unknown> =>
+  isObject(value) && typeof value[method] === 'function';
+
+const isCallbackCloseable = (
+  value: unknown,
+): value is { close: (callback: CloseCallback) => void } =>
+  hasMethod(value, 'close') && value.close.length >= 1;
+
+const isPromiseCloseable = (
+  value: unknown,
+): value is { close: () => Promisable<unknown> } =>
+  hasMethod(value, 'close') && value.close.length < 1;
+
+const executeClose = async (resource: unknown): Promise<void> => {
+  if (isCallbackCloseable(resource)) {
+    await new Promise<void>((resolve, reject) => {
+      resource.close((error) => {
+        if (error instanceof Error) {
+          reject(error);
+        } else if (error != null) {
+          reject(new Error(String(error)));
+        } else {
+          resolve();
+        }
+      });
+    });
+    return;
+  }
+
+  if (isPromiseCloseable(resource)) {
+    await Promise.resolve(resource.close()).then(() => undefined);
+  }
+};
+
+const terminateIfPossible = async (value: unknown): Promise<void> => {
+  if (hasMethod(value, 'terminate')) {
+    await Promise.resolve(value.terminate()).then(() => undefined);
+  }
+};
+
 class CleanupRegistry {
   private cleaners: Cleanup[] = [];
   private isRunning = false;
@@ -94,14 +143,34 @@ export const getCleanupCount = (): number => {
 /**
  * HTTP Server cleanup helper
  */
-export const cleanupServer = (server: any): void => {
+export const cleanupServer = (server: unknown): void => {
   registerCleanup(() => {
-    return new Promise<void>((resolve) => {
-      if (server && typeof server.close === 'function') {
-        server.close(() => resolve());
-      } else {
-        resolve();
+    if (!server) {
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      if (isCallbackCloseable(server)) {
+        server.close((error) => {
+          if (error instanceof Error) {
+            reject(error);
+          } else if (error != null) {
+            reject(new Error(String(error)));
+          } else {
+            resolve();
+          }
+        });
+        return;
       }
+
+      if (isPromiseCloseable(server)) {
+        Promise.resolve(server.close())
+          .then(() => resolve())
+          .catch(reject);
+        return;
+      }
+
+      resolve();
     });
   });
 };
@@ -109,21 +178,24 @@ export const cleanupServer = (server: any): void => {
 /**
  * Database connection cleanup helper
  */
-export const cleanupDatabase = (db: any): void => {
+export const cleanupDatabase = (db: unknown): void => {
   registerCleanup(async () => {
-    if (db) {
-      // Prisma
-      if (typeof db.$disconnect === 'function') {
-        await db.$disconnect();
-      }
-      // TypeORM DataSource
-      else if (typeof db.destroy === 'function') {
-        await db.destroy();
-      }
-      // Generic pool
-      else if (typeof db.end === 'function') {
-        await db.end();
-      }
+    if (!db) {
+      return;
+    }
+    // Prisma
+    if (hasMethod(db, '$disconnect')) {
+      await Promise.resolve(db.$disconnect()).then(() => undefined);
+      return;
+    }
+    // TypeORM DataSource
+    if (hasMethod(db, 'destroy')) {
+      await Promise.resolve(db.destroy()).then(() => undefined);
+      return;
+    }
+    // Generic pool
+    if (hasMethod(db, 'end')) {
+      await Promise.resolve(db.end()).then(() => undefined);
     }
   });
 };
@@ -131,12 +203,17 @@ export const cleanupDatabase = (db: any): void => {
 /**
  * Redis/cache cleanup helper
  */
-export const cleanupCache = (cache: any): void => {
+export const cleanupCache = (cache: unknown): void => {
   registerCleanup(async () => {
-    if (cache && typeof cache.quit === 'function') {
-      await cache.quit();
-    } else if (cache && typeof cache.disconnect === 'function') {
-      await cache.disconnect();
+    if (!cache) {
+      return;
+    }
+    if (hasMethod(cache, 'quit')) {
+      await Promise.resolve(cache.quit()).then(() => undefined);
+      return;
+    }
+    if (hasMethod(cache, 'disconnect')) {
+      await Promise.resolve(cache.disconnect()).then(() => undefined);
     }
   });
 };
@@ -144,42 +221,36 @@ export const cleanupCache = (cache: any): void => {
 /**
  * Queue cleanup helper
  */
-export const cleanupQueue = (queue: any, scheduler?: any): void => {
+export const cleanupQueue = (queue: unknown, scheduler?: unknown): void => {
   registerCleanup(async () => {
-    if (scheduler && typeof scheduler.close === 'function') {
-      await scheduler.close();
+    if (!queue && !scheduler) {
+      return;
     }
-    if (queue && typeof queue.close === 'function') {
-      await queue.close();
-    }
+    await executeClose(scheduler);
+    await executeClose(queue);
   });
 };
 
 /**
  * Browser automation cleanup helper
  */
-export const cleanupBrowser = (browser: any, context?: any): void => {
+export const cleanupBrowser = (browser: unknown, context?: unknown): void => {
   registerCleanup(async () => {
-    if (context && typeof context.close === 'function') {
-      await context.close();
+    if (!browser && !context) {
+      return;
     }
-    if (browser && typeof browser.close === 'function') {
-      await browser.close();
-    }
+    await executeClose(context);
+    await executeClose(browser);
   });
 };
 
 /**
  * Worker threads cleanup helper
  */
-export const cleanupWorkers = (workers: any[]): void => {
+export const cleanupWorkers = (workers: unknown[]): void => {
   registerCleanup(async () => {
     await Promise.all(
-      workers.map(worker => 
-        worker && typeof worker.terminate === 'function' 
-          ? worker.terminate() 
-          : Promise.resolve()
-      )
+      workers.map(worker => terminateIfPossible(worker))
     );
   });
 };
@@ -211,15 +282,10 @@ export const cleanupAbortControllers = (controllers: AbortController[]): void =>
 /**
  * File watchers cleanup helper (fs.watch, chokidar)
  */
-export const cleanupWatchers = (watchers: any[]): void => {
+export const cleanupWatchers = (watchers: unknown[]): void => {
   registerCleanup(async () => {
     await Promise.all(
-      watchers.map(watcher => {
-        if (watcher && typeof watcher.close === 'function') {
-          return watcher.close();
-        }
-        return Promise.resolve();
-      })
+      watchers.map(watcher => executeClose(watcher))
     );
   });
 };

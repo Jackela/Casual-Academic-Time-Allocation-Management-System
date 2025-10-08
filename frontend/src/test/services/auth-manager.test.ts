@@ -7,10 +7,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AuthManager } from '../../services/auth-manager';
 import { STORAGE_KEYS } from '../../utils/storage-keys';
+import { secureLogger } from '../../utils/secure-logger';
 import type { User, AuthState } from '../../types/auth';
+import type { AuthSession } from '../../types/api';
 
 // Mock localStorage
-type MockFn<TArgs extends any[], TResult> = ReturnType<typeof vi.fn<TArgs, TResult>>;
+type MockFn<TArgs extends unknown[], TResult> = ReturnType<typeof vi.fn<TArgs, TResult>>;
 type MockStorage = {
   store: Record<string, string>;
   getItem: MockFn<[string], string | null>;
@@ -38,6 +40,10 @@ Object.defineProperty(window, 'localStorage', {
   value: mockLocalStorage
 });
 
+const resetAuthManagerSingleton = () => {
+  (AuthManager as unknown as { instance?: AuthManager }).instance = undefined;
+};
+
 describe('AuthManager', () => {
   let authManager: AuthManager;
   let mockApiClientTokenSetter: ReturnType<typeof vi.fn>;
@@ -59,7 +65,7 @@ describe('AuthManager', () => {
     mockLocalStorage.removeItem.mockClear();
 
     // Reset singleton for testing
-    (AuthManager as any).instance = undefined;
+    resetAuthManagerSingleton();
     authManager = AuthManager.getInstance();
 
     // Mock API client token setter
@@ -104,7 +110,7 @@ describe('AuthManager', () => {
       mockLocalStorage.store[STORAGE_KEYS.USER] = JSON.stringify(mockUser);
 
       // Create new instance to test initialization
-      (AuthManager as any).instance = undefined;
+      resetAuthManagerSingleton();
       const newAuthManager = AuthManager.getInstance();
       
       const state = newAuthManager.getAuthState();
@@ -114,24 +120,24 @@ describe('AuthManager', () => {
     });
 
     it('should handle corrupted localStorage data gracefully', () => {
-      // Set corrupted data
       mockLocalStorage.store[STORAGE_KEYS.TOKEN] = mockToken;
       mockLocalStorage.store[STORAGE_KEYS.USER] = 'invalid-json{';
 
-      // Spy on console.error
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(secureLogger, 'error').mockImplementation(() => {});
 
-      // Create new instance
-      (AuthManager as any).instance = undefined;
+      resetAuthManagerSingleton();
       const newAuthManager = AuthManager.getInstance();
-      
+
       const state = newAuthManager.getAuthState();
       expect(state.user).toBeNull();
       expect(state.token).toBeNull();
       expect(state.isAuthenticated).toBe(false);
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error parsing stored authentication data'), expect.any(Error));
-      
-      consoleSpy.mockRestore();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Error parsing stored authentication data',
+        expect.any(Error),
+      );
+
+      loggerSpy.mockRestore();
     });
   });
 
@@ -142,13 +148,38 @@ describe('AuthManager', () => {
       expect(authManager.getToken()).toBe(mockToken);
       expect(authManager.getUser()).toEqual(mockUser);
       expect(authManager.isAuthenticated()).toBe(true);
+      expect(authManager.getRefreshToken()).toBeNull();
+      expect(authManager.getTokenExpiry()).toBeNull();
     });
 
     it('should persist to localStorage using STORAGE_KEYS', () => {
       authManager.setAuth(mockToken, mockUser);
-      
+
       expect(mockLocalStorage.setItem).toHaveBeenCalledWith(STORAGE_KEYS.TOKEN, mockToken);
       expect(mockLocalStorage.setItem).toHaveBeenCalledWith(STORAGE_KEYS.USER, JSON.stringify(mockUser));
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.REFRESH_TOKEN);
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.TOKEN_EXPIRY);
+    });
+
+    it('should persist refresh token metadata when provided', () => {
+      const session: AuthSession = {
+        token: mockToken,
+        user: mockUser,
+        refreshToken: 'refresh-token',
+        expiresAt: 1699999999,
+      };
+
+      authManager.setAuth(session);
+
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(STORAGE_KEYS.TOKEN, mockToken);
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(STORAGE_KEYS.USER, JSON.stringify(mockUser));
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(STORAGE_KEYS.REFRESH_TOKEN, 'refresh-token');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+        STORAGE_KEYS.TOKEN_EXPIRY,
+        String(session.expiresAt),
+      );
+      expect(authManager.getRefreshToken()).toBe('refresh-token');
+      expect(authManager.getTokenExpiry()).toBe(session.expiresAt);
     });
 
     it('should sync with API client', () => {
@@ -190,13 +221,17 @@ describe('AuthManager', () => {
       expect(authManager.getToken()).toBeNull();
       expect(authManager.getUser()).toBeNull();
       expect(authManager.isAuthenticated()).toBe(false);
+      expect(authManager.getRefreshToken()).toBeNull();
+      expect(authManager.getTokenExpiry()).toBeNull();
     });
 
     it('should clear localStorage', () => {
       authManager.clearAuth();
-      
+
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.TOKEN);
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.USER);
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.REFRESH_TOKEN);
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.TOKEN_EXPIRY);
     });
 
     it('should sync with API client', () => {
@@ -247,7 +282,7 @@ describe('AuthManager', () => {
     });
 
     it('should handle listener errors gracefully', () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(secureLogger, 'error').mockImplementation(() => {});
       const faultyListener = vi.fn(() => {
         throw new Error('Listener error');
       });
@@ -258,10 +293,13 @@ describe('AuthManager', () => {
       
       authManager.setAuth(mockToken, mockUser);
       
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error in auth state listener'), expect.any(Error));
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Error in auth state listener',
+        expect.any(Error),
+      );
       expect(goodListener).toHaveBeenCalledTimes(1);
-      
-      consoleSpy.mockRestore();
+
+      loggerSpy.mockRestore();
     });
 
     it('should support multiple listeners', () => {
@@ -318,6 +356,8 @@ describe('AuthManager', () => {
       
       authManager.clearAuth();
       expect(authManager.isAuthenticated()).toBe(false);
+      expect(authManager.getRefreshToken()).toBeNull();
+      expect(authManager.getTokenExpiry()).toBeNull();
     });
 
     it('should return current auth state snapshot', () => {

@@ -37,6 +37,7 @@ type LoggerTestGlobals = typeof globalThis & {
   __DEBUG_LOGGING__?: boolean;
   __E2E_GLOBALS__?: boolean;
   __PRODUCTION_BUILD__?: boolean;
+  __STRIP_SENSITIVE_DATA__?: boolean;
 };
 
 const loggerGlobals = globalThis as LoggerTestGlobals;
@@ -227,8 +228,9 @@ describe('Secure Logger Security Tests', () => {
       secureLogger.error('Authentication token expired for user', { userId: 123 });
 
       const [logMessage, payload] = mockConsole.error.mock.calls[0];
-      expect(logMessage).toContain('Error occurred');
-      expect(payload).toHaveProperty('context', '[REDACTED CONTEXT]');
+      expect(logMessage).toContain('[REDACTED]');
+      expect(logMessage).not.toContain('token');
+      expect(payload).toMatchObject({ userId: 123 });
     });
 
     it('should handle nested sensitive data', () => {
@@ -331,8 +333,14 @@ describe('Secure Logger Security Tests', () => {
 
       expect(mockConsole.error).toHaveBeenCalled();
       const logCall = mockConsole.error.mock.calls[0];
-      expect(logCall[1]).toHaveProperty('timestamp');
-      expect(logCall[1]).toHaveProperty('context');
+      const sanitizedError = logCall[1] as Record<string, unknown>;
+      expect(logCall[0]).toContain('Error occurred');
+      expect(sanitizedError).toMatchObject({
+        name: 'Error',
+        message: '[REDACTED ERROR]',
+      });
+      expect(sanitizedError).toHaveProperty('stack', '[REDACTED]');
+      expect(JSON.stringify(sanitizedError)).not.toContain('abc123');
     });
 
     it('should show detailed errors in development', () => {
@@ -361,7 +369,7 @@ describe('Secure Logger Security Tests', () => {
 
       expect(mockConsole.log).toHaveBeenCalled();
       const logCall = mockConsole.log.mock.calls[0];
-      expect(logCall[0]).toBe('[E2E]');
+      expect(logCall[0]).toBe('E2E');
     });
 
     it('should not log E2E messages outside E2E mode', () => {
@@ -521,7 +529,7 @@ describe('Secure Logger Security Tests', () => {
 
   describe('Recursion and Edge Cases', () => {
     it('should handle circular references gracefully', () => {
-      const circular: any = { name: 'test' };
+      const circular: { name: string; self?: unknown } = { name: 'test' };
       circular.self = circular;
       
       expect(() => {
@@ -542,15 +550,17 @@ describe('Secure Logger Security Tests', () => {
     });
 
     it('should prevent deep recursion', () => {
-      const deepObject: any = {};
-      let current = deepObject;
-      
+      type NestedNode = { level: number; next?: NestedNode };
+
+      const deepObject: NestedNode = { level: -1 };
+      let current: NestedNode = deepObject;
+
       // Create very deep object (more than 10 levels)
       for (let i = 0; i < 15; i++) {
         current.next = { level: i };
-        current = current.next;
+        current = current.next!;
       }
-      
+
       expect(() => {
         secureLogger.info('Deep object test', deepObject);
       }).not.toThrow();

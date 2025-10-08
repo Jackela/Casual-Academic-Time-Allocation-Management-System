@@ -8,6 +8,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { CSSProperties, ReactNode } from 'react';
 import TimesheetTable from './TimesheetTable';
 import { 
   createMockTimesheets,
@@ -22,20 +23,43 @@ import type { Timesheet } from '../../../types/api';
 // =============================================================================
 
 // Mock react-window for virtualization tests
-vi.mock('react-window', () => ({
-  FixedSizeList: ({ children, itemCount, itemData, height, itemSize }: any) => (
-    <div 
+type VirtualizedListChildProps<ItemData> = {
+  index: number;
+  style: CSSProperties;
+  data: ItemData;
+};
+
+type MockFixedSizeListProps<ItemData> = {
+  children: (props: VirtualizedListChildProps<ItemData>) => ReactNode;
+  itemCount: number;
+  itemData: ItemData;
+  height: number;
+  itemSize: number;
+};
+
+vi.mock('react-window', () => {
+  const FixedSizeList = <ItemData,>({
+    children,
+    itemCount,
+    itemData,
+    height,
+    itemSize,
+  }: MockFixedSizeListProps<ItemData>) => (
+    <div
       data-testid="virtualized-list"
       style={{ height }}
       data-item-count={itemCount}
       data-item-size={itemSize}
     >
-      {Array.from({ length: Math.min(itemCount, 10) }, (_, index) => 
-        children({ index, style: { height: itemSize }, data: itemData })
-      )}
+      {Array.from({ length: Math.min(itemCount, 10) }, (_, index) => {
+        const childStyle: CSSProperties = { height: itemSize };
+        return children({ index, style: childStyle, data: itemData });
+      })}
     </div>
-  )
-}));
+  );
+
+  return { FixedSizeList };
+});
 
 const defaultProps = {
   timesheets: createMockTimesheets(5),

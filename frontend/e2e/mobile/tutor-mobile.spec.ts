@@ -1,13 +1,9 @@
 import { test, expect } from '../fixtures/base';
-import { TutorDashboardPage } from '../pages/TutorDashboardPage';
-
 // Mobile-only suite: collected only by the mobile-tests project via testMatch
 test.describe('Tutor Dashboard Responsive Design', () => {
   test.describe.configure({ mode: 'serial' });
 
   test('Mobile view functionality @mobile', async ({ mockedPage: page }) => {
-    const tutorDashboard = new TutorDashboardPage(page);
-
     await page.setViewportSize({ width: 375, height: 667 });
     await page.waitForLoadState('domcontentloaded');
 
@@ -15,11 +11,13 @@ test.describe('Tutor Dashboard Responsive Design', () => {
       const tutorAuth = {
         token: 'tutor-mock-token',
         user: { id: 201, email: 'tutor@example.com', name: 'John Doe', role: 'TUTOR' }
-      } as any;
+      };
       try {
         localStorage.setItem('token', tutorAuth.token);
         localStorage.setItem('user', JSON.stringify(tutorAuth.user));
-      } catch {}
+      } catch {
+        // Ignore storage errors when seeding auth for mobile tests
+      }
     });
 
     const respPromise = page

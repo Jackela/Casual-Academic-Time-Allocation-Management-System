@@ -69,10 +69,16 @@ describe('Real-World Cleanup Scenarios', () => {
         listen: vi.fn((port, callback?) => {
           // Simulate random port (0) assignment
           const assignedPort = port === 0 ? 3456 : port;
-          callback && callback();
+          if (callback) {
+            callback();
+          }
           return {
             address: () => ({ port: assignedPort }),
-            close: vi.fn((cb) => cb && cb())
+            close: vi.fn((cb) => {
+              if (cb) {
+                cb();
+              }
+            })
           };
         })
       };
@@ -135,11 +141,17 @@ describe('Real-World Cleanup Scenarios', () => {
 
     it('should handle fake timers (jest/sinon style)', () => {
       // Simulate fake timer cleanup pattern
-      const fakeTimers: any[] = [];
+      type TimerHandle = NodeJS.Timeout | { restore: () => void };
+      const hasRestore = (value: TimerHandle): value is { restore: () => void } =>
+        typeof value === 'object' &&
+        value !== null &&
+        'restore' in value &&
+        typeof (value as { restore?: unknown }).restore === 'function';
+      const fakeTimers: TimerHandle[] = [];
       
       registerCleanup(() => {
         fakeTimers.forEach(timer => {
-          if (timer && typeof timer.restore === 'function') {
+          if (hasRestore(timer)) {
             timer.restore();
           }
         });

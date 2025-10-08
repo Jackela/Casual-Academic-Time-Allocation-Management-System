@@ -298,20 +298,24 @@ export function getInitials(name: string, maxInitials: number = 2): string {
 /**
  * Check if a value is valid for formatting
  */
-export function isValidValue(value: any): boolean {
+export function isValidValue<T>(value: T | null | undefined | ''): value is T {
   return value !== null && value !== undefined && value !== '';
 }
 
 /**
  * Safely format a value with fallback
  */
-export function safeFormat<T>(
-  value: any, 
-  formatter: (val: any) => T, 
-  fallback: T
-): T {
+export function safeFormat<TInput, TResult>(
+  value: TInput | null | undefined | '',
+  formatter: (val: TInput) => TResult,
+  fallback: TResult,
+): TResult {
   try {
-    return isValidValue(value) ? formatter(value) : fallback;
+    if (!isValidValue<TInput>(value)) {
+      return fallback;
+    }
+
+    return formatter(value);
   } catch {
     return fallback;
   }

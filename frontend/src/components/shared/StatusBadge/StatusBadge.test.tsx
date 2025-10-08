@@ -7,14 +7,14 @@
 import { render, screen } from '@testing-library/react';
 // import userEvent from '@testing-library/user-event'; // No longer interactive
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import StatusBadge, {
-  // StatusBadgeGroup, // Group component removed for simplicity in refactor
+import StatusBadge from './StatusBadge';
+import {
   getStatusConfig,
   getStatusPriority,
   isActionableStatus,
   getNextStatuses,
-} from './StatusBadge';
-import { badgeVariants } from '../../ui/badge';
+} from './status-badge-utils';
+import { badgeVariants } from '../../ui/badge-variants';
 import type { TimesheetStatus } from '../../../types/api';
 
 const ssotStatuses = [
@@ -170,6 +170,5 @@ describe('StatusBadgeGroup', () => {
   });
 });
 */
-
 
 

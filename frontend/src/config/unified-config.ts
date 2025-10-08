@@ -9,6 +9,16 @@
 import { ENV_CONFIG } from '../utils/environment';
 import { secureLogger } from '../utils/secure-logger';
 
+type GlobalWithProcessEnv = typeof globalThis & {
+  process?: {
+    env?: Record<string, string | undefined>;
+  };
+};
+
+const getProcessEnv = (): Record<string, string | undefined> => {
+  return ((globalThis as GlobalWithProcessEnv).process?.env) ?? {};
+};
+
 // =============================================================================
 // Configuration Types
 // =============================================================================
@@ -136,8 +146,9 @@ class ConfigurationBuilder {
     // Prefer explicit E2E env when in E2E or test modes
     const tryEnvBackend = () => {
       // Node envs (Playwright/global setup)
-      const url = (globalThis as any)?.process?.env?.E2E_BACKEND_URL as string | undefined;
-      const port = (globalThis as any)?.process?.env?.E2E_BACKEND_PORT as string | undefined;
+      const env = getProcessEnv();
+      const url = env.E2E_BACKEND_URL;
+      const port = env.E2E_BACKEND_PORT;
       if (url && url.length > 0) return url;
       if (port && port.length > 0) return `http://127.0.0.1:${port}`;
       return undefined;
@@ -150,8 +161,11 @@ class ConfigurationBuilder {
 
     // Vite env for browser runtime
     try {
-      if (typeof window !== 'undefined' && (import.meta as any)?.env?.VITE_API_BASE_URL) {
-        return (import.meta as any).env.VITE_API_BASE_URL as string;
+      if (typeof window !== 'undefined') {
+        const { VITE_API_BASE_URL } = import.meta.env;
+        if (typeof VITE_API_BASE_URL === 'string' && VITE_API_BASE_URL.length > 0) {
+          return VITE_API_BASE_URL;
+        }
       }
     } catch {
       // ignore
@@ -163,7 +177,7 @@ class ConfigurationBuilder {
     }
 
     // Dev fallback
-    const fallbackPort = (globalThis as any)?.process?.env?.E2E_BACKEND_PORT || '8084';
+    const fallbackPort = getProcessEnv().E2E_BACKEND_PORT ?? '8084';
     return `http://127.0.0.1:${fallbackPort}`;
   }
 
@@ -292,7 +306,7 @@ class ConfigurationBuilder {
         environment: ENV_CONFIG.getMode(),
         apiBaseUrl: config.api.baseUrl,
         features: Object.entries(config.features)
-          .filter(([_, enabled]) => enabled)
+          .filter(([, enabled]) => enabled)
           .map(([name]) => name)
       });
     }
@@ -346,25 +360,41 @@ export function getApiEndpoint(path: string): string {
   return `${config.api.baseUrl}${path}`;
 }
 
+type EndpointMap = ApiConfiguration['endpoints'];
+type NestedEndpointKey<K extends keyof EndpointMap> =
+  EndpointMap[K] extends string ? never : keyof EndpointMap[K];
+
 /**
  * Get API endpoint with nested path support
  */
-export function getEndpoint(category: keyof ApiConfiguration['endpoints'], endpoint?: string): string {
+export function getEndpoint<K extends keyof EndpointMap>(
+  category: K,
+  endpoint?: NestedEndpointKey<K>
+): string {
   const config = getConfig();
   const categoryConfig = config.api.endpoints[category];
-  
+
   if (typeof categoryConfig === 'string') {
+    if (endpoint) {
+      throw new Error(`Invalid endpoint configuration: ${String(category)}.${String(endpoint)}`);
+    }
     return getApiEndpoint(categoryConfig);
   }
-  
-  if (endpoint && categoryConfig && typeof categoryConfig === 'object') {
-    const endpointPath = (categoryConfig as any)[endpoint];
-    if (endpointPath) {
-      return getApiEndpoint(endpointPath);
-    }
+
+  if (!endpoint) {
+    throw new Error(`Invalid endpoint configuration: ${String(category)}`);
   }
-  
-  throw new Error(`Invalid endpoint configuration: ${category}${endpoint ? `.${endpoint}` : ''}`);
+
+  const nestedConfig = categoryConfig[endpoint];
+  if (!nestedConfig) {
+    throw new Error(`Invalid endpoint configuration: ${String(category)}.${String(endpoint)}`);
+  }
+
+  if (typeof nestedConfig !== 'string') {
+    throw new Error(`Invalid endpoint configuration: ${String(category)}.${String(endpoint)}`);
+  }
+
+  return getApiEndpoint(nestedConfig);
 }
 
 /**

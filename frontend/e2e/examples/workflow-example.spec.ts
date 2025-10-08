@@ -21,7 +21,7 @@ test.describe('Page Object Model Examples', () => {
     timesheetPage = new TimesheetPage(page);
   });
   
-  test('Complete authentication workflow with Page Objects', async ({ page }) => {
+  test('Complete authentication workflow with Page Objects', async () => {
     // Navigate to login page
     await loginPage.navigateTo();
     await loginPage.expectToBeVisible();
@@ -39,7 +39,7 @@ test.describe('Page Object Model Examples', () => {
     await navigationPage.expectLoggedOut();
   });
 
-  test('Dashboard data loading workflow with Page Objects', async ({ page }) => {
+  test('Dashboard data loading workflow with Page Objects', async () => {
     // Login using Page Object
     await loginPage.navigateTo();
     await loginPage.login('lecturer@example.com', 'Lecturer123!');
@@ -66,7 +66,7 @@ test.describe('Page Object Model Examples', () => {
     }
   });
 
-  test('Timesheet approval workflow with Page Objects', async ({ page }) => {
+  test('Timesheet approval workflow with Page Objects', async () => {
     // Login and navigate using Page Objects
     await loginPage.navigateTo();
     await loginPage.login('lecturer@example.com', 'Lecturer123!');
@@ -100,7 +100,7 @@ test.describe('Page Object Model Examples', () => {
     console.log('Timesheet approved successfully using Page Object Model');
   });
 
-  test('Navigation workflow with Page Objects', async ({ page }) => {
+  test('Navigation workflow with Page Objects', async () => {
     // Test protected route access without authentication using Page Objects
     await navigationPage.expectProtectedRoute();
     
@@ -115,7 +115,7 @@ test.describe('Page Object Model Examples', () => {
     await loginPage.expectToBeVisible();
   });
 
-  test('Multi-role authentication workflow with Page Objects', async ({ page }) => {
+  test('Multi-role authentication workflow with Page Objects', async () => {
     // Test lecturer role
     await loginPage.navigateTo();
     await loginPage.login('lecturer@example.com', 'Lecturer123!');

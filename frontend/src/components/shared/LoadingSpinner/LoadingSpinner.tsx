@@ -357,45 +357,4 @@ export const LoadingButton = memo<LoadingButtonProps>(({
 
 LoadingButton.displayName = 'LoadingButton';
 
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-/**
- * Create a loading state hook
- */
-export function useLoadingState(initialState = false) {
-  const [loading, setLoading] = React.useState(initialState);
-
-  const startLoading = React.useCallback(() => setLoading(true), []);
-  const stopLoading = React.useCallback(() => setLoading(false), []);
-  const toggleLoading = React.useCallback(() => setLoading(prev => !prev), []);
-
-  return {
-    loading,
-    startLoading,
-    stopLoading,
-    toggleLoading,
-    setLoading
-  };
-}
-
-/**
- * Wrap async function with loading state
- */
-export function withLoadingState<T extends any[], R>(
-  asyncFn: (...args: T) => Promise<R>,
-  setLoading: (loading: boolean) => void
-): (...args: T) => Promise<R> {
-  return async (...args: T) => {
-    setLoading(true);
-    try {
-      const result = await asyncFn(...args);
-      return result;
-    } finally {
-      setLoading(false);
-    }
-  };
-}
-
 export default LoadingSpinner;

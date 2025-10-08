@@ -1,11 +1,11 @@
-import { FullConfig } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import type { StorageState } from '@playwright/test';
 import { waitForBackendReady } from './utils/health-checker';
 import { E2E_CONFIG } from './config/e2e.config';
 
-async function globalSetup(config: FullConfig) {
+async function globalSetup(): Promise<void> {
   console.log('🚀 Enhanced E2E Test Setup - Comprehensive Backend Readiness Check');
   console.log(`📡 Backend URL: ${E2E_CONFIG.BACKEND.URL}`);
   console.log(`🌐 Frontend URL: ${E2E_CONFIG.FRONTEND.URL}`);
@@ -18,10 +18,14 @@ async function globalSetup(config: FullConfig) {
       const currentFile = fileURLToPath(import.meta.url);
       const currentDir = dirname(currentFile);
       const authDir = join(currentDir, '.auth');
-      try { mkdirSync(authDir, { recursive: true }); } catch {}
+      try {
+        mkdirSync(authDir, { recursive: true });
+      } catch {
+        // Directory already exists or cannot be created; continue with setup
+      }
       const storageStatePath = join(authDir, 'tutor.storage-state.json');
       const tutorUser = { id: 201, email: 'tutor@example.com', name: 'John Doe', role: 'TUTOR' };
-      const storageState = {
+      const storageState: StorageState = {
         cookies: [],
         origins: [
           {
@@ -32,7 +36,7 @@ async function globalSetup(config: FullConfig) {
             ]
           }
         ]
-      } as any;
+      };
       writeFileSync(storageStatePath, JSON.stringify(storageState, null, 2), 'utf-8');
       console.log(`🔑 Wrote tutor storage state to ${storageStatePath}`);
     } catch (e) {

@@ -8,6 +8,7 @@ import {
   createMockTimesheetPage,
   createMockUser,
 } from "../../test/utils/test-utils";
+import type { TimesheetPage } from "../../types/api";
 
 vi.mock("../../services/timesheets", () => ({
   TimesheetService: {
@@ -23,8 +24,10 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <div>{children}</div>
 );
 
+type PendingTimesheetMock = ReturnType<typeof vi.fn<[AbortSignal?], Promise<TimesheetPage>>>;
+
 const mockTimesheetService = TimesheetService as unknown as {
-  getPendingTimesheets: ReturnType<typeof vi.fn>;
+  getPendingTimesheets: PendingTimesheetMock;
 };
 const mockUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
 
@@ -52,6 +55,8 @@ describe("usePendingTimesheets", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
+    expect(mockTimesheetService.getPendingTimesheets).toHaveBeenCalled();
+    expect(mockTimesheetService.getPendingTimesheets.mock.calls[0][0]).toBeInstanceOf(AbortSignal);
     expect(result.current.timesheets).toEqual(mockTimesheetPage.timesheets);
     expect(result.current.pageInfo).toEqual(mockTimesheetPage.pageInfo);
     expect(result.current.isEmpty).toBe(false);
@@ -68,6 +73,9 @@ describe("usePendingTimesheets", () => {
     });
 
     expect(mockTimesheetService.getPendingTimesheets).toHaveBeenCalled();
+    const { calls } = mockTimesheetService.getPendingTimesheets.mock;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[0]).toBeInstanceOf(AbortSignal);
   });
 
   it("handles unauthenticated users without issuing requests", async () => {

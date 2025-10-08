@@ -34,13 +34,8 @@ interface HandleMonitorConfig {
  * @interface HandleInfo
  * @property {string} type - Type of handle (timer, socket, etc.)
  * @property {string} stack - Stack trace where handle was created
- * @property {any} handle - Reference to the actual handle object
+ * @property {unknown} handle - Reference to the actual handle object
  */
-// interface _HandleInfo {
-//   type: string;
-//   stack: string;
-//   handle: any;
-// }
 
 /**
  * Default configuration for handle monitoring
@@ -136,7 +131,7 @@ const registry = new HandleMonitorRegistry();
  */
 export class HandleMonitor {
   private config: Required<HandleMonitorConfig>;
-  private initialHandles: Set<any> = new Set();
+  private initialHandles: Set<unknown> = new Set();
   private monitoring = false;
 
   /**
@@ -155,6 +150,25 @@ export class HandleMonitor {
     }
     
     registry.register(this);
+  }
+
+  private readActiveHandles(): unknown[] {
+    return typeof process._getActiveHandles === 'function' ? process._getActiveHandles() : [];
+  }
+
+  private readActiveRequests(): unknown[] {
+    return typeof process._getActiveRequests === 'function' ? process._getActiveRequests() : [];
+  }
+
+  private describeResource(resource: unknown): string {
+    if (typeof resource === 'object' && resource !== null) {
+      const constructorName = (resource as { constructor?: { name?: string } }).constructor?.name;
+      if (typeof constructorName === 'string' && constructorName.length > 0) {
+        return constructorName;
+      }
+    }
+
+    return typeof resource;
   }
 
   /**
@@ -230,14 +244,12 @@ export class HandleMonitor {
   private captureInitialHandles(): void {
     this.initialHandles.clear();
     
-    if (process._getActiveHandles) {
-      const handles = process._getActiveHandles();
-      handles.forEach((handle: any) => this.initialHandles.add(handle));
+    for (const handle of this.readActiveHandles()) {
+      this.initialHandles.add(handle);
     }
-    
-    if (process._getActiveRequests) {
-      const requests = process._getActiveRequests();
-      requests.forEach((request: any) => this.initialHandles.add(request));
+
+    for (const request of this.readActiveRequests()) {
+      this.initialHandles.add(request);
     }
   }
 
@@ -252,17 +264,8 @@ export class HandleMonitor {
     // Wait for async cleanup to complete
     await this.waitForCleanup();
 
-    const currentHandles = new Set<any>();
-    const currentRequests = new Set<any>();
-
-    // Capture current state
-    if (process._getActiveHandles) {
-      process._getActiveHandles().forEach((handle: any) => currentHandles.add(handle));
-    }
-    
-    if (process._getActiveRequests) {
-      process._getActiveRequests().forEach((request: any) => currentRequests.add(request));
-    }
+    const currentHandles = new Set<unknown>(this.readActiveHandles());
+    const currentRequests = new Set<unknown>(this.readActiveRequests());
 
     // Find new handles (potential leaks)
     const leakedHandles = Array.from(currentHandles).filter(handle => 
@@ -305,14 +308,14 @@ export class HandleMonitor {
    * Check if a handle should be ignored based on configuration
    * 
    * @private
-   * @param {any} handle - Handle to check
+   * @param {unknown} handle - Handle to check
    * @returns {boolean} True if handle should be ignored
    * @precondition handle is a valid object
    */
-  private isIgnoredHandle(handle: any): boolean {
-    const constructor = handle?.constructor?.name || 'Unknown';
-    return this.config.ignoredHandles.some(ignored => 
-      constructor.toUpperCase().includes(ignored.toUpperCase())
+  private isIgnoredHandle(handle: unknown): boolean {
+    const type = this.describeResource(handle).toUpperCase();
+    return this.config.ignoredHandles.some(ignored =>
+      type.includes(ignored.toUpperCase())
     );
   }
 
@@ -320,12 +323,12 @@ export class HandleMonitor {
    * Report detected resource leaks
    * 
    * @private
-   * @param {any[]} handles - Leaked handle objects
-   * @param {any[]} requests - Leaked request objects
+   * @param {unknown[]} handles - Leaked handle objects
+   * @param {unknown[]} requests - Leaked request objects
    * @returns {Promise<void>}
    * @postcondition Leak information is logged with appropriate detail level
    */
-  private async reportLeaks(handles: any[], requests: any[]): Promise<void> {
+  private async reportLeaks(handles: unknown[], requests: unknown[]): Promise<void> {
     secureLogger.error('🚨 Resource leaks detected');
     secureLogger.error(`  - ${handles.length} active handles`);
     secureLogger.error(`  - ${requests.length} active requests`);
@@ -333,11 +336,11 @@ export class HandleMonitor {
     if (this.config.verbose) {
       // Detailed handle information
       handles.forEach((handle, index) => {
-        secureLogger.error(`  Handle ${index + 1}: ${handle?.constructor?.name || 'Unknown'}`);
+        secureLogger.error(`  Handle ${index + 1}: ${this.describeResource(handle)}`);
       });
 
       requests.forEach((request, index) => {
-        secureLogger.error(`  Request ${index + 1}: ${request?.constructor?.name || 'Unknown'}`);
+        secureLogger.error(`  Request ${index + 1}: ${this.describeResource(request)}`);
       });
 
       // Try to use why-is-node-running if available
@@ -354,12 +357,15 @@ export class HandleMonitor {
    */
   private async tryWhyIsNodeRunning(): Promise<void> {
     try {
-      const whyIsNodeRunning = require('why-is-node-running');
+      const whyIsNodeRunning = await import('why-is-node-running');
       secureLogger.error('📊 Detailed handle analysis');
-      whyIsNodeRunning.default();
-    } catch (error) {
+      if (typeof whyIsNodeRunning.default === 'function') {
+        whyIsNodeRunning.default();
+      }
+    } catch (importError) {
       secureLogger.error('💡 Install "why-is-node-running" for detailed handle analysis');
       secureLogger.error('  npm install --save-dev why-is-node-running');
+      secureLogger.debug('why-is-node-running import unavailable', importError);
     }
   }
 }

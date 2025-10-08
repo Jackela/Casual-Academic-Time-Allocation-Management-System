@@ -65,8 +65,26 @@ const buildLoginResponse = (overrides?: Partial<LoginResponse>): ApiResponse<Log
 };
 
 // Mock react-router-dom hooks
+type LoginLocationState = {
+  from?: { pathname: string };
+};
+
+type MockLocation = {
+  pathname: string;
+  search: string;
+  hash: string;
+  state: LoginLocationState | null;
+  key: string;
+};
+
 const mockNavigate = vi.fn() as MockedFunction<(to: string | number, options?: { replace?: boolean }) => void>;
-const mockLocation = { state: null as any };
+const mockLocation: MockLocation = {
+  pathname: '/',
+  search: '',
+  hash: '',
+  state: null,
+  key: 'default',
+};
 
 let bypassRoleSnapshot: string | undefined;
 let e2eBypassSnapshot: string | undefined;

@@ -62,7 +62,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     visibleDraftCount,
     visibleRejectedCount,
 
-    inProgressCount,
     timesheetsQuery,
     dashboardQuery,
     createMutation,
