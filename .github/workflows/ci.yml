@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-test:
+  test-backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,21 +35,24 @@ jobs:
       - name: Backend unit tests
         env:
           JWT_SECRET: test-secret
-        run: node scripts/test-backend-unit.js
+        run: node ./scripts/test-backend-unit.js
       - name: Backend integration tests
+        if: ${{ env.ACT != 'true' }}
         env:
           JWT_SECRET: test-secret
         run: node scripts/test-backend-integration.js
       - name: Frontend unit & contract tests
+        if: ${{ env.ACT != 'true' }}
         run: |
           npm run -w frontend test:unit --silent
           npm run -w frontend test:contract --silent
       - name: E2E tests (Playwright)
+        if: ${{ env.ACT != 'true' }}
         env:
           JWT_SECRET: test-secret
         run: node scripts/test-all-e2e-local.js
       - name: Upload Playwright JSON report
-        if: always()
+        if: ${{ env.ACT != 'true' && always() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-json
