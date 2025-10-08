@@ -37,26 +37,36 @@ export class NavigationPage {
     // Wait for main content area, which is present across all dashboards
     try {
       await this.page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
-    } catch {}
+    } catch {
+      // Allow optional UI differences without failing the navigation helper
+    }
     // Try best-effort header/title checks (do not fail hard to improve stability across layouts)
     const headerCandidate = this.page.locator('[data-testid="layout-dashboard-header"], [data-testid="main-dashboard-header"]');
     try {
       await expect(headerCandidate.first()).toBeVisible({ timeout: 5000 });
-    } catch {}
+    } catch {
+      // Allow optional UI differences without failing the navigation helper
+    }
 
     const titleCandidate = this.page.locator('[data-testid="app-title"], [data-testid="main-dashboard-title"]');
     try {
       await expect(titleCandidate.first()).toBeVisible({ timeout: 5000 });
-    } catch {}
+    } catch {
+      // Allow optional UI differences without failing the navigation helper
+    }
     // user-info may be collapsed or lazy in some viewports; make it best-effort
     try {
       await expect(this.userInfo).toBeVisible({ timeout: 3000 });
-    } catch {}
+    } catch {
+      // Allow optional UI differences without failing the navigation helper
+    }
     // Allow either button or link to be used for logout to reduce selector brittleness
     const logout = this.logoutButton.or(this.page.getByRole('button', { name: /sign out/i }));
     try {
       await expect(logout).toBeVisible({ timeout: 15000 });
-    } catch {}
+    } catch {
+      // Allow optional UI differences without failing the navigation helper
+    }
   }
 
   async expectUserInfo(expectedName: string, expectedRole: string) {

@@ -6,6 +6,7 @@
  */
 
 import { STORAGE_KEYS } from '../utils/storage-keys';
+import type { AuthSession } from '../types/api';
 import type { User, AuthState, AuthStateListener } from '../types/auth';
 import { secureLogger } from '../utils/secure-logger';
 
@@ -16,6 +17,8 @@ import { secureLogger } from '../utils/secure-logger';
 export class AuthManager {
   private static instance: AuthManager;
   private token: string | null = null;
+  private refreshToken: string | null = null;
+  private tokenExpiry: number | null = null;
   private user: User | null = null;
   private listeners: Set<AuthStateListener> = new Set<AuthStateListener>();
   private apiClientTokenSetter: ((token: string | null) => void) | null = null;
@@ -46,15 +49,27 @@ export class AuthManager {
     try {
       const storedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
       const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-      
+      const storedRefreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+      const storedExpiry = localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY);
+
       if (storedToken && storedUser) {
         this.user = JSON.parse(storedUser) as User;
         this.token = storedToken;
+      } else {
+        this.user = null;
+        this.token = null;
       }
-    } catch (error) {
-      secureLogger.error('Error parsing stored authentication data', error as any);
-      this.token = null;
-      this.user = null;
+
+      this.refreshToken = storedRefreshToken ?? null;
+
+      if (storedExpiry) {
+        const parsedExpiry = Number.parseInt(storedExpiry, 10);
+        this.tokenExpiry = Number.isNaN(parsedExpiry) ? null : parsedExpiry;
+      } else {
+        this.tokenExpiry = null;
+      }
+    } catch (error: unknown) {
+      secureLogger.error('Error parsing stored authentication data', error);
       this.clearStorageAndState();
     }
 
@@ -71,11 +86,31 @@ export class AuthManager {
    * Set authentication state with token and user data
    * Updates internal state, persists to storage, syncs with API client, and notifies listeners
    */
-  setAuth(token: string, user: User): void {
+  setAuth(session: AuthSession): void;
+  setAuth(token: string, user: User): void;
+  setAuth(sessionOrToken: AuthSession | string, maybeUser?: User): void {
     this.ensureInitialized();
-    this.token = token;
-    this.user = user;
-    this.persistToStorage();
+
+    let session: AuthSession;
+    if (typeof sessionOrToken === 'string') {
+      if (!maybeUser) {
+        throw new Error('User data is required when setting authentication from a token.');
+      }
+      session = {
+        token: sessionOrToken,
+        user: maybeUser,
+        refreshToken: null,
+        expiresAt: null,
+      };
+    } else {
+      session = sessionOrToken;
+    }
+
+    this.token = session.token;
+    this.user = session.user;
+    this.refreshToken = session.refreshToken ?? null;
+    this.tokenExpiry = session.expiresAt ?? null;
+    this.persistToStorage(session);
     this.syncWithApiClient();
     this.notifyListeners();
   }
@@ -121,6 +156,16 @@ export class AuthManager {
     return this.token;
   }
 
+  getRefreshToken(): string | null {
+    this.ensureInitialized();
+    return this.refreshToken;
+  }
+
+  getTokenExpiry(): number | null {
+    this.ensureInitialized();
+    return this.tokenExpiry;
+  }
+
   /**
    * Check if user is authenticated
    */
@@ -156,14 +201,24 @@ export class AuthManager {
   /**
    * Persist authentication data to localStorage using STORAGE_KEYS
    */
-  private persistToStorage(): void {
+  private persistToStorage(session: AuthSession): void {
     if (typeof localStorage === 'undefined') {
       return;
     }
 
-    if (this.token && this.user) {
-      localStorage.setItem(STORAGE_KEYS.TOKEN, this.token);
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(this.user));
+    localStorage.setItem(STORAGE_KEYS.TOKEN, session.token);
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(session.user));
+
+    if (typeof session.refreshToken === 'string' && session.refreshToken.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, session.refreshToken);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+    }
+
+    if (typeof session.expiresAt === 'number') {
+      localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, String(session.expiresAt));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
     }
   }
 
@@ -171,12 +226,17 @@ export class AuthManager {
    * Clear authentication data from localStorage
    */
   private clearStorageAndState(): void {
-    if (typeof localStorage === 'undefined') {
-      return;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEYS.TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.USER);
+      localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
     }
 
-    localStorage.removeItem(STORAGE_KEYS.TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.USER);
+    this.token = null;
+    this.user = null;
+    this.refreshToken = null;
+    this.tokenExpiry = null;
   }
 
   /**
@@ -196,8 +256,8 @@ export class AuthManager {
     this.listeners.forEach(listener => {
       try {
         listener(currentState);
-      } catch (error) {
-        secureLogger.error('Error in auth state listener', error as any);
+      } catch (error: unknown) {
+        secureLogger.error('Error in auth state listener', error);
       }
     });
   }

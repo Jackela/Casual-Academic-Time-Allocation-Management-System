@@ -5,7 +5,7 @@
  * and performance optimizations.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type DependencyList } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { secureApiClient } from '../services/api-secure';
 import { secureLogger } from '../utils/secure-logger';
@@ -16,14 +16,23 @@ import type {
   DashboardSummary,
   ApprovalRequest,
   ApprovalResponse,
+  PageInfo,
+  ApiErrorResponse,
 } from '../types/api';
+type RawTimesheetCollection = Partial<TimesheetPage> & {
+  content?: Timesheet[];
+  data?: Timesheet[];
+  page?: PageInfo;
+};
 
-// =============================================================================
-// Base Hook Types
-// =============================================================================
+interface UseApiOptions<TResponse, TData> {
+  immediate?: boolean;
+  dependencies?: DependencyList;
+  transform?: (data: TResponse) => TData;
+}
 
-interface ApiState<T> {
-  data: T | null;
+interface ApiState<TData> {
+  data: TData | null;
   loading: boolean;
   error: string | null;
 }
@@ -33,120 +42,133 @@ interface ApiActions {
   reset: () => void;
 }
 
-type UseApiResult<T> = ApiState<T> & ApiActions;
+type UseApiResult<TData> = ApiState<TData> & ApiActions;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isAbortError = (error: unknown): boolean => {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return true;
+  }
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as { code?: string; name?: string };
+    return candidate.name === 'AbortError' || candidate.code === 'ERR_CANCELED';
+  }
+  return false;
+};
+
+const isApiErrorResponse = (error: unknown): error is ApiErrorResponse => {
+  if (!isRecord(error)) {
+    return false;
+  }
+  return error.success === false && 'error' in error;
+};
+
 
 // =============================================================================
 // Base API Hook
 // =============================================================================
 
-function useApi<T>(
+function useApi<TResponse, TData = TResponse>(
   endpoint: string,
-  options: {
-    immediate?: boolean;
-    dependencies?: any[];
-    transform?: (data: any) => T;
-  } = {}
-): UseApiResult<T> {
+  options: UseApiOptions<TResponse, TData> = {},
+): UseApiResult<TData> {
   const { token } = useAuth();
-  const { immediate = true, dependencies = [], transform } = options;
-  
-  const [state, setState] = useState<ApiState<T>>({
+  const {
+    immediate = true,
+    dependencies = [] as DependencyList,
+    transform,
+  } = options;
+
+  const [state, setState] = useState<ApiState<TData>>({
     data: null,
     loading: false,
-    error: null
+    error: null,
   });
-  
+
   const abortControllerRef = useRef<AbortController | null>(null);
-  
-  const transformRef = useRef<((data: any) => T) | undefined>(transform);
-  
+  const transformRef = useRef<((data: TResponse) => TData) | undefined>(transform);
+
   useEffect(() => {
     transformRef.current = transform;
   }, [transform]);
-  
+
   const fetchData = useCallback(async () => {
     if (!token) {
-      setState(prev => ({ ...prev, error: 'No authentication token available' }));
+      setState((previous) => ({ ...previous, error: 'No authentication token available' }));
       return;
     }
-    
-    // Cancel previous request
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
-    abortControllerRef.current = new AbortController();
-    
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setState((previous) => ({ ...previous, loading: true, error: null }));
+
     try {
       secureLogger.debug('API Request', { endpoint });
-      
-      const response = await secureApiClient.get<T>(endpoint, {
-        signal: abortControllerRef.current.signal
-      });
-      
+      const response = await secureApiClient.get<TResponse>(endpoint, { signal: controller.signal });
       const transformFn = transformRef.current;
-      const data = transformFn ? transformFn(response.data) : response.data!;
-      
+      const rawData = response.data;
+      const nextData = transformFn ? transformFn(rawData) : (rawData as unknown as TData);
+
       setState({
-        data,
+        data: nextData,
         loading: false,
-        error: null
+        error: null,
       });
-    } catch (err: any) {
-      if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
-        // Request was cancelled, don't update state
+    } catch (error: unknown) {
+      if (isAbortError(error)) {
         return;
       }
-      
+
       let errorMessage = 'An unexpected error occurred';
-      
-      if (err.status === 401) {
-        errorMessage = 'Session expired. Please login again.';
-      } else if (err.status === 403) {
-        errorMessage = 'You do not have permission to access this resource.';
-      } else if (err.message) {
-        errorMessage = err.message;
+
+      if (isApiErrorResponse(error)) {
+        errorMessage = error.message || error.error.message || errorMessage;
+      } else if (error instanceof Error && error.message) {
+        errorMessage = error.message;
       }
-      
+
       setState({
         data: null,
         loading: false,
-        error: errorMessage
+        error: errorMessage,
       });
-      
-      secureLogger.error(`API Error for ${endpoint}`, err);
+
+      secureLogger.error(`API Error for ${endpoint}`, error);
     }
   }, [endpoint, token]);
-  
+
   const reset = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    setState({
-      data: null,
-      loading: false,
-      error: null
-    });
+    setState({ data: null, loading: false, error: null });
   }, []);
-  
+
   useEffect(() => {
-    if (immediate) {
-      fetchData();
+    if (!immediate) {
+      return;
     }
-    
+
+    void fetchData();
+
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [fetchData, immediate, ...dependencies]);
-  
+  }, [fetchData, immediate, dependencies]);
+
   return {
     ...state,
     refetch: fetchData,
-    reset
+    reset,
   };
 }
 
@@ -154,23 +176,25 @@ function useApi<T>(
 // Specialized API Hooks
 // =============================================================================
 
-const transformPendingTimesheets = (data: any): TimesheetPage => {
+const transformPendingTimesheets = (data: RawTimesheetCollection): TimesheetPage => {
   const timesheets = data.timesheets ?? data.content ?? data.data ?? [];
-  const fallbackCount = timesheets.length ?? 0;
+  const fallbackPageInfo: PageInfo = {
+    currentPage: 0,
+    pageSize: 20,
+    totalElements: timesheets.length,
+    totalPages: 1,
+    first: true,
+    last: true,
+    numberOfElements: timesheets.length,
+    empty: timesheets.length === 0,
+  };
+
+  const pageInfo = data.pageInfo ?? data.page ?? fallbackPageInfo;
 
   return {
     success: data.success ?? true,
     timesheets,
-    pageInfo: data.pageInfo ?? data.page ?? {
-      currentPage: 0,
-      pageSize: 20,
-      totalElements: data.timesheets?.length ?? fallbackCount,
-      totalPages: 1,
-      first: true,
-      last: true,
-      numberOfElements: data.timesheets?.length ?? fallbackCount,
-      empty: fallbackCount === 0,
-    },
+    pageInfo,
   };
 };
 
@@ -184,8 +208,8 @@ export function useTimesheets(query: TimesheetQuery = {}) {
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams({
-      page: ((normalizedQuery.page ?? 0)).toString(),
-      size: ((normalizedQuery.size ?? 20)).toString(),
+      page: (normalizedQuery.page ?? 0).toString(),
+      size: (normalizedQuery.size ?? 20).toString(),
       ...(normalizedQuery.status && { status: normalizedQuery.status }),
       ...(normalizedQuery.tutorId && { tutorId: normalizedQuery.tutorId.toString() }),
       ...(normalizedQuery.courseId && { courseId: normalizedQuery.courseId.toString() }),
@@ -197,29 +221,31 @@ export function useTimesheets(query: TimesheetQuery = {}) {
     return params.toString();
   }, [normalizedQuery]);
 
-  const transformTimesheets = useMemo(() => {
-    return (data: any): TimesheetPage => {
+  const transformTimesheets = useMemo<(payload: RawTimesheetCollection) => TimesheetPage>(() => {
+    return (data) => {
       const timesheets = data.timesheets ?? data.content ?? data.data ?? [];
-      const fallbackCount = timesheets.length ?? 0;
+      const fallbackPageInfo: PageInfo = {
+        currentPage: normalizedQuery.page ?? 0,
+        pageSize: normalizedQuery.size ?? 20,
+        totalElements: timesheets.length,
+        totalPages: 1,
+        first: true,
+        last: true,
+        numberOfElements: timesheets.length,
+        empty: timesheets.length === 0,
+      };
+
+      const pageInfo = data.pageInfo ?? data.page ?? fallbackPageInfo;
 
       return {
         success: data.success ?? true,
         timesheets,
-        pageInfo: data.pageInfo ?? data.page ?? {
-          currentPage: normalizedQuery.page ?? 0,
-          pageSize: normalizedQuery.size ?? 20,
-          totalElements: data.timesheets?.length ?? fallbackCount,
-          totalPages: 1,
-          first: true,
-          last: true,
-          numberOfElements: data.timesheets?.length ?? fallbackCount,
-          empty: fallbackCount === 0,
-        },
+        pageInfo,
       };
     };
   }, [normalizedQuery]);
 
-  return useApi<TimesheetPage>(`/api/timesheets?${queryString}`, {
+  return useApi<RawTimesheetCollection, TimesheetPage>(`/api/timesheets?${queryString}`, {
     dependencies: [stringifiedQuery],
     transform: transformTimesheets,
   });
@@ -229,14 +255,11 @@ export function useTimesheets(query: TimesheetQuery = {}) {
  * Hook for fetching pending timesheets for lecturer approval
  */
 export function usePendingTimesheets() {
-  return useApi<TimesheetPage>('/api/timesheets/pending-final-approval', {
+  return useApi<RawTimesheetCollection, TimesheetPage>('/api/timesheets/pending-final-approval', {
     transform: transformPendingTimesheets,
   });
 }
 
-/**
- * Hook for fetching dashboard summary data
- */
 export function useDashboardSummary() {
   return useApi<DashboardSummary>('/api/dashboard/summary');
 }
@@ -326,7 +349,7 @@ export function useApprovalAction(options: UseMutationOptions<ApprovalResponse, 
         '/api/approvals',
         variables
       );
-      return response.data!;
+      return response.data;
     },
     options
   );
@@ -342,7 +365,7 @@ export function useCreateTimesheet(options: UseMutationOptions<Timesheet, Omit<T
         '/api/timesheets',
         variables
       );
-      return response.data!;
+      return response.data;
     },
     options
   );
@@ -359,11 +382,12 @@ export function useUpdateTimesheet(options: UseMutationOptions<Timesheet, { id: 
         `/api/timesheets/${id}`,
         updateData
       );
-      return response.data!;
+      return response.data;
     },
     options
   );
 }
+
 
 
 

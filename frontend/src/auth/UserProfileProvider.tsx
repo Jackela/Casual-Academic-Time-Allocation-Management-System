@@ -77,6 +77,7 @@ export const UserProfileProvider: React.FC<UserProfileProviderProps> = ({ childr
   return <UserProfileContext.Provider value={value}>{children}</UserProfileContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useUserProfile = (): UserProfileContextValue => {
   const context = useContext(UserProfileContext);
   if (!context) {

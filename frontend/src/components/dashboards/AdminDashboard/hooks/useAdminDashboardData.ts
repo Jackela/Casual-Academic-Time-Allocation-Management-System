@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import {
   useTimesheetQuery,
   useTimesheetDashboardSummary,
@@ -8,6 +9,7 @@ import {
 import { useSession } from '../../../../auth/SessionProvider';
 import { useUserProfile } from '../../../../auth/UserProfileProvider';
 import { useAccessControl } from '../../../../auth/access-control';
+import { secureLogger } from '../../../../utils/secure-logger';
 import type {
   ApprovalAction,
   Timesheet,
@@ -42,7 +44,7 @@ export interface UseAdminDashboardDataResult {
   filteredTimesheets: Timesheet[];
   isEmpty: boolean;
   selectedTimesheets: number[];
-  setSelectedTimesheets: (ids: number[]) => void;
+  setSelectedTimesheets: Dispatch<SetStateAction<number[]>>;
   actionState: ActionState;
   loading: {
     timesheets: boolean;
@@ -89,6 +91,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
   const { status: sessionStatus, isAuthenticated } = useSession();
   const { profile } = useUserProfile();
   const { role, canViewAdminDashboard } = useAccessControl();
+
   const welcomeMessage = useMemo(() => {
     if (profile?.firstName) {
       return `Welcome back, ${profile.firstName}`;
@@ -109,7 +112,6 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
   const [selectedTimesheets, setSelectedTimesheetsState] = useState<number[]>([]);
   const [currentTab, setCurrentTab] = useState<AdminTabId>('overview');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterQuery, setFilterQuery] = useState<TimesheetQuery>({});
   const [rejectionModal, setRejectionModal] = useState<RejectionModalState>({
     open: false,
     timesheetId: null,
@@ -118,62 +120,23 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
   const [rejectionValidationError, setRejectionValidationError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
-  const lastSelectedRef = useRef<number[]>(selectedTimesheets);
+  const setSelectedTimesheets = useCallback<Dispatch<SetStateAction<number[]>>>((nextValue) => {
+    setSelectedTimesheetsState((previous) => {
+      const next = typeof nextValue === 'function'
+        ? (nextValue as (prev: number[]) => number[])(previous)
+        : nextValue;
 
-  const setSelectedTimesheets = useCallback((ids: number[]) => {    setSelectedTimesheetsState((previous) => {
-      if (arraysEqual(previous, ids)) {
-        return previous;
-      }
-      lastSelectedRef.current = ids;
-      return ids;
+      return arraysEqual(previous, next) ? previous : next;
     });
-  }, []);
-
-  const handleTabChange = useCallback((tab: AdminTabId) => {
-    setCurrentTab((previous) => (previous === tab ? previous : tab));
-  }, []);
-
-  const handleSearch = useCallback((query: string) => {
-    setSearchQuery(query);
   }, []);
 
   const {
     loading: timesheetsLoading,
     error: timesheetsError,
     timesheets: allTimesheets,
-    isEmpty,
     updateQuery,
     refresh: refreshTimesheets,
-  } = useTimesheetQuery({
-    ...filterQuery,
-    size: 50,
-  });
-
-  const filteredTimesheets = useMemo(() => {
-    let filtered = allTimesheets;
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((timesheet) =>
-        timesheet.tutorName?.toLowerCase().includes(query) ||
-        timesheet.courseName?.toLowerCase().includes(query),
-      );
-    }
-    if (currentTab === 'pending') {
-      filtered = filtered.filter((timesheet) => timesheet.status === 'LECTURER_CONFIRMED');
-    }
-    return filtered;
-  }, [allTimesheets, currentTab, searchQuery]);
-
-  const refreshTimesheetsMemo = useCallback(async () => {
-    await refreshTimesheets();
-  }, [refreshTimesheets]);
-
-  const setFilterQueryMemo = useCallback((update: Partial<TimesheetQuery>) => {
-    setFilterQuery((previous) => ({
-      ...previous,
-      ...update,
-    }));
-  }, []);
+  } = useTimesheetQuery({ size: 50 });
 
   const {
     data: dashboardData,
@@ -181,10 +144,6 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     error: dashboardError,
     refetch: refetchDashboard,
   } = useTimesheetDashboardSummary({ scope: 'admin' });
-
-  const refetchDashboardMemo = useCallback(async () => {
-    await refetchDashboard();
-  }, [refetchDashboard]);
 
   const {
     loading: approvalLoading,
@@ -194,6 +153,27 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
   } = useApprovalAction();
 
   const adminStats = useTimesheetStats(allTimesheets);
+  const isEmpty = !timesheetsLoading && allTimesheets.length === 0;
+
+  const filteredTimesheets = useMemo(() => {
+    let filtered = allTimesheets;
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((timesheet) =>
+        timesheet.tutorName?.toLowerCase().includes(query) ||
+        timesheet.courseName?.toLowerCase().includes(query),
+      );
+    }
+
+    if (currentTab === 'pending') {
+      filtered = filtered.filter((timesheet) => timesheet.status === 'LECTURER_CONFIRMED');
+    }
+
+    return filtered;
+  }, [allTimesheets, currentTab, searchQuery]);
+
+  const urgentCount = filteredTimesheets.length;
 
   const rejectionTargetTimesheet = useMemo(() => {
     if (!rejectionModal.open || !rejectionModal.timesheetId) {
@@ -202,6 +182,14 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
 
     return allTimesheets.find((timesheet) => timesheet.id === rejectionModal.timesheetId) ?? null;
   }, [allTimesheets, rejectionModal]);
+
+  const handleTabChange = useCallback((tab: AdminTabId) => {
+    setCurrentTab((previous) => (previous === tab ? previous : tab));
+  }, []);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
 
   const handleRejectionCancel = useCallback(() => {
     setRejectionModal({ open: false, timesheetId: null });
@@ -231,25 +219,19 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
         comment: trimmedComment,
       });
       setSelectedTimesheets((previous) => previous.filter((id) => id !== rejectionModal.timesheetId));
-      await refreshTimesheetsMemo();
-      await refetchDashboardMemo();
+      await Promise.all([refreshTimesheets(), refetchDashboard()]);
       setRejectionModal({ open: false, timesheetId: null });
       setRejectionComment('');
     } catch (error) {
-      // surfaced via approvalError state
+      secureLogger.error('Admin dashboard rejection action failed', error);
     } finally {
       setActionLoadingId(null);
     }
-  }, [approveTimesheet, refreshTimesheetsMemo, refetchDashboardMemo, rejectionComment, rejectionModal, setSelectedTimesheets]);
+  }, [approveTimesheet, refreshTimesheets, refetchDashboard, rejectionComment, rejectionModal, setSelectedTimesheets]);
 
   const handleApprovalAction = useCallback(async (timesheetId: number, action: ApprovalAction) => {
     if (action === 'REJECT') {
       setRejectionModal({ open: true, timesheetId });
-      return;
-    }
-
-    if (action === 'RESET') {
-      setSelectedTimesheets([]);
       return;
     }
 
@@ -259,17 +241,16 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
       await approveTimesheet({
         timesheetId,
         action,
-        comment: action === 'APPROVE' ? 'Approved timesheet' : undefined,
+        comment: action === 'HR_CONFIRM' ? 'Approved timesheet' : undefined,
       });
-      await refreshTimesheetsMemo();
-      await refetchDashboardMemo();
+      await Promise.all([refreshTimesheets(), refetchDashboard()]);
       setSelectedTimesheets((previous) => previous.filter((id) => id !== timesheetId));
     } catch (error) {
-      // errors handled via approvalError state
+      secureLogger.error('Admin dashboard approval action failed', error);
     } finally {
       setActionLoadingId(null);
     }
-  }, [approveTimesheet, refreshTimesheetsMemo, refetchDashboardMemo, setSelectedTimesheets]);
+  }, [approveTimesheet, refreshTimesheets, refetchDashboard, setSelectedTimesheets]);
 
   const tabs = useMemo<AdminTabSpec[]>(() => {
     const baseTabs: AdminTabSpec[] = [
@@ -314,19 +295,17 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     isSubmitting: approvalLoading,
   }), [actionLoadingId, approvalLoading]);
 
-  const handleSearchMemo = handleSearch;
-
   return {
     sessionStatus,
     welcomeMessage,
     searchQuery,
-    handleSearch: handleSearchMemo,
+    handleSearch,
     tabs,
     currentTab,
     handleTabChange,
     canManageUsers: isAuthenticated && canViewAdminDashboard,
     metrics,
-    urgentCount: metrics.pendingApprovals,
+    urgentCount,
     allTimesheets,
     filteredTimesheets,
     isEmpty,
@@ -347,12 +326,10 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     rejectionComment,
     setRejectionComment,
     rejectionValidationError,
-    refreshTimesheets: refreshTimesheetsMemo,
-    refetchDashboard: refetchDashboardMemo,
+    refreshTimesheets,
+    refetchDashboard,
     resetApproval,
     adminStats,
     setFilterQuery: updateQuery,
   };
 }
-
-

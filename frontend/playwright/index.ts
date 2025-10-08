@@ -1,3 +1,4 @@
+/* eslint-disable import/no-unresolved */
 import { beforeMount, afterMount } from '@playwright/experimental-ct-react/hooks';
 import { BrowserRouter } from 'react-router-dom';
 import React from 'react';

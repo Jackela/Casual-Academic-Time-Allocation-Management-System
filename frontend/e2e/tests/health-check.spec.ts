@@ -3,6 +3,8 @@ import { test, expect } from '../fixtures/base';
 // Env and storage readiness check for e2e mode
 // This test does NOT depend on backend. It only verifies that the browser environment
 // sees expected e2e flags and preloaded auth state before navigation.
+type E2EEnvSnapshot = { storage?: Record<string, unknown> };
+type E2EGlobal = typeof window & { __E2E_ENV__?: E2EEnvSnapshot };
 
 test.describe('E2E Env & Storage Readiness', () => {
   test('should expose bypass role and preloaded storage in e2e mode', async ({ page }) => {
@@ -12,7 +14,10 @@ test.describe('E2E Env & Storage Readiness', () => {
     await page.goto('/');
 
     // Read injected env and storage snapshot from window (optional in new bootstrap flow)
-    const snapshot = await page.evaluate(() => (window as any).__E2E_ENV__ ?? null);
+    const snapshot = await page.evaluate<E2EEnvSnapshot | null>(() => {
+      const global = window as E2EGlobal;
+      return global.__E2E_ENV__ ?? null;
+    });
 
     if (snapshot) {
       expect(snapshot.storage).toBeTruthy();
@@ -30,4 +35,3 @@ test.describe('E2E Env & Storage Readiness', () => {
 });
 
 // Note: Backend health checks live in e2e/tests/ui/health-check.spec.ts
-

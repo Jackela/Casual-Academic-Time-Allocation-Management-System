@@ -6,7 +6,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { STORAGE_KEYS, type StorageKey } from './storage-keys';
 
-const EXPECTED_VALUES = ['token', 'user', 'refresh_token', 'token_expires_at'];
+const EXPECTED_VALUES: StorageKey[] = ['token', 'user', 'refresh_token', 'token_expires_at'];
 
 describe('storage-keys utilities', () => {
   describe('STORAGE_KEYS constants', () => {

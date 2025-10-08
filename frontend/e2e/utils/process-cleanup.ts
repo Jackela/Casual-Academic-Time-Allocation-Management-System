@@ -6,9 +6,8 @@
  * resource leaks.
  */
 
-import { exec, spawn, ChildProcess } from 'child_process';
+import { exec, ChildProcess } from 'child_process';
 import { promisify } from 'util';
-import * as path from 'path';
 
 const execAsync = promisify(exec);
 
@@ -66,18 +65,24 @@ export async function killProcessOnPort(port: number): Promise<void> {
         // Prefer ss where available
         const { stdout } = await execAsync(`ss -lptn | awk '/:${port} / {print $NF}' | sed -E 's/.*pid=([0-9]+).*/\\1/'`);
         pids = stdout.split(/\s+/).map(s => s.trim()).filter(Boolean);
-      } catch {}
+      } catch {
+   // Ignore cleanup errors to keep teardown resilient
+ }
       if (pids.length === 0) {
         try {
           const { stdout } = await execAsync(`lsof -ti:${port}`);
           pids = stdout.split(/\s+/).map(s => s.trim()).filter(Boolean);
-        } catch {}
+        } catch {
+   // Ignore cleanup errors to keep teardown resilient
+ }
       }
       if (pids.length === 0) {
         try {
           const { stdout } = await execAsync(`fuser ${port}/tcp 2>/dev/null`);
           pids = stdout.split(/\s+/).map(s => s.trim()).filter(Boolean);
-        } catch {}
+        } catch {
+   // Ignore cleanup errors to keep teardown resilient
+ }
       }
 
       for (const pid of pids) {
@@ -87,7 +92,9 @@ export async function killProcessOnPort(port: number): Promise<void> {
           await execAsync(`kill -TERM ${pid}`);
           // Then force if still alive shortly after
           setTimeout(async () => {
-            try { await execAsync(`kill -0 ${pid}`); await execAsync(`kill -KILL ${pid}`); } catch {}
+            try { await execAsync(`kill -0 ${pid}`); await execAsync(`kill -KILL ${pid}`); } catch {
+   // Ignore cleanup errors to keep teardown resilient
+ }
           }, 1000);
           console.log(`✅ Sent termination signal to process ${pid}`);
         } catch (error) {
@@ -127,7 +134,9 @@ export async function killViteProcesses(): Promise<void> {
       try {
         const { stdout } = await execAsync(`pgrep -f "vite|vite-node|node.*vite"`);
         pids = stdout.split(/\s+/).map(s => s.trim()).filter(Boolean);
-      } catch {}
+      } catch {
+   // Ignore cleanup errors to keep teardown resilient
+ }
       if (pids.length === 0) {
         const { stdout } = await execAsync(`ps aux | grep -Ei "vite|vite-node" | grep -v grep`);
         pids = stdout.split(/\n/).map(line => line.trim().split(/\s+/)[1]).filter(pid => /^\d+$/.test(pid));
@@ -137,7 +146,9 @@ export async function killViteProcesses(): Promise<void> {
         try {
           await execAsync(`kill -TERM ${pid}`);
           setTimeout(async () => {
-            try { await execAsync(`kill -0 ${pid}`); await execAsync(`kill -KILL ${pid}`); } catch {}
+            try { await execAsync(`kill -0 ${pid}`); await execAsync(`kill -KILL ${pid}`); } catch {
+   // Ignore cleanup errors to keep teardown resilient
+ }
           }, 1000);
           console.log(`✅ Sent termination signal to process ${pid}`);
         } catch (error) {
@@ -295,7 +306,7 @@ export async function waitForPortFree(port: number, maxWaitMs: number = 10000): 
         await execAsync(`lsof -ti:${port}`);
         // If lsof succeeds, port is still in use
       }
-    } catch (error) {
+    } catch {
       // If lsof fails, port is free
       console.log(`✅ Port ${port} is now free`);
       return true;

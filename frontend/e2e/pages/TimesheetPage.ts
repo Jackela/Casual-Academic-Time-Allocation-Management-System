@@ -101,7 +101,7 @@ export class TimesheetPage {
 
     const waiters: Promise<unknown>[] = [
       this.page.waitForFunction(
-        (timesheetId) => !document.querySelector(`[data-testid=\"timesheet-row-${timesheetId}\"]`),
+        (timesheetId) => !document.querySelector(`[data-testid="timesheet-row-${timesheetId}"]`),
         id,
         { timeout: 10000 }
       ),
@@ -152,7 +152,7 @@ export class TimesheetPage {
 
     const waiters: Promise<unknown>[] = [
       this.page.waitForFunction(
-        (timesheetId) => !document.querySelector(`[data-testid=\"timesheet-row-${timesheetId}\"]`),
+        (timesheetId) => !document.querySelector(`[data-testid="timesheet-row-${timesheetId}"]`),
         id,
         { timeout: 10000 }
       ),
@@ -246,11 +246,15 @@ export class TimesheetPage {
     const rows = await this.getTimesheetRows();
     try {
       await this.timesheetsTable.waitFor({ timeout: 8000 });
-    } catch {}
+    } catch {
+      // Allow table refresh polling to complete without failing tests
+    }
     try {
       const count = await rows.count();
       if (count > 0) return true;
-    } catch {}
+    } catch {
+      // Allow table refresh polling to complete without failing tests
+    }
     // If no rows, check empty state presence
     try {
       await this.emptyState.waitFor({ timeout: 4000 });

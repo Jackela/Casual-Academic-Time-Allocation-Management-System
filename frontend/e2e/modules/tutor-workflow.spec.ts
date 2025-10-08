@@ -160,7 +160,7 @@ test.describe('Tutor dashboard workflow', () => {
   let currentTimesheetPage: TimesheetPagePayload;
   let respondWithError = false;
   let nextResponseDelay = 0;
-  let lastUpdateRequest: { timesheetId: number; payload: any; method: string } | null;
+  let lastUpdateRequest: { timesheetId: number; payload: Partial<TimesheetRecord>; method: string } | null;
 
   const replaceTimesheets = (timesheets: TimesheetRecord[]) => {
     currentTimesheetPage = {

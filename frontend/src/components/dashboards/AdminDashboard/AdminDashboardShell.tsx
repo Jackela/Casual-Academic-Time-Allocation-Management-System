@@ -5,7 +5,7 @@
  * analytics, and administrative controls with advanced filtering and monitoring.
  */
 
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import LoadingSpinner from '../../shared/LoadingSpinner/LoadingSpinner';
 import { Button } from '../../ui/button';
 import { useAdminDashboardData } from './hooks/useAdminDashboardData';
@@ -48,6 +48,8 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
     refetchDashboard,
     resetApproval,
   } = useAdminDashboardData();
+
+  const handleSelectionChange = useCallback((ids: number[]) => setSelectedTimesheets(ids), [setSelectedTimesheets]);
 
   if (loading.timesheets || loading.dashboard) {
     return (
@@ -121,7 +123,7 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
           loading={loading.timesheets}
           actionState={actionState}
           selectedTimesheets={selectedTimesheets}
-          onSelectionChange={setSelectedTimesheets}
+          onSelectionChange={handleSelectionChange}
           onApprovalAction={handleApprovalAction}
         />
       )}

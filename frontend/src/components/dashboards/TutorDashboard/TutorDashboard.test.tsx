@@ -33,8 +33,8 @@ const accessControlHooksMock = vi.hoisted(() => ({
   useAccessControl: vi.fn(),
 }));
 
-import { getStatusConfig } from "../../shared/StatusBadge/StatusBadge";
-import type { TimesheetStatus } from "../../../types/api";
+import { getStatusConfig } from "../../shared/StatusBadge/status-badge-utils";
+import type { Timesheet, TimesheetStatus } from "../../../types/api";
 
 // =============================================================================
 // Mock Setup
@@ -53,8 +53,7 @@ vi.mock("../../../auth/SessionProvider", () => sessionHooksMock);
 vi.mock("../../../auth/UserProfileProvider", () => userProfileHooksMock);
 vi.mock("../../../auth/access-control", () => accessControlHooksMock);
 
-const mockReadHooks = timesheetReadHooks as any;
-const mockStatHooks = timesheetReadHooks as any;
+const mockReadHooks = vi.mocked(timesheetReadHooks);
 const mockSession = sessionHooksMock.useSession as ReturnType<typeof vi.fn>;
 const mockUserProfile = userProfileHooksMock.useUserProfile as ReturnType<typeof vi.fn>;
 const mockAccessControl = accessControlHooksMock.useAccessControl as ReturnType<typeof vi.fn>;
@@ -66,6 +65,17 @@ const mockTutorUser = createMockAuthUser({
 });
 
 const mockTutorTimesheets = createMockTimesheetPage(15, {}, { tutorId: 1 });
+
+const groupedByStatus = mockTutorTimesheets.timesheets.reduce(
+  (accumulator, sheet) => {
+    if (!accumulator[sheet.status]) {
+      accumulator[sheet.status] = [];
+    }
+    accumulator[sheet.status].push(sheet);
+    return accumulator;
+  },
+  {} as Record<string, Timesheet[]>,
+);
 
 const statusCounts = {
   DRAFT: 4,
@@ -97,6 +107,7 @@ const mockTutorStats = {
   totalHours: 245.5,
   totalPay: 8593.5,
   totalCount: 28,
+  groupedByStatus,
   statusCounts,
   averageHoursPerTimesheet: 8.8,
   averagePayPerTimesheet: 306.9,
@@ -172,6 +183,7 @@ describe("TutorDashboard Component", () => {
     });
 
     mockReadHooks.useCreateTimesheet.mockImplementation(() => ({
+      data: null,
       loading: false,
       error: null,
       createTimesheet: vi.fn().mockResolvedValue(createMockTimesheet()),
@@ -179,13 +191,14 @@ describe("TutorDashboard Component", () => {
     }));
 
     mockReadHooks.useUpdateTimesheet.mockReturnValue({
+      data: null,
       loading: false,
       error: null,
       updateTimesheet: vi.fn().mockResolvedValue(createMockTimesheet()),
       reset: vi.fn(),
     });
 
-    mockStatHooks.useTimesheetStats.mockReturnValue(mockTutorStats);
+    mockReadHooks.useTimesheetStats.mockReturnValue(mockTutorStats);
   });
 
   describe("Tutor Header and Welcome", () => {
@@ -540,6 +553,7 @@ describe("TutorDashboard Component", () => {
 
     it("should handle timesheet creation errors", async () => {
       mockReadHooks.useCreateTimesheet.mockImplementation(() => ({
+        data: null,
         loading: false,
         error: "Course not found or inactive",
         createTimesheet: vi.fn(),

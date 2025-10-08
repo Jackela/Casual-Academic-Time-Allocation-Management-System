@@ -1,4 +1,4 @@
-import { test as base, expect, Page, APIRequestContext } from '@playwright/test';
+import { test as base, Page, APIRequestContext } from '@playwright/test';
 import { STORAGE_KEYS } from '../../src/utils/storage-keys';
 import { E2E_CONFIG, API_ENDPOINTS } from '../config/e2e.config';
 
@@ -99,6 +99,8 @@ export const mockResponses = {
   }
 };
 
+type AuthSuccessResponse = typeof mockResponses.auth.success;
+
 // Authentication API client
 export class AuthAPI {
   constructor(private request: APIRequestContext) {}
@@ -157,33 +159,33 @@ type TestFixtures = {
 
 export const test = base.extend<TestFixtures>({
   // API client for authentication
-  authAPI: async ({ request }, use) => {
-    await use(new AuthAPI(request));
+  authAPI: async ({ request }, apply) => {
+    await apply(new AuthAPI(request));
   },
 
   // API client for timesheets with authentication (admin by default for pending-approval access)
-  timesheetAPI: async ({ request }, use) => {
+  timesheetAPI: async ({ request }, apply) => {
     const authAPI = new AuthAPI(request);
     const auth = await authAPI.login(testCredentials.admin.email, testCredentials.admin.password);
-    await use(new TimesheetAPI(request, auth.token));
+    await apply(new TimesheetAPI(request, auth.token));
   },
 
   // Optional: lecturer-authenticated timesheet API (for tests needing lecturer scope)
-  lecturerTimesheetAPI: async ({ request }, use) => {
+  lecturerTimesheetAPI: async ({ request }, apply) => {
     const authAPI = new AuthAPI(request);
     const auth = await authAPI.login(testCredentials.lecturer.email, testCredentials.lecturer.password);
-    await use(new TimesheetAPI(request, auth.token));
+    await apply(new TimesheetAPI(request, auth.token));
   },
 
   // API client for tutor timesheet operations
-  tutorTimesheetAPI: async ({ request }, use) => {
+  tutorTimesheetAPI: async ({ request }, apply) => {
     const authAPI = new AuthAPI(request);
     const auth = await authAPI.login(testCredentials.tutor.email, testCredentials.tutor.password);
-    await use(new TimesheetAPI(request, auth.token));
+    await apply(new TimesheetAPI(request, auth.token));
   },
 
   // Page with real authentication
-  authenticatedPage: async ({ page, authAPI }, use) => {
+  authenticatedPage: async ({ page, authAPI }, apply) => {
     try {
       const auth = await authAPI.login(testCredentials.lecturer.email, testCredentials.lecturer.password);
       
@@ -197,15 +199,15 @@ export const test = base.extend<TestFixtures>({
         }
       }, auth, STORAGE_KEYS);
 
-      await use(page);
+      await apply(page);
     } catch (error) {
       console.warn('Authentication failed, using unauthenticated page:', error);
-      await use(page);
+      await apply(page);
     }
   },
 
   // Page with tutor authentication
-  tutorAuthenticatedPage: async ({ page, authAPI }, use) => {
+  tutorAuthenticatedPage: async ({ page, authAPI }, apply) => {
     const skipBackend = process.env.E2E_SKIP_BACKEND === 'true' || process.env.E2E_SKIP_BACKEND === '1';
     try {
       if (skipBackend) {
@@ -237,21 +239,20 @@ export const test = base.extend<TestFixtures>({
           }
         }, auth, STORAGE_KEYS);
       }
-      await use(page);
+      await apply(page);
     } catch (error) {
       console.warn('Tutor authentication failed, using unauthenticated page:', error);
-      await use(page);
+      await apply(page);
     }
   },
 
   // Page with mocked API responses - enhanced with realistic delays
-  mockedPage: async ({ page }, use) => {
+  mockedPage: async ({ page }, apply) => {
     // Mock authentication endpoints with realistic delays
     await page.route(`**${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`, async (route, request) => {
       await new Promise(resolve => setTimeout(resolve, 200)); // Realistic API delay
-      
+      let response: AuthSuccessResponse = { ...mockResponses.auth.success };
       const postData = JSON.parse(await request.postData() || '{}');
-      let response = { ...mockResponses.auth.success } as any;
       
       // Return different user data based on email
       if (postData.email === 'tutor@example.com') {
@@ -432,10 +433,12 @@ export const test = base.extend<TestFixtures>({
           localStorage.setItem(keys.TOKEN, token);
           localStorage.setItem(keys.USER, JSON.stringify(user));
         }
-      } catch {}
+      } catch {
+        // Ignore storage errors during fixture setup
+      }
     }, mockResponses.auth.success.token, buildUser('lecturer'), STORAGE_KEYS);
 
-    await use(page);
+    await apply(page);
   }
 });
 
@@ -443,17 +446,27 @@ export const test = base.extend<TestFixtures>({
 test.beforeEach(async ({ page }, testInfo) => {
   // Apply animation disabling only for mobile project to avoid affecting desktop projects
   if (testInfo.project.name === 'mobile-tests') {
-    try { await page.emulateMedia({ reducedMotion: 'reduce' }); } catch {}
+    try {
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+    } catch {
+      // Ignore media emulation errors on unsupported browsers
+    }
     try {
       await page.addStyleTag({ content: '*{transition: none !important; animation: none !important;}' });
-    } catch {}
+    } catch {
+      // Ignore routing cleanup errors
+    }
   }
 
   // When backend is intentionally skipped, provide minimal auth/login mock so UI flows don't hang
   if (process.env.E2E_SKIP_BACKEND === 'true' || process.env.E2E_SKIP_BACKEND === '1') {
     try {
-      await page.route(`**${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}` as any, async (route, request) => {
-        try { await new Promise(r => setTimeout(r, 150)); } catch {}
+      await page.route(`**${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`, async (route, request) => {
+        try {
+          await new Promise(r => setTimeout(r, 150));
+        } catch {
+          // Ignore artificial delay errors
+        }
         const postData = JSON.parse((await request.postData()) || '{}');
         const role = (postData?.email || '').includes('admin') ? 'admin' : (postData?.email || '').includes('lecturer') ? 'lecturer' : 'tutor';
         const user = role === 'admin' ? buildUser('admin') : role === 'lecturer' ? buildUser('lecturer') : buildUser('tutor');
@@ -464,7 +477,9 @@ test.beforeEach(async ({ page }, testInfo) => {
           body: JSON.stringify({ success: true, token, user, errorMessage: null })
         });
       });
-    } catch {}
+    } catch {
+      // Ignore routing cleanup errors
+    }
   }
 });
 

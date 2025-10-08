@@ -42,14 +42,21 @@ export interface TimesheetTableProps {
   approvalRole?: ApprovalRole;
 }
 
+type DerivedColumnKey = 'tutor' | 'course' | 'totalPay' | 'actions' | 'selection';
+type TimesheetColumnKey = keyof Timesheet | DerivedColumnKey;
+
 interface Column {
-  key: string;
+  key: TimesheetColumnKey;
   label: string;
   width: number;
   sortable?: boolean;
   visible?: boolean;
   render?: (timesheet: Timesheet, index: number) => React.ReactNode;
 }
+
+const createColumn = <K extends TimesheetColumnKey>(
+  column: { key: K } & Omit<Column, 'key'>
+): Column => column;
 
 interface TimesheetRowProps {
   timesheet: Timesheet;
@@ -98,22 +105,22 @@ const TimesheetRow = memo<TimesheetRowProps>(({
   const handleReject = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
     onApprovalAction?.(timesheet.id, 'REJECT');
-  }, [timesheet.id, onApprovalAction, approvalRole]);
+  }, [timesheet.id, onApprovalAction]);
 
   const handleEdit = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
     onApprovalAction?.(timesheet.id, 'EDIT');
-  }, [timesheet.id, onApprovalAction, approvalRole]);
+  }, [timesheet.id, onApprovalAction]);
 
   const handleSubmitDraft = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
     onApprovalAction?.(timesheet.id, 'SUBMIT_DRAFT');
-  }, [timesheet.id, onApprovalAction, approvalRole]);
+  }, [timesheet.id, onApprovalAction]);
 
   const handleConfirm = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
     onApprovalAction?.(timesheet.id, 'TUTOR_CONFIRM');
-  }, [timesheet.id, onApprovalAction, approvalRole]);
+  }, [timesheet.id, onApprovalAction]);
 
   const totalPay = useMemo(() => timesheet.hours * timesheet.hourlyRate, [timesheet.hours, timesheet.hourlyRate]);
 
@@ -217,8 +224,12 @@ function getActionPermissions(role: ApprovalRole | undefined, status: TimesheetS
   };
 }
 
+const isTimesheetKey = (key: TimesheetColumnKey): key is keyof Timesheet => {
+  return key !== 'tutor' && key !== 'course' && key !== 'totalPay' && key !== 'actions' && key !== 'selection';
+};
+
 function renderDefaultCell(
-  key: string,
+  key: TimesheetColumnKey,
   timesheet: Timesheet,
   props: CellRendererProps
 ): React.ReactNode {
@@ -287,7 +298,7 @@ function renderDefaultCell(
     case 'createdAt':
       return formatters.relativeTime(timesheet.createdAt);
 
-    case 'actions':
+    case 'actions': {
       if (actionMode === 'tutor') {
         const isDraft = timesheet.status === 'DRAFT' || timesheet.status === 'MODIFICATION_REQUESTED' || timesheet.status === 'REJECTED';
         const canConfirm = timesheet.status === 'PENDING_TUTOR_CONFIRMATION';
@@ -367,9 +378,25 @@ function renderDefaultCell(
           )}
         </div>
       );
+    }
 
-    default:
-      return (timesheet as any)[key] ?? '';
+    default: {
+      if (isTimesheetKey(key)) {
+        const value = timesheet[key];
+
+        if (value === undefined || value === null) {
+          return '';
+        }
+
+        if (typeof value === 'string' || typeof value === 'number') {
+          return value;
+        }
+
+        return String(value);
+      }
+
+      return '';
+    }
   }
 }
 
@@ -471,7 +498,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   showTutorInfo = true,
   showCourseInfo = true,
   showSelection = false,
-  virtualizeThreshold: _virtualizeThreshold = 100,
+  virtualizeThreshold = 100,
   className = '',
   emptyMessage = 'No timesheets found',
   sortBy,
@@ -480,18 +507,95 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   actionMode = 'approval',
   approvalRole
 }) => {
-  const columns = useMemo<Column[]>(() => [
-    ...(showTutorInfo ? [{ key: 'tutor', label: 'Tutor', width: 150, sortable: true, visible: true }] : []),
-    ...(showCourseInfo ? [{ key: 'course', label: 'Course', width: 150, sortable: true, visible: true }] : []),
-    { key: 'weekStartDate', label: 'Week Starting', width: 140, sortable: true, visible: true },
-    { key: 'hours', label: 'Hours', width: 100, sortable: true, visible: true },
-    { key: 'hourlyRate', label: 'Rate', width: 110, sortable: true, visible: true },
-    { key: 'totalPay', label: 'Total Pay', width: 130, sortable: true, visible: true },
-    { key: 'status', label: 'Status', width: 150, sortable: true, visible: true },
-    { key: 'description', label: 'Description', width: 220, sortable: false, visible: true },
-    { key: 'createdAt', label: 'Submitted', width: 140, sortable: true, visible: true },
-    ...(showActions ? [{ key: 'actions', label: 'Actions', width: 180, sortable: false, visible: true }] : [])
-  ], [showTutorInfo, showCourseInfo, showActions]);
+  const columns = useMemo<Column[]>(() => {
+    const dynamicColumns: Column[] = [];
+
+    if (showTutorInfo) {
+      dynamicColumns.push(createColumn({
+        key: 'tutor',
+        label: 'Tutor',
+        width: 150,
+        sortable: true,
+        visible: true,
+      }));
+    }
+
+    if (showCourseInfo) {
+      dynamicColumns.push(createColumn({
+        key: 'course',
+        label: 'Course',
+        width: 150,
+        sortable: true,
+        visible: true,
+      }));
+    }
+
+    dynamicColumns.push(
+      createColumn({
+        key: 'weekStartDate',
+        label: 'Week Starting',
+        width: 140,
+        sortable: true,
+        visible: true,
+      }),
+      createColumn({
+        key: 'hours',
+        label: 'Hours',
+        width: 100,
+        sortable: true,
+        visible: true,
+      }),
+      createColumn({
+        key: 'hourlyRate',
+        label: 'Rate',
+        width: 110,
+        sortable: true,
+        visible: true,
+      }),
+      createColumn({
+        key: 'totalPay',
+        label: 'Total Pay',
+        width: 130,
+        sortable: true,
+        visible: true,
+      }),
+      createColumn({
+        key: 'status',
+        label: 'Status',
+        width: 150,
+        sortable: true,
+        visible: true,
+      }),
+      createColumn({
+        key: 'description',
+        label: 'Description',
+        width: 220,
+        sortable: false,
+        visible: true,
+      }),
+      createColumn({
+        key: 'createdAt',
+        label: 'Submitted',
+        width: 140,
+        sortable: true,
+        visible: true,
+      }),
+    );
+
+    if (showActions) {
+      dynamicColumns.push(createColumn({
+        key: 'actions',
+        label: 'Actions',
+        width: 180,
+        sortable: false,
+        visible: true,
+      }));
+    }
+
+    return dynamicColumns;
+  }, [showTutorInfo, showCourseInfo, showActions]);
+
+  const virtualizationEnabled = timesheets.length >= virtualizeThreshold;
 
   const handleSelectAll = useCallback((selected: boolean) => {
     if (!onSelectionChange) {
@@ -528,7 +632,11 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   }
 
   return (
-    <div className={`timesheet-table-container ${className}`} data-testid="timesheet-table">
+    <div
+      className={`timesheet-table-container ${className}`}
+      data-testid="timesheet-table"
+      data-virtualized={virtualizationEnabled ? 'true' : 'false'}
+    >
       <table className="timesheet-table" data-testid="timesheets-table" role="table" aria-label="Timesheets">
         <TableHeader
           columns={columns}
@@ -582,7 +690,6 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 TimesheetTable.displayName = 'TimesheetTable';
 
 export default TimesheetTable;
-
 
 
 

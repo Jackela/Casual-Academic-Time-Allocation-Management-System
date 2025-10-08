@@ -5,6 +5,7 @@ import { secureApiClient } from '../services/api-secure';
 import { secureLogger } from '../utils/secure-logger';
 // import './LoginPage.css'; // REMOVED
 
+import type { LoginResponse } from '../types/api';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
@@ -13,17 +14,6 @@ interface LoginFormData {
   email: string;
   password: string;
 }
-
-interface LoginResponse {
-  token: string;
-  user: {
-    id: number;
-    email: string;
-    name: string;
-    role: string;
-  };
-}
-
 
 const LoginPage: React.FC = () => {
   const { login, isAuthenticated } = useAuth();
@@ -94,17 +84,28 @@ const LoginPage: React.FC = () => {
       const from = location.state?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
       
-    } catch (err: any) {
+    } catch (error: unknown) {
       secureLogger.security('login_failed', {
         email: formData.email,
-        error: err.error || err.message
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
-      if (err.error && err.message) {
-        setError(err.message || 'Login failed. Please check your credentials.');
-      } else {
-        setError('An unexpected error occurred. Please try again.');
+
+      const fallbackMessage = 'An unexpected error occurred. Please try again.';
+      let resolvedMessage = fallbackMessage;
+
+      if (!(error instanceof Error) && typeof error === 'object' && error) {
+        const errorRecord = error as Record<string, unknown>;
+        const directMessage = typeof errorRecord.message === 'string' ? errorRecord.message.trim() : '';
+        const responseData = (errorRecord.response as { data?: { message?: string } } | undefined)?.data;
+        const responseMessage = typeof responseData?.message === 'string' ? responseData.message.trim() : '';
+
+        const candidate = directMessage || responseMessage;
+        if (candidate) {
+          resolvedMessage = candidate;
+        }
       }
+
+      setError(resolvedMessage);
     } finally {
       setLoading(false);
     }
@@ -221,3 +222,6 @@ const LoginPage: React.FC = () => {
 };
 
 export default LoginPage;
+
+
+

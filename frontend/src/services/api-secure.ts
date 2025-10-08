@@ -4,13 +4,88 @@
  * Enhanced version of API client with secure logging and production-safe error handling.
  */
 
-import axios, { AxiosHeaders } from 'axios';
+import axios, { AxiosHeaders, isAxiosError } from 'axios';
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { getConfig } from '../config/unified-config';
 import { secureLogger } from '../utils/secure-logger';
 import { authManager } from './auth-manager';
 import { ENV_CONFIG } from '../utils/environment';
-import type { ApiResponse, ApiErrorResponse } from '../types/api';
+import type { ApiSuccessResponse, ApiErrorResponse, ErrorEnvelope, ErrorDetail } from '../types/api';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isDefined = <T>(value: T | null | undefined): value is T =>
+  value !== null && value !== undefined;
+
+const collectErrorDetails = (input: unknown): ErrorDetail[] | undefined => {
+  if (Array.isArray(input)) {
+    const mapped = input
+      .map((entry): ErrorDetail | undefined => {
+        if (typeof entry === 'string') {
+          return { message: entry };
+        }
+        if (isRecord(entry)) {
+          const message = typeof entry['message'] === 'string' ? entry['message'] : undefined;
+          if (!message) {
+            return undefined;
+          }
+          const detail: ErrorDetail = { message };
+          if (typeof entry['field'] === 'string') {
+            detail.field = entry['field'];
+          }
+          if (typeof entry['code'] === 'string') {
+            detail.code = entry['code'];
+          }
+          return detail;
+        }
+        return undefined;
+      })
+      .filter(isDefined);
+    return mapped.length > 0 ? mapped : undefined;
+  }
+
+  if (isRecord(input)) {
+    const mapped: ErrorDetail[] = [];
+    for (const [field, value] of Object.entries(input)) {
+      if (typeof value === 'string') {
+        mapped.push({ field, message: value });
+      } else if (Array.isArray(value)) {
+        const message = value.find((entry) => typeof entry === 'string');
+        if (typeof message === 'string') {
+          mapped.push({ field, message });
+        }
+      }
+    }
+    return mapped.length > 0 ? mapped : undefined;
+  }
+
+  return undefined;
+};
+
+type SerializableFormValue =
+  | string
+  | number
+  | boolean
+  | Blob
+  | File
+  | Date
+  | Record<string, unknown>
+  | Array<unknown>
+  | null
+  | undefined;
+
+type FormDataPayload = Record<string, SerializableFormValue>;
+
+type QueryParamValue =
+  | string
+  | number
+  | boolean
+  | readonly (string | number | boolean)[]
+  | null
+  | undefined;
+
+type QueryParams = Record<string, QueryParamValue>;
 
 // =============================================================================
 // Enhanced API Client Class with Security
@@ -26,7 +101,9 @@ type RequestMetadata = {
 
 type InternalRequestConfigWithMeta = InternalAxiosRequestConfig & {
   metadata?: RequestMetadata;
-};export class SecureApiClient {
+};
+
+export class SecureApiClient {
   private client: AxiosInstance;
   private token: string | null = null;
   private environment: 'browser' | 'server';
@@ -66,23 +143,27 @@ type InternalRequestConfigWithMeta = InternalAxiosRequestConfig & {
 
   setAuthToken(token: string | null): void {
     this.token = token;
+    const defaults = this.client.defaults.headers.common as
+      | AxiosHeaders
+      | Record<string, string | undefined>
+      | undefined;
+
     if (token) {
-      const defaults: any = this.client.defaults.headers.common;
-      if (defaults && typeof defaults.set === 'function') {
+      if (defaults instanceof AxiosHeaders) {
         defaults.set('Authorization', `Bearer ${token}`);
       } else if (defaults) {
         defaults['Authorization'] = `Bearer ${token}`;
       }
       secureLogger.debug('Auth token set for API client');
-    } else {
-      const defaults: any = this.client.defaults.headers.common;
-      if (defaults && typeof defaults.delete === 'function') {
-        defaults.delete('Authorization');
-      } else if (defaults) {
-        delete defaults['Authorization'];
-      }
-      secureLogger.debug('Auth token cleared from API client');
+      return;
     }
+
+    if (defaults instanceof AxiosHeaders) {
+      defaults.delete('Authorization');
+    } else if (defaults) {
+      delete defaults['Authorization'];
+    }
+    secureLogger.debug('Auth token cleared from API client');
   }
 
   getAuthToken(): string | null {
@@ -209,33 +290,70 @@ type InternalRequestConfigWithMeta = InternalAxiosRequestConfig & {
     }
   }
 
-  private transformError(error: any): ApiErrorResponse {
-    const baseError = {
-      success: false as const,
-      timestamp: new Date().toISOString(),
-      path: error.config?.url || '',
-    };
+  private transformError(error: unknown): ApiErrorResponse {
+    const timestamp = new Date().toISOString();
 
-    if (error.response?.data) {
+    if (isAxiosError(error)) {
+      const status = error.response?.status;
+      const payload = isRecord(error.response?.data) ? (error.response?.data as Record<string, unknown>) : undefined;
+
+      const payloadMessage =
+        payload && typeof payload['message'] === 'string' ? (payload['message'] as string) : undefined;
+
+      const resolvedMessage = ENV_CONFIG.isProduction()
+        ? 'An error occurred. Please try again.'
+        : payloadMessage ?? error.message ?? 'Request failed';
+
+      const code =
+        payload && typeof payload['code'] === 'string'
+          ? (payload['code'] as string)
+          : error.code ?? 'API_ERROR';
+
+      const envelope: ErrorEnvelope = {
+        code,
+        message: resolvedMessage,
+      };
+
+      const detailEntries = payload ? collectErrorDetails(payload['details']) : undefined;
+      if (detailEntries) {
+        envelope.details = detailEntries;
+      }
+
+      if (payload && isRecord(payload['meta'])) {
+        envelope.meta = payload['meta'] as Record<string, unknown>;
+      }
+
+      secureLogger.warn('API request failed', {
+        status,
+        url: error.config?.url,
+        method: error.config?.method,
+      });
+
       return {
-        ...baseError,
-        error: error.response.data.error || 'API Error',
-        message: ENV_CONFIG.isProduction() 
-          ? 'An error occurred. Please try again.' 
-          : (error.response.data.message || error.message),
-        status: error.response.status,
-        details: ENV_CONFIG.isProduction() ? {} : (error.response.data.details || {})
+        success: false,
+        message: resolvedMessage,
+        error: envelope,
+        timestamp,
+        status,
+        path: error.config?.url,
       };
     }
 
+    const fallbackMessage =
+      ENV_CONFIG.isProduction()
+        ? 'Unable to complete the request at this time.'
+        : error instanceof Error
+          ? error.message
+          : 'An unexpected error occurred';
+
     return {
-      ...baseError,
-      error: ENV_CONFIG.isProduction() ? 'Service Error' : 'Network Error',
-      message: ENV_CONFIG.isProduction() 
-        ? 'Unable to connect to service. Please check your connection and try again.'
-        : (error.message || 'An unexpected error occurred'),
-      status: 0,
-      details: {}
+      success: false,
+      message: fallbackMessage,
+      error: {
+        code: 'UNKNOWN_ERROR',
+        message: fallbackMessage,
+      },
+      timestamp,
     };
   }
 
@@ -243,28 +361,40 @@ type InternalRequestConfigWithMeta = InternalAxiosRequestConfig & {
   // HTTP Methods
   // ---------------------------------------------------------------------------
 
-  async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.get<T>(url, config);
+  async get<TResponse>(url: string, config?: AxiosRequestConfig): Promise<ApiSuccessResponse<TResponse>> {
+    const response = await this.client.get<TResponse>(url, config);
     return this.wrapResponse(response);
   }
 
-  async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.post<T>(url, data, config);
+  async post<TResponse, TBody = unknown>(
+    url: string,
+    data?: TBody,
+    config?: AxiosRequestConfig<TBody>,
+  ): Promise<ApiSuccessResponse<TResponse>> {
+    const response = await this.client.post<TResponse, AxiosResponse<TResponse>, TBody>(url, data, config);
     return this.wrapResponse(response);
   }
 
-  async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.put<T>(url, data, config);
+  async put<TResponse, TBody = unknown>(
+    url: string,
+    data?: TBody,
+    config?: AxiosRequestConfig<TBody>,
+  ): Promise<ApiSuccessResponse<TResponse>> {
+    const response = await this.client.put<TResponse, AxiosResponse<TResponse>, TBody>(url, data, config);
     return this.wrapResponse(response);
   }
 
-  async patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.patch<T>(url, data, config);
+  async patch<TResponse, TBody = unknown>(
+    url: string,
+    data?: TBody,
+    config?: AxiosRequestConfig<TBody>,
+  ): Promise<ApiSuccessResponse<TResponse>> {
+    const response = await this.client.patch<TResponse, AxiosResponse<TResponse>, TBody>(url, data, config);
     return this.wrapResponse(response);
   }
 
-  async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.delete<T>(url, config);
+  async delete<TResponse = void>(url: string, config?: AxiosRequestConfig): Promise<ApiSuccessResponse<TResponse>> {
+    const response = await this.client.delete<TResponse>(url, config);
     return this.wrapResponse(response);
   }
 
@@ -272,12 +402,14 @@ type InternalRequestConfigWithMeta = InternalAxiosRequestConfig & {
   // Response Wrapper
   // ---------------------------------------------------------------------------
 
-  private wrapResponse<T>(response: AxiosResponse<T>): ApiResponse<T> {
+  private wrapResponse<T>(response: AxiosResponse<T>): ApiSuccessResponse<T> {
     return {
       success: true,
       data: response.data,
-      message: 'Success',
-      timestamp: new Date().toISOString()
+      message: response.statusText || 'Success',
+      timestamp: new Date().toISOString(),
+      status: response.status,
+      path: response.config?.url,
     };
   }
 
@@ -300,31 +432,62 @@ type InternalRequestConfigWithMeta = InternalAxiosRequestConfig & {
   }
 
   // Create form data for file uploads
-  createFormData(data: Record<string, any>): FormData {
+  createFormData(data: FormDataPayload): FormData {
     const formData = new FormData();
-    
+
     Object.entries(data).forEach(([key, value]) => {
+      if (value === null || value === undefined) {
+        return;
+      }
+
       if (value instanceof File) {
         formData.append(key, value);
         secureLogger.debug('File added to FormData', { filename: value.name, size: value.size });
-      } else if (value !== null && value !== undefined) {
-        formData.append(key, JSON.stringify(value));
+        return;
       }
+
+      if (value instanceof Blob) {
+        formData.append(key, value);
+        return;
+      }
+
+      if (value instanceof Date) {
+        formData.append(key, value.toISOString());
+        return;
+      }
+
+      if (Array.isArray(value) || isRecord(value)) {
+        formData.append(key, JSON.stringify(value));
+        return;
+      }
+
+      formData.append(key, String(value));
     });
-    
+
     return formData;
   }
 
   // Create query string from object
-  createQueryString(params: Record<string, any>): string {
+  createQueryString(params: QueryParams): string {
     const queryParams = new URLSearchParams();
-    
+
     Object.entries(params).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') {
-        queryParams.append(key, String(value));
+      if (value === null || value === undefined) {
+        return;
       }
+
+      if (Array.isArray(value)) {
+        value.forEach((entry) => {
+          if (entry !== null && entry !== undefined) {
+            queryParams.append(key, String(entry));
+          }
+        });
+        return;
+      }
+
+      queryParams.append(key, String(value));
     });
-    
+
     return queryParams.toString();
   }
 

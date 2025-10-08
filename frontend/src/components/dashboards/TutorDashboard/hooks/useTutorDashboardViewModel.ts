@@ -2,9 +2,8 @@ import {
   useMemo,
   useState,
   useCallback,
-  Dispatch,
-  SetStateAction,
 } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import {
   useTimesheetQuery,
   useTimesheetDashboardSummary,

@@ -9,12 +9,11 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import LoadingSpinner, { 
-  LoadingOverlay, 
-  LoadingButton, 
-  useLoadingState, 
-  withLoadingState 
+import LoadingSpinner, {
+  LoadingOverlay,
+  LoadingButton,
 } from './LoadingSpinner';
+import { useLoadingState, withLoadingState } from './loading-state';
 
 // =============================================================================
 // Test Setup & Utilities

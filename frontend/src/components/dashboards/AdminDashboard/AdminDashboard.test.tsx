@@ -4,11 +4,12 @@
  * Focused UI assertions aligned with the current AdminDashboard implementation.
  */
 
-import React from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { formatters } from "../../../utils/formatting";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { MockedFunction } from "vitest";
+import type { ApprovalRequest, ApprovalResponse } from "../../../types/api";
 
 const sessionHooksMock = vi.hoisted(() => ({
   __esModule: true,
@@ -55,7 +56,7 @@ import {
   createMockUser,
 } from "../../../test/utils/test-utils";
 
-let approveTimesheetMock: ReturnType<typeof vi.fn>;
+let approveTimesheetMock: MockedFunction<(request: ApprovalRequest) => Promise<ApprovalResponse>>;
 let batchApproveMock: ReturnType<typeof vi.fn>;
 let resetApprovalMock: ReturnType<typeof vi.fn>;
 
@@ -149,7 +150,7 @@ beforeEach(() => {
     hasRole: vi.fn((role: string) => role.toUpperCase() === 'ADMIN'),
   });
 
-  approveTimesheetMock = vi.fn();
+  approveTimesheetMock = vi.fn<[ApprovalRequest], Promise<ApprovalResponse>>();
 
   mockTimesheetModule.useTimesheetQuery.mockReturnValue({
     data: mockSystemTimesheets,
@@ -164,7 +165,7 @@ beforeEach(() => {
     updateQuery: vi.fn(),
   });
 
-  approveTimesheetMock = vi.fn();
+  approveTimesheetMock = vi.fn<[ApprovalRequest], Promise<ApprovalResponse>>();
   batchApproveMock = vi.fn();
   resetApprovalMock = vi.fn();
   mockTimesheetModule.useTimesheetDashboardSummary.mockReturnValue({
@@ -350,8 +351,9 @@ describe("AdminDashboard Component", () => {
   it("triggers admin approval action when Final Approve is clicked", async () => {
     const approvalTimesheets = createMockTimesheetPage(
       1,
-      { idStart: 901 },
+      {},
       {
+        id: 901,
         status: "LECTURER_CONFIRMED",
       },
     );
@@ -369,12 +371,13 @@ describe("AdminDashboard Component", () => {
       updateQuery: vi.fn(),
     });
 
-    approveTimesheetMock.mockResolvedValue({
+    const approvalResponse: ApprovalResponse = {
       success: true,
       message: "approved",
       timesheetId: approvalTimesheets.timesheets[0].id,
-      newStatus: "HR_CONFIRM",
-    } as any);
+      newStatus: "FINAL_CONFIRMED",
+    };
+    approveTimesheetMock.mockResolvedValue(approvalResponse);
 
     const user = userEvent.setup();
     render(<AdminDashboard />);
@@ -392,14 +395,16 @@ describe("AdminDashboard Component", () => {
     expect(approveTimesheetMock).toHaveBeenCalledWith({
       timesheetId: approvalTimesheets.timesheets[0].id,
       action: "HR_CONFIRM",
+      comment: "Approved timesheet",
     });
   });
 
   it("triggers admin rejection action when Reject is clicked", async () => {
     const rejectionTimesheets = createMockTimesheetPage(
       1,
-      { idStart: 915 },
+      {},
       {
+        id: 915,
         status: "LECTURER_CONFIRMED",
       },
     );
@@ -417,12 +422,13 @@ describe("AdminDashboard Component", () => {
       updateQuery: vi.fn(),
     });
 
-    approveTimesheetMock.mockResolvedValue({
+    const rejectionResponse: ApprovalResponse = {
       success: true,
       message: "rejected",
       timesheetId: rejectionTimesheets.timesheets[0].id,
       newStatus: "REJECTED",
-    } as any);
+    };
+    approveTimesheetMock.mockResolvedValue(rejectionResponse);
 
     const user = userEvent.setup();
     render(<AdminDashboard />);

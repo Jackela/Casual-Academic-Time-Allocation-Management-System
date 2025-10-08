@@ -46,7 +46,7 @@ export class TimesheetApiClient {
 
   async getUserTimesheets(tutorId?: number, options: PaginationOptions = {}): Promise<TimesheetPage> {
     const { page = 0, size = 20 } = options;
-    const params: Record<string, any> = { page, size };
+    const params: Record<string, number> = { page, size };
 
     if (typeof tutorId === 'number') {
       params.tutorId = tutorId;

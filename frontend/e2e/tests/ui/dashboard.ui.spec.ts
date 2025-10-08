@@ -48,14 +48,14 @@ type UITestFixtures = {
 };
 
 const test = base.extend<UITestFixtures>({
-  uiPage: async ({ page }, use) => {
+  uiPage: async ({ page }, apply) => {
     // Set up authentication state
     await page.addInitScript((authData) => {
       localStorage.setItem('token', authData.token);
       localStorage.setItem('user', JSON.stringify(authData.user));
     }, uiMockResponses.auth);
 
-    await use(page);
+    await apply(page);
   }
 });
 

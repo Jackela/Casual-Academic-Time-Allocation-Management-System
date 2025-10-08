@@ -1,6 +1,20 @@
-import { test, expect, Page } from '@playwright/test';
-import { AITestGenerator, TestScenario, TestStep } from './test-generator';
+import { test, expect, Page, APIRequestContext, APIResponse } from '@playwright/test';
+import {
+  AITestGenerator,
+  TestScenario,
+  TestStep,
+  ScenarioData,
+  ScenarioExecutionError,
+  ScenarioExecutionSummary,
+} from './test-generator';
 import { E2E_CONFIG } from '../config/e2e.config';
+import type { Timesheet } from '../../src/types/api';
+
+const toError = (error: unknown): Error =>
+  error instanceof Error ? error : new Error(String(error));
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 /**
  * AI-Driven Test Executor
@@ -110,10 +124,10 @@ test.describe('AI-Generated Test Execution', () => {
   test('Adaptive test generation based on page state', async ({ page }) => {
     const loginMarkup = `<main>
       <h1>Academic Time Manager</h1>
-      <form id=\"login-form\">
-        <label>Email<input type=\"email\" name=\"email\" required /></label>
-        <label>Password<input type=\"password\" name=\"password\" required /></label>
-        <button type=\"submit\">Login</button>
+      <form id="login-form">
+        <label>Email<input type="email" name="email" required /></label>
+        <label>Password<input type="password" name="password" required /></label>
+        <button type="submit">Login</button>
       </form>
     </main>`;
     await page.setContent(loginMarkup);
@@ -122,13 +136,13 @@ test.describe('AI-Generated Test Execution', () => {
     expect(loginPageScenarios.some(s => s.name.includes('Login'))).toBeTruthy();
 
     const dashboardMarkup = `<header>
-      <h1 data-testid=\"main-dashboard-title\">Lecturer Dashboard</h1>
-      <button data-testid=\"create-timesheet\">New Timesheet</button>
+      <h1 data-testid="main-dashboard-title">Lecturer Dashboard</h1>
+      <button data-testid="create-timesheet">New Timesheet</button>
     </header>
-    <section id=\"timesheet-section\">
-      <table data-testid=\"timesheets-table\">
+    <section id="timesheet-section">
+      <table data-testid="timesheets-table">
         <tbody>
-          <tr data-testid=\"timesheet-row-1\">
+          <tr data-testid="timesheet-row-1">
             <td>Timesheet A</td>
           </tr>
         </tbody>
@@ -138,31 +152,41 @@ test.describe('AI-Generated Test Execution', () => {
 
     const dashboardScenarios = await generator.generateScenarios(page);
     expect(dashboardScenarios.some(s => s.name.includes('timesheet'))).toBeTruthy();
-  });;
+  });
 });
 
 /**
  * Execute a test scenario
  */
 
-async function verifyTimesheetCreation(request: any, authToken: string, data: any): Promise<boolean> {
+async function verifyTimesheetCreation(
+  request: APIRequestContext,
+  authToken: string,
+  data: ScenarioData,
+): Promise<boolean> {
   try {
     const response = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets`, {
-      headers: {
-        Authorization: `Bearer ${authToken}`
-      }
+      headers: { Authorization: `Bearer ${authToken}` },
     });
+
     if (!response.ok()) {
       return false;
     }
 
     const payload = await response.json();
     const timesheets = extractTimesheets(payload);
-    return timesheets.some((timesheet: any) => {
-      return (
-        (!data.description || timesheet.description === data.description) &&
-        (!data.hours || Number(timesheet.hours) === Number(data.hours))
-      );
+    if (timesheets.length === 0) {
+      return false;
+    }
+
+    const descriptionValue = data.description;
+    const hoursValue = typeof data.hours === 'number' ? data.hours : undefined;
+    const description = typeof descriptionValue === 'string' ? descriptionValue : undefined;
+
+    return timesheets.some((timesheet) => {
+      const descriptionMatches = !description || timesheet.description === description;
+      const hoursMatch = hoursValue === undefined || Number(timesheet.hours) === Number(hoursValue);
+      return descriptionMatches && hoursMatch;
     });
   } catch (error) {
     console.warn('[AI-Driven] Failed to verify timesheet creation via API', error);
@@ -170,28 +194,38 @@ async function verifyTimesheetCreation(request: any, authToken: string, data: an
   }
 }
 
-function extractTimesheets(payload: any): any[] {
-  if (!payload) {
+function extractTimesheets(payload: unknown): Timesheet[] {
+  if (!isRecord(payload)) {
     return [];
   }
-  if (Array.isArray(payload.timesheets)) {
-    return payload.timesheets;
+
+  const candidateArrays = [payload.timesheets, payload.content, payload.data].filter(
+    (value): value is unknown[] => Array.isArray(value),
+  );
+
+  for (const array of candidateArrays) {
+    const timesheets = array.filter((entry): entry is Timesheet => {
+      if (!isRecord(entry)) {
+        return false;
+      }
+      return typeof entry.id === 'number' && typeof entry.description === 'string';
+    });
+
+    if (timesheets.length > 0) {
+      return timesheets;
+    }
   }
-  if (Array.isArray(payload.content)) {
-    return payload.content;
-  }
-  if (Array.isArray(payload.data)) {
-    return payload.data;
-  }
+
   return [];
 }
+
 async function executeScenario(
   page: Page,
   scenario: TestScenario,
   authToken: string
-): Promise<any> {
+): Promise<ScenarioExecutionSummary> {
   const startTime = Date.now();
-  const errors: any[] = [];
+  const errors: ScenarioExecutionError[] = [];
   let success = true;
   let validationCaught = false;
 
@@ -199,19 +233,21 @@ async function executeScenario(
     for (const step of scenario.steps) {
       try {
         await executeStep(page, step, authToken);
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const resolvedError = toError(error);
         // Check if this is an expected validation error
         if (step.validation?.includes('error') || step.validation?.includes('reject')) {
           validationCaught = true;
         } else {
-          errors.push({ step, error: error.message });
+          errors.push({ step, error: resolvedError.message });
           success = false;
           break;
         }
       }
     }
-  } catch (error: any) {
-    errors.push({ scenario: scenario.name, error: error.message });
+  } catch (error: unknown) {
+    const resolvedError = toError(error);
+    errors.push({ scenario: scenario.name, error: resolvedError.message });
     success = false;
   }
 
@@ -232,32 +268,35 @@ async function executeScenario(
  */
 async function executeScenarioWithData(
   page: Page,
-  request: any,
+  request: APIRequestContext,
   scenario: TestScenario,
-  data: any,
+  data: ScenarioData,
   authToken: string
-): Promise<any> {
+): Promise<ScenarioExecutionSummary> {
   const startTime = Date.now();
-  const errors: any[] = [];
+  const errors: ScenarioExecutionError[] = [];
   let success = true;
 
   try {
     for (const step of scenario.steps) {
-      const stepWithData = { ...step, data: data[step.target] || step.data };
+      const stepData = typeof step.target === 'string' ? data[step.target] ?? step.data : step.data;
+      const stepWithData: TestStep = { ...step, data: stepData };
       await executeStep(page, stepWithData, authToken, request);
     }
-  } catch (error: any) {
-    errors.push({ scenario: scenario.name, data, error: error.message });
+  } catch (error: unknown) {
+    const resolvedError = toError(error);
+    errors.push({ scenario: scenario.name, data, error: resolvedError.message });
     success = false;
   }
 
-  if (!success && request && scenario.name.toLowerCase().includes('create')) {
+  if (!success && scenario.name.toLowerCase().includes('create')) {
     const verificationSucceeded = await verifyTimesheetCreation(request, authToken, data);
     if (verificationSucceeded) {
       return {
         success: true,
         duration: Date.now() - startTime,
-        errors: []
+        errors: [],
+        validationCaught: false,
       };
     }
   }
@@ -265,7 +304,8 @@ async function executeScenarioWithData(
   return {
     success,
     duration: Date.now() - startTime,
-    errors
+    errors,
+    validationCaught: false,
   };
 }
 
@@ -276,7 +316,7 @@ async function executeStep(
   page: Page,
   step: TestStep,
   authToken: string,
-  request?: any
+  request?: APIRequestContext
 ): Promise<void> {
   switch (step.action) {
     case 'navigate':
@@ -285,21 +325,29 @@ async function executeStep(
       break;
       
     case 'fill':
-      await page.fill(step.target!, String(step.data ?? ''));
+      if (typeof step.target === 'string') {
+        await page.fill(step.target, String(step.data ?? ''));
+      }
       break;
 
     case 'click':
-      await page.click(step.target!);
-      await page.waitForLoadState('networkidle');
+      if (typeof step.target === 'string') {
+        await page.click(step.target);
+        await page.waitForLoadState('networkidle');
+      }
       break;
       
     case 'verify':
-      await performVerification(page, step.validation!);
+      if (typeof step.validation === 'string') {
+        await performVerification(page, step.validation);
+      }
       break;
       
     case 'api-call':
       if (request) {
         await performAPICall(request, step, authToken);
+      } else {
+        throw new Error('API request context is not available for API call step');
       }
       break;
   }
@@ -348,8 +396,12 @@ async function performVerification(page: Page, validation: string): Promise<void
 /**
  * Perform API call
  */
-async function performAPICall(request: any, step: TestStep, authToken: string): Promise<void> {
-  const [method, endpoint] = step.target!.split(' ');
+async function performAPICall(request: APIRequestContext, step: TestStep, authToken: string): Promise<void> {
+  if (typeof step.target !== 'string') {
+    throw new Error('API call step requires a target endpoint');
+  }
+
+  const [method, endpoint] = step.target.split(' ');
   const url = `${E2E_CONFIG.BACKEND.URL}${endpoint}`;
   
   const options = {
@@ -360,7 +412,7 @@ async function performAPICall(request: any, step: TestStep, authToken: string): 
     data: step.data
   };
   
-  let response;
+  let response: APIResponse;
   switch (method) {
     case 'POST':
       response = await request.post(url, options);
@@ -374,6 +426,8 @@ async function performAPICall(request: any, step: TestStep, authToken: string): 
     case 'GET':
       response = await request.get(url, { headers: options.headers });
       break;
+    default:
+      throw new Error(`Unsupported API method: ${method}`);
   }
   
   if (step.validation) {
@@ -495,75 +549,3 @@ async function setupBoundaryHarness(page: Page): Promise<void> {
 
 
 
-async function setupAdaptiveHarness(page: Page): Promise<void> {
-  const loginHtml = `<!DOCTYPE html>
-<html lang="en">
-  <body>
-    <main>
-      <h1>Academic Time Manager</h1>
-      <form id="login-form">
-        <label>Email<input type="email" name="email" required /></label>
-        <label>Password<input type="password" name="password" required /></label>
-        <button type="submit">Login</button>
-      </form>
-    </main>
-    <script>
-      (function () {
-        const form = document.getElementById('login-form');
-        form.addEventListener('submit', function (event) {
-          event.preventDefault();
-          window.localStorage.setItem('token', 'mock-token');
-          window.localStorage.setItem('user', JSON.stringify({
-            id: 12,
-            email: 'lecturer@example.com',
-            role: 'LECTURER'
-          }));
-          window.location.replace('http://localhost:5174/dashboard/overview');
-        });
-      })();
-    </script>
-  </body>
-</html>`;
-  const dashboardHtml = `<!DOCTYPE html>
-<html lang="en">
-  <body>
-    <header>
-      <h1 data-testid="main-dashboard-title">Lecturer Dashboard</h1>
-      <button data-testid="create-timesheet">New Timesheet</button>
-    </header>
-    <section id="timesheet-section">
-      <table data-testid="timesheets-table">
-        <tbody>
-          <tr data-testid="timesheet-row-1">
-            <td>Timesheet A</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-  </body>
-</html>`;
-
-  await page.route('**/login', async route => {
-    if (route.request().resourceType() !== 'document') {
-      await route.continue();
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: loginHtml
-    });
-  });
-
-  await page.route('**/dashboard/**', async route => {
-    if (route.request().resourceType() !== 'document') {
-      await route.continue();
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: dashboardHtml
-    });
-  });
-}

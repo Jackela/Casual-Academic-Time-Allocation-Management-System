@@ -214,20 +214,20 @@ export class TimesheetWorkflow {
 
 // Export the test fixture with workflow helpers
 export const test = base.extend<WorkflowFixtures>({
-  dashboardWorkflow: async ({ page }, use) => {
-    await use(new DashboardWorkflow(page));
+  dashboardWorkflow: async ({ page }, apply) => {
+    await apply(new DashboardWorkflow(page));
   },
 
-  authWorkflow: async ({ page }, use) => {
-    await use(new AuthWorkflow(page));
+  authWorkflow: async ({ page }, apply) => {
+    await apply(new AuthWorkflow(page));
   },
 
-  navigationWorkflow: async ({ page }, use) => {
-    await use(new NavigationWorkflow(page));
+  navigationWorkflow: async ({ page }, apply) => {
+    await apply(new NavigationWorkflow(page));
   },
 
-  timesheetWorkflow: async ({ page }, use) => {
-    await use(new TimesheetWorkflow(page));
+  timesheetWorkflow: async ({ page }, apply) => {
+    await apply(new TimesheetWorkflow(page));
   },
 });
 

@@ -161,11 +161,6 @@ class ProcessManager {
     }
   }
 
-      return child;
-    } catch (error) {
-      throw new Error(`Failed to spawn ${command}: ${error.message}`);
-    }
-  }
 
   async killProcess(pid, signal = 'SIGTERM') {
     if (!pid) {
@@ -482,89 +477,6 @@ class TestRunner {
     return false;
   }
 
-    const extraArgs = options.extraArgs ?? [];
-    const spawnOverrides = { ...options };
-    delete spawnOverrides.extraArgs;
-
-    const hasFiles = await this.hasTestFiles(test);
-    if (!hasFiles) {
-      console.log(`⚠️  Skipping ${test.name} (no matching test files found).`);
-      return { success: true, skipped: true, duration: 0 };
-    }
-
-    console.log(`📋 Running ${test.name}...`);
-    console.log(`   Description: ${test.description}`);
-    console.log(`   Binary: ${test.binary} ${test.args.join(' ')}`);
-    if (extraArgs.length) {
-      console.log(`   Additional args: ${extraArgs.join(' ')}`);
-    }
-    if (typeof test.expectedDuration === 'number') {
-      console.log(`   Expected duration: ${test.expectedDuration}ms`);
-    }
-
-    const startTime = Date.now();
-
-    try {
-      const binaryPath = this.resolveBinaryPath(test.binary);
-      let effectiveArgs = [...test.args];
-
-      const spawnEnv = sanitizeEnv({
-        NODE_ENV: 'test',
-        FORCE_COLOR: '0',
-        ...(spawnOverrides.env || {}),
-      });
-      delete spawnOverrides.env;
-
-      const isAiE2EScript = test.binary === 'node' && test.args.some(arg => arg.includes('run-e2e-ai.js'));
-
-      if (isAiE2EScript) {
-        const existingArgs = (spawnEnv.PLAYWRIGHT_ARGS || '').split(' ').filter(Boolean);
-        const baseArgs = existingArgs.length ? existingArgs : ['playwright', 'test'];
-        spawnEnv.PLAYWRIGHT_ARGS = extraArgs.length
-          ? [...baseArgs, ...extraArgs].join(' ')
-          : baseArgs.join(' ');
-      } else if (extraArgs.length) {
-        effectiveArgs = [...effectiveArgs, ...extraArgs];
-      }
-
-      let command;
-      let args;
-
-      if (test.binary === 'vitest' || test.binary === 'playwright') {
-        command = process.execPath;
-        args = [binaryPath, ...effectiveArgs];
-        console.log(`🔧 Executing: node ${binaryPath} ${effectiveArgs.join(' ')}`);
-      } else {
-        command = binaryPath;
-        args = effectiveArgs;
-        console.log(`🔧 Executing: ${binaryPath} ${effectiveArgs.join(' ')}`);
-      }
-
-      const spawnOptions = {
-        cwd: this.rootDir,
-        env: spawnEnv,
-        ...spawnOverrides,
-      };
-
-      await this.processManager.spawn(command, args, spawnOptions);
-
-      const duration = Date.now() - startTime;
-      console.log(`✅ ${test.name} passed (${duration}ms)`);
-      return { success: true, duration };
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      console.error(`❌ ${test.name} failed (${duration}ms)`);
-
-      if (error and getattr(error, 'exitCode', None) is not None):
-        console.error(`   Exit code: ${error.exitCode}`);
-      if (error and getattr(error, 'shortMessage', None)):
-        console.error(`   Message: ${error.shortMessage}`);
-      elif (error and getattr(error, 'message', None)):
-        console.error(`   Message: ${error.message}`);
-
-      return { success: false, duration, error: getattr(error, 'message', 'unknown error') };
-    }
-  }
 }
 
 /**

@@ -12,11 +12,7 @@ import { authStorage } from './storage';
 import { authManager } from '../services/auth-manager';
 import { secureLogger } from '../utils/secure-logger';
 import { ENV_CONFIG } from '../utils/environment';
-import type {
-  LoginCredentials,
-  SessionContextValue,
-  SessionState,
-} from '../types/auth';
+import type { LoginCredentials, SessionContextValue, SessionState, User, UserRole } from '../types/auth';
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
@@ -40,7 +36,7 @@ interface SessionProviderProps {
 }
 
 export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) => {
-  const [state, setState] = useState<SessionState>(createInitialState);
+  const [state, setState] = useState<SessionState>(() => createInitialState());
 
   const syncFromAuthManager = useCallback(() => {
     const authState = authManager.getAuthState();
@@ -85,11 +81,12 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
 
         const bypassRole = ENV_CONFIG.e2e.getBypassRole();
         if (bypassRole && ENV_CONFIG.validation.isValidBypassRole(bypassRole)) {
-          const fallbackUser = {
+          const role = bypassRole as UserRole;
+          const fallbackUser: User = {
             id: 201,
-            email: `test-${bypassRole.toLowerCase()}@test.local`,
-            name: `Test ${bypassRole}`,
-            role: bypassRole,
+            email: `test-${role.toLowerCase()}@test.local`,
+            name: `Test ${role}`,
+            role,
           };
           const bypassToken = `bypass-token-${Date.now()}`;
           authManager.setAuth(bypassToken, fallbackUser);
@@ -149,7 +146,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
         throw error;
       }
     },
-  );
+  []);
 
   const signOut = useCallback<SessionContextValue['signOut']>(async () => {
     try {
@@ -225,6 +222,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useSession = (): SessionContextValue => {
   const context = useContext(SessionContext);
   if (!context) {
@@ -232,3 +230,4 @@ export const useSession = (): SessionContextValue => {
   }
   return context;
 };
+

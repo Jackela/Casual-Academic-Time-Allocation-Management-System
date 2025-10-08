@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useAuth } from "../../contexts/AuthContext";
-import { TimesheetService } from "../../services/timesheets";
-import type { TimesheetPage } from "../../types/api";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { TimesheetService } from '../../services/timesheets';
+import type { TimesheetPage, ApiErrorResponse } from '../../types/api';
 
 interface PendingTimesheetsState {
   data: TimesheetPage | null;
@@ -11,10 +11,12 @@ interface PendingTimesheetsState {
 
 export interface UsePendingTimesheetsResult extends PendingTimesheetsState {
   refetch: () => Promise<void>;
-  timesheets: TimesheetPage["timesheets"];
-  pageInfo: TimesheetPage["pageInfo"] | null;
+  timesheets: TimesheetPage['timesheets'];
+  pageInfo: TimesheetPage['pageInfo'] | null;
   isEmpty: boolean;
 }
+
+const NOT_AUTHENTICATED_ERROR = 'Not authenticated';
 
 const createInitialState = (): PendingTimesheetsState => ({
   data: null,
@@ -25,8 +27,33 @@ const createInitialState = (): PendingTimesheetsState => ({
 const createAuthErrorState = (): PendingTimesheetsState => ({
   data: null,
   loading: false,
-  error: "Not authenticated",
+  error: NOT_AUTHENTICATED_ERROR,
 });
+
+const isAbortError = (error: unknown): boolean => {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return true;
+  }
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as { code?: string; name?: string };
+    return candidate.name === 'AbortError' || candidate.code === 'ERR_CANCELED';
+  }
+  return false;
+};
+
+const isApiErrorResponse = (error: unknown): error is ApiErrorResponse => {
+  return typeof error === 'object' && error !== null && (error as ApiErrorResponse).success === false;
+};
+
+const resolveErrorMessage = (error: unknown): string => {
+  if (isApiErrorResponse(error)) {
+    return error.message || error.error.message || 'Failed to fetch pending timesheets';
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return 'Failed to fetch pending timesheets';
+};
 
 export const usePendingTimesheets = (): UsePendingTimesheetsResult => {
   const { isAuthenticated } = useAuth();
@@ -42,6 +69,7 @@ export const usePendingTimesheets = (): UsePendingTimesheetsResult => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
+
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -52,23 +80,17 @@ export const usePendingTimesheets = (): UsePendingTimesheetsResult => {
     }));
 
     try {
-      const data = await TimesheetService.getPendingTimesheets();
-      setState({
-        data,
-        loading: false,
-        error: null,
-      });
-    } catch (error: unknown) {
-      if ((error as any)?.name === "AbortError") {
+      const data = await TimesheetService.getPendingTimesheets(controller.signal);
+      setState({ data, loading: false, error: null });
+    } catch (error) {
+      if (isAbortError(error)) {
         return;
       }
+
       setState((previous) => ({
         ...previous,
         loading: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch pending timesheets",
+        error: resolveErrorMessage(error),
       }));
     }
   }, [isAuthenticated]);
@@ -80,7 +102,7 @@ export const usePendingTimesheets = (): UsePendingTimesheetsResult => {
     }
 
     fetchPendingTimesheets().catch(() => {
-      /* no-op: error captured in state */
+      /* error handled in state */
     });
 
     return () => {

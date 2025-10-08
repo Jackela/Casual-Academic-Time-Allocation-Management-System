@@ -99,11 +99,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // For critical errors, consider redirecting or additional actions
     if (this.props.level === 'critical') {
-      this.handleCriticalError(error, errorContext);
+      this.handleCriticalError(error);
     }
   }
 
-  private handleCriticalError = (error: Error, _context: any) => {
+  private handleCriticalError = (error: Error) => {
     // For critical errors, we might want to:
     // 1. Clear potentially corrupted state
     // 2. Redirect to a safe page
@@ -152,6 +152,7 @@ export class ErrorBoundary extends Component<Props, State> {
 /**
  * Higher-order component for wrapping components with error boundary
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   errorBoundaryProps?: Omit<Props, 'children'>
@@ -170,8 +171,9 @@ export function withErrorBoundary<P extends object>(
 /**
  * Hook for triggering error boundary from functional components
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useErrorHandler() {
-  return (error: Error, _errorInfo?: any) => {
+  return (error: Error) => {
     // In a functional component, we can trigger an error boundary
     // by throwing an error in a useEffect or event handler
     throw error;

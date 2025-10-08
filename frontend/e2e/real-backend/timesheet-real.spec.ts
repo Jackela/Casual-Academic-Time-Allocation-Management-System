@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { LoginPage } from '../pages/LoginPage';
 import { TutorDashboardPage } from '../pages/TutorDashboardPage';
 import { acquireAuthTokens, createTimesheetWithStatus, finalizeTimesheet, transitionTimesheet, type AuthContext } from '../utils/workflow-helpers';
@@ -27,7 +27,7 @@ test.describe('Real Backend Timesheet Operations', () => {
     }
   });
 
-  const loginAsTutor = async (page: any) => {
+  const loginAsTutor = async (page: Page) => {
     const loginPage = new LoginPage(page);
     const tutorDashboard = new TutorDashboardPage(page);
     await loginPage.navigateTo();

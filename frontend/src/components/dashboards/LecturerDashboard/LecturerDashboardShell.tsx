@@ -12,6 +12,7 @@ import LecturerFiltersPanel from "./components/LecturerFiltersPanel";
 import LecturerPendingTable from "./components/LecturerPendingTable";
 import LoadingSpinner from "../../shared/LoadingSpinner/LoadingSpinner";
 import StatusBadge from "../../shared/StatusBadge/StatusBadge";
+import type { TimesheetStatus } from '../../../types/api';
 import {
   Card,
   CardContent,
@@ -25,10 +26,10 @@ export interface LecturerDashboardShellProps {
   className?: string;
 }
 
-const StatusBreakdown = memo<{ statusBreakdown: Record<string, number> }>(
+const StatusBreakdown = memo<{ statusBreakdown: Partial<Record<TimesheetStatus, number>> }>(
   ({ statusBreakdown }) => {
     const total = Object.values(statusBreakdown).reduce(
-      (sum, count) => sum + count,
+      (sum: number, count: number | undefined) => sum + (count ?? 0),
       0,
     );
 
@@ -41,11 +42,12 @@ const StatusBreakdown = memo<{ statusBreakdown: Record<string, number> }>(
           {Object.entries(statusBreakdown).map(([status, count]) => {
             if (count === 0) return null;
 
-            const percentage = total > 0 ? (count / total) * 100 : 0;
+            const safeCount = count ?? 0;
+          const percentage = total > 0 ? (safeCount / total) * 100 : 0;
 
             return (
               <div key={status} className="flex items-center justify-between">
-                <StatusBadge status={status as any} />
+                <StatusBadge status={status as TimesheetStatus} />
                 <div className="text-right">
                   <p className="font-semibold">{count}</p>
                   <p className="text-xs text-muted-foreground">
@@ -98,6 +100,10 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
       setShowErrorDetails(false);
     }
   }, [errors.approval]);
+
+  const handleSelectionChange = useCallback((ids: number[]) => {
+    setSelectedTimesheets(ids);
+  }, [setSelectedTimesheets]);
 
   const handleRefreshClick = useCallback(() => {
     refreshPending();
@@ -240,7 +246,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
             approvalLoading={loading.approval}
             canPerformApprovals={canPerformApprovals}
             selectedTimesheets={selectedTimesheets}
-            onSelectionChange={setSelectedTimesheets}
+            onSelectionChange={handleSelectionChange}
             onApprovalAction={handleApprovalAction}
             onBatchApprove={handleBatchApproval}
             actionLoadingId={actionLoadingId}

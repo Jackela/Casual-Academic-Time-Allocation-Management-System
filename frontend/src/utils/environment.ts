@@ -5,6 +5,22 @@
  * Provides unified interface for checking runtime environment and feature flags.
  */
 
+import type { EnvironmentDebugInfo } from '../types/logging';
+
+type GlobalProcessEnv = typeof globalThis & {
+  process?: {
+    env?: Record<string, string | undefined>;
+  };
+};
+
+const getProcessEnv = (): Record<string, string | undefined> | undefined => {
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env as Record<string, string | undefined>;
+  }
+
+  return (globalThis as GlobalProcessEnv).process?.env;
+};
+
 /**
  * Centralized environment configuration and detection utilities
  */
@@ -84,15 +100,18 @@ export const ENV_CONFIG = {
         if (metaRole) {
           return metaRole;
         }
-        try {
-          return (globalThis as any)?.process?.env?.VITE_E2E_AUTH_BYPASS_ROLE
-            || (globalThis as any)?.process?.env?.E2E_AUTH_BYPASS_ROLE;
-        } catch {
-          return undefined;
-        }
       } catch {
-        return undefined;
+        // Ignore access issues and fall back to process environment
       }
+
+      const env = getProcessEnv();
+      if (env?.VITE_E2E_AUTH_BYPASS_ROLE) {
+        return env.VITE_E2E_AUTH_BYPASS_ROLE;
+      }
+      if (env?.E2E_AUTH_BYPASS_ROLE) {
+        return env.E2E_AUTH_BYPASS_ROLE;
+      }
+      return undefined;
     },
 
     /**
@@ -120,22 +139,15 @@ export const ENV_CONFIG = {
     /**
      * Get E2E environment variables for debugging
      */
-    getDebugInfo: (): Record<string, any> => {
-      try {
-        return {
-          mode: ENV_CONFIG.getMode(),
-          isE2E: ENV_CONFIG.isE2E(),
-          bypassRole: ENV_CONFIG.e2e.getBypassRole(),
-          hasAuthBypass: ENV_CONFIG.e2e.hasAuthBypass(),
-          shouldUseMSW: ENV_CONFIG.e2e.shouldUseMSW(),
-          testFlag: ENV_CONFIG.e2e.hasTestFlag()
-        };
-      } catch {
-        return {};
-      }
-    }
+    getDebugInfo: (): EnvironmentDebugInfo => ({
+      mode: ENV_CONFIG.getMode(),
+      isE2E: ENV_CONFIG.isE2E(),
+      bypassRole: ENV_CONFIG.e2e.getBypassRole(),
+      hasAuthBypass: ENV_CONFIG.e2e.hasAuthBypass(),
+      shouldUseMSW: ENV_CONFIG.e2e.shouldUseMSW(),
+      testFlag: ENV_CONFIG.e2e.hasTestFlag(),
+    }),
   },
-
   /**
    * Feature flags and configuration
    */
@@ -225,26 +237,38 @@ export const legacyCompat = {
  * Environment-specific error handler
  */
 export const envErrorHandler = (error: Error, context: string): void => {
+  const baseMessage = `[Environment detection error] ${context}`;
+  const loadLogger = () => import('./secure-logger').then(({ secureLogger }) => secureLogger);
+
   if (ENV_CONFIG.isDevelopment()) {
-    // Use secure logger in development to keep output consistent
-    try {
-      const { secureLogger } = require('./secure-logger');
-      secureLogger.error(`[${context}] Environment detection error`, error);
-    } catch {
-      // Fallback if circular import during early bootstrap
-      console.error(`[${context}] Environment detection error:`, error);
-    }
-  } else if (ENV_CONFIG.isE2E()) {
-    try {
-      const { secureLogger } = require('./secure-logger');
-      secureLogger.warn(`[E2E] Environment issue in ${context}`, error.message);
-    } catch {
-      console.warn(`[E2E] Environment issue in ${context}:`, error.message);
-    }
+    void loadLogger()
+      .then((secureLogger) => {
+        secureLogger.error(baseMessage, error);
+      })
+      .catch(() => {
+        console.error(baseMessage, error);
+      });
+    return;
   }
-  // In production, fail silently to avoid exposing internal details
+
+  if (ENV_CONFIG.isE2E()) {
+    const e2eMessage = `E2E environment issue in ${context}`;
+
+    void loadLogger()
+      .then((secureLogger) => {
+        secureLogger.warn(e2eMessage, error.message);
+      })
+      .catch(() => {
+        console.warn(e2eMessage, error.message);
+      });
+    return;
+  }
+
+  void loadLogger()
+    .then((secureLogger) => {
+      secureLogger.error(baseMessage, error);
+    })
+    .catch(() => {
+      console.error(baseMessage, error);
+    });
 };
-
-export default ENV_CONFIG;
-
-

@@ -4,12 +4,24 @@
  */
 
 import { E2E_CONFIG, API_ENDPOINTS } from '../config/e2e.config';
+import type { HealthResponse } from '../../src/types/api';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isHealthResponse = (value: unknown): value is HealthResponse => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const components = (value as { components?: unknown }).components;
+  return typeof value.status === 'string' && isRecord(components);
+
+};
 export interface HealthCheckResult {
   endpoint: string;
   status: 'healthy' | 'unhealthy' | 'timeout';
   responseTime: number;
-  details?: any;
+  details?: HealthResponse | Record<string, unknown> | null;
   error?: string;
 }
 
@@ -45,24 +57,29 @@ async function performHealthCheck(
     
     if (response.status === expectedStatus) {
       const data = await response.json().catch(() => null);
+      const details = isHealthResponse(data)
+        ? data
+        : isRecord(data)
+          ? (data as Record<string, unknown>)
+          : null;
       return {
         endpoint,
         status: 'healthy',
         responseTime,
-        details: data
-      };
-    } else {
-      return {
-        endpoint,
-        status: 'unhealthy',
-        responseTime,
-        error: `Expected status ${expectedStatus}, got ${response.status}`
+        details,
       };
     }
+
+    return {
+      endpoint,
+      status: 'unhealthy',
+      responseTime,
+      error: `Expected status ${expectedStatus}, got ${response.status}`
+    };
   } catch (error) {
     const responseTime = Date.now() - startTime;
     
-    if ((error as Error).name === 'AbortError') {
+    if (error instanceof DOMException && error.name === 'AbortError') {
       return {
         endpoint,
         status: 'timeout',
@@ -75,7 +92,7 @@ async function performHealthCheck(
       endpoint,
       status: 'unhealthy',
       responseTime,
-      error: (error as Error).message
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }
@@ -123,7 +140,7 @@ async function checkAuthEndpoint(): Promise<HealthCheckResult> {
       endpoint: API_ENDPOINTS.AUTH_LOGIN,
       status: 'unhealthy',
       responseTime,
-      error: (error as Error).message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 }
@@ -159,7 +176,9 @@ export async function checkBackendReadiness(): Promise<BackendReadinessResult> {
   // 3. Database connectivity check (via health endpoint details)
   // If auth endpoint is working, we can assume database is functional
   console.log('  💾 Verifying database connectivity...');
-  if (authCheck.status === 'healthy' || healthCheck.details?.components?.db?.status === 'UP') {
+  const healthDetails = isHealthResponse(healthCheck.details) ? healthCheck.details : null;
+  const databaseStatus = healthDetails?.components?.db?.status;
+  if (authCheck.status === 'healthy' || databaseStatus === 'UP') {
     checks.push({
       endpoint: 'Database connectivity (inferred from auth endpoint)',
       status: 'healthy',

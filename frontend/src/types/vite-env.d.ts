@@ -10,6 +10,7 @@ declare const __STRIP_SENSITIVE_DATA__: boolean;
 
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
+  readonly VITE_API_BASE_URL?: string;
   readonly VITE_E2E: string;
   readonly VITE_E2E_BYPASS_ROLE: string;
   readonly VITE_E2E_USE_MSW: string;

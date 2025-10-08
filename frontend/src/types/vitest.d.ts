@@ -1,51 +1,69 @@
-// Vitest and Jest type declarations for test files
-/// <reference types="vitest" />
-/// <reference types="vitest/globals" />
+/**
+ * Extended Vitest type declarations used across the test suite.
+ * Ensures compatibility with Jest-style helpers without resorting to `any`.
+ */
 
-import type { vi } from 'vitest';
-import type { MockedFunction } from 'vitest';
+import type { MockInstance, MockedFunction, SpyInstance as VitestSpyInstance, VitestUtils } from 'vitest';
+// eslint-disable-next-line import/no-unresolved
+import 'vitest/globals';
 
-declare global {
-  // Jest-compatible globals provided by Vitest
-  var describe: typeof import('vitest').describe;
-  var it: typeof import('vitest').it;
-  var test: typeof import('vitest').test;
-  var expect: typeof import('vitest').expect;
-  var beforeEach: typeof import('vitest').beforeEach;
-  var afterEach: typeof import('vitest').afterEach;
-  var beforeAll: typeof import('vitest').beforeAll;
-  var afterAll: typeof import('vitest').afterAll;
-  
-  // Mock utilities namespace for Jest compatibility
-  namespace jest {
-    const fn: typeof vi.fn;
-    const clearAllMocks: typeof vi.clearAllMocks;
-    const resetAllMocks: typeof vi.resetAllMocks;
-    const restoreAllMocks: typeof vi.restoreAllMocks;
-    const spyOn: typeof vi.spyOn;
-    const mocked: typeof vi.mocked;
-  }
+/**
+ * Helper function signature used to derive mocked function variants without `any`.
+ */
+type AnyFunction = (...arguments_: unknown[]) => unknown;
 
-  // Vitest mock utilities
-  interface VitestUtils {
-    fn: typeof vi.fn;
-    mocked: typeof vi.mocked;
-    spyOn: typeof vi.spyOn;
-    clearAllMocks: typeof vi.clearAllMocks;
-    resetAllMocks: typeof vi.resetAllMocks;
-    restoreAllMocks: typeof vi.restoreAllMocks;
-    importActual: typeof vi.importActual;
-    importMock: typeof vi.importMock;
-    doMock: typeof vi.doMock;
-    doUnmock: typeof vi.doUnmock;
-    mock: typeof vi.mock;
-    unmock: typeof vi.unmock;
-  }
-  
-  var vi: VitestUtils;
+/**
+ * Typed Jest-compatible helpers backed by the real Vitest mock implementations.
+ */
+type JestLikeUtils = {
+  fn: VitestUtils['fn'];
+  clearAllMocks: VitestUtils['clearAllMocks'];
+  resetAllMocks: VitestUtils['resetAllMocks'];
+  restoreAllMocks: VitestUtils['restoreAllMocks'];
+  spyOn: VitestUtils['spyOn'];
+  mocked: VitestUtils['mocked'];
+};
+
+/**
+ * Convenience alias that mirrors Vitest's `MockedFunction` while preserving input/output types.
+ */
+type MockedFn<T extends AnyFunction> = MockedFunction<T>;
+
+/**
+ * Spy instance alias tied to a provided function signature.
+ */
+type SpyInstance<T extends AnyFunction> = VitestSpyInstance<ReturnType<T>, Parameters<T>>;
+
+/**
+ * Internal process inspector signature used by the handle monitoring utilities.
+ */
+type ProcessInspector = () => unknown[];
+
+/**
+ * Common mocked listener signature used for process/stdout/stderr event hooks.
+ */
+type ProcessListenerMock = MockInstance<void, [string, (...args: unknown[]) => void]>;
+
+/**
+ * Lightweight mocked `process` representation leveraged by cleanup utilities in tests.
+ */
+interface MockProcess {
+  pid: number;
+  kill: MockInstance<boolean, [number, NodeJS.Signals | number | undefined]>;
+  on: MockInstance<MockProcess, [string, (...args: unknown[]) => void]>;
+  removeAllListeners: MockInstance<MockProcess, [string?]>;
+  killed?: boolean;
+  stdout?: {
+    on: ProcessListenerMock;
+  };
+  stderr?: {
+    on: ProcessListenerMock;
+  };
 }
 
-// Enhanced mock function type extensions for axios
+/**
+ * Axios mock augmentations ensure the spy-aware helpers retain full typing.
+ */
 declare module 'axios' {
   interface AxiosStatic {
     get: MockedFunction<AxiosStatic['get']>;
@@ -62,47 +80,42 @@ declare module 'axios' {
   }
 }
 
-// React Router DOM mock types
+/**
+ * Adds compatibility shim for React Router's navigate helper while retaining parameter inference.
+ */
 declare module 'react-router-dom' {
   interface NavigateFunction {
-    (...args: Parameters<import('react-router-dom').NavigateFunction>): void;
+    (...args: Parameters<import('react-router-dom').NavigateFunction>): ReturnType<import('react-router-dom').NavigateFunction>;
   }
 }
 
-// Additional vitest type helpers
-type MockedFn<T extends (...args: any[]) => any> = MockedFunction<T>;
-type SpyInstance<T extends (...args: any[]) => any> = import('vitest').SpyInstance<ReturnType<T>, Parameters<T>>;
-
-// Node.js internal API extensions for testing
+/**
+ * Node.js process inspection hooks used during resource-leak tests.
+ */
 declare global {
   namespace NodeJS {
     interface Process {
-      _getActiveHandles?: () => any[];
-      _getActiveRequests?: () => any[];
+      _getActiveHandles?: ProcessInspector;
+      _getActiveRequests?: ProcessInspector;
     }
   }
 }
 
-// Mock process type for testing
-interface MockProcess {
-  pid: number;
-  kill: import('vitest').Mock<any, any>;
-  on: import('vitest').Mock<any, any>;
-  removeAllListeners: import('vitest').Mock<any, any>;
-  killed?: boolean;
-  stdout?: {
-    on: import('vitest').Mock<any, any>;
-  };
-  stderr?: {
-    on: import('vitest').Mock<any, any>;
-  };
-}
-
-// External module declarations
+/**
+ * Ambient declaration for the diagnostics helper library.
+ */
 declare module 'why-is-node-running' {
   function whyIsNodeRunning(): void;
   export = whyIsNodeRunning;
 }
 
-export type { MockedFn, SpyInstance, MockedFunction, MockProcess };
+export type {
+  JestLikeUtils,
+  MockProcess,
+  MockedFn,
+  MockedFunction,
+  ProcessInspector,
+  ProcessListenerMock,
+  SpyInstance,
+};
 export {};

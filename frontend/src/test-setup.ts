@@ -1,8 +1,9 @@
-import { afterEach, afterAll, beforeEach } from 'vitest';
+import { afterEach, afterAll, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { runCleanups, clearCleanups } from './test-utils/cleanup';
 import { setupGlobalHandleMonitoring } from './test-utils/handle-monitor';
+import type { JestLikeUtils } from './types/vitest';
 
 // Ensure Vite define flags exist in Vitest environment
 const macroGlobals = globalThis as typeof globalThis & {
@@ -13,6 +14,19 @@ const macroGlobals = globalThis as typeof globalThis & {
   __PRODUCTION_BUILD__?: boolean;
   __STRIP_SENSITIVE_DATA__?: boolean;
 };
+
+const globalsWithJest = macroGlobals as typeof macroGlobals & { jest?: JestLikeUtils };
+
+if (!globalsWithJest.jest) {
+  globalsWithJest.jest = {
+    fn: vi.fn,
+    clearAllMocks: vi.clearAllMocks,
+    resetAllMocks: vi.resetAllMocks,
+    restoreAllMocks: vi.restoreAllMocks,
+    spyOn: vi.spyOn,
+    mocked: vi.mocked,
+  };
+}
 
 if (macroGlobals.__DEV_CREDENTIALS__ === undefined) {
   macroGlobals.__DEV_CREDENTIALS__ = process.env.NODE_ENV === 'development';
@@ -59,7 +73,7 @@ setupGlobalHandleMonitoring({
 beforeEach(() => {
   // Ensure console warnings don't clutter test output unless debugging
   const originalWarn = console.warn;
-  console.warn = (...args: any[]) => {
+  console.warn = (...args: unknown[]) => {
     if (process.env.DEBUG_TESTS) {
       originalWarn(...args);
     }
@@ -84,12 +98,23 @@ Object.defineProperty(window, 'matchMedia', {
 // Mock localStorage
 Object.defineProperty(window, 'localStorage', {
   value: {
-    getItem: (_key: string) => null,
-    setItem: (_key: string, _value: string) => {},
-    removeItem: (_key: string) => {},
+    getItem: (key: string) => {
+      void key;
+      return null;
+    },
+    setItem: (key: string, value: string) => {
+      void key;
+      void value;
+    },
+    removeItem: (key: string) => {
+      void key;
+    },
     clear: () => {},
     length: 0,
-    key: (_index: number) => null,
+    key: (index: number) => {
+      void index;
+      return null;
+    },
   },
   writable: true,
 });
