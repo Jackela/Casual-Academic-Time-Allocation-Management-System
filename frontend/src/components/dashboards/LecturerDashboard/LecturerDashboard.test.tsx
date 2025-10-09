@@ -245,27 +245,29 @@ describe("LecturerDashboard Component", () => {
       });
   });
 
-  it("surfaces pending timesheet fetch errors with retry option", () => {
+  it("surfaces pending timesheet fetch errors with retry option", async () => {
+    const refetchPendingMock = vi.fn();
     mockTimesheetHooks.usePendingTimesheets.mockReturnValueOnce({
       data: null,
       loading: false,
-      error: "Network timeout",
+      error: 'Network timeout',
       timesheets: [],
       isEmpty: true,
-      refetch: vi.fn(),
+      refetch: refetchPendingMock,
+      pageInfo: null,
     });
 
+    const user = userEvent.setup();
     renderWithRouter(<LecturerDashboard />);
 
-    expect(
-      screen.getByText(/Failed to fetch pending timesheets: Network timeout/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getAllByRole("button", { name: /Retry/i }).length,
-    ).toBeGreaterThanOrEqual(1);
+    const banner = screen.getAllByTestId('global-error-banner')[0];
+    expect(within(banner).getByText(/Failed to fetch pending timesheets/i)).toBeInTheDocument();
+    expect(within(banner).getByText(/Network timeout/i)).toBeInTheDocument();
+
+    await user.click(within(banner).getByRole('button', { name: /Retry/i }));
+    expect(refetchPendingMock).toHaveBeenCalled();
   });
 });
-
 
 
 

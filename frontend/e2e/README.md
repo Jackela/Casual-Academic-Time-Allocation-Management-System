@@ -9,25 +9,18 @@ This E2E testing suite follows industry best practices for reliable, maintainabl
 ### Test Organization
 ```
 e2e/
-├── fixtures/
-│   └── auth.ts              # Authentication fixtures and helpers
-├── pages/
-│   ├── LoginPage.ts         # Login page object model
-│   └── DashboardPage.ts     # Dashboard page object model
-├── modules/
-│   ├── auth/               # Authentication tests
-│   ├── dashboard/          # Dashboard functionality tests
-│   ├── timesheets/         # Timesheet management tests
-│   ├── logout/             # Logout functionality tests
-│   └── ui/                 # UI component tests
-└── global.setup.ts         # Global authentication setup
+├── mock/                  # Fully mocked specs, organised by feature area
+├── real/                  # Backend-integrated specs and global setup
+├── shared/                # Cross-suite page objects, utilities, auth helpers
+├── utils/                 # REST helpers and readiness checks
+└── config/                # Environment and endpoint configuration
 ```
 
 ### Key Features
 
 #### 🔐 **Robust Authentication**
-- Proper authentication fixtures with React context support
-- Multiple fixture types: `authenticatedPage`, `unauthenticatedPage`, `testDataPage`
+- Mock suite relies on lightweight fixtures (`mockedPage`, `setupMockAuth`) to inject auth state and API stubs
+- Real suite uses `real/global.setup.ts` to persist authenticated storage state per role
 - Automatic retry and fallback mechanisms
 
 #### 📄 **Page Object Model**
@@ -172,7 +165,7 @@ curl -X POST http://localhost:8084/api/auth/login \
 ## Development Guidelines
 
 ### Adding New Tests
-1. **Use appropriate fixture**: `authenticatedPage`, `unauthenticatedPage`, or `testDataPage`
+1. **Choose the right harness**: use the default `page`, the `mockedPage` fixture, or shared helpers like `setupMockAuth` when suites need pre-baked auth
 2. **Add semantic tags**: Choose from existing tags or add new ones
 3. **Use Page Objects**: Create or extend page objects for new components
 4. **Handle edge cases**: Include empty states, errors, and loading states

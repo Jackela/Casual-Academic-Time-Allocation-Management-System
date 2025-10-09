@@ -410,7 +410,7 @@ async function runPlaywright(frontendUrl, backendPort, frontendPort) {
 async function main() {
   const params = loadBaseParams();
   const backendPort = resolveBackendPort();
-  const frontendPort = frontendPort;
+  const frontendPort = await resolveFrontendPort();
   const backendHost = resolveBackendHost();
   const frontendHost = resolveFrontendHost();
   const backendUrl = resolveBackendUrl();

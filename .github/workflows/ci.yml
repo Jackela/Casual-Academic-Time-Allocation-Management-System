@@ -46,15 +46,121 @@ jobs:
         run: |
           npm run -w frontend test:unit --silent
           npm run -w frontend test:contract --silent
-      - name: E2E tests (Playwright)
-        if: ${{ env.ACT != 'true' }}
+
+  playwright-mock:
+    needs: test-backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+      - name: Run Playwright mock suite
+        working-directory: frontend
         env:
-          JWT_SECRET: test-secret
-        run: node scripts/test-all-e2e-local.js
-      - name: Upload Playwright JSON report
-        if: ${{ env.ACT != 'true' && always() }}
+          CI: '1'
+          E2E_SKIP_BACKEND: '1'
+          E2E_SKIP_REAL_LOGIN: '1'
+        run: npx playwright test --project=mock
+      - name: Upload mock Playwright report
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-json
-          path: frontend/playwright-report/results.json
+          name: playwright-mock-report
+          path: frontend/playwright-report
+
+  detect-act:
+    runs-on: ubuntu-latest
+    outputs:
+      is_act: ${{ steps.detect.outputs.is_act }}
+    steps:
+      - id: detect
+        run: |
+          if [ -z "${ACT:-}" ]; then
+            echo "is_act=" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_act=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  playwright-real:
+    if: ${{ needs.detect-act.outputs.is_act != 'true' }}
+    needs: [test-backend, playwright-mock, detect-act]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+      - name: Download Gradle 8.7
+        run: |
+          curl -sSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o gradle-8.7-bin.zip
+          unzip -q gradle-8.7-bin.zip
+      - name: Start backend (e2e profile)
+        env:
+          GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
+        run: |
+          ./gradle-8.7/bin/gradle bootRun --args="--spring.profiles.active=e2e" --no-daemon > backend.log 2>&1 &
+          echo $! > backend.pid
+      - name: Wait for backend readiness
+        working-directory: frontend
+        run: npx wait-on http://127.0.0.1:8084/actuator/health --timeout 180000 --interval 1000
+      - name: Run Playwright real suite
+        working-directory: frontend
+        env:
+          CI: '1'
+          E2E_BACKEND_URL: http://127.0.0.1:8084
+          E2E_ADMIN_EMAIL: admin@example.com
+          E2E_ADMIN_PASSWORD: Admin123!
+          E2E_LECTURER_EMAIL: lecturer@example.com
+          E2E_LECTURER_PASSWORD: Lecturer123!
+          E2E_TUTOR_EMAIL: tutor@example.com
+          E2E_TUTOR_PASSWORD: Tutor123!
+        run: npx playwright test --project=real
+      - name: Upload real Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-real-report
+          path: frontend/playwright-report
+      - name: Print backend logs on failure
+        if: ${{ failure() }}
+        run: |
+          echo "==== backend.log ===="
+          cat backend.log || true
+      - name: Stop backend
+        if: always()
+        run: |
+          if [ -f backend.pid ]; then
+            kill $(cat backend.pid) || true
+            rm -f backend.pid
+          fi
+          pkill -f "gradle.*bootRun" || true
 

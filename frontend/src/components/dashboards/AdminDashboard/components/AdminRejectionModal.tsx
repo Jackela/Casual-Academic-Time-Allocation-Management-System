@@ -133,6 +133,21 @@ const AdminRejectionModal = memo<AdminRejectionModalProps>(({
   const modalTitleId = 'admin-rejection-modal-title';
   const modalDescriptionId = 'admin-rejection-modal-description';
   const isSubmitting = actionState.loadingId === timesheetId || actionState.isSubmitting;
+  const trimmedComment = comment.trim();
+  const isCommentTooShort = trimmedComment.length < 3;
+  const isConfirmDisabled = isSubmitting || isCommentTooShort || Boolean(validationError);
+  const confirmDisabledReason = (() => {
+    if (isSubmitting) {
+      return 'Processing rejection. Please wait…';
+    }
+    if (validationError) {
+      return validationError;
+    }
+    if (isCommentTooShort) {
+      return 'Add at least a short justification before rejecting the timesheet.';
+    }
+    return undefined;
+  })();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation">
@@ -177,13 +192,22 @@ const AdminRejectionModal = memo<AdminRejectionModalProps>(({
             <p className="mt-2 text-sm text-destructive">{validationError}</p>
           )}
           <div className="mt-6 flex justify-end gap-2">
-            <Button variant="outline" onClick={onCancel}>
+            <Button variant="outline" onClick={() => {
+              if (!isSubmitting) {
+                onCancel();
+              }
+            }} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button
               variant="destructive"
-              onClick={onSubmit}
-              disabled={isSubmitting}
+              onClick={() => {
+                if (!isConfirmDisabled) {
+                  onSubmit();
+                }
+              }}
+              disabled={isConfirmDisabled}
+              title={isConfirmDisabled ? confirmDisabledReason : 'Confirm rejection action'}
             >
               {isSubmitting ? (
                 <div className="flex items-center gap-2">

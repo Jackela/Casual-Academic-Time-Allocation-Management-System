@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from '@playwright/test';
 import { URL } from 'node:url';
 import { E2E_CONFIG } from './e2e/config/e2e.config';
 
@@ -13,7 +13,7 @@ export default defineConfig({
   testDir: './e2e',
   testIgnore: ['**/e2e/examples/**'],
   /* Global setup to handle authentication */
-  globalSetup: './e2e/global.setup.ts',
+  globalSetup: './e2e/real/global.setup.ts',
   /* Allow skipping backend readiness from env for mocked-only runs */
   /* Note: The actual bypass is implemented in global.setup.ts via E2E_SKIP_BACKEND */
   /* Run tests in files in parallel */
@@ -59,84 +59,23 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
-
     {
-      name: 'api-tests',
-      testMatch: ['**/e2e/api/**/*.spec.ts'],
-      use: {
-        baseURL: E2E_CONFIG.BACKEND.URL,
-        extraHTTPHeaders: {
-          'Content-Type': 'application/json',
-        },
-      },
+      name: 'mock',
+      testDir: './e2e/mock',
+      retries: 0,
+      fullyParallel: true,
     },
-
-    // Cross-browser UI testing - Chromium
     {
-      name: 'chromium',
-      use: { 
-        ...devices['Desktop Chrome'],
-        // Enhanced configuration for cross-browser stability
-        launchOptions: {
-          args: [
-            '--no-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-web-security',
-            '--disable-features=TranslateUI',
-            '--disable-ipc-flooding-protection'
-          ]
-        }
-      },
-      grepInvert: /@(mobile|mobile-smoke)/,
-      testIgnore: ['**/e2e/mobile/**', '**/e2e/api/**', '**/e2e/examples/**', '**/e2e/tests/mobile-*.spec.ts', '**/e2e/api/*.spec.ts'],
-    },
-
-    // Cross-browser UI testing - Firefox
-    {
-      name: 'firefox',
-      use: { 
-        ...devices['Desktop Firefox'],
-        // Firefox-specific configuration
-        launchOptions: {
-          firefoxUserPrefs: {
-            'dom.webnotifications.enabled': false,
-            'dom.push.enabled': false
-          }
-        }
-      },
-      grepInvert: /@(mobile|mobile-smoke)/,
-      testIgnore: ['**/e2e/mobile/**', '**/e2e/api/**', '**/e2e/examples/**', '**/e2e/tests/mobile-*.spec.ts', '**/e2e/api/*.spec.ts'],
-    },
-
-    // Cross-browser UI testing - WebKit/Safari
-    {
-      name: 'webkit',
-      use: { 
-        ...devices['Desktop Safari'],
-        // WebKit-specific configuration for better stability
-        launchOptions: {
-          args: [
-            '--disable-web-security',
-            '--allow-running-insecure-content'
-          ]
-        }
-      },
-      grepInvert: /@(mobile|mobile-smoke)/,
-      testIgnore: ['**/e2e/mobile/**', '**/e2e/api/**', '**/e2e/examples/**', '**/e2e/tests/mobile-*.spec.ts', '**/e2e/api/*.spec.ts'],
-    },
-
-    // Dedicated mobile project with low concurrency
-    {
-      name: 'mobile-tests',
-      use: {
-        ...devices['Pixel 5'],
-        viewport: { width: 393, height: 851 },
-        storageState: './e2e/.auth/tutor.storage-state.json'
-      },
+      name: 'real',
+      testDir: './e2e/real',
+      retries: process.env.CI ? 2 : 1,
       fullyParallel: false,
       workers: 1,
-      grep: /@mobile/,
-      testMatch: ['**/e2e/mobile/**'],
+      timeout: 60000,
+      use: {
+        storageState: './e2e/shared/.auth/admin.json',
+        baseURL: E2E_CONFIG.FRONTEND.URL,
+      },
     },
   ],
 

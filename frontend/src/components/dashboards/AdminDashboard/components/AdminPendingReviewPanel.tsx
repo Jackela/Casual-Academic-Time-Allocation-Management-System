@@ -43,6 +43,8 @@ const AdminPendingReviewPanel = memo<AdminPendingReviewPanelProps>(({
           onApprovalAction={onApprovalAction}
           className="admin-timesheet-table"
           approvalRole="ADMIN"
+          actionsDisabled={actionState.isSubmitting}
+          actionsDisabledReason="An approval action is already in progress. Please wait."
         />
       </CardContent>
     </Card>

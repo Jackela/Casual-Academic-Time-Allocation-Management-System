@@ -40,6 +40,8 @@ export interface TimesheetTableProps {
   onSort?: (field: string, direction: 'asc' | 'desc') => void;
   actionMode?: 'approval' | 'tutor';
   approvalRole?: ApprovalRole;
+  actionsDisabled?: boolean;
+  actionsDisabledReason?: string;
 }
 
 type DerivedColumnKey = 'tutor' | 'course' | 'totalPay' | 'actions' | 'selection';
@@ -71,6 +73,8 @@ interface TimesheetRowProps {
   actionMode?: 'approval' | 'tutor';
   approvalRole?: ApprovalRole;
   style?: React.CSSProperties;
+  actionsDisabled?: boolean;
+  actionsDisabledReason?: string;
 }
 
 const TimesheetRow = memo<TimesheetRowProps>(({
@@ -85,7 +89,9 @@ const TimesheetRow = memo<TimesheetRowProps>(({
   showSelection = false,
   actionMode = 'approval',
   approvalRole,
-  style
+  style,
+  actionsDisabled = false,
+  actionsDisabledReason,
 }) => {
   const handleRowClick = useCallback(() => {
     onRowClick?.(timesheet);
@@ -93,34 +99,53 @@ const TimesheetRow = memo<TimesheetRowProps>(({
 
   const handleSelectionChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     event.stopPropagation();
+    if (actionsDisabled) {
+      event.preventDefault();
+      return;
+    }
     onSelectionChange?.(timesheet.id, event.target.checked);
-  }, [timesheet.id, onSelectionChange]);
+  }, [actionsDisabled, timesheet.id, onSelectionChange]);
 
   const handleApprove = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
+    if (actionLoading || actionsDisabled || !onApprovalAction) {
+      return;
+    }
     const action = getApproveActionForRole(approvalRole);
-    onApprovalAction?.(timesheet.id, action);
-  }, [timesheet.id, onApprovalAction, approvalRole]);
+    onApprovalAction(timesheet.id, action);
+  }, [actionLoading, actionsDisabled, approvalRole, onApprovalAction, timesheet.id]);
 
   const handleReject = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
-    onApprovalAction?.(timesheet.id, 'REJECT');
-  }, [timesheet.id, onApprovalAction]);
+    if (actionLoading || actionsDisabled || !onApprovalAction) {
+      return;
+    }
+    onApprovalAction(timesheet.id, 'REJECT');
+  }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
 
   const handleEdit = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
-    onApprovalAction?.(timesheet.id, 'EDIT');
-  }, [timesheet.id, onApprovalAction]);
+    if (actionLoading || actionsDisabled || !onApprovalAction) {
+      return;
+    }
+    onApprovalAction(timesheet.id, 'EDIT');
+  }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
 
   const handleSubmitDraft = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
-    onApprovalAction?.(timesheet.id, 'SUBMIT_DRAFT');
-  }, [timesheet.id, onApprovalAction]);
+    if (actionLoading || actionsDisabled || !onApprovalAction) {
+      return;
+    }
+    onApprovalAction(timesheet.id, 'SUBMIT_DRAFT');
+  }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
 
   const handleConfirm = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
-    onApprovalAction?.(timesheet.id, 'TUTOR_CONFIRM');
-  }, [timesheet.id, onApprovalAction]);
+    if (actionLoading || actionsDisabled || !onApprovalAction) {
+      return;
+    }
+    onApprovalAction(timesheet.id, 'TUTOR_CONFIRM');
+  }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
 
   const totalPay = useMemo(() => timesheet.hours * timesheet.hourlyRate, [timesheet.hours, timesheet.hourlyRate]);
 
@@ -137,6 +162,8 @@ const TimesheetRow = memo<TimesheetRowProps>(({
             type="checkbox"
             checked={selected}
             onChange={handleSelectionChange}
+            disabled={actionsDisabled}
+            title={actionsDisabled ? (actionsDisabledReason ?? 'Selection is disabled while actions are locked.') : undefined}
             aria-label={`Select timesheet ${timesheet.id}`}
           />
         </td>
@@ -159,7 +186,9 @@ const TimesheetRow = memo<TimesheetRowProps>(({
                 actionLoading,
                 totalPay,
                 actionMode,
-                approvalRole
+                approvalRole,
+                actionsDisabled,
+                actionsDisabledReason,
               })}
         </td>
       ))}
@@ -179,6 +208,8 @@ interface CellRendererProps {
   totalPay: number;
   actionMode: 'approval' | 'tutor';
   approvalRole?: ApprovalRole;
+  actionsDisabled: boolean;
+  actionsDisabledReason?: string;
 }
 
 const APPROVE_ACTION_BY_ROLE: Record<ApprovalRole, ApprovalAction> = {
@@ -233,7 +264,19 @@ function renderDefaultCell(
   timesheet: Timesheet,
   props: CellRendererProps
 ): React.ReactNode {
-  const { onApprove, onReject, onEdit, onSubmitDraft, onConfirm, actionLoading, totalPay, actionMode, approvalRole } = props;
+  const {
+    onApprove,
+    onReject,
+    onEdit,
+    onSubmitDraft,
+    onConfirm,
+    actionLoading,
+    totalPay,
+    actionMode,
+    approvalRole,
+    actionsDisabled,
+    actionsDisabledReason,
+  } = props;
 
   switch (key) {
     case 'selection':
@@ -302,15 +345,43 @@ function renderDefaultCell(
       if (actionMode === 'tutor') {
         const isDraft = timesheet.status === 'DRAFT' || timesheet.status === 'MODIFICATION_REQUESTED' || timesheet.status === 'REJECTED';
         const canConfirm = timesheet.status === 'PENDING_TUTOR_CONFIRMATION';
+        const isLocked = actionLoading || actionsDisabled;
+        const lockMessage = actionsDisabled
+          ? actionsDisabledReason ?? 'You do not have permission to perform this action.'
+          : 'Please wait for the current action to finish.';
+        const busyMessage = actionLoading ? 'Processing request…' : lockMessage;
+
+        const editDisabled = !onEdit || isLocked;
+        const editTitle = editDisabled
+          ? (!onEdit ? 'Editing is unavailable for this timesheet.' : busyMessage)
+          : 'Edit timesheet';
+
+        const submitDisabled = !onSubmitDraft || !isDraft || isLocked;
+        const submitTitle = submitDisabled
+          ? (!onSubmitDraft
+            ? 'Submitting is unavailable for this timesheet.'
+            : !isDraft
+              ? 'Only draft or modification-requested timesheets can be submitted.'
+              : busyMessage)
+          : 'Submit draft for approval';
+
+        const confirmDisabled = !onConfirm || !canConfirm || isLocked;
+        const confirmTitle = confirmDisabled
+          ? (!onConfirm
+            ? 'Confirmation is unavailable for this timesheet.'
+            : !canConfirm
+              ? 'Only timesheets awaiting confirmation can be confirmed.'
+              : busyMessage)
+          : 'Confirm submitted timesheet';
 
         return (
           <div className="action-buttons tutor-actions" data-testid="action-buttons">
             <button
               type="button"
               onClick={onEdit}
-              disabled={!onEdit}
+              disabled={editDisabled}
               className="edit-btn"
-              title="Edit timesheet"
+              title={editTitle}
               data-testid={`edit-btn-${timesheet.id}`}
             >
               Edit
@@ -318,9 +389,9 @@ function renderDefaultCell(
             <button
               type="button"
               onClick={onSubmitDraft}
-              disabled={!onSubmitDraft || !isDraft}
+              disabled={submitDisabled}
               className="submit-btn"
-              title="Submit draft for approval"
+              title={submitTitle}
               data-testid={`submit-btn-${timesheet.id}`}
             >
               Submit
@@ -329,9 +400,9 @@ function renderDefaultCell(
               <button
                 type="button"
                 onClick={onConfirm}
-                disabled={!onConfirm}
+                disabled={confirmDisabled}
                 className="confirm-btn"
-                title="Confirm submitted timesheet"
+                title={confirmTitle}
                 data-testid={`confirm-btn-${timesheet.id}`}
               >
                 Confirm
@@ -352,14 +423,19 @@ function renderDefaultCell(
         );
       }
 
+      const isLocked = actionLoading || actionsDisabled;
+      const lockMessage = actionLoading
+        ? 'Processing request…'
+        : actionsDisabledReason ?? 'Action disabled for your role.';
+
       return (
         <div className="action-buttons" data-testid="action-buttons">
           {canApprove && (
             <button
               onClick={onApprove}
-              disabled={actionLoading}
+              disabled={isLocked}
               className="approve-btn"
-              title="Final approve timesheet"
+              title={isLocked ? lockMessage : 'Final approve timesheet'}
               data-testid={`approve-btn-${timesheet.id}`}
             >
               {actionLoading ? <LoadingSpinner size="small" /> : 'Final Approve'}
@@ -368,9 +444,9 @@ function renderDefaultCell(
           {canReject && (
             <button
               onClick={onReject}
-              disabled={actionLoading}
+              disabled={isLocked}
               className="reject-btn"
-              title="Reject timesheet"
+              title={isLocked ? lockMessage : 'Reject timesheet'}
               data-testid={`reject-btn-${timesheet.id}`}
             >
               {actionLoading ? <LoadingSpinner size="small" /> : 'Reject'}
@@ -409,6 +485,8 @@ interface TableHeaderProps {
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
   onSort?: (field: string, direction: 'asc' | 'desc') => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 const TableHeader = memo<TableHeaderProps>(({
@@ -419,11 +497,17 @@ const TableHeader = memo<TableHeaderProps>(({
   onSelectAll,
   sortBy,
   sortDirection,
-  onSort
+  onSort,
+  disabled = false,
+  disabledReason,
 }) => {
   const handleSelectAll = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) {
+      event.preventDefault();
+      return;
+    }
     onSelectAll?.(event.target.checked);
-  }, [onSelectAll]);
+  }, [disabled, onSelectAll]);
 
   const handleSort = useCallback((field: string) => {
     if (!onSort) {
@@ -451,6 +535,8 @@ const TableHeader = memo<TableHeaderProps>(({
                 }
               }}
               onChange={handleSelectAll}
+              disabled={disabled}
+              title={disabled ? (disabledReason ?? 'Selection is disabled while actions are locked.') : undefined}
               aria-label="Select all timesheets"
             />
           </th>
@@ -505,7 +591,9 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   sortDirection,
   onSort,
   actionMode = 'approval',
-  approvalRole
+  approvalRole,
+  actionsDisabled = false,
+  actionsDisabledReason,
 }) => {
   const columns = useMemo<Column[]>(() => {
     const dynamicColumns: Column[] = [];
@@ -598,13 +686,13 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   const virtualizationEnabled = timesheets.length >= virtualizeThreshold;
 
   const handleSelectAll = useCallback((selected: boolean) => {
-    if (!onSelectionChange) {
+    if (!onSelectionChange || actionsDisabled) {
       return;
     }
 
     const nextSelection = selected ? timesheets.map(t => t.id) : [];
     onSelectionChange(nextSelection);
-  }, [timesheets, onSelectionChange]);
+  }, [timesheets, onSelectionChange, actionsDisabled]);
 
   if (loading) {
     return (
@@ -647,6 +735,8 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
           sortBy={sortBy}
           sortDirection={sortDirection}
           onSort={onSort}
+          disabled={actionsDisabled}
+          disabledReason={actionsDisabledReason}
         />
         <tbody className="table-rows">
           {timesheets.map((timesheet, index) => (
@@ -663,6 +753,9 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                 if (!onSelectionChange) {
                   return;
                 }
+                if (actionsDisabled) {
+                  return;
+                }
 
                 const nextSelection = selected
                   ? (selectedIds.includes(id) ? selectedIds : [...selectedIds, id])
@@ -673,6 +766,8 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
               showSelection={showSelection}
               actionMode={actionMode}
               approvalRole={approvalRole}
+              actionsDisabled={actionsDisabled}
+              actionsDisabledReason={actionsDisabledReason}
             />
           ))}
         </tbody>

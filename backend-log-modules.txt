@@ -1,0 +1,350 @@
+19:12:19.183 [main] INFO org.springframework.boot.devtools.restart.RestartApplicationListener -- Restart disabled due to System property 'spring.devtools.restart.enabled' being set to false
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.0)
+
+19:12:19.528 [main] INFO  com.usyd.catams.CatamsApplication - Starting CatamsApplication using Java 21.0.8 with PID 65384 (D:\Code\Casual-Academic-Time-Allocation-Management-System\build\classes\java\main started by k7407 in D:\Code\Casual-Academic-Time-Allocation-Management-System)
+19:12:19.529 [main] DEBUG com.usyd.catams.CatamsApplication - Running with Spring Boot v3.2.0, Spring v6.1.1
+19:12:19.530 [main] INFO  com.usyd.catams.CatamsApplication - The following 1 profile is active: "e2e"
+19:12:19.565 [main] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+19:12:20.350 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+19:12:20.419 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 62 ms. Found 3 JPA repository interfaces.
+19:12:21.108 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8084 (http)
+19:12:21.115 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+19:12:21.115 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.16]
+19:12:21.168 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+19:12:21.168 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1602 ms
+19:12:21.477 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+19:12:21.514 [main] INFO  o.testcontainers.images.PullPolicy - Image pull policy will be performed by: DefaultPullPolicy()
+19:12:21.516 [main] INFO  o.t.utility.ImageNameSubstitutor - Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
+19:12:21.646 [main] INFO  o.t.d.DockerClientProviderStrategy - Loaded org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy from ~/.testcontainers.properties, will try it first
+19:12:21.873 [main] INFO  o.t.d.DockerClientProviderStrategy - Found Docker environment with local Npipe socket (npipe:////./pipe/docker_engine)
+19:12:21.874 [main] INFO  o.testcontainers.DockerClientFactory - Docker host IP address is localhost
+19:12:21.895 [main] INFO  o.testcontainers.DockerClientFactory - Connected to docker: 
+  Server Version: 28.4.0
+  API Version: 1.51
+  Operating System: Docker Desktop
+  Total Memory: 30006 MB
+19:12:22.022 [main] INFO  tc.testcontainers/ryuk:0.5.1 - Creating container for image: testcontainers/ryuk:0.5.1
+19:12:22.250 [main] INFO  tc.testcontainers/ryuk:0.5.1 - Container testcontainers/ryuk:0.5.1 is starting: c93fa64d1a7ee9b2750100ef9b8fb8ff2569cd16ad079ca52b864e3c6a47c8bb
+19:12:22.630 [main] INFO  tc.testcontainers/ryuk:0.5.1 - Container testcontainers/ryuk:0.5.1 started in PT0.6079372S
+19:12:22.637 [main] INFO  o.t.utility.RyukResourceReaper - Ryuk started - will monitor and terminate Testcontainers containers on JVM exit
+19:12:22.637 [main] INFO  o.testcontainers.DockerClientFactory - Checking the system...
+19:12:22.637 [main] INFO  o.testcontainers.DockerClientFactory - ✔︎ Docker server version should be at least 1.6.0
+19:12:22.638 [main] INFO  tc.postgres:15 - Creating container for image: postgres:15
+19:12:22.750 [main] INFO  tc.postgres:15 - Container postgres:15 is starting: 13eb97313cf5cb7d842dc40e36abeb23dd3044453c3be174a250f3b522f63c79
+19:12:24.335 [main] INFO  tc.postgres:15 - Container postgres:15 started in PT1.6970858S
+19:12:24.335 [main] INFO  tc.postgres:15 - Container is started (JDBC URL: jdbc:postgresql://localhost:57163/test?loggerLevel=OFF)
+19:12:24.449 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.testcontainers.jdbc.ConnectionWrapper@7ebaf0d
+19:12:24.451 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+19:12:24.477 [main] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:57163/test (PostgreSQL 15.14)
+19:12:24.513 [main] INFO  o.f.c.i.s.JdbcTableSchemaHistory - Schema history table "public"."flyway_schema_history" does not exist yet
+19:12:24.517 [main] INFO  o.f.core.internal.command.DbValidate - Successfully validated 10 migrations (execution time 00:00.019s)
+19:12:24.534 [main] INFO  o.f.c.i.s.JdbcTableSchemaHistory - Creating Schema History table "public"."flyway_schema_history" ...
+19:12:24.600 [main] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": << Empty Schema >>
+19:12:24.612 [main] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "1 - Init schema"
+19:12:24.632 [main] WARN  o.f.c.i.s.DefaultSqlScriptExecutor - DB: column "name" of relation "users" already exists, skipping (SQL State: 42701 - Error Code: 0)
+19:12:24.634 [main] WARN  o.f.c.i.s.DefaultSqlScriptExecutor - DB: column "hashed_password" of relation "users" already exists, skipping (SQL State: 42701 - Error Code: 0)
+19:12:24.635 [main] WARN  o.f.c.i.s.DefaultSqlScriptExecutor - DB: column "role" of relation "users" already exists, skipping (SQL State: 42701 - Error Code: 0)
+19:12:24.636 [main] WARN  o.f.c.i.s.DefaultSqlScriptExecutor - DB: column "is_active" of relation "users" already exists, skipping (SQL State: 42701 - Error Code: 0)
+19:12:24.637 [main] WARN  o.f.c.i.s.DefaultSqlScriptExecutor - DB: column "created_at" of relation "users" already exists, skipping (SQL State: 42701 - Error Code: 0)
+19:12:24.638 [main] WARN  o.f.c.i.s.DefaultSqlScriptExecutor - DB: column "updated_at" of relation "users" already exists, skipping (SQL State: 42701 - Error Code: 0)
+19:12:24.639 [main] WARN  o.f.c.i.s.DefaultSqlScriptExecutor - DB: column "last_login_at" of relation "users" already exists, skipping (SQL State: 42701 - Error Code: 0)
+19:12:24.664 [main] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "2 - Create approvals table"
+19:12:24.684 [main] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "3 - Create courses table"
+19:12:24.722 [main] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "4 - Create timesheets table"
+19:12:24.766 [main] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "5 - Create approvals table"
+19:12:24.815 [main] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "6 - Add pending approval indexes"
+19:12:24.839 [main] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "7 - Update approval status constraints"
+19:12:24.841 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: constraint "approvals_previous_status_check" of relation "approvals" does not exist, skipping
+19:12:24.842 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: constraint "approvals_new_status_check" of relation "approvals" does not exist, skipping
+19:12:24.843 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: constraint "approvals_action_check" of relation "approvals" does not exist, skipping
+19:12:24.857 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Successfully updated approval status constraints to support dual workflow paths
+19:12:24.857 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Added support for: APPROVED_BY_TUTOR, APPROVED_BY_LECTURER_AND_TUTOR, HR_APPROVED
+19:12:24.857 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Added support for actions: FINAL_APPROVAL, HR_APPROVE, HR_REJECT
+19:12:24.872 [main] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "8 - Normalize course money not null"
+19:12:24.894 [main] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "9 - Update confirmation workflow enums"
+19:12:24.902 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Starting approval workflow to confirmation workflow migration...
+19:12:24.902 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Updated 0 timesheets from PENDING_TUTOR_REVIEW to PENDING_TUTOR_CONFIRMATION
+19:12:24.902 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Updated 0 timesheets from APPROVED_BY_TUTOR to TUTOR_CONFIRMED
+19:12:24.902 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Updated 0 timesheets from APPROVED_BY_LECTURER_AND_TUTOR to LECTURER_CONFIRMED
+19:12:24.902 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Updated 0 timesheets from FINAL_APPROVED to FINAL_CONFIRMED
+19:12:24.902 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Updated approval history status values to confirmation workflow
+19:12:24.904 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Updated approval actions to confirmation workflow
+19:12:24.909 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: constraint "timesheets_status_check" of relation "timesheets" does not exist, skipping
+19:12:24.919 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Migration completed successfully!
+19:12:24.920 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Timesheets in confirmation workflow states: 0
+19:12:24.920 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Approval records with confirmation actions: 0
+19:12:24.920 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Updated workflow: DRAFT → PENDING_TUTOR_CONFIRMATION → TUTOR_CONFIRMED → LECTURER_CONFIRMED → FINAL_CONFIRMED
+19:12:24.920 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: New actions: TUTOR_CONFIRM, LECTURER_CONFIRM, HR_CONFIRM (replacing generic APPROVE)
+19:12:24.935 [main] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "10 - cleanup enum constraints to spec"
+19:12:24.957 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Database constraints cleaned up to match exact specification requirements
+19:12:24.957 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Removed legacy enum values: PENDING_LECTURER_APPROVAL, PENDING_HR_REVIEW, HR_APPROVED
+19:12:24.957 [main] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Specification-compliant workflow: DRAFT → PENDING_TUTOR_CONFIRMATION → TUTOR_CONFIRMED → LECTURER_CONFIRMED → FINAL_CONFIRMED
+19:12:24.971 [main] INFO  o.f.core.internal.command.DbMigrate - Successfully applied 10 migrations to schema "public", now at version v10 (execution time 00:00.216s)
+19:12:25.059 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+19:12:25.102 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.3.1.Final
+19:12:25.131 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+19:12:25.319 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+19:12:25.355 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+19:12:26.205 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+19:12:26.241 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+19:12:26.497 [main] INFO  o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+19:12:26.896 [main] DEBUG c.u.c.s.JwtAuthenticationFilter - Filter 'jwtAuthenticationFilter' configured for use
+19:12:27.582 [main] WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
+
+Using generated security password: c2222777-2901-47c1-a27f-a380c27538cf
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+19:12:27.950 [main] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 1 endpoint(s) beneath base path '/actuator'
+19:12:28.427 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8084 (http) with context path ''
+19:12:28.435 [main] INFO  com.usyd.catams.CatamsApplication - Started CatamsApplication in 9.263 seconds (process running for 9.581)
+19:12:28.508 [main] INFO  o.f.core.internal.command.DbValidate - Successfully validated 10 migrations (execution time 00:00.008s)
+19:12:28.519 [main] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 10
+19:12:28.519 [main] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+🚀 Starting E2E data initialization...
+📋 Active profiles: null
+✅ E2E test data initialized
+19:12:51.562 [http-nio-8084-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+19:12:51.562 [http-nio-8084-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+19:12:51.563 [http-nio-8084-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
+19:12:51.589 [http-nio-8084-exec-1] WARN  o.s.w.s.h.HandlerMappingIntrospector - Cache miss for REQUEST dispatch to '/actuator/health' (previous null). Performing MatchableHandlerMapping lookup. This is logged once only at WARN level, and every time at TRACE.
+19:12:53.668 [http-nio-8084-exec-6] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:12:53.668 [http-nio-8084-exec-9] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:12:53.755 [http-nio-8084-exec-10] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:12:55.114 [http-nio-8084-exec-6] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:12:55.115 [http-nio-8084-exec-9] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+19:12:55.143 [http-nio-8084-exec-6] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+19:12:56.487 [http-nio-8084-exec-6] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:12:56.488 [http-nio-8084-exec-9] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:12:56.506 [http-nio-8084-exec-1] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:12:58.640 [http-nio-8084-exec-10] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:12:58.698 [http-nio-8084-exec-9] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:12:58.717 [http-nio-8084-exec-9] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=SUBMIT_FOR_APPROVAL, timesheetId=9, requesterId=3
+19:12:58.718 [http-nio-8084-exec-9] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=SUBMIT_FOR_APPROVAL, timesheetId=9, requesterId=3
+19:12:58.754 [http-nio-8084-exec-9] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=SUBMIT_FOR_APPROVAL, timesheetId=9, approverId=3, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:12:58.761 [http-nio-8084-exec-9] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=SUBMIT_FOR_APPROVAL, timesheetId=9, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:12:58.781 [http-nio-8084-exec-1] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:12:58.783 [http-nio-8084-exec-1] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=TUTOR_CONFIRM, timesheetId=9, requesterId=3
+19:12:58.783 [http-nio-8084-exec-1] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=TUTOR_CONFIRM, timesheetId=9, requesterId=3
+19:12:58.793 [http-nio-8084-exec-1] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=TUTOR_CONFIRM, timesheetId=9, approverId=3, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:12:58.798 [http-nio-8084-exec-1] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=TUTOR_CONFIRM, timesheetId=9, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:12:58.812 [http-nio-8084-exec-6] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:12:58.814 [http-nio-8084-exec-6] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=9, requesterId=2
+19:12:58.814 [http-nio-8084-exec-6] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=9, requesterId=2
+19:12:58.824 [http-nio-8084-exec-6] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=LECTURER_CONFIRM, timesheetId=9, approverId=2, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:12:58.828 [http-nio-8084-exec-6] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=LECTURER_CONFIRM, timesheetId=9, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:12:58.842 [http-nio-8084-exec-3] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:12:59.117 [http-nio-8084-exec-2] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:13:09.212 [http-nio-8084-exec-4] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:13:09.214 [http-nio-8084-exec-4] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=9, requesterId=2
+19:13:09.214 [http-nio-8084-exec-4] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=9, requesterId=2
+19:13:09.221 [http-nio-8084-exec-4] ERROR c.u.c.a.ApprovalApplicationService - Approval failed: action=LECTURER_CONFIRM, timesheetId=9, requesterId=2, type=IllegalArgumentException, message=Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:13:09.225 [http-nio-8084-exec-4] WARN  c.u.c.e.GlobalExceptionHandler - Illegal argument exception: Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:13:10.911 [http-nio-8084-exec-1] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:10.950 [http-nio-8084-exec-6] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:10.953 [http-nio-8084-exec-6] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=SUBMIT_FOR_APPROVAL, timesheetId=10, requesterId=3
+19:13:10.953 [http-nio-8084-exec-6] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=SUBMIT_FOR_APPROVAL, timesheetId=10, requesterId=3
+19:13:10.963 [http-nio-8084-exec-6] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=SUBMIT_FOR_APPROVAL, timesheetId=10, approverId=3, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:13:10.966 [http-nio-8084-exec-6] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=SUBMIT_FOR_APPROVAL, timesheetId=10, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:13:10.979 [http-nio-8084-exec-3] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:10.981 [http-nio-8084-exec-3] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=TUTOR_CONFIRM, timesheetId=10, requesterId=3
+19:13:10.981 [http-nio-8084-exec-3] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=TUTOR_CONFIRM, timesheetId=10, requesterId=3
+19:13:10.991 [http-nio-8084-exec-3] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=TUTOR_CONFIRM, timesheetId=10, approverId=3, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:13:10.995 [http-nio-8084-exec-3] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=TUTOR_CONFIRM, timesheetId=10, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:13:11.008 [http-nio-8084-exec-2] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:13:11.010 [http-nio-8084-exec-2] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=10, requesterId=2
+19:13:11.011 [http-nio-8084-exec-2] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=10, requesterId=2
+19:13:11.022 [http-nio-8084-exec-2] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=LECTURER_CONFIRM, timesheetId=10, approverId=2, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:13:11.025 [http-nio-8084-exec-2] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=LECTURER_CONFIRM, timesheetId=10, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:13:11.040 [http-nio-8084-exec-4] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:13:11.389 [http-nio-8084-exec-7] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:13:21.547 [http-nio-8084-exec-8] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:13:21.548 [http-nio-8084-exec-8] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=10, requesterId=2
+19:13:21.549 [http-nio-8084-exec-8] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=10, requesterId=2
+19:13:21.555 [http-nio-8084-exec-8] ERROR c.u.c.a.ApprovalApplicationService - Approval failed: action=LECTURER_CONFIRM, timesheetId=10, requesterId=2, type=IllegalArgumentException, message=Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:13:21.556 [http-nio-8084-exec-8] WARN  c.u.c.e.GlobalExceptionHandler - Illegal argument exception: Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:13:23.508 [http-nio-8084-exec-3] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:23.537 [http-nio-8084-exec-2] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:23.539 [http-nio-8084-exec-2] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=SUBMIT_FOR_APPROVAL, timesheetId=11, requesterId=3
+19:13:23.539 [http-nio-8084-exec-2] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=SUBMIT_FOR_APPROVAL, timesheetId=11, requesterId=3
+19:13:23.547 [http-nio-8084-exec-2] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=SUBMIT_FOR_APPROVAL, timesheetId=11, approverId=3, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:13:23.550 [http-nio-8084-exec-2] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=SUBMIT_FOR_APPROVAL, timesheetId=11, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:13:23.561 [http-nio-8084-exec-4] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:23.562 [http-nio-8084-exec-4] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=TUTOR_CONFIRM, timesheetId=11, requesterId=3
+19:13:23.562 [http-nio-8084-exec-4] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=TUTOR_CONFIRM, timesheetId=11, requesterId=3
+19:13:23.571 [http-nio-8084-exec-4] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=TUTOR_CONFIRM, timesheetId=11, approverId=3, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:13:23.574 [http-nio-8084-exec-4] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=TUTOR_CONFIRM, timesheetId=11, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:13:23.584 [http-nio-8084-exec-7] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:13:23.585 [http-nio-8084-exec-7] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=11, requesterId=2
+19:13:23.585 [http-nio-8084-exec-7] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=11, requesterId=2
+19:13:23.596 [http-nio-8084-exec-7] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=LECTURER_CONFIRM, timesheetId=11, approverId=2, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:13:23.599 [http-nio-8084-exec-7] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=LECTURER_CONFIRM, timesheetId=11, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:13:23.615 [http-nio-8084-exec-8] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:13:23.875 [http-nio-8084-exec-5] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:13:34.014 [http-nio-8084-exec-10] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:13:34.015 [http-nio-8084-exec-10] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=11, requesterId=2
+19:13:34.016 [http-nio-8084-exec-10] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=11, requesterId=2
+19:13:34.021 [http-nio-8084-exec-10] ERROR c.u.c.a.ApprovalApplicationService - Approval failed: action=LECTURER_CONFIRM, timesheetId=11, requesterId=2, type=IllegalArgumentException, message=Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:13:34.022 [http-nio-8084-exec-10] WARN  c.u.c.e.GlobalExceptionHandler - Illegal argument exception: Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:13:35.736 [http-nio-8084-exec-4] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:35.767 [http-nio-8084-exec-7] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:35.769 [http-nio-8084-exec-7] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=SUBMIT_FOR_APPROVAL, timesheetId=12, requesterId=3
+19:13:35.769 [http-nio-8084-exec-7] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=SUBMIT_FOR_APPROVAL, timesheetId=12, requesterId=3
+19:13:35.779 [http-nio-8084-exec-7] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=SUBMIT_FOR_APPROVAL, timesheetId=12, approverId=3, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:13:35.782 [http-nio-8084-exec-7] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=SUBMIT_FOR_APPROVAL, timesheetId=12, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:13:35.794 [http-nio-8084-exec-8] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:35.796 [http-nio-8084-exec-8] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=TUTOR_CONFIRM, timesheetId=12, requesterId=3
+19:13:35.796 [http-nio-8084-exec-8] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=TUTOR_CONFIRM, timesheetId=12, requesterId=3
+19:13:35.805 [http-nio-8084-exec-8] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=TUTOR_CONFIRM, timesheetId=12, approverId=3, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:13:35.809 [http-nio-8084-exec-8] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=TUTOR_CONFIRM, timesheetId=12, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:13:35.821 [http-nio-8084-exec-5] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:13:35.822 [http-nio-8084-exec-5] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=12, requesterId=2
+19:13:35.823 [http-nio-8084-exec-5] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=12, requesterId=2
+19:13:35.832 [http-nio-8084-exec-5] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=LECTURER_CONFIRM, timesheetId=12, approverId=2, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:13:35.839 [http-nio-8084-exec-5] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=LECTURER_CONFIRM, timesheetId=12, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:13:35.853 [http-nio-8084-exec-10] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:13:36.186 [http-nio-8084-exec-1] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:13:46.359 [http-nio-8084-exec-6] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:13:46.361 [http-nio-8084-exec-6] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=12, requesterId=2
+19:13:46.361 [http-nio-8084-exec-6] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=12, requesterId=2
+19:13:46.366 [http-nio-8084-exec-6] ERROR c.u.c.a.ApprovalApplicationService - Approval failed: action=LECTURER_CONFIRM, timesheetId=12, requesterId=2, type=IllegalArgumentException, message=Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:13:46.368 [http-nio-8084-exec-6] WARN  c.u.c.e.GlobalExceptionHandler - Illegal argument exception: Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:13:48.059 [http-nio-8084-exec-8] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:48.084 [http-nio-8084-exec-5] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:48.086 [http-nio-8084-exec-5] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=SUBMIT_FOR_APPROVAL, timesheetId=13, requesterId=3
+19:13:48.086 [http-nio-8084-exec-5] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=SUBMIT_FOR_APPROVAL, timesheetId=13, requesterId=3
+19:13:48.093 [http-nio-8084-exec-5] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=SUBMIT_FOR_APPROVAL, timesheetId=13, approverId=3, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:13:48.097 [http-nio-8084-exec-5] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=SUBMIT_FOR_APPROVAL, timesheetId=13, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:13:48.107 [http-nio-8084-exec-10] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:13:48.108 [http-nio-8084-exec-10] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=TUTOR_CONFIRM, timesheetId=13, requesterId=3
+19:13:48.108 [http-nio-8084-exec-10] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=TUTOR_CONFIRM, timesheetId=13, requesterId=3
+19:13:48.116 [http-nio-8084-exec-10] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=TUTOR_CONFIRM, timesheetId=13, approverId=3, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:13:48.118 [http-nio-8084-exec-10] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=TUTOR_CONFIRM, timesheetId=13, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:13:48.127 [http-nio-8084-exec-1] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:13:48.129 [http-nio-8084-exec-1] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=13, requesterId=2
+19:13:48.129 [http-nio-8084-exec-1] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=13, requesterId=2
+19:13:48.137 [http-nio-8084-exec-1] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=LECTURER_CONFIRM, timesheetId=13, approverId=2, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:13:48.139 [http-nio-8084-exec-1] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=LECTURER_CONFIRM, timesheetId=13, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:13:48.153 [http-nio-8084-exec-6] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:13:48.431 [http-nio-8084-exec-3] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:13:58.526 [http-nio-8084-exec-4] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:13:58.528 [http-nio-8084-exec-4] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=13, requesterId=2
+19:13:58.528 [http-nio-8084-exec-4] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=13, requesterId=2
+19:13:58.532 [http-nio-8084-exec-4] ERROR c.u.c.a.ApprovalApplicationService - Approval failed: action=LECTURER_CONFIRM, timesheetId=13, requesterId=2, type=IllegalArgumentException, message=Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:13:58.533 [http-nio-8084-exec-4] WARN  c.u.c.e.GlobalExceptionHandler - Illegal argument exception: Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:14:00.245 [http-nio-8084-exec-6] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:14:00.272 [http-nio-8084-exec-3] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:14:00.274 [http-nio-8084-exec-3] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=SUBMIT_FOR_APPROVAL, timesheetId=14, requesterId=3
+19:14:00.274 [http-nio-8084-exec-3] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=SUBMIT_FOR_APPROVAL, timesheetId=14, requesterId=3
+19:14:00.282 [http-nio-8084-exec-3] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=SUBMIT_FOR_APPROVAL, timesheetId=14, approverId=3, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:14:00.285 [http-nio-8084-exec-3] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=SUBMIT_FOR_APPROVAL, timesheetId=14, fromStatus=DRAFT, toStatus=PENDING_TUTOR_CONFIRMATION
+19:14:00.295 [http-nio-8084-exec-9] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: tutor@example.com with role: TUTOR
+19:14:00.297 [http-nio-8084-exec-9] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=TUTOR_CONFIRM, timesheetId=14, requesterId=3
+19:14:00.297 [http-nio-8084-exec-9] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=TUTOR_CONFIRM, timesheetId=14, requesterId=3
+19:14:00.305 [http-nio-8084-exec-9] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=TUTOR_CONFIRM, timesheetId=14, approverId=3, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:14:00.308 [http-nio-8084-exec-9] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=TUTOR_CONFIRM, timesheetId=14, fromStatus=PENDING_TUTOR_CONFIRMATION, toStatus=TUTOR_CONFIRMED
+19:14:00.326 [http-nio-8084-exec-2] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:14:00.329 [http-nio-8084-exec-2] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=14, requesterId=2
+19:14:00.330 [http-nio-8084-exec-2] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=14, requesterId=2
+19:14:00.339 [http-nio-8084-exec-2] INFO  c.u.c.a.ApprovalApplicationService - Approval succeeded: action=LECTURER_CONFIRM, timesheetId=14, approverId=2, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:14:00.343 [http-nio-8084-exec-2] INFO  c.u.c.controller.ApprovalController - HTTP approve OK: action=LECTURER_CONFIRM, timesheetId=14, fromStatus=TUTOR_CONFIRMED, toStatus=LECTURER_CONFIRMED
+19:14:00.362 [http-nio-8084-exec-4] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:14:00.689 [http-nio-8084-exec-7] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:14:10.851 [http-nio-8084-exec-8] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:14:10.853 [http-nio-8084-exec-8] INFO  c.u.c.controller.ApprovalController - HTTP approve: action=LECTURER_CONFIRM, timesheetId=14, requesterId=2
+19:14:10.853 [http-nio-8084-exec-8] INFO  c.u.c.a.ApprovalApplicationService - Approval requested: action=LECTURER_CONFIRM, timesheetId=14, requesterId=2
+19:14:10.858 [http-nio-8084-exec-8] ERROR c.u.c.a.ApprovalApplicationService - Approval failed: action=LECTURER_CONFIRM, timesheetId=14, requesterId=2, type=IllegalArgumentException, message=Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:14:10.860 [http-nio-8084-exec-8] WARN  c.u.c.e.GlobalExceptionHandler - Illegal argument exception: Cannot perform LECTURER_CONFIRM on timesheet with status LECTURER_CONFIRMED
+19:14:12.913 [http-nio-8084-exec-9] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:14:19.746 [http-nio-8084-exec-3] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: admin@example.com with role: ADMIN
+19:14:26.487 [http-nio-8084-exec-10] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:14:26.487 [http-nio-8084-exec-5] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+19:14:26.509 [http-nio-8084-exec-8] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+19:14:27.019 [http-nio-8084-exec-7] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:14:27.020 [http-nio-8084-exec-10] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+19:14:27.041 [http-nio-8084-exec-5] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+19:14:27.545 [http-nio-8084-exec-2] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:14:27.545 [http-nio-8084-exec-10] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+19:14:27.571 [http-nio-8084-exec-7] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+19:14:28.105 [http-nio-8084-exec-9] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:14:28.105 [http-nio-8084-exec-10] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+19:14:28.130 [http-nio-8084-exec-9] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+19:14:28.677 [http-nio-8084-exec-8] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:14:28.677 [http-nio-8084-exec-1] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+DEBUG: Summary data: 8 timesheets
+19:14:35.594 [http-nio-8084-exec-10] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:14:35.594 [http-nio-8084-exec-2] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+DEBUG: Summary data: 8 timesheets
+19:14:42.520 [http-nio-8084-exec-3] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:14:42.520 [http-nio-8084-exec-5] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+DEBUG: Summary data: 8 timesheets
+19:14:48.231 [http-nio-8084-exec-4] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:14:48.231 [http-nio-8084-exec-6] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+DEBUG: Summary data: 8 timesheets
+19:14:48.797 [http-nio-8084-exec-3] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+19:14:48.797 [http-nio-8084-exec-1] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+19:14:48.822 [http-nio-8084-exec-8] DEBUG c.u.c.s.JwtAuthenticationFilter - JWT authentication successful for user: lecturer@example.com with role: LECTURER
+DEBUG: Lecturer 2 has 2 courses
+DEBUG: Course IDs: [1, 2]
+DEBUG: Summary data: 8 timesheets
+

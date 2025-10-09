@@ -6,8 +6,8 @@
  */
 
 import { memo, useCallback } from 'react';
-import LoadingSpinner from '../../shared/LoadingSpinner/LoadingSpinner';
-import { Button } from '../../ui/button';
+import GlobalErrorBanner from '../../shared/feedback/GlobalErrorBanner';
+import PageLoadingIndicator from '../../shared/feedback/PageLoadingIndicator';
 import { useAdminDashboardData } from './hooks/useAdminDashboardData';
 import AdminDashboardHeader from './components/AdminDashboardHeader';
 import AdminNavTabs from './components/AdminNavTabs';
@@ -23,6 +23,8 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
   const {
     sessionStatus,
     welcomeMessage,
+    pageLoading,
+    pageErrors,
     searchQuery,
     handleSearch,
     tabs,
@@ -51,16 +53,37 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
 
   const handleSelectionChange = useCallback((ids: number[]) => setSelectedTimesheets(ids), [setSelectedTimesheets]);
 
-  if (loading.timesheets || loading.dashboard) {
+  const handlePageErrorRetry = useCallback((source: 'timesheets' | 'dashboard') => {
+    if (source === 'timesheets') {
+      refreshTimesheets();
+    } else {
+      refetchDashboard();
+    }
+  }, [refreshTimesheets, refetchDashboard]);
+
+  if (pageLoading) {
     return (
       <div className={`p-4 sm:p-6 lg:p-8 ${className}`}>
-        <div className="flex items-center justify-center">
-          <LoadingSpinner size="large" />
-          <p className="ml-4 text-muted-foreground">Loading admin dashboard...</p>
-        </div>
+        <PageLoadingIndicator
+          message="Loading admin dashboard…"
+          subMessage="Fetching the latest metrics and pending timesheets."
+        />
       </div>
     );
   }
+
+  const isRefreshingData = loading.timesheets || loading.dashboard;
+  const refreshDisabledReason = actionState.isSubmitting
+    ? 'An approval action is currently processing. Please wait before refreshing.'
+    : (isRefreshingData ? 'Data is already refreshing.' : undefined);
+
+  const handleRefresh = useCallback(() => {
+    if (loading.timesheets || loading.dashboard || actionState.isSubmitting) {
+      return;
+    }
+    refreshTimesheets();
+    refetchDashboard();
+  }, [actionState.isSubmitting, loading.dashboard, loading.timesheets, refreshTimesheets, refetchDashboard]);
 
   return (
     <div
@@ -73,10 +96,9 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
         welcomeMessage={welcomeMessage}
         searchQuery={searchQuery}
         onSearch={handleSearch}
-        onRefresh={() => {
-          refreshTimesheets();
-          refetchDashboard();
-        }}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshingData}
+        refreshDisabledReason={refreshDisabledReason}
         urgentCount={urgentCount}
         pendingApprovals={metrics.pendingApprovals}
       />
@@ -87,26 +109,29 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
         onTabChange={handleTabChange}
       />
 
-      {errors.hasErrors && (
-        <div className="mb-6 space-y-4">
-          {errors.timesheets && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-              <span>Failed to load timesheets: {errors.timesheets}</span>
-              <Button variant="destructive" size="sm" className="ml-4" onClick={refreshTimesheets}>Retry</Button>
-            </div>
-          )}
-          {errors.dashboard && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-              <span>Failed to load admin dashboard data: {errors.dashboard}</span>
-              <Button variant="destructive" size="sm" className="ml-4" onClick={refetchDashboard}>Retry</Button>
-            </div>
-          )}
-          {errors.approval && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-              <span>Approval failed: {errors.approval}</span>
-              <Button variant="ghost" size="sm" className="ml-4" onClick={resetApproval}>Dismiss</Button>
-            </div>
-          )}
+      {pageErrors.length > 0 && (
+        <div className="mb-6 space-y-3">
+          {pageErrors.map(({ source, message }) => (
+            <GlobalErrorBanner
+              key={source}
+              title={source === 'timesheets' ? 'Failed to load timesheets' : 'Failed to load admin dashboard data'}
+              message={message}
+              actionLabel="Retry"
+              onAction={() => handlePageErrorRetry(source)}
+            />
+          ))}
+        </div>
+      )}
+
+      {errors.approval && (
+        <div className="mb-6">
+          <GlobalErrorBanner
+            title="Approval failed"
+            message={errors.approval}
+            severity="warning"
+            onDismiss={resetApproval}
+            data-testid="approval-error-banner"
+          />
         </div>
       )}
 

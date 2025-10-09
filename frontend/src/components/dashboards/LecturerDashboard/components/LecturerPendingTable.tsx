@@ -46,7 +46,15 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
         </div>
         {canPerformApprovals && selectedTimesheets.length > 0 && (
           <div className="flex items-center gap-2">
-            <Button onClick={onBatchApprove} disabled={approvalLoading || !canPerformApprovals}>
+            <Button
+              onClick={() => {
+                if (!(approvalLoading || !canPerformApprovals)) {
+                  onBatchApprove();
+                }
+              }}
+              disabled={approvalLoading || !canPerformApprovals}
+              title={approvalLoading ? 'Processing approvals. Please wait…' : undefined}
+            >
               {approvalLoading ? <LoadingSpinner size="small" /> : 'Batch Approve'}
             </Button>
             <span className="text-sm text-muted-foreground">
@@ -92,14 +100,18 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
           loadingMessage="Loading pending approvals..."
           onApprovalAction={canPerformApprovals ? onApprovalAction : undefined}
           actionLoading={canPerformApprovals ? actionLoadingId : null}
-          showActions={canPerformApprovals}
+          showActions
           showTutorInfo
           showCourseInfo
           showSelection={canPerformApprovals}
           selectedIds={canPerformApprovals ? selectedTimesheets : []}
           onSelectionChange={canPerformApprovals ? onSelectionChange : undefined}
           className="lecturer-timesheet-table"
-          approvalRole={canPerformApprovals ? 'LECTURER' : undefined}
+          approvalRole="LECTURER"
+          actionsDisabled={!canPerformApprovals || approvalLoading}
+          actionsDisabledReason={!canPerformApprovals
+            ? 'You do not have permission to approve timesheets.'
+            : 'Processing approval. Please wait before taking another action.'}
         />
       )}
     </CardContent>

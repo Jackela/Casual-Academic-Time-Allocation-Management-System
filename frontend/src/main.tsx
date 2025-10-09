@@ -71,8 +71,19 @@ if (ENV_CONFIG.e2e.shouldUseMSW()) {
   }
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+const rootElement = document.getElementById('root')
+if (!rootElement) {
+  throw new Error('Root element not found')
+}
+
+const app = <App />
+
+createRoot(rootElement).render(
+  ENV_CONFIG.isE2E()
+    ? app
+    : (
+      <StrictMode>
+        {app}
+      </StrictMode>
+    ),
 )

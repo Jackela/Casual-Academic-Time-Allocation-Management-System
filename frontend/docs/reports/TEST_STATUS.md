@@ -94,9 +94,8 @@ npx playwright test e2e/modules/ui/header-elements.spec.ts
 #### Unified Base Fixture (`e2e/fixtures/base.ts`)
 - **testCredentials**: Consistent test user data
 - **mockResponses**: Standardized API response mocks
-- **AuthAPI**: Authentication API client
-- **TimesheetAPI**: Timesheet API client with auth
-- **authenticatedPage**: Page with real authentication
+- **createMockAuthBundle**: Deterministic auth payload builder for mocks
+- **defaultMockAuthBundles**: Ready-to-use auth sessions per role
 - **mockedPage**: Page with mocked API responses
 
 #### Configuration Files

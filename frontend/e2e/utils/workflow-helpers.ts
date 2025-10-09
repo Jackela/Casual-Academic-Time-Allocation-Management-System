@@ -1,4 +1,4 @@
-import { APIRequestContext, APIResponse } from '@playwright/test';
+import { APIRequestContext, APIResponse, expect } from "@playwright/test";
 import { E2E_CONFIG } from '../config/e2e.config';
 
 export interface AuthContext {
@@ -7,13 +7,22 @@ export interface AuthContext {
   tutor: { token: string; userId: number };
 }
 
+type TimesheetStatus =
+  | 'DRAFT'
+  | 'PENDING_TUTOR_CONFIRMATION'
+  | 'TUTOR_CONFIRMED'
+  | 'LECTURER_CONFIRMED'
+  | 'FINAL_CONFIRMED'
+  | 'REJECTED'
+  | 'MODIFICATION_REQUESTED';
+
 export interface TimesheetSeedOptions {
   description?: string;
   hours?: number;
   hourlyRate?: number;
   courseId?: number;
   weekStartDate?: string;
-  targetStatus?: 'DRAFT' | 'PENDING_TUTOR_CONFIRMATION' | 'TUTOR_CONFIRMED' | 'LECTURER_CONFIRMED' | 'FINAL_CONFIRMED';
+  targetStatus?: TimesheetStatus;
 }
 
 export interface SeededTimesheet {
@@ -30,6 +39,78 @@ export type ApprovalTransition =
   | 'HR_CONFIRM'
   | 'REJECT'
   | 'REQUEST_MODIFICATION';
+
+const KNOWN_STATUSES: ReadonlyArray<TimesheetStatus> = [
+  'DRAFT',
+  'PENDING_TUTOR_CONFIRMATION',
+  'TUTOR_CONFIRMED',
+  'LECTURER_CONFIRMED',
+  'FINAL_CONFIRMED',
+  'REJECTED',
+  'MODIFICATION_REQUESTED'
+] as const;
+
+const STATUS_NORMALIZATION_MAP: Record<string, TimesheetStatus> = {
+  PENDING_LECTURER_APPROVAL: 'PENDING_TUTOR_CONFIRMATION',
+  PENDING_TUTOR_REVIEW: 'PENDING_TUTOR_CONFIRMATION',
+  PENDING_HR_REVIEW: 'LECTURER_CONFIRMED',
+  HR_APPROVED: 'FINAL_CONFIRMED',
+  APPROVED: 'FINAL_CONFIRMED'
+};
+
+const ACTION_TARGET_STATUS: Record<ApprovalTransition, TimesheetStatus | null> = {
+  SUBMIT_FOR_APPROVAL: 'PENDING_TUTOR_CONFIRMATION',
+  TUTOR_CONFIRM: 'TUTOR_CONFIRMED',
+  LECTURER_CONFIRM: 'LECTURER_CONFIRMED',
+  HR_CONFIRM: 'FINAL_CONFIRMED',
+  REJECT: 'REJECTED',
+  REQUEST_MODIFICATION: 'MODIFICATION_REQUESTED'
+};
+
+const ACTION_ALLOWED_FROM: Record<ApprovalTransition, TimesheetStatus[]> = {
+  SUBMIT_FOR_APPROVAL: ['DRAFT', 'MODIFICATION_REQUESTED'],
+  TUTOR_CONFIRM: ['PENDING_TUTOR_CONFIRMATION'],
+  LECTURER_CONFIRM: ['TUTOR_CONFIRMED'],
+  HR_CONFIRM: ['LECTURER_CONFIRMED'],
+  REJECT: ['PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED'],
+  REQUEST_MODIFICATION: ['PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED']
+};
+
+type TransitionStep = {
+  action: ApprovalTransition;
+  actor: 'tutor' | 'lecturer' | 'admin';
+  comment?: string;
+};
+
+const STATUS_TRANSITION_PLAN: Record<TimesheetStatus, TransitionStep[]> = {
+  DRAFT: [],
+  PENDING_TUTOR_CONFIRMATION: [
+    { action: 'SUBMIT_FOR_APPROVAL', actor: 'tutor' }
+  ],
+  TUTOR_CONFIRMED: [
+    { action: 'SUBMIT_FOR_APPROVAL', actor: 'tutor' },
+    { action: 'TUTOR_CONFIRM', actor: 'tutor' }
+  ],
+  LECTURER_CONFIRMED: [
+    { action: 'SUBMIT_FOR_APPROVAL', actor: 'tutor' },
+    { action: 'TUTOR_CONFIRM', actor: 'tutor' },
+    { action: 'LECTURER_CONFIRM', actor: 'lecturer' }
+  ],
+  FINAL_CONFIRMED: [
+    { action: 'SUBMIT_FOR_APPROVAL', actor: 'tutor' },
+    { action: 'TUTOR_CONFIRM', actor: 'tutor' },
+    { action: 'LECTURER_CONFIRM', actor: 'lecturer' },
+    { action: 'HR_CONFIRM', actor: 'admin' }
+  ],
+  REJECTED: [
+    { action: 'SUBMIT_FOR_APPROVAL', actor: 'tutor' },
+    { action: 'REJECT', actor: 'admin', comment: 'Seeded rejection' }
+  ],
+  MODIFICATION_REQUESTED: [
+    { action: 'SUBMIT_FOR_APPROVAL', actor: 'tutor' },
+    { action: 'REQUEST_MODIFICATION', actor: 'lecturer', comment: 'Seeded modification request' }
+  ]
+};
 
 const backendUrl = E2E_CONFIG.BACKEND.URL;
 const approvalsEndpoint = `${backendUrl}${E2E_CONFIG.BACKEND.ENDPOINTS.APPROVALS}`;
@@ -50,10 +131,10 @@ const parseNumericEnv = (...values: (string | undefined)[]): number | null => {
   return null;
 };
 
-const WORKER_WEEK_STRIDE = parseNumericEnv(process.env.E2E_WORKER_WEEK_STRIDE) ?? 512;
+const WORKER_WEEK_STRIDE = Math.max(1, parseNumericEnv(process.env.E2E_WORKER_WEEK_STRIDE) ?? 4);
 const WORKER_INDEX = parseNumericEnv(process.env.PLAYWRIGHT_WORKER_INDEX, process.env.PLAYWRIGHT_WORKER_ID) ?? 0;
 const RUN_SALT = parseNumericEnv(process.env.PLAYWRIGHT_RUN_SALT, process.env.GITHUB_RUN_ID, process.env.CI_JOB_ID, String(process.pid)) ?? process.pid ?? Number(String(Date.now()).slice(-7));
-const RUN_WEEK_SHIFT = Math.abs(RUN_SALT % 100000);
+const RUN_WEEK_SHIFT = Math.abs(RUN_SALT % 26);
 
 
 const toHeaders = (token: string) => ({
@@ -62,6 +143,80 @@ const toHeaders = (token: string) => ({
 });
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const normalizeStatus = (value: unknown): TimesheetStatus | null => {
+  if (!value) {
+    return null;
+  }
+  const upper = String(value).toUpperCase();
+  if (STATUS_NORMALIZATION_MAP[upper]) {
+    return STATUS_NORMALIZATION_MAP[upper];
+  }
+  return KNOWN_STATUSES.find(status => status === upper) ?? null;
+};
+
+const getActorToken = (tokens: AuthContext, actor: 'tutor' | 'lecturer' | 'admin'): string => {
+  switch (actor) {
+    case 'tutor':
+      return tokens.tutor.token;
+    case 'lecturer':
+      return tokens.lecturer.token;
+    case 'admin':
+    default:
+      return tokens.admin.token;
+  }
+};
+
+const extractStatusField = (payload: unknown): unknown => {
+  if (!payload || typeof payload !== 'object') {
+    return undefined;
+  }
+  const candidate = (payload as Record<string, unknown>);
+  return (
+    candidate.status ??
+    candidate.currentStatus ??
+    (candidate.timesheet && extractStatusField(candidate.timesheet)) ??
+    (candidate.data && extractStatusField(candidate.data))
+  );
+};
+
+async function fetchTimesheetStatus(
+  request: APIRequestContext,
+  token: string,
+  timesheetId: number
+): Promise<TimesheetStatus | null> {
+  const response = await request.get(`${timesheetsEndpoint}/${timesheetId}`, {
+    headers: toHeaders(token)
+  });
+
+  if (!response.ok()) {
+    throw new Error(`Failed to fetch timesheet ${timesheetId} status: ${response.status()} ${await response.text()}`);
+  }
+
+  const payload = await response.json().catch(() => null);
+  return normalizeStatus(extractStatusField(payload));
+}
+
+async function waitForTimesheetStatus(
+  request: APIRequestContext,
+  tokens: AuthContext,
+  timesheetId: number,
+  expected: TimesheetStatus,
+  timeout = 10000
+): Promise<TimesheetStatus> {
+  let resolved: TimesheetStatus | null = null;
+
+  await expect(async () => {
+    resolved = await fetchTimesheetStatus(request, tokens.admin.token, timesheetId);
+    expect(resolved).toBe(expected);
+  }).toPass({ timeout });
+
+  if (!resolved) {
+    throw new Error(`Unable to resolve status for timesheet ${timesheetId}`);
+  }
+
+  return resolved;
+}
 
 async function authenticate(request: APIRequestContext, email: string, password: string) {
   const response = await request.post(loginEndpoint, {
@@ -143,14 +298,16 @@ function buildCandidates(options: TimesheetSeedOptions): CandidateSeed[] {
     return [{ courseId: options.courseId ?? 1, weekStartDate: options.weekStartDate }];
   }
 
-  const courseIds = options.courseId ? [options.courseId] : [1, 2, 3];
-  const workerShift = WORKER_INDEX * WORKER_WEEK_STRIDE + RUN_WEEK_SHIFT;
-  const offsets = Array.from({ length: 200 }, (_, index) => -index - seedSequence - 12 - workerShift);
+  const courseIds = options.courseId ? [options.courseId] : [1, 2];
+  const baseWeek = startOfWeek(new Date());
+  const workerBucket = Math.abs(WORKER_INDEX) % 12;
+  const startOffset = workerBucket * WORKER_WEEK_STRIDE + RUN_WEEK_SHIFT + seedSequence;
+  const offsets = Array.from({ length: 120 }, (_, index) => startOffset + index);
 
   return courseIds.flatMap(courseId =>
     offsets.map(offset => ({
       courseId,
-      weekStartDate: startOfWeek(addWeeks(mondayReference, offset))
+      weekStartDate: startOfWeek(addWeeks(baseWeek, -offset))
     }))
   );
 }
@@ -188,7 +345,7 @@ export async function createTimesheetWithStatus(
 
     try {
       createResponse = await request.post(timesheetsEndpoint, {
-        headers: toHeaders(tokens.lecturer.token),
+        headers: toHeaders(tokens.tutor.token),
         data: payload
       });
     } catch (error) {
@@ -241,31 +398,37 @@ export async function createTimesheetWithStatus(
     throw new Error('Timesheet creation response missing id');
   }
 
-  const target = options.targetStatus ?? 'DRAFT';
-  const transitions: Array<{ action: ApprovalTransition; actor: 'lecturer' | 'tutor' | 'admin' }> = [];
+  const target = (options.targetStatus ?? 'DRAFT') as TimesheetStatus;
+  const plan = [...(STATUS_TRANSITION_PLAN[target] ?? [])];
 
-  if (target === 'PENDING_TUTOR_CONFIRMATION' || target === 'TUTOR_CONFIRMED' || target === 'LECTURER_CONFIRMED' || target === 'FINAL_CONFIRMED') {
-    transitions.push({ action: 'SUBMIT_FOR_APPROVAL', actor: 'lecturer' });
-  }
-  if (target === 'TUTOR_CONFIRMED' || target === 'LECTURER_CONFIRMED' || target === 'FINAL_CONFIRMED') {
-    transitions.push({ action: 'TUTOR_CONFIRM', actor: 'tutor' });
-  }
-  if (target === 'LECTURER_CONFIRMED' || target === 'FINAL_CONFIRMED') {
-    transitions.push({ action: 'LECTURER_CONFIRM', actor: 'lecturer' });
-  }
-  if (target === 'FINAL_CONFIRMED') {
-    transitions.push({ action: 'HR_CONFIRM', actor: 'admin' });
+  let currentStatus = (await fetchTimesheetStatus(request, tokens.admin.token, timesheetId)) ?? 'DRAFT';
+
+  for (const step of plan) {
+    // Refresh current status to avoid stale state when asynchronous transitions occur
+    currentStatus = (await fetchTimesheetStatus(request, tokens.admin.token, timesheetId)) ?? currentStatus;
+
+    const allowedStatuses = ACTION_ALLOWED_FROM[step.action] ?? [];
+    const expectedAfterAction = ACTION_TARGET_STATUS[step.action];
+
+    if (allowedStatuses.length && !allowedStatuses.includes(currentStatus)) {
+      if (expectedAfterAction && currentStatus === expectedAfterAction) {
+        continue;
+      }
+      throw new Error(`Cannot perform ${step.action} on timesheet ${timesheetId} while in status ${currentStatus}`);
+    }
+
+    const actorToken = getActorToken(tokens, step.actor);
+    await submitApproval(request, actorToken, timesheetId, step.action, step.comment);
+
+    if (expectedAfterAction) {
+      currentStatus = await waitForTimesheetStatus(request, tokens, timesheetId, expectedAfterAction);
+    } else {
+      currentStatus = (await fetchTimesheetStatus(request, tokens.admin.token, timesheetId)) ?? currentStatus;
+    }
   }
 
-  for (const transition of transitions) {
-    const actorToken =
-      transition.actor === 'lecturer'
-        ? tokens.lecturer.token
-        : transition.actor === 'tutor'
-          ? tokens.tutor.token
-          : tokens.admin.token;
-
-    await submitApproval(request, actorToken, timesheetId, transition.action);
+  if (currentStatus !== target) {
+    currentStatus = await waitForTimesheetStatus(request, tokens, timesheetId, target);
   }
 
   return {
@@ -288,18 +451,22 @@ export async function finalizeTimesheet(
 
   try {
     await submitApproval(request, tokens.lecturer.token, timesheetId, 'LECTURER_CONFIRM', 'Auto-confirm for cleanup');
+    await waitForTimesheetStatus(request, tokens, timesheetId, 'LECTURER_CONFIRMED');
   } catch (error) {
     if (!shouldIgnore(error)) {
       throw error;
     }
+    await waitForTimesheetStatus(request, tokens, timesheetId, 'LECTURER_CONFIRMED').catch(() => undefined);
   }
 
   try {
     await submitApproval(request, tokens.admin.token, timesheetId, 'HR_CONFIRM', 'Finalized for cleanup');
+    await waitForTimesheetStatus(request, tokens, timesheetId, 'FINAL_CONFIRMED');
   } catch (error) {
     if (!shouldIgnore(error)) {
       throw error;
     }
+    await waitForTimesheetStatus(request, tokens, timesheetId, 'FINAL_CONFIRMED').catch(() => undefined);
   }
 }
 
@@ -310,6 +477,7 @@ export async function rejectTimesheet(
   comment = 'Rejected via automation'
 ) {
   await submitApproval(request, tokens.admin.token, timesheetId, 'REJECT', comment);
+  await waitForTimesheetStatus(request, tokens, timesheetId, 'REJECTED');
 }
 
 export async function transitionTimesheet(
@@ -320,24 +488,31 @@ export async function transitionTimesheet(
   comment = 'E2E transition',
   actor?: 'tutor' | 'lecturer' | 'admin'
 ) {
-  const resolvedActor = actor ?? (
-    action === 'SUBMIT_FOR_APPROVAL'
-      ? 'lecturer'
-      : action === 'TUTOR_CONFIRM' || action === 'REQUEST_MODIFICATION'
-        ? 'tutor'
-        : action === 'LECTURER_CONFIRM'
-          ? 'lecturer'
-          : 'admin'
-  );
+  const resolvedActor = actor ?? (() => {
+    switch (action) {
+      case 'SUBMIT_FOR_APPROVAL':
+        return 'tutor';
+      case 'TUTOR_CONFIRM':
+        return 'tutor';
+      case 'LECTURER_CONFIRM':
+        return 'lecturer';
+      case 'REQUEST_MODIFICATION':
+        return 'lecturer';
+      case 'REJECT':
+      case 'HR_CONFIRM':
+      default:
+        return 'admin';
+    }
+  })();
 
-  const roleToken =
-    resolvedActor === 'lecturer'
-      ? tokens.lecturer.token
-      : resolvedActor === 'tutor'
-        ? tokens.tutor.token
-        : tokens.admin.token;
+  const roleToken = getActorToken(tokens, resolvedActor);
 
   await submitApproval(request, roleToken, timesheetId, action, comment);
+
+  const expectedStatus = ACTION_TARGET_STATUS[action];
+  if (expectedStatus) {
+    await waitForTimesheetStatus(request, tokens, timesheetId, expectedStatus);
+  }
 }
 
 

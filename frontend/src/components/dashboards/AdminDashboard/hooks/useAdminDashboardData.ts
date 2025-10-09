@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import {
   useTimesheetQuery,
@@ -32,6 +32,11 @@ interface RejectionModalState {
 export interface UseAdminDashboardDataResult {
   sessionStatus: SessionStatus;
   welcomeMessage: string;
+  pageLoading: boolean;
+  pageErrors: Array<{
+    source: 'timesheets' | 'dashboard';
+    message: string;
+  }>;
   searchQuery: string;
   handleSearch: (query: string) => void;
   tabs: AdminTabSpec[];
@@ -119,6 +124,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
   const [rejectionComment, setRejectionComment] = useState('');
   const [rejectionValidationError, setRejectionValidationError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const actionLockRef = useRef(false);
 
   const setSelectedTimesheets = useCallback<Dispatch<SetStateAction<number[]>>>((nextValue) => {
     setSelectedTimesheetsState((previous) => {
@@ -173,7 +179,43 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     return filtered;
   }, [allTimesheets, currentTab, searchQuery]);
 
-  const urgentCount = filteredTimesheets.length;
+  const isTimesheetUrgent = useCallback((timesheet: Timesheet) => {
+    const priority = (timesheet as Timesheet & { priority?: string }).priority;
+    if (priority) {
+      const normalizedPriority = priority.toUpperCase();
+      if (normalizedPriority === 'HIGH' || normalizedPriority === 'CRITICAL' || normalizedPriority === 'P1') {
+        return true;
+      }
+    }
+
+    const createdAt = new Date(timesheet.createdAt);
+    const ageInDays = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+    return ageInDays > 3;
+  }, []);
+
+  const urgentPendingItems = useMemo(() => {
+    const pendingItems = (dashboardData as { pendingItems?: Array<{ priority?: string | null }> } | null)?.pendingItems ?? [];
+    return pendingItems.filter((item) => {
+      const priority = item?.priority;
+      if (!priority) {
+        return false;
+      }
+      const normalizedPriority = priority.toUpperCase();
+      return normalizedPriority === 'HIGH' || normalizedPriority === 'CRITICAL' || normalizedPriority === 'P1';
+    });
+  }, [dashboardData]);
+
+  const urgentTimesheets = useMemo(
+    () => allTimesheets.filter(isTimesheetUrgent),
+    [allTimesheets, isTimesheetUrgent],
+  );
+
+  const urgentCount = useMemo(() => {
+    if (urgentPendingItems.length > 0) {
+      return urgentPendingItems.length;
+    }
+    return urgentTimesheets.length;
+  }, [urgentPendingItems, urgentTimesheets]);
 
   const rejectionTargetTimesheet = useMemo(() => {
     if (!rejectionModal.open || !rejectionModal.timesheetId) {
@@ -203,6 +245,10 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
       return;
     }
 
+    if (actionLockRef.current || approvalLoading || actionLoadingId !== null) {
+      return;
+    }
+
     const trimmedComment = rejectionComment.trim();
     if (trimmedComment.length < 3) {
       setRejectionValidationError('Please provide a short justification before rejecting the timesheet.');
@@ -210,6 +256,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     }
 
     setRejectionValidationError(null);
+    actionLockRef.current = true;
     setActionLoadingId(rejectionModal.timesheetId);
 
     try {
@@ -225,16 +272,22 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     } catch (error) {
       secureLogger.error('Admin dashboard rejection action failed', error);
     } finally {
+      actionLockRef.current = false;
       setActionLoadingId(null);
     }
-  }, [approveTimesheet, refreshTimesheets, refetchDashboard, rejectionComment, rejectionModal, setSelectedTimesheets]);
+  }, [actionLoadingId, approvalLoading, approveTimesheet, refreshTimesheets, refetchDashboard, rejectionComment, rejectionModal, setSelectedTimesheets]);
 
   const handleApprovalAction = useCallback(async (timesheetId: number, action: ApprovalAction) => {
+    if (actionLockRef.current || approvalLoading || actionLoadingId !== null) {
+      return;
+    }
+
     if (action === 'REJECT') {
       setRejectionModal({ open: true, timesheetId });
       return;
     }
 
+    actionLockRef.current = true;
     setActionLoadingId(timesheetId);
 
     try {
@@ -248,9 +301,10 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     } catch (error) {
       secureLogger.error('Admin dashboard approval action failed', error);
     } finally {
+      actionLockRef.current = false;
       setActionLoadingId(null);
     }
-  }, [approveTimesheet, refreshTimesheets, refetchDashboard, setSelectedTimesheets]);
+  }, [actionLoadingId, approvalLoading, approveTimesheet, refreshTimesheets, refetchDashboard, setSelectedTimesheets]);
 
   const tabs = useMemo<AdminTabSpec[]>(() => {
     const baseTabs: AdminTabSpec[] = [
@@ -290,6 +344,19 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     };
   }, [approvalError, dashboardError, timesheetsError]);
 
+  const pageLoading = timesheetsLoading || dashboardLoading;
+
+  const pageErrors = useMemo(() => {
+    const entries: Array<{ source: 'timesheets' | 'dashboard'; message: string }> = [];
+    if (errors.timesheets) {
+      entries.push({ source: 'timesheets', message: errors.timesheets });
+    }
+    if (errors.dashboard) {
+      entries.push({ source: 'dashboard', message: errors.dashboard });
+    }
+    return entries;
+  }, [errors.dashboard, errors.timesheets]);
+
   const actionState: ActionState = useMemo(() => ({
     loadingId: actionLoadingId,
     isSubmitting: approvalLoading,
@@ -298,6 +365,8 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
   return {
     sessionStatus,
     welcomeMessage,
+    pageLoading,
+    pageErrors,
     searchQuery,
     handleSearch,
     tabs,

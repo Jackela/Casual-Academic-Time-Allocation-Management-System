@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import type { Timesheet } from '../../../../types/api';
 import { secureLogger } from '../../../../utils/secure-logger';
@@ -34,6 +34,15 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, o
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [autoSaveMessage, setAutoSaveMessage] = useState<string | null>(null);
   const autoSaveDelay = process.env.NODE_ENV === 'test' ? 0 : 30000;
+
+  const isFormValid = useMemo(() => {
+    const hasCourse = formData.courseId > 0;
+    const hasWeekStart = Boolean(formData.weekStartDate);
+    const hasValidHours = Number.isFinite(formData.hours) && formData.hours > 0 && formData.hours <= 60;
+    return hasCourse && hasWeekStart && hasValidHours;
+  }, [formData.courseId, formData.weekStartDate, formData.hours]);
+
+  const isSubmitDisabled = loading || !isFormValid;
 
   useEffect(() => {
     if (autoSaveTimeout) {
@@ -82,11 +91,15 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, o
   const handleSubmit = useCallback((e: FormEvent) => {
     e.preventDefault();
 
+    if (loading) {
+      return;
+    }
+
     if (validateForm()) {
       secureLogger.debug('submitting form', formData);
       onSubmit(formData);
     }
-  }, [formData, onSubmit, validateForm]);
+  }, [formData, loading, onSubmit, validateForm]);
 
   const handleFieldChange = useCallback((field: keyof TimesheetFormData, value: string | number) => {
     secureLogger.debug('field change', { field, value });
@@ -177,10 +190,19 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, o
         </div>
 
         <div className="form-actions flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (!loading) {
+                onCancel();
+              }
+            }}
+            disabled={loading}
+          >
             Cancel
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={isSubmitDisabled} title={isSubmitDisabled && !loading ? 'Complete all required fields before submitting.' : undefined}>
             {loading ? <LoadingSpinner size="small" /> : (isEdit ? 'Update Timesheet' : 'Create Timesheet')}
           </Button>
         </div>

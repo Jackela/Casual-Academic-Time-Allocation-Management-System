@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import {
   usePendingTimesheets,
@@ -23,6 +23,11 @@ import type {
 export interface UseLecturerDashboardDataResult {
   sessionStatus: SessionStatus;
   welcomeMessage: string;
+  pageLoading: boolean;
+  pageErrors: Array<{
+    source: 'pending' | 'dashboard';
+    message: string;
+  }>;
   canPerformApprovals: boolean;
   metrics: LecturerDashboardMetrics;
   urgentCount: number;
@@ -83,6 +88,7 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
   const [selectedTimesheetsState, setSelectedTimesheetsState] = useState<number[]>([]);
   const [filters, setFilters] = useState<LecturerDashboardFilters>(INITIAL_FILTERS);
   const [rejectionModal, setRejectionModal] = useState<LecturerRejectionModalState>(INITIAL_REJECTION_MODAL);
+  const actionLockRef = useRef(false);
 
   const setSelectedTimesheets = useCallback<Dispatch<SetStateAction<number[]>>>((nextValue) => {
     setSelectedTimesheetsState((previous) => {
@@ -220,6 +226,19 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
     hasErrors: Boolean(pendingError || dashboardError || approvalError),
   }), [pendingError, dashboardError, approvalError]);
 
+  const pageLoading = loading.pending || loading.dashboard;
+
+  const pageErrors = useMemo(() => {
+    const entries: Array<{ source: 'pending' | 'dashboard'; message: string }> = [];
+    if (errors.pending) {
+      entries.push({ source: 'pending', message: errors.pending });
+    }
+    if (errors.dashboard) {
+      entries.push({ source: 'dashboard', message: errors.dashboard });
+    }
+    return entries;
+  }, [errors.dashboard, errors.pending]);
+
   const actionLoadingId = useMemo(() => {
     if (!loading.approval) {
       return null;
@@ -237,7 +256,7 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
   }, [loading.approval, rejectionModal, selectedTimesheetsState, pendingTimesheets]);
 
   const handleApprovalAction = useCallback(async (timesheetId: number, action: ApprovalAction) => {
-    if (!canPerformApprovals) {
+    if (!canPerformApprovals || approvalLoading || actionLockRef.current) {
       return;
     }
 
@@ -251,6 +270,7 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
         return;
       }
 
+      actionLockRef.current = true;
       await approveTimesheet({
         timesheetId,
         action: 'LECTURER_CONFIRM',
@@ -261,11 +281,13 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
       setSelectedTimesheets((previous) => previous.filter((id) => id !== timesheetId));
     } catch (error) {
       secureLogger.error('Failed to process approval', error);
+    } finally {
+      actionLockRef.current = false;
     }
-  }, [approveTimesheet, canPerformApprovals, refetchDashboard, refetchPending, setSelectedTimesheets]);
+  }, [approveTimesheet, approvalLoading, canPerformApprovals, refetchDashboard, refetchPending, setSelectedTimesheets]);
 
   const handleBatchApproval = useCallback(async () => {
-    if (!canPerformApprovals || selectedTimesheetsState.length === 0) {
+    if (!canPerformApprovals || selectedTimesheetsState.length === 0 || approvalLoading || actionLockRef.current) {
       return;
     }
 
@@ -275,20 +297,24 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
         action: 'LECTURER_CONFIRM' as const,
       }));
 
+      actionLockRef.current = true;
       await batchApprove(requests);
       await Promise.all([refetchPending(), refetchDashboard()]);
       setSelectedTimesheets([]);
     } catch (error) {
       secureLogger.error('Failed to batch approve', error);
+    } finally {
+      actionLockRef.current = false;
     }
-  }, [batchApprove, canPerformApprovals, refetchDashboard, refetchPending, selectedTimesheetsState, setSelectedTimesheets]);
+  }, [approvalLoading, batchApprove, canPerformApprovals, refetchDashboard, refetchPending, selectedTimesheetsState, setSelectedTimesheets]);
 
   const handleRejectionSubmit = useCallback(async (reason: string) => {
-    if (!canPerformApprovals || !rejectionModal.timesheetId) {
+    if (!canPerformApprovals || !rejectionModal.timesheetId || approvalLoading || actionLockRef.current) {
       return;
     }
 
     try {
+      actionLockRef.current = true;
       await approveTimesheet({
         timesheetId: rejectionModal.timesheetId,
         action: 'REJECT',
@@ -302,8 +328,10 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
       );
     } catch (error) {
       secureLogger.error('Failed to reject timesheet', error);
+    } finally {
+      actionLockRef.current = false;
     }
-  }, [approveTimesheet, canPerformApprovals, refetchDashboard, refetchPending, rejectionModal.timesheetId, setSelectedTimesheets]);
+  }, [approvalLoading, approveTimesheet, canPerformApprovals, refetchDashboard, refetchPending, rejectionModal.timesheetId, setSelectedTimesheets]);
 
   const handleRejectionCancel = useCallback(() => {
     setRejectionModal(INITIAL_REJECTION_MODAL);
@@ -316,6 +344,8 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
   return {
     sessionStatus,
     welcomeMessage,
+    pageLoading,
+    pageErrors,
     canPerformApprovals,
     metrics,
     urgentCount,

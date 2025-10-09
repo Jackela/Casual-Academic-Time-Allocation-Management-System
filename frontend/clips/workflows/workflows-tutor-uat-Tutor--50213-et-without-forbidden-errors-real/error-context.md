@@ -1,0 +1,270 @@
+# Page snapshot
+
+```yaml
+- banner:
+  - heading "CATAMS" [level=1]
+  - text: Time Allocation Management John Doe Tutor
+  - button "Sign Out":
+    - img
+    - text: Sign Out
+- navigation:
+  - link "Dashboard":
+    - /url: /dashboard
+    - img
+    - text: Dashboard
+- main:
+  - main "Tutor Dashboard":
+    - heading "Welcome back, John!" [level=1]
+    - paragraph: Tutor Dashboard
+    - paragraph: Here's an overview of your timesheets and earnings. Let's get started.
+    - region "Quick Actions":
+      - heading "Quick Actions" [level=2]
+      - button "📝 Create New Timesheet Start a new timesheet entry Ctrl+N"
+      - button "🔄 Refresh Data Reload the latest timesheets"
+      - button "📤 Submit All Drafts Submit all draft timesheets"
+      - button "💰 View Pay Summary Check earnings and payments"
+      - button "📊 Export My Data Download timesheet records (coming soon)"
+    - region "Your Statistics":
+      - heading "Your Statistics" [level=2]
+      - heading "Total Earned" [level=3]
+      - text: 💰 $3,932.50
+      - paragraph: All time
+      - heading "Total Hours" [level=3]
+      - text: ⏰ 89h
+      - paragraph: Logged this semester
+      - heading "Average per Week" [level=3]
+      - text: 📈 5.6h
+      - paragraph: Based on 16 weeks
+      - heading "Status at a Glance" [level=3]
+      - text: 📋 1 Drafts
+      - paragraph: 9 In Progress
+    - region "My Timesheets":
+      - heading "My Timesheets" [level=3]
+      - text: 12 total
+      - paragraph: Manage all your work logs here.
+      - button "Create New"
+      - navigation "Tabs":
+        - button "All Timesheets"
+        - button "Drafts (1)"
+        - button "In Progress (9)"
+        - button "Needs Attention (2)"
+      - table "Timesheets":
+        - rowgroup:
+          - row "Course Week Starting Hours Rate Total Pay Status Description Submitted Actions":
+            - columnheader "Course"
+            - columnheader "Week Starting"
+            - columnheader "Hours"
+            - columnheader "Rate"
+            - columnheader "Total Pay"
+            - columnheader "Status"
+            - columnheader "Description"
+            - columnheader "Submitted"
+            - columnheader "Actions"
+        - rowgroup:
+          - 'row "Course 1Introduction to Programming 18 Jan 962 6h $42.00 $252.00 Status: Awaiting Tutor. Pending confirmation from the tutor. Critical Workflow 1759999089339-474 Just now Edit Submit Confirm"':
+            - cell "Course 1Introduction to Programming"
+            - cell "18 Jan 962"
+            - cell "6h"
+            - cell "$42.00"
+            - cell "$252.00":
+              - strong: $252.00
+            - 'cell "Status: Awaiting Tutor. Pending confirmation from the tutor."': Awaiting Tutor
+            - cell "Critical Workflow 1759999089339-474"
+            - cell "Just now"
+            - cell "Edit Submit Confirm":
+              - button "Edit"
+              - button "Submit" [disabled]
+              - button "Confirm"
+          - 'row "Course 1Introduction to Programming 18 Mar 1658 6h $42.00 $252.00 Status: Awaiting Tutor. Pending confirmation from the tutor. Critical Workflow 1759999069856-822 Just now Edit Submit Confirm"':
+            - cell "Course 1Introduction to Programming"
+            - cell "18 Mar 1658"
+            - cell "6h"
+            - cell "$42.00"
+            - cell "$252.00":
+              - strong: $252.00
+            - 'cell "Status: Awaiting Tutor. Pending confirmation from the tutor."': Awaiting Tutor
+            - cell "Critical Workflow 1759999069856-822"
+            - cell "Just now"
+            - cell "Edit Submit Confirm":
+              - button "Edit"
+              - button "Submit" [disabled]
+              - button "Confirm"
+          - 'row "Course 1Introduction to Programming 21 Aug 1645 6h $42.00 $252.00 Status: Lecturer Confirmed. Lecturer has approved the timesheet. Admin Final Approve 1759999044168-385 Just now Edit Submit"':
+            - cell "Course 1Introduction to Programming"
+            - cell "21 Aug 1645"
+            - cell "6h"
+            - cell "$42.00"
+            - cell "$252.00":
+              - strong: $252.00
+            - 'cell "Status: Lecturer Confirmed. Lecturer has approved the timesheet."': Lecturer Confirmed
+            - cell "Admin Final Approve 1759999044168-385"
+            - cell "Just now"
+            - cell "Edit Submit":
+              - button "Edit"
+              - button "Submit" [disabled]
+          - 'row "Course 1Introduction to Programming 14 May 1027 6h $42.00 $252.00 Status: Lecturer Confirmed. Lecturer has approved the timesheet. Admin Final Approve 1759999031881-567 Just now Edit Submit"':
+            - cell "Course 1Introduction to Programming"
+            - cell "14 May 1027"
+            - cell "6h"
+            - cell "$42.00"
+            - cell "$252.00":
+              - strong: $252.00
+            - 'cell "Status: Lecturer Confirmed. Lecturer has approved the timesheet."': Lecturer Confirmed
+            - cell "Admin Final Approve 1759999031881-567"
+            - cell "Just now"
+            - cell "Edit Submit":
+              - button "Edit"
+              - button "Submit" [disabled]
+          - 'row "Course 1Introduction to Programming 8 Sept 2025 5.5h $41.00 $225.50 Status: Needs Changes. Updates have been requested before approval can continue. Needs additional clarification from tutor Just now Edit Submit"':
+            - cell "Course 1Introduction to Programming"
+            - cell "8 Sept 2025"
+            - cell "5.5h"
+            - cell "$41.00"
+            - cell "$225.50":
+              - strong: $225.50
+            - 'cell "Status: Needs Changes. Updates have been requested before approval can continue."': Needs Changes
+            - cell "Needs additional clarification from tutor"
+            - cell "Just now"
+            - cell "Edit Submit":
+              - button "Edit"
+              - button "Submit"
+          - 'row "Course 2Data Structures and Algorithms 1 Sept 2025 7h $48.00 $336.00 Status: Fully Approved. HR has given final approval. Completed and paid timesheet Just now Edit Submit"':
+            - cell "Course 2Data Structures and Algorithms"
+            - cell "1 Sept 2025"
+            - cell "7h"
+            - cell "$48.00"
+            - cell "$336.00":
+              - strong: $336.00
+            - 'cell "Status: Fully Approved. HR has given final approval."': Fully Approved
+            - cell "Completed and paid timesheet"
+            - cell "Just now"
+            - cell "Edit Submit":
+              - button "Edit"
+              - button "Submit" [disabled]
+          - 'row "Course 1Introduction to Programming 15 Sept 2025 9.5h $46.00 $437.00 Status: Lecturer Confirmed. Lecturer has approved the timesheet. Awaiting HR final confirmation Just now Edit Submit"':
+            - cell "Course 1Introduction to Programming"
+            - cell "15 Sept 2025"
+            - cell "9.5h"
+            - cell "$46.00"
+            - cell "$437.00":
+              - strong: $437.00
+            - 'cell "Status: Lecturer Confirmed. Lecturer has approved the timesheet."': Lecturer Confirmed
+            - cell "Awaiting HR final confirmation"
+            - cell "Just now"
+            - cell "Edit Submit":
+              - button "Edit"
+              - button "Submit" [disabled]
+          - 'row "Course 2Data Structures and Algorithms 8 Sept 2025 8.5h $44.00 $374.00 Status: Tutor Confirmed. Tutor has confirmed the submitted hours. Second item for lecturer final approval Just now Edit Submit"':
+            - cell "Course 2Data Structures and Algorithms"
+            - cell "8 Sept 2025"
+            - cell "8.5h"
+            - cell "$44.00"
+            - cell "$374.00":
+              - strong: $374.00
+            - 'cell "Status: Tutor Confirmed. Tutor has confirmed the submitted hours."': Tutor Confirmed
+            - cell "Second item for lecturer final approval"
+            - cell "Just now"
+            - cell "Edit Submit":
+              - button "Edit"
+              - button "Submit" [disabled]
+          - 'row "Course 2Data Structures and Algorithms 15 Sept 2025 7.5h $42.00 $315.00 Status: Rejected. Timesheet was rejected and requires follow-up. Rejected: incorrect hours; requires update Just now Edit Submit"':
+            - cell "Course 2Data Structures and Algorithms"
+            - cell "15 Sept 2025"
+            - cell "7.5h"
+            - cell "$42.00"
+            - cell "$315.00":
+              - strong: $315.00
+            - 'cell "Status: Rejected. Timesheet was rejected and requires follow-up."': Rejected
+            - 'cell "Rejected: incorrect hours; requires update"'
+            - cell "Just now"
+            - cell "Edit Submit":
+              - button "Edit"
+              - button "Submit"
+          - 'row "Course 1Introduction to Programming 22 Sept 2025 9h $43.00 $387.00 Status: Tutor Confirmed. Tutor has confirmed the submitted hours. Ready for lecturer final approval Just now Edit Submit"':
+            - cell "Course 1Introduction to Programming"
+            - cell "22 Sept 2025"
+            - cell "9h"
+            - cell "$43.00"
+            - cell "$387.00":
+              - strong: $387.00
+            - 'cell "Status: Tutor Confirmed. Tutor has confirmed the submitted hours."': Tutor Confirmed
+            - cell "Ready for lecturer final approval"
+            - cell "Just now"
+            - cell "Edit Submit":
+              - button "Edit"
+              - button "Submit" [disabled]
+          - 'row "Course 2Data Structures and Algorithms 29 Sept 2025 8h $50.00 $400.00 Status: Awaiting Tutor. Pending confirmation from the tutor. Lab supervision and student consultations Just now Edit Submit Confirm"':
+            - cell "Course 2Data Structures and Algorithms"
+            - cell "29 Sept 2025"
+            - cell "8h"
+            - cell "$50.00"
+            - cell "$400.00":
+              - strong: $400.00
+            - 'cell "Status: Awaiting Tutor. Pending confirmation from the tutor."': Awaiting Tutor
+            - cell "Lab supervision and student consultations"
+            - cell "Just now"
+            - cell "Edit Submit Confirm":
+              - button "Edit"
+              - button "Submit" [disabled]
+              - button "Confirm"
+          - 'row "Course 1Introduction to Programming 6 Oct 2025 10h $45.00 $450.00 Status: Awaiting Tutor. Pending confirmation from the tutor. Tutorial sessions and marking for COMP1001 Just now Edit Submit Confirm"':
+            - cell "Course 1Introduction to Programming"
+            - cell "6 Oct 2025"
+            - cell "10h"
+            - cell "$45.00"
+            - cell "$450.00":
+              - strong: $450.00
+            - 'cell "Status: Awaiting Tutor. Pending confirmation from the tutor."': Awaiting Tutor
+            - cell "Tutorial sessions and marking for COMP1001"
+            - cell "Just now"
+            - cell "Edit Submit Confirm":
+              - button "Edit"
+              - button "Submit" [disabled]
+              - button "Confirm"
+    - complementary:
+      - heading "Notifications" [level=3]
+      - text: ⚠️
+      - strong: Action Required
+      - paragraph: 1 timesheets need your attention
+      - paragraph: 1 rejected timesheets need your attention
+      - button "Dismiss action required alert": ×
+      - text: 📝
+      - strong: Don't forget to submit
+      - paragraph: 1 draft timesheets are waiting
+      - button "Dismiss draft reminder": ×
+      - heading "Upcoming Deadlines" [level=3]
+      - paragraph: No upcoming deadlines
+      - heading "Semester Progress" [level=4]
+      - text: 8%
+      - paragraph: Keep up the great work! You're on track for this semester.
+      - heading "Pay Summary" [level=3]
+      - text: "Total Earned:"
+      - strong: $3,932.50
+      - text: "This Week:"
+      - strong: $0
+      - text: "Average per Timesheet:"
+      - strong: $327.71
+      - heading "Payment Status" [level=4]
+      - paragraph: 1 Final Confirmed
+      - paragraph: 3 Awaiting Final Approval
+      - paragraph: "Next Payment Date: Jan 31, 2024"
+      - heading "Tax Information" [level=4]
+      - paragraph: "Year-to-Date Earnings: $3,932.50"
+      - button "Download Tax Summary"
+      - heading "Earnings by Course" [level=3]
+      - text: Introduction to Programming 58h $2,507.50 Data Structures and Algorithms 31h $1,425.00
+      - heading "Support Resources" [level=3]
+      - paragraph: Timesheet Knowledge Base
+      - paragraph: Step-by-step guides for submitting and tracking timesheets.
+      - link "View details":
+        - /url: "#"
+      - paragraph: Contact Staffing Team
+      - paragraph: Email the staffing desk for urgent issues or pay corrections.
+      - link "View details":
+        - /url: mailto:staffing@casual-academic.edu
+      - paragraph: Tutor Support Hours
+      - paragraph: Join weekly drop-in sessions for payroll and scheduling questions.
+      - link "View details":
+        - /url: "#"
+    - status "dashboard status"
+```

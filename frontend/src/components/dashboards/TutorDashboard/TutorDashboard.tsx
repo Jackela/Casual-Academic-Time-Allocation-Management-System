@@ -5,7 +5,7 @@
  * pay tracking, and course integration for student tutors.
  */
 
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
 import { useTutorDashboardViewModel } from './hooks/useTutorDashboardViewModel';
 import TimesheetTable from '../../shared/TimesheetTable/TimesheetTable';
 
@@ -73,6 +73,10 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const [editingTimesheet, setEditingTimesheet] = useState<Timesheet | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const paySummaryRef = useRef<HTMLDivElement | null>(null);
+  const actionLockRef = useRef(false);
+  const ACTION_LOCK_MESSAGE = 'Please wait for the current timesheet action to finish before starting another.';
 
   const {
     loading: timesheetsLoading,
@@ -102,6 +106,9 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     reset: resetUpdate
   } = updateMutation;
 
+  const isFormSubmitting = createLoading || updateLoading;
+  const isTimesheetActionInFlight = actionLoadingId !== null;
+
   const handleCreateTimesheet = useCallback(() => {
     setEditingTimesheet(null);
     setShowForm(true);
@@ -113,6 +120,10 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   }, []);
 
   const handleFormSubmit = useCallback(async (data: TimesheetFormData) => {
+    if (createLoading || updateLoading) {
+      return;
+    }
+
     try {
       secureLogger.debug('createTimesheet fn', Boolean(createTimesheet));
       if (editingTimesheet) {
@@ -135,11 +146,61 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     } catch (error) {
       secureLogger.error('Failed to save timesheet', error);
     }
-  }, [createTimesheet, editingTimesheet, refetchDashboard, refetchTimesheets, updateTimesheet, user?.id]);
+  }, [createLoading, createTimesheet, editingTimesheet, refetchDashboard, refetchTimesheets, updateLoading, updateTimesheet, user?.id]);
+
+  const clearActionFeedback = useCallback(() => {
+    setActionError(null);
+    setActionNotice(null);
+  }, [setActionError, setActionNotice]);
+
+  const BULK_SUBMISSION_ACTION_ID = -101;
+
+  const submitDraftTimesheets = useCallback(async (timesheetIds: number[]) => {
+    if (timesheetIds.length === 0) {
+      return false;
+    }
+
+    if (actionLockRef.current || actionLoadingId !== null) {
+      setActionNotice(ACTION_LOCK_MESSAGE);
+      return false;
+    }
+
+    actionLockRef.current = true;
+    setActionLoadingId(BULK_SUBMISSION_ACTION_ID);
+    clearActionFeedback();
+
+    try {
+      await TimesheetService.batchApproveTimesheets(
+        timesheetIds.map((id) => ({
+          timesheetId: id,
+          action: 'SUBMIT_DRAFT' as const,
+        })),
+      );
+      await Promise.all([refetchTimesheets(), refetchDashboard()]);
+      return true;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to submit drafts';
+      setActionError(message);
+      return false;
+    } finally {
+      actionLockRef.current = false;
+      setActionLoadingId(null);
+    }
+  }, [ACTION_LOCK_MESSAGE, actionLoadingId, clearActionFeedback, refetchDashboard, refetchTimesheets, setActionNotice]);
 
   const handleSubmitTimesheet = useCallback(async (timesheetId: number) => {
+    if (actionLockRef.current || actionLoadingId !== null) {
+      if (actionLoadingId === timesheetId) {
+        return;
+      }
+      setActionNotice(ACTION_LOCK_MESSAGE);
+      return;
+    }
+
+    actionLockRef.current = true;
     setActionLoadingId(timesheetId);
-    setActionError(null);
+    clearActionFeedback();
     try {
       await TimesheetService.approveTimesheet({
         timesheetId,
@@ -150,13 +211,23 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       const message = error instanceof Error ? error.message : 'Failed to submit timesheet';
       setActionError(message);
     } finally {
+      actionLockRef.current = false;
       setActionLoadingId(null);
     }
-  }, [refetchDashboard, refetchTimesheets]);
+  }, [ACTION_LOCK_MESSAGE, actionLoadingId, clearActionFeedback, refetchDashboard, refetchTimesheets, setActionNotice]);
 
   const handleConfirmTimesheet = useCallback(async (timesheetId: number) => {
+    if (actionLockRef.current || actionLoadingId !== null) {
+      if (actionLoadingId === timesheetId) {
+        return;
+      }
+      setActionNotice(ACTION_LOCK_MESSAGE);
+      return;
+    }
+
+    actionLockRef.current = true;
     setActionLoadingId(timesheetId);
-    setActionError(null);
+    clearActionFeedback();
     try {
       await TimesheetService.approveTimesheet({
         timesheetId,
@@ -167,36 +238,47 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       const message = error instanceof Error ? error.message : 'Failed to confirm timesheet';
       setActionError(message);
     } finally {
+      actionLockRef.current = false;
       setActionLoadingId(null);
     }
-  }, [refetchDashboard, refetchTimesheets]);
+  }, [ACTION_LOCK_MESSAGE, actionLoadingId, clearActionFeedback, refetchDashboard, refetchTimesheets, setActionNotice]);
+
+  const handleSubmitSelectedTimesheets = useCallback(async () => {
+    if (actionLockRef.current || actionLoadingId !== null) {
+      setActionNotice(ACTION_LOCK_MESSAGE);
+      return;
+    }
+
+    const success = await submitDraftTimesheets(selectedTimesheets);
+    if (success) {
+      setSelectedTimesheets([]);
+    }
+  }, [actionLoadingId, selectedTimesheets, setActionNotice, setSelectedTimesheets, submitDraftTimesheets]);
 
   const handleSubmitAllDrafts = useCallback(async () => {
+    if (actionLockRef.current || actionLoadingId !== null) {
+      setActionNotice(ACTION_LOCK_MESSAGE);
+      return;
+    }
+
     const draftIds = allTimesheets
       .filter(t => t.status === 'DRAFT')
       .map(t => t.id);
 
-    if (draftIds.length === 0) {
+    const success = await submitDraftTimesheets(draftIds);
+    if (success) {
+      setSelectedTimesheets([]);
+    }
+  }, [actionLoadingId, allTimesheets, setActionNotice, setSelectedTimesheets, submitDraftTimesheets]);
+
+  const handleQuickAction = useCallback((action: string) => {
+    clearActionFeedback();
+
+    if ((actionLockRef.current || isTimesheetActionInFlight) && (action === 'submitDrafts' || action === 'refresh')) {
+      setActionNotice(ACTION_LOCK_MESSAGE);
       return;
     }
 
-    setActionLoadingId(-1);
-    setActionError(null);
-
-    try {
-      await TimesheetService.batchApproveTimesheets(
-        draftIds.map(id => ({ timesheetId: id, action: 'SUBMIT_DRAFT' }))
-      );
-      await Promise.all([refetchTimesheets(), refetchDashboard()]);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to submit drafts';
-      setActionError(message);
-    } finally {
-      setActionLoadingId(null);
-    }
-  }, [allTimesheets, refetchDashboard, refetchTimesheets]);
-
-  const handleQuickAction = useCallback((action: string) => {
     switch (action) {
       case 'create':
         handleCreateTimesheet();
@@ -207,13 +289,29 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       case 'refresh':
         Promise.all([refetchTimesheets(), refetchDashboard()]).catch(console.error);
         break;
+      case 'viewPay':
+        if (paySummaryRef.current) {
+          paySummaryRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const target = paySummaryRef.current;
+          const focusTarget = () => {
+            target.focus?.({ preventScroll: true });
+          };
+          if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(focusTarget);
+          } else {
+            focusTarget();
+          }
+        } else {
+          setActionNotice('Pay summary section is unavailable at the moment.');
+        }
+        break;
       case 'export':
-        // Export functionality placeholder
+        setActionNotice('Timesheet data export is coming soon.');
         break;
       default:
         break;
     }
-  }, [handleCreateTimesheet, handleSubmitAllDrafts, refetchDashboard, refetchTimesheets]);
+  }, [ACTION_LOCK_MESSAGE, clearActionFeedback, handleCreateTimesheet, handleSubmitAllDrafts, isTimesheetActionInFlight, refetchDashboard, refetchTimesheets, setActionNotice]);
 
   // Loading state
   if (timesheetsLoading || dashboardLoading) {
@@ -227,7 +325,10 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     );
   }
 
-  const hasErrors = timesheetsError || dashboardError || createError || updateError;
+  const hasPrimaryErrors = timesheetsError || dashboardError || createError || updateError;
+  const hasAnyErrors = Boolean(hasPrimaryErrors || actionError);
+  const actionInFlightMessage = ACTION_LOCK_MESSAGE;
+  const canSubmitAllDrafts = allTimesheets.some(t => t.status === 'DRAFT' || t.status === 'MODIFICATION_REQUESTED');
 
   return (
     <div
@@ -242,7 +343,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
         description="Here's an overview of your timesheets and earnings. Let's get started."
       />
 
-      {hasErrors && (
+      {(hasAnyErrors || actionNotice) && (
         <div className="mb-6 space-y-4">
           {timesheetsError && (
             <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
@@ -265,7 +366,13 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           {actionError && (
             <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
               <span>{actionError}</span>
-              <Button variant="ghost" size="sm" className="ml-4" onClick={() => setActionError(null)}>Dismiss</Button>
+              <Button variant="ghost" size="sm" className="ml-4" onClick={clearActionFeedback}>Dismiss</Button>
+            </div>
+          )}
+          {actionNotice && (
+            <div className="rounded-md border border-primary/40 bg-primary/10 p-4 text-sm text-primary" data-testid="action-notice">
+              <span>{actionNotice}</span>
+              <Button variant="ghost" size="sm" className="ml-4" onClick={() => setActionNotice(null)}>Dismiss</Button>
             </div>
           )}
         </div>
@@ -287,6 +394,8 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             description="Reload the latest timesheets"
             icon="🔄"
             onClick={() => handleQuickAction('refresh')}
+            disabled={isTimesheetActionInFlight}
+            disabledReason={actionInFlightMessage}
           />
 
           <QuickAction
@@ -294,7 +403,8 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             description="Submit all draft timesheets"
             icon="📤"
             onClick={() => handleQuickAction('submitDrafts')}
-            disabled={!allTimesheets.some(t => t.status === 'DRAFT' || t.status === 'MODIFICATION_REQUESTED')}
+            disabled={!canSubmitAllDrafts || isTimesheetActionInFlight}
+            disabledReason={!canSubmitAllDrafts ? 'There are no draft timesheets to submit.' : actionInFlightMessage}
           />
 
           <QuickAction
@@ -306,7 +416,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
           <QuickAction
             label="Export My Data"
-            description="Download timesheet records"
+            description="Download timesheet records (coming soon)"
             icon="📊"
             onClick={() => handleQuickAction('export')}
           />
@@ -339,7 +449,13 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                       Manage all your work logs here.
                     </p>
                   </div>
-                  <Button onClick={handleCreateTimesheet}>Create New</Button>
+                  <Button
+                    onClick={handleCreateTimesheet}
+                    disabled={isFormSubmitting}
+                    title={isFormSubmitting ? 'Please wait while we finish saving your timesheet.' : undefined}
+                  >
+                    Create New
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -380,9 +496,15 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                     </label>
                     <Button
                       className="submit-selected-btn"
-                      disabled={selectedTimesheets.length === 0}
+                      onClick={handleSubmitSelectedTimesheets}
+                      disabled={selectedTimesheets.length === 0 || isTimesheetActionInFlight}
+                      title={selectedTimesheets.length === 0
+                        ? 'Select at least one draft to submit.'
+                        : (isTimesheetActionInFlight ? actionInFlightMessage : undefined)}
                     >
-                      Submit Selected ({selectedTimesheets.length})
+                      {actionLoadingId === BULK_SUBMISSION_ACTION_ID
+                        ? 'Submitting drafts...'
+                        : `Submit Selected (${selectedTimesheets.length})`}
                     </Button>
                     {selectedTimesheets.length > 0 && (
                       <div className="submission-preview">
@@ -402,7 +524,12 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                       <p className="mt-2 text-sm text-muted-foreground" data-testid="empty-state-description">
                         Create your first timesheet to get started.
                       </p>
-                      <Button className="mt-4" onClick={handleCreateTimesheet}>
+                      <Button
+                        className="mt-4"
+                        onClick={handleCreateTimesheet}
+                        disabled={isFormSubmitting}
+                        title={isFormSubmitting ? 'Please wait while we finish saving your timesheet.' : undefined}
+                      >
                         Create First Timesheet
                       </Button>
                     </div>
@@ -440,6 +567,8 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                     className="tutor-timesheet-table"
                     data-testid="timesheet-table"
                     actionMode="tutor"
+                    actionsDisabled={isTimesheetActionInFlight}
+                    actionsDisabledReason={actionInFlightMessage}
                   />
                 )}
               </CardContent>
@@ -456,12 +585,14 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             />
             <UpcomingDeadlines deadlines={visibleDeadlines} />
             <CompletionProgress completionRate={completionRate} />
-            <PaySummary
-              totalEarned={tutorStats.totalPay}
-              thisWeekPay={thisWeekSummary.pay}
-              averagePerTimesheet={tutorStats.averagePayPerTimesheet}
-              paymentStatus={tutorStats.statusCounts || {}}
-            />
+            <div ref={paySummaryRef} tabIndex={-1}>
+              <PaySummary
+                totalEarned={tutorStats.totalPay}
+                thisWeekPay={thisWeekSummary.pay}
+                averagePerTimesheet={tutorStats.averagePayPerTimesheet}
+                paymentStatus={tutorStats.statusCounts || {}}
+              />
+            </div>
             <EarningsBreakdown timesheets={allTimesheets} />
             <SupportResources resources={supportResources} />
           </>

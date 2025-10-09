@@ -332,20 +332,23 @@ describe("AdminDashboard Component", () => {
     }
   });
 
-  it("surfaces dashboard summary errors with retry affordance", () => {
+  it("surfaces dashboard summary errors with retry affordance", async () => {
+    const refetchMock = vi.fn();
     mockTimesheetModule.useTimesheetDashboardSummary.mockReturnValueOnce({
       data: null,
       loading: false,
-      error: "Failed to load admin dashboard data",
-      refetch: vi.fn(),
+      error: 'Failed to load admin dashboard data',
+      refetch: refetchMock,
     });
 
+    const user = userEvent.setup();
     render(<AdminDashboard />);
 
-    expect(
-      screen.getByText(/Failed to load admin dashboard data/i),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Retry/i })).toBeInTheDocument();
+    const banner = screen.getAllByTestId('global-error-banner')[0];
+    expect(within(banner).getAllByText(/Failed to load admin dashboard data/i)[0]).toBeInTheDocument();
+
+    await user.click(within(banner).getByRole('button', { name: /Retry/i }));
+    expect(refetchMock).toHaveBeenCalled();
   });
 
   it("triggers admin approval action when Final Approve is clicked", async () => {
@@ -454,7 +457,6 @@ describe("AdminDashboard Component", () => {
     });
   });
 });
-
 
 
 

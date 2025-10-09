@@ -10,7 +10,8 @@ import { useLecturerDashboardData } from "./hooks/useLecturerDashboardData";
 import LecturerSummaryBanner from "./components/LecturerSummaryBanner";
 import LecturerFiltersPanel from "./components/LecturerFiltersPanel";
 import LecturerPendingTable from "./components/LecturerPendingTable";
-import LoadingSpinner from "../../shared/LoadingSpinner/LoadingSpinner";
+import GlobalErrorBanner from "../../shared/feedback/GlobalErrorBanner";
+import PageLoadingIndicator from "../../shared/feedback/PageLoadingIndicator";
 import StatusBadge from "../../shared/StatusBadge/StatusBadge";
 import type { TimesheetStatus } from '../../../types/api';
 import {
@@ -69,6 +70,8 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
   const {
     sessionStatus,
     welcomeMessage,
+    pageLoading,
+    pageErrors,
     canPerformApprovals,
     metrics,
     urgentCount,
@@ -114,18 +117,21 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
     clearFilters();
   }, [clearFilters]);
 
-  if (loading.pending || loading.dashboard) {
+  const handlePageErrorRetry = useCallback((source: 'pending' | 'dashboard') => {
+    if (source === 'pending') {
+      refreshPending();
+    } else {
+      refetchDashboard();
+    }
+  }, [refreshPending, refetchDashboard]);
+
+  if (pageLoading) {
     return (
       <div className={`p-4 sm:p-6 lg:p-8 ${className}`}>
-        <div
-          className="flex items-center justify-center"
-          data-testid="loading-state"
-        >
-          <LoadingSpinner size="large" />
-          <p className="ml-4 text-muted-foreground" data-testid="loading-text">
-            Loading pending timesheets...
-          </p>
-        </div>
+        <PageLoadingIndicator
+          message="Loading pending timesheets…"
+          subMessage="Fetching lecturer metrics and approval queue."
+        />
       </div>
     );
   }
@@ -157,78 +163,46 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
         onClearFilters={handleClearFilters}
       />
 
-      {errors.hasErrors && (
-        <div className="mb-6 space-y-4">
-          {errors.pending && (
-            <div
-              className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive"
-              data-testid="error-message"
-            >
-              <span>Failed to fetch pending timesheets: {errors.pending}</span>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="ml-4"
-                data-testid="retry-button-pending"
-                onClick={() => refreshPending()}
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-          {errors.dashboard && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-              <span>Failed to fetch dashboard summary: {errors.dashboard}</span>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="ml-4"
-                data-testid="retry-button-dashboard"
-                onClick={() => refetchDashboard()}
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-          {errors.approval && (
-            <div
-              className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive"
-              role="alert"
-              data-testid="approval-error-banner"
-            >
-              <div className="flex items-center justify-between">
-                <span>Approval could not be completed. Please try again.</span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    data-testid="approval-error-details-toggle"
-                    onClick={() => setShowErrorDetails((prev) => !prev)}
+      {pageErrors.length > 0 && (
+        <div className="mb-6 space-y-3">
+          {pageErrors.map(({ source, message }) => (
+            <GlobalErrorBanner
+              key={source}
+              title={source === 'pending' ? 'Failed to fetch pending timesheets' : 'Failed to fetch dashboard summary'}
+              message={message}
+              actionLabel="Retry"
+              onAction={() => handlePageErrorRetry(source)}
+            />
+          ))}
+        </div>
+      )}
+
+      {errors.approval && (
+        <div className="mb-6">
+          <GlobalErrorBanner
+            title="Approval could not be completed"
+            message={
+              <div className="space-y-2">
+                <span>Please try again.</span>
+                {showErrorDetails && (
+                  <pre
+                    className="rounded-md bg-black/10 p-2 text-xs"
+                    data-testid="approval-error-raw"
                   >
-                    {showErrorDetails ? "Hide details" : "Details"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowErrorDetails(false);
-                      resetApproval();
-                    }}
-                  >
-                    Dismiss
-                  </Button>
-                </div>
+                    {errors.approval}
+                  </pre>
+                )}
               </div>
-              {showErrorDetails && (
-                <pre
-                  className="mt-2 rounded-md bg-black/10 p-2 text-xs"
-                  data-testid="approval-error-raw"
-                >
-                  {errors.approval}
-                </pre>
-              )}
-            </div>
-          )}
+            }
+            severity="warning"
+            actionLabel={showErrorDetails ? 'Hide details' : 'Details'}
+            onAction={() => setShowErrorDetails((prev) => !prev)}
+            onDismiss={() => {
+              setShowErrorDetails(false);
+              resetApproval();
+            }}
+            data-testid="approval-error-banner"
+          />
         </div>
       )}
 
@@ -280,7 +254,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
                   event.preventDefault();
                   const formData = new FormData(event.currentTarget);
                   const reason = (formData.get("reason") as string) ?? '';
-                  if (reason.trim()) {
+                  if (!loading.approval && reason.trim()) {
                     handleRejectionSubmit(reason);
                   }
                 }}
@@ -294,10 +268,24 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
                   className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <div className="mt-4 flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={handleRejectionCancel}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (!loading.approval) {
+                        handleRejectionCancel();
+                      }
+                    }}
+                    disabled={loading.approval}
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="destructive">
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    disabled={loading.approval}
+                    title={loading.approval ? 'Processing rejection request…' : undefined}
+                  >
                     Reject Timesheet
                   </Button>
                 </div>
