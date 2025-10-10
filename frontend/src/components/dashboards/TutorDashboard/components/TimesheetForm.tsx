@@ -6,6 +6,8 @@ import { Card, CardHeader, CardTitle } from '../../../ui/card';
 import { Button } from '../../../ui/button';
 import { Input } from '../../../ui/input';
 import LoadingSpinner from '../../../shared/LoadingSpinner/LoadingSpinner';
+import { useUiConstraints } from '../../../../lib/config/ui-config';
+import { validateTimesheet } from '../../../../lib/validation/ajv';
 
 export interface TimesheetFormData {
   courseId: number;
@@ -24,6 +26,14 @@ export interface TimesheetFormProps {
 }
 
 const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, onSubmit, onCancel, loading = false, error }) => {
+  const {
+    HOURS_MIN,
+    HOURS_MAX,
+    HOURS_STEP,
+    WEEK_START_DAY,
+    mondayOnly,
+  } = useUiConstraints();
+
   const [formData, setFormData] = useState<TimesheetFormData>({
     courseId: initialData?.courseId || 0,
     weekStartDate: initialData?.weekStartDate || new Date().toISOString().split('T')[0],
@@ -34,13 +44,57 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, o
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [autoSaveMessage, setAutoSaveMessage] = useState<string | null>(null);
   const autoSaveDelay = process.env.NODE_ENV === 'test' ? 0 : 30000;
+  const MONDAY_ERROR_MESSAGE = 'Week start must be a Monday';
+
+  const isWeekStartOnAllowedDay = useCallback(
+    (value: string | undefined) => {
+      if (!value) {
+        return false;
+      }
+
+      if (!mondayOnly) {
+        return true;
+      }
+
+      const parsed = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(parsed.getTime())) {
+        return false;
+      }
+
+      return parsed.getDay() === WEEK_START_DAY;
+    },
+    [WEEK_START_DAY, mondayOnly]
+  );
+
+  const mondayReferenceDate = useMemo(() => {
+    if (!mondayOnly) {
+      return undefined;
+    }
+
+    const base = new Date(Date.UTC(1970, 0, 4)); // Sunday, 1970-01-04
+    const offset = (WEEK_START_DAY - base.getUTCDay() + 7) % 7;
+    base.setUTCDate(base.getUTCDate() + offset);
+    return base.toISOString().split('T')[0];
+  }, [WEEK_START_DAY, mondayOnly]);
 
   const isFormValid = useMemo(() => {
     const hasCourse = formData.courseId > 0;
-    const hasWeekStart = Boolean(formData.weekStartDate);
-    const hasValidHours = Number.isFinite(formData.hours) && formData.hours > 0 && formData.hours <= 60;
-    return hasCourse && hasWeekStart && hasValidHours;
-  }, [formData.courseId, formData.weekStartDate, formData.hours]);
+    const hasWeekStart = Boolean(formData.weekStartDate) && isWeekStartOnAllowedDay(formData.weekStartDate);
+    const hasValidHours =
+      Number.isFinite(formData.hours) &&
+      formData.hours >= HOURS_MIN &&
+      formData.hours <= HOURS_MAX;
+    const noValidationErrors = Object.values(validationErrors).every(message => !message);
+    return hasCourse && hasWeekStart && hasValidHours && noValidationErrors;
+  }, [
+    formData.courseId,
+    formData.weekStartDate,
+    formData.hours,
+    HOURS_MIN,
+    HOURS_MAX,
+    validationErrors,
+    isWeekStartOnAllowedDay
+  ]);
 
   const isSubmitDisabled = loading || !isFormValid;
 
@@ -72,21 +126,47 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, o
       errors.courseId = 'Course is required';
     }
 
-    if (!formData.hours || formData.hours <= 0) {
-      errors.hours = 'Hours must be greater than 0';
-    } else if (formData.hours > 60) {
-      errors.hours = 'Hours must be between 0.1 and 60';
+    if (!formData.hours || formData.hours < HOURS_MIN) {
+      errors.hours = `Hours must be at least ${HOURS_MIN}`;
+    } else if (formData.hours > HOURS_MAX) {
+      errors.hours = `Hours must be between ${HOURS_MIN} and ${HOURS_MAX}`;
     }
 
     if (!formData.weekStartDate) {
       errors.weekStartDate = 'Week start date is required';
+    } else if (!isWeekStartOnAllowedDay(formData.weekStartDate)) {
+      errors.weekStartDate = MONDAY_ERROR_MESSAGE;
+    }
+
+    const schemaResult = validateTimesheet({
+      courseId: formData.courseId ? String(formData.courseId) : '',
+      weekStart: formData.weekStartDate,
+      hours: formData.hours,
+      description: formData.description,
+    });
+
+    if (!schemaResult.valid && schemaResult.errors) {
+      for (const error of schemaResult.errors) {
+        const path = error.instancePath.replace(/^\//, '');
+        const message = error.message ? `${error.message.charAt(0).toUpperCase()}${error.message.slice(1)}` : 'Invalid value';
+
+        if (path === 'courseId' && !errors.courseId) {
+          errors.courseId = 'Course is required';
+        } else if (path === 'weekStart' && !errors.weekStartDate) {
+          errors.weekStartDate = message === 'Must match format "date"' ? 'Week start date must be a valid date' : message;
+        } else if (path === 'hours' && !errors.hours) {
+          errors.hours = message;
+        } else if (path === 'description' && !errors.description) {
+          errors.description = message;
+        }
+      }
     }
 
     secureLogger.debug('validation run', { formData, errors });
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
-  }, [formData]);
+  }, [HOURS_MAX, HOURS_MIN, MONDAY_ERROR_MESSAGE, formData, isWeekStartOnAllowedDay]);
 
   const handleSubmit = useCallback((e: FormEvent) => {
     e.preventDefault();
@@ -103,11 +183,25 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, o
 
   const handleFieldChange = useCallback((field: keyof TimesheetFormData, value: string | number) => {
     secureLogger.debug('field change', { field, value });
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (validationErrors[field]) {
-      setValidationErrors(prev => ({ ...prev, [field]: '' }));
+    if (field === 'weekStartDate') {
+      const stringValue = typeof value === 'string' ? value : String(value);
+      if (stringValue && !isWeekStartOnAllowedDay(stringValue)) {
+        setValidationErrors(prev => ({
+          ...prev,
+          weekStartDate: MONDAY_ERROR_MESSAGE
+        }));
+        return;
+      }
     }
-  }, [validationErrors]);
+
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setValidationErrors(prev => {
+      if (!prev[field]) {
+        return prev;
+      }
+      return { ...prev, [field]: '' };
+    });
+  }, [MONDAY_ERROR_MESSAGE, isWeekStartOnAllowedDay]);
 
   return (
     <Card className="timesheet-form-modal p-6">
@@ -148,10 +242,19 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, o
             onChange={(e) => handleFieldChange('weekStartDate', e.target.value)}
             className={validationErrors.weekStartDate ? 'border-destructive ring-destructive/20' : ''}
             aria-describedby={[ 'week-start-help', validationErrors.weekStartDate ? 'week-start-error' : null ].filter(Boolean).join(' ')}
+            min={mondayReferenceDate}
+            step={mondayOnly ? 7 : undefined}
           />
           <span id="week-start-help" className="text-xs text-muted-foreground">Choose the Monday that starts this work week</span>
           {validationErrors.weekStartDate && (
-            <span id="week-start-error" className="text-xs text-destructive">{validationErrors.weekStartDate}</span>
+            <span
+              id="week-start-error"
+              className="text-xs text-destructive"
+              role="alert"
+              aria-live="polite"
+            >
+              {validationErrors.weekStartDate}
+            </span>
           )}
         </div>
 
@@ -160,16 +263,16 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, o
           <Input
             id="hours"
             type="number"
-            step="0.5"
-            min="0.1"
-            max="60"
+            step={HOURS_STEP}
+            min={HOURS_MIN}
+            max={HOURS_MAX}
             value={formData.hours || ''}
             onChange={(e) => handleFieldChange('hours', parseFloat(e.target.value) || 0)}
             onBlur={() => validateForm()}
             className={validationErrors.hours ? 'border-destructive ring-destructive/20' : ''}
             aria-describedby="hours-error hours-help"
           />
-          <span id="hours-help" className="text-xs text-muted-foreground">Enter hours worked (0.1 - 60)</span>
+          <span id="hours-help" className="text-xs text-muted-foreground">Enter hours worked ({HOURS_MIN} - {HOURS_MAX})</span>
           {validationErrors.hours && (
             <span id="hours-error" className="text-xs text-destructive">{validationErrors.hours}</span>
           )}
