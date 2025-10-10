@@ -45,6 +45,7 @@ export interface UseLecturerDashboardDataResult {
   actionLoadingId: number | null;
   handleApprovalAction: (timesheetId: number, action: ApprovalAction) => Promise<void>;
   handleBatchApproval: () => Promise<void>;
+  handleBatchRejection: () => Promise<void>;
   handleRejectionSubmit: (reason: string) => Promise<void>;
   handleRejectionCancel: () => void;
   rejectionModal: LecturerRejectionModalState;
@@ -308,6 +309,40 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
     }
   }, [approvalLoading, batchApprove, canPerformApprovals, refetchDashboard, refetchPending, selectedTimesheetsState, setSelectedTimesheets]);
 
+  const handleBatchRejection = useCallback(async () => {
+    if (!canPerformApprovals || selectedTimesheetsState.length === 0 || approvalLoading || actionLockRef.current) {
+      return;
+    }
+
+    try {
+      actionLockRef.current = true;
+      await Promise.all(
+        selectedTimesheetsState.map((timesheetId) =>
+          approveTimesheet({
+            timesheetId,
+            action: 'REJECT',
+            comment: 'Rejected via batch action',
+          }),
+        ),
+      );
+
+      await Promise.all([refetchPending(), refetchDashboard()]);
+      setSelectedTimesheets([]);
+    } catch (error) {
+      secureLogger.error('Failed to batch reject', error);
+    } finally {
+      actionLockRef.current = false;
+    }
+  }, [
+    approvalLoading,
+    approveTimesheet,
+    canPerformApprovals,
+    refetchDashboard,
+    refetchPending,
+    selectedTimesheetsState,
+    setSelectedTimesheets,
+  ]);
+
   const handleRejectionSubmit = useCallback(async (reason: string) => {
     if (!canPerformApprovals || !rejectionModal.timesheetId || approvalLoading || actionLockRef.current) {
       return;
@@ -363,6 +398,7 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
     actionLoadingId,
     handleApprovalAction,
     handleBatchApproval,
+    handleBatchRejection,
     handleRejectionSubmit,
     handleRejectionCancel,
     rejectionModal,

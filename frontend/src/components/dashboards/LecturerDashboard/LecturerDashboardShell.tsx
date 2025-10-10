@@ -5,7 +5,7 @@
  * bulk actions, and comprehensive statistics overview.
  */
 
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useLecturerDashboardData } from "./hooks/useLecturerDashboardData";
 import LecturerSummaryBanner from "./components/LecturerSummaryBanner";
 import LecturerFiltersPanel from "./components/LecturerFiltersPanel";
@@ -66,6 +66,26 @@ const StatusBreakdown = memo<{ statusBreakdown: Partial<Record<TimesheetStatus, 
 
 StatusBreakdown.displayName = "StatusBreakdown";
 
+const focusableSelectors = [
+  'a[href]',
+  'button:not([disabled])',
+  'textarea:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
+
+function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
+  if (!container) {
+    return [];
+  }
+  return Array.from(container.querySelectorAll<HTMLElement>(focusableSelectors)).filter((element) =>
+    !element.hasAttribute('disabled') &&
+    element.tabIndex !== -1 &&
+    element.getAttribute('aria-hidden') !== 'true',
+  );
+}
+
 const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = "" }) => {
   const {
     sessionStatus,
@@ -88,6 +108,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
     actionLoadingId,
     handleApprovalAction,
     handleBatchApproval,
+    handleBatchRejection,
     handleRejectionSubmit,
     handleRejectionCancel,
     rejectionModal,
@@ -96,6 +117,8 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
     resetApproval,
   } = useLecturerDashboardData();
 
+  const rejectionDialogRef = useRef<HTMLDivElement | null>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   useEffect(() => {
@@ -124,6 +147,82 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
       refetchDashboard();
     }
   }, [refreshPending, refetchDashboard]);
+
+  useEffect(() => {
+    if (!rejectionModal.open) {
+      if (previouslyFocusedElementRef.current) {
+        previouslyFocusedElementRef.current.focus({ preventScroll: true });
+        previouslyFocusedElementRef.current = null;
+      }
+      return;
+    }
+
+    const dialog = rejectionDialogRef.current;
+    if (!dialog) {
+      return;
+    }
+
+    previouslyFocusedElementRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
+    const focusFirstElement = () => {
+      const focusTargets = getFocusableElements(dialog);
+      if (focusTargets.length > 0) {
+        focusTargets[0].focus({ preventScroll: true });
+      } else {
+        dialog.focus({ preventScroll: true });
+      }
+    };
+
+    focusFirstElement();
+    const rafId = window.requestAnimationFrame(focusFirstElement);
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!rejectionDialogRef.current) {
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleRejectionCancel();
+        return;
+      }
+
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const focusableElements = getFocusableElements(rejectionDialogRef.current);
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        focusFirstElement();
+        return;
+      }
+
+      const activeElement = document.activeElement as HTMLElement | null;
+      const currentIndex = activeElement ? focusableElements.indexOf(activeElement) : -1;
+
+      if (event.shiftKey) {
+        const nextIndex = currentIndex <= 0 ? focusableElements.length - 1 : currentIndex - 1;
+        event.preventDefault();
+        focusableElements[nextIndex].focus({ preventScroll: true });
+      } else {
+        const nextIndex =
+          currentIndex >= focusableElements.length - 1 || currentIndex === -1
+            ? 0
+            : currentIndex + 1;
+        event.preventDefault();
+        focusableElements[nextIndex].focus({ preventScroll: true });
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [handleRejectionCancel, rejectionModal.open]);
 
   if (pageLoading) {
     return (
@@ -222,7 +321,8 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
             selectedTimesheets={selectedTimesheets}
             onSelectionChange={handleSelectionChange}
             onApprovalAction={handleApprovalAction}
-            onBatchApprove={handleBatchApproval}
+            onApproveSelected={handleBatchApproval}
+            onRejectSelected={handleBatchRejection}
             actionLoadingId={actionLoadingId}
             onClearFilters={handleClearFilters}
           />
@@ -240,10 +340,18 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
 
       {rejectionModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-md">
+          <Card
+            ref={rejectionDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lecturer-rejection-modal-title"
+            aria-describedby="lecturer-rejection-modal-description"
+            tabIndex={-1}
+            className="w-full max-w-md focus:outline-none"
+          >
             <CardHeader>
-              <CardTitle>Reject Timesheet</CardTitle>
-              <CardDescription>
+              <CardTitle id="lecturer-rejection-modal-title">Reject Timesheet</CardTitle>
+              <CardDescription id="lecturer-rejection-modal-description">
                 Please provide a clear reason for rejection. This will be sent
                 to the tutor.
               </CardDescription>
