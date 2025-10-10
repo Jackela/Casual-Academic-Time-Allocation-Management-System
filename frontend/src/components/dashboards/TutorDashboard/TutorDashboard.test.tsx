@@ -10,6 +10,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import TutorDashboard from "./TutorDashboard";
+import { messages } from "../../../i18n/messages";
 import {
   createMockTimesheetPage,
   createMockDashboardSummary,
@@ -412,14 +413,18 @@ describe("TutorDashboard Component", () => {
 
       const paySummaryScope = within(paySummaryElement);
 
-      expect(paySummaryScope.getByText("Total Earned:")).toBeInTheDocument();
-      expect(paySummaryScope.getByText("$8,593.50")).toBeInTheDocument();
+      expect(
+        paySummaryScope.getByText(`${messages.tutorDashboard.totalEarnings}:`),
+      ).toBeInTheDocument();
       expect(paySummaryScope.getByText("This Week:")).toBeInTheDocument();
-      expect(paySummaryScope.getByText("$525")).toBeInTheDocument();
       expect(
         paySummaryScope.getByText("Average per Timesheet:"),
       ).toBeInTheDocument();
-      expect(paySummaryScope.getByText("$306.90")).toBeInTheDocument();
+      const [totalEarningsValue, thisWeekValue, averageValue] =
+        paySummaryScope.getAllByText(/AUD/, { selector: "strong" });
+      expect(totalEarningsValue.textContent).toMatch(/8,593\.50/);
+      expect(thisWeekValue.textContent).toMatch(/525/);
+      expect(averageValue.textContent).toMatch(/306\.90/);
     });
 
     it("should show earnings breakdown by course", async () => {

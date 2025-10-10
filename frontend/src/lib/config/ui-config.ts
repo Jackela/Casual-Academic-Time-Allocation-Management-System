@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 
 import { getTimesheetUiConstraints } from '../validation/ajv';
 import type { Currency, TimesheetUiConstraints } from '../../types/timesheet';
@@ -61,3 +61,44 @@ export const useUiConstraints = () =>
     }),
     [],
   );
+
+export const useCurrencyFormatter = () => {
+  const { CURRENCY } = useUiConstraints();
+
+  const baseFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: CURRENCY,
+        currencyDisplay: 'code',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [CURRENCY],
+  );
+
+  return useCallback(
+    (value: number, options?: Intl.NumberFormatOptions) => {
+      const amount =
+        typeof value === 'number' && Number.isFinite(value)
+          ? value
+          : Number(value) || 0;
+
+      if (!options) {
+        return baseFormatter.format(amount);
+      }
+
+      const formatter = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: CURRENCY,
+        currencyDisplay: 'code',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        ...options,
+      });
+
+      return formatter.format(amount);
+    },
+    [CURRENCY, baseFormatter],
+  );
+};

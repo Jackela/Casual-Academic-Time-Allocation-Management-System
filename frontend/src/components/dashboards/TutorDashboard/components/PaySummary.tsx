@@ -1,7 +1,8 @@
 import { memo } from 'react';
 import { Card, CardContent, CardTitle } from '../../../ui/card';
 import { Button } from '../../../ui/button';
-import { formatters } from '../../../../utils/formatting';
+import { useCurrencyFormatter } from '../../../../lib/config/ui-config';
+import { messages } from '../../../../i18n/messages';
 
 export interface PaySummaryProps {
   totalEarned: number;
@@ -12,9 +13,15 @@ export interface PaySummaryProps {
 }
 
 const PaySummary = memo<PaySummaryProps>(({ totalEarned, thisWeekPay, averagePerTimesheet, paymentStatus, className = '' }) => {
-  const totalEarnedText = formatters.currencyValue(totalEarned);
-  const averageText = formatters.currencyValue(averagePerTimesheet);
-  const thisWeekText = formatters.currencyValue(thisWeekPay).replace(/\.00$/, '');
+  const formatCurrency = useCurrencyFormatter();
+  const totalEarningsLabel = messages.tutorDashboard.totalEarnings;
+
+  const totalEarnedText = formatCurrency(totalEarned);
+  const averageText = formatCurrency(averagePerTimesheet);
+  const thisWeekText = formatCurrency(thisWeekPay, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
   const cardClassName = ['p-4', className].filter(Boolean).join(' ');
 
   return (
@@ -22,16 +29,16 @@ const PaySummary = memo<PaySummaryProps>(({ totalEarned, thisWeekPay, averagePer
       <CardTitle className="mb-2 text-lg font-semibold">Pay Summary</CardTitle>
       <CardContent className="space-y-2 p-0">
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Total Earned:</span>
-          <strong className="text-foreground">${totalEarnedText}</strong>
+          <span className="text-muted-foreground">{totalEarningsLabel}:</span>
+          <strong className="text-foreground">{totalEarnedText}</strong>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">This Week:</span>
-          <strong className="text-foreground">${thisWeekText}</strong>
+          <strong className="text-foreground">{thisWeekText}</strong>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Average per Timesheet:</span>
-          <strong className="text-foreground">${averageText}</strong>
+          <strong className="text-foreground">{averageText}</strong>
         </div>
 
         <div className="pt-4">
@@ -46,7 +53,7 @@ const PaySummary = memo<PaySummaryProps>(({ totalEarned, thisWeekPay, averagePer
         <div className="pt-4">
           <h4 className="mb-2 font-semibold">Tax Information</h4>
           <div className="space-y-1 text-sm text-muted-foreground">
-            <p>Year-to-Date Earnings: ${totalEarnedText}</p>
+            <p>Year-to-Date Earnings: {totalEarnedText}</p>
             <Button variant="outline" size="sm" className="mt-2 w-full">Download Tax Summary</Button>
           </div>
         </div>
