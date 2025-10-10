@@ -43,7 +43,19 @@ export interface TimesheetTableProps {
   approvalRole?: ApprovalRole;
   actionsDisabled?: boolean;
   actionsDisabledReason?: string;
+  pagination?: TimesheetTablePagination;
 }
+
+interface TimesheetTablePagination {
+  currentPage: number;
+  pageSize: number;
+  totalCount: number;
+  pageSizeOptions?: number[];
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
+}
+
+const DEFAULT_PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 type DerivedColumnKey = 'tutor' | 'course' | 'totalPay' | 'actions' | 'selection';
 type TimesheetColumnKey = keyof Timesheet | DerivedColumnKey;
@@ -600,6 +612,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   approvalRole,
   actionsDisabled = false,
   actionsDisabledReason,
+  pagination,
 }) => {
   const columns = useMemo<Column[]>(() => {
     const dynamicColumns: Column[] = [];
@@ -691,6 +704,101 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 
   const virtualizationEnabled = timesheets.length >= virtualizeThreshold;
 
+  const renderPagination = () => {
+    if (!pagination) {
+      return null;
+    }
+
+    const {
+      currentPage,
+      pageSize,
+      totalCount,
+      pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
+      onPageChange,
+      onPageSizeChange,
+    } = pagination;
+
+    const safePageSize = Math.max(pageSize, 1);
+    const totalPages = Math.max(1, Math.ceil(totalCount / safePageSize));
+    const safePage = Math.min(Math.max(currentPage, 0), totalPages - 1);
+    const canGoPrevious = safePage > 0 && Boolean(onPageChange);
+    const canGoNext = safePage < totalPages - 1 && Boolean(onPageChange);
+
+    const handlePageChange = (nextPage: number) => {
+      if (!onPageChange) {
+        return;
+      }
+      const clamped = Math.min(Math.max(nextPage, 0), totalPages - 1);
+      if (clamped !== safePage) {
+        onPageChange(clamped);
+      }
+    };
+
+    const handlePageSizeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const nextSize = Number(event.target.value);
+      if (!Number.isFinite(nextSize) || nextSize <= 0) {
+        return;
+      }
+      if (onPageSizeChange) {
+        onPageSizeChange(nextSize);
+      }
+      if (onPageChange) {
+        onPageChange(0);
+      }
+    };
+
+    return (
+      <div
+        className="flex flex-wrap items-center gap-4"
+        role="navigation"
+        aria-label="Pagination"
+      >
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="inline-flex h-11 min-w-[2.75rem] items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label="Go to previous page"
+            onClick={() => handlePageChange(safePage - 1)}
+            disabled={!canGoPrevious}
+          >
+            Previous
+          </button>
+          <span className="text-sm text-muted-foreground" aria-live="polite">
+            Page <span className="font-medium text-foreground">{safePage + 1}</span> of{' '}
+            <span className="font-medium text-foreground">{totalPages}</span>
+          </span>
+          <button
+            type="button"
+            className="inline-flex h-11 min-w-[2.75rem] items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label="Go to next page"
+            onClick={() => handlePageChange(safePage + 1)}
+            disabled={!canGoNext}
+          >
+            Next
+          </button>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          Rows per page
+          <select
+            value={safePageSize}
+            onChange={handlePageSizeChange}
+            aria-label="Rows per page"
+            className="h-11 min-w-[4.5rem] rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!onPageSizeChange}
+          >
+            {[...new Set([...pageSizeOptions, safePageSize])]
+              .sort((a, b) => a - b)
+              .map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+          </select>
+        </label>
+      </div>
+    );
+  };
+
   const handleSelectAll = useCallback((selected: boolean) => {
     if (!onSelectionChange || actionsDisabled) {
       return;
@@ -779,9 +887,14 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         </tbody>
       </table>
 
-      {showSelection && selectedIds.length > 0 && (
-        <div className="table-footer">
-          <span>{selectedIds.length} of {timesheets.length} selected</span>
+      {(pagination || (showSelection && selectedIds.length > 0)) && (
+        <div className="table-footer flex flex-wrap items-center justify-between gap-4 pt-4">
+          {pagination && renderPagination()}
+          {showSelection && selectedIds.length > 0 && (
+            <span className="text-sm text-muted-foreground">
+              {selectedIds.length} of {timesheets.length} selected
+            </span>
+          )}
         </div>
       )}
     </div>
