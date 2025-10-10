@@ -11,6 +11,7 @@ import { formatters } from '../../../utils/formatting';
 import { secureLogger } from '../../../utils/secure-logger';
 import StatusBadge from '../StatusBadge/StatusBadge';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
+import RelativeTime from '../../RelativeTime';
 import './TimesheetTable.css';
 
 // =============================================================================
@@ -339,7 +340,12 @@ function renderDefaultCell(
       );
 
     case 'createdAt':
-      return formatters.relativeTime(timesheet.createdAt);
+      return (
+        <RelativeTime
+          timestamp={timesheet.createdAt}
+          className="timesheet-relative-time"
+        />
+      );
 
     case 'actions': {
       if (actionMode === 'tutor') {
