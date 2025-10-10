@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "timesheet.schema.json",
+  "type": "object",
+  "required": [
+    "courseId",
+    "weekStart",
+    "hours",
+    "description"
+  ],
+  "properties": {
+    "courseId": {
+      "type": "string"
+    },
+    "weekStart": {
+      "type": "string",
+      "format": "date",
+      "x-mondayOnly": true
+    },
+    "hours": {
+      "type": "number",
+      "minimum": 0.25,
+      "maximum": 60,
+      "multipleOf": 0.25
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 280
+    },
+    "status": {
+      "$ref": "common.schema.json#/$defs/TimesheetStatus"
+    }
+  },
+  "additionalProperties": false
+}

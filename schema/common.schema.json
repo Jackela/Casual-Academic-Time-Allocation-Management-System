@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common.schema.json",
+  "$defs": {
+    "Currency": {
+      "type": "string",
+      "enum": ["AUD"]
+    },
+    "WeekDay": {
+      "type": "integer",
+      "enum": [0, 1, 2, 3, 4, 5, 6]
+    },
+    "TimesheetStatus": {
+      "type": "string",
+      "enum": [
+        "Draft",
+        "TutorConfirmed",
+        "LecturerConfirmed",
+        "FinalApproved",
+        "Rejected"
+      ]
+    }
+  }
+}
