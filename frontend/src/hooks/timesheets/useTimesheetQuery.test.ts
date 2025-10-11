@@ -54,7 +54,7 @@ describe('useTimesheetQuery', () => {
     const [query, signal] = mockTimesheetService.getTimesheets.mock.calls[0] as [TimesheetQuery, AbortSignal];
     expect(query).toMatchObject({
       page: 0,
-      size: 10,
+      size: 20,
       sortBy: 'createdAt',
       sortDirection: 'desc',
       tutorId: baseUser.id,

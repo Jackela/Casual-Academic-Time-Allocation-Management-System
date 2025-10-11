@@ -1,0 +1,31 @@
+---
+description: Backend DDD/DbC/SSOT conventions; status enums, invariants, error handling, and test data patterns.
+globs:
+  - "src/main/java/**"
+  - "src/test/java/**"
+alwaysApply: false
+---
+
+# Project Rule — Backend DDD & Conventions
+
+## Architecture & layering
+- Controllers stay thin; delegate to application services.
+- Domain enforces invariants (single source of business rules). Prefer composition over inheritance.
+- Keep single source of truth (SSOT) for configuration (e.g., `TimesheetValidationProperties`). Do not hardcode thresholds in tests.
+
+## Status enums (canonical)
+- Use only: `DRAFT`, `PENDING_TUTOR_REVIEW`, `APPROVED_BY_TUTOR`, `APPROVED_BY_LECTURER_AND_TUTOR`, `FINAL_APPROVED`, `REJECTED`, `MODIFICATION_REQUESTED`.
+- Treat legacy statuses as deprecated; do not introduce them in new code/tests.
+
+## Numeric & temporal types
+- Use `BigDecimal` for money/hours; compare with `compareTo(...) == 0` to avoid scale issues.
+- Weeks start on Monday; use dedicated helpers (e.g., Monday-of-date utilities) instead of raw literals.
+
+## Error handling
+- Fail fast; no silent failures. Bubble to `GlobalExceptionHandler` and map to appropriate HTTP status.
+- Exhaustively handle enum branches; unknown/new values must fail fast.
+
+## Tests
+- Integration tests: prefer Testcontainers PostgreSQL; allow explicit H2 fallback profile when Docker is unavailable.
+- Builders default IDs to `null` so JPA generates IDs (avoid collisions). Seed users and generate JWT with actual DB claims.
+

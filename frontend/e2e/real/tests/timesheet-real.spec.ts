@@ -3,6 +3,7 @@ import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
 import { acquireAuthTokens, createTimesheetWithStatus, finalizeTimesheet, transitionTimesheet, type AuthContext } from '../../utils/workflow-helpers';
 import { E2E_CONFIG } from '../../config/e2e.config';
 import { TUTOR_STORAGE } from '../utils/auth-storage';
+import { statusLabel, statusLabelPattern } from '../../utils/status-labels';
 
 /**
  * Real backend verification using live data and SSOT workflow
@@ -76,7 +77,7 @@ test.describe('Real Backend Timesheet Operations', () => {
 
     const row = dashboard.page.getByTestId(`timesheet-row-${seed.id}`);
     await expect(row).toBeVisible();
-    await expect(dashboard.getStatusBadge(seed.id)).toContainText(/Draft/i);
+    await expect(dashboard.getStatusBadge(seed.id)).toContainText(statusLabel('DRAFT'));
     await expect(row).toContainText(description);
   });
 
@@ -100,7 +101,7 @@ test.describe('Real Backend Timesheet Operations', () => {
     await expect(async () => {
       await dashboard.refreshDashboard();
       const text = await dashboard.getStatusBadge(draft.id).textContent();
-      expect(text).toMatch(/Pending Tutor Confirmation|Awaiting Tutor/i);
+      expect(text).toMatch(statusLabelPattern('PENDING_TUTOR_CONFIRMATION'));
     }).toPass({ timeout: 20000 });
 
     await transitionTimesheet(request, tokens, draft.id, 'TUTOR_CONFIRM');

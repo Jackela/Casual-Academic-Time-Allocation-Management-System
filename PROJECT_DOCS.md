@@ -106,14 +106,30 @@ sequenceDiagram
 - Playwright JSON reporter configured in `frontend/playwright.config.ts`.
 - Tests avoid magic values: enum names over raw strings; BigDecimal via `compareTo`; thresholds injected from properties.
 
-## How to Run
+## How to Run (2025-10-11 refresh)
 
-- Backend Unit: `node tools/scripts/test-backend-unit.js`
-- Backend Integration: `node tools/scripts/test-backend-integration.js`
-- Frontend Unit: `node tools/scripts/test-frontend-unit.js`
-- Frontend Contract: `node tools/scripts/test-frontend-contract.js`
-- Frontend E2E (ui/mobile/all): `node tools/scripts/run-e2e.js --project=ui|mobile|all`
-- Full layered: `node tools/scripts/test-all.js`
+### Backend (Spring Boot)
+- Full suite / CI parity: `./gradlew test`
+- Targeted unit slice: `node tools/scripts/test-backend-unit.js`
+- Targeted integration slice: `node tools/scripts/test-backend-integration.js`
+
+### Frontend (React/Vite)
+- Complete coverage run (Vitest): `npm run test:coverage`
+- Unit-only focus: `npm run test:unit`
+- Component harness: `npm run test:component`
+- Contract/API schema checks: `npm run test:contract`
+
+### End-to-End (Playwright Orchestrated)
+- Full pipeline (auto-select projects): `npm run test:e2e`
+- Mock-only fast pass: `npm run test:e2e:mock`
+- Backend-integrated scenarios: `npm run test:e2e:real`
+- Visual regression sweeps: `npm run test:e2e:visual`
+- Tag filters: `npm run test:e2e:smoke | npm run test:e2e:critical | npm run test:e2e:integration`
+- Launch reporter UI for latest run: `npm run test:e2e:report`
+
+### Utilities
+- Cross-platform port cleanup: `node scripts/cleanup-ports.js --ports=8084,5174`
+- Full stack orchestrated regression: `node tools/scripts/test-all.js`
 
 ## Report Locations
 
@@ -157,3 +173,12 @@ sequenceDiagram
 - Dropped stale assets and generated artifacts (`src/assets/react.svg`, nested `frontend/frontend/`, `playwright/.cache`) that were no longer referenced.
 - Simplified `vite.config.ts` manual chunk config to match the active dependency graph.
 - Added this maintenance note so future engineers know the redundant tooling was intentionally removed.
+
+## Workspace Hygiene Update (2025-10-11)
+
+- Introduced `.devtools/` to house AI assistant configurations formerly at the repository root.
+- Documented task matrix (`docs/tasks.md`) and translation charter (`docs/governance/translation-charter.md`) to standardise English-only assets.
+- Seeded `infra/` as the landing zone for future deployment/IaC assets; see `docs/adr/0001-root-hygiene-and-contract-pipeline.md`.
+- Added `CONTRIBUTING.md` and `.github/CODEOWNERS` for governance.
+- Established contract-first workflow (`tools/scripts/contracts-pipeline.js`) producing Java/TypeScript artifacts and the `schema/contracts.lock` drift gate.
+- Codified quick command references and workspace map in `README.md`.

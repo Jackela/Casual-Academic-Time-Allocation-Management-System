@@ -141,7 +141,7 @@ export class TutorDashboardPage {
   }
 
   async getTimesheetRows() {
-    return this.timesheetsTable.locator('tbody tr');
+    return this.page.locator('[data-testid^="timesheet-row-"]');
   }
 
   async expectTableHeaders(expectedHeaders: string[]) {
@@ -280,6 +280,7 @@ export class TutorDashboardPage {
   async saveEditChanges() {
     const saveButton = this.page.getByRole('button', { name: /Update Timesheet|Create Timesheet/i });
     await expect(saveButton).toBeVisible();
+    await expect(saveButton).toBeEnabled({ timeout: 5000 });
     await saveButton.click();
   }
 

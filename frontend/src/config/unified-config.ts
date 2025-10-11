@@ -39,6 +39,7 @@ export interface ApiConfiguration {
       base: string;
       pending: string;
       byTutor: string;
+      config: string;
     };
     approvals: string;
     dashboard: {
@@ -123,7 +124,8 @@ class ConfigurationBuilder {
         timesheets: {
           base: '/api/timesheets',
           pending: '/api/timesheets/pending-final-approval',
-          byTutor: '/api/timesheets/tutor'
+          byTutor: '/api/timesheets/tutor',
+          config: '/api/timesheets/config'
         },
         approvals: '/api/approvals',
         dashboard: {

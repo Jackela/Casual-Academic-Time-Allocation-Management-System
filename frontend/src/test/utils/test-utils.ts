@@ -1,5 +1,13 @@
-import { Fragment, createElement, useEffect, type ReactNode } from 'react';
-import type { Timesheet, TimesheetPage, PageInfo, DashboardSummary, TimesheetStatus } from '../../types/api';
+import { render } from '@testing-library/react';
+import { expect, vi } from 'vitest';
+import { Fragment, createElement, useEffect, type ReactNode, type ReactElement } from 'react';
+import type {
+  Timesheet,
+  TimesheetPage,
+  PageInfo,
+  DashboardSummary,
+  TimesheetStatus,
+} from '../../types/api';
 import type { User } from '../../types/auth';
 import { authManager } from '../../services/auth-manager';
 
@@ -160,4 +168,73 @@ export function waitForAsync(ms = 0): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+export function createMockTimesheets(
+  count = 1,
+  overrides: Partial<Timesheet> = {},
+): Timesheet[] {
+  return Array.from({ length: count }, (_, index) =>
+    createMockTimesheet({
+      ...overrides,
+      id: overrides.id ?? index + 1,
+    }),
+  );
+}
+
+export function mockIntersectionObserver() {
+  const observe = vi.fn();
+  const unobserve = vi.fn();
+  const disconnect = vi.fn();
+  const mock = vi.fn(() => ({
+    observe,
+    unobserve,
+    disconnect,
+    takeRecords: vi.fn(() => []),
+    root: null,
+    rootMargin: '',
+    thresholds: [],
+  }));
+
+  Object.defineProperty(globalThis, 'IntersectionObserver', {
+    writable: true,
+    configurable: true,
+    value: mock,
+  });
+
+  return { observe, unobserve, disconnect, mock };
+}
+
+export function testPerformanceWithManyItems<T>(
+  renderFactory: (args: { items: T[] }) => ReactElement,
+  itemFactory: (index: number) => T,
+  itemCount = 500,
+  maxDurationMs = 1200,
+) {
+  const items = Array.from({ length: itemCount }, (_, index) => itemFactory(index));
+  const startTime = performance.now();
+  const result = render(renderFactory({ items }));
+  const duration = performance.now() - startTime;
+  expect(duration).toBeLessThan(maxDurationMs);
+  result.unmount();
+}
+
+type MockApiResponseOverrides = {
+  status?: number;
+  statusText?: string;
+  headers?: Record<string, string>;
+  config?: Record<string, unknown>;
+};
+
+export function createMockApiResponse<T>(
+  data: T,
+  overrides: MockApiResponseOverrides = {},
+) {
+  return {
+    data,
+    status: overrides.status ?? 200,
+    statusText: overrides.statusText ?? 'OK',
+    headers: overrides.headers ?? {},
+    config: overrides.config ?? {},
+  };
 }

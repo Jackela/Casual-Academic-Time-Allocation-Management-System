@@ -1,13 +1,17 @@
 import { test as base, expect, mockResponses } from '../../../fixtures/base';
 import type { Page } from '@playwright/test';
 import { setupMockAuth } from '../../../shared/mock-backend/auth';
+import { statusLabel } from '../../../utils/status-labels';
 
 // Mock responses specifically for UI tests
 const uiMockResponses = {
   timesheets: {
     withData: {
       success: true,
-      timesheets: mockResponses.timesheets.withData.content,
+      timesheets: mockResponses.timesheets.withData.content.map((item) => ({
+        ...item,
+        status: 'PENDING_TUTOR_CONFIRMATION',
+      })),
       pageInfo: {
         currentPage: 0,
         pageSize: 20,
@@ -41,6 +45,11 @@ const uiMockResponses = {
     }
   }
 };
+
+const [defaultTimesheet] = uiMockResponses.timesheets.withData.timesheets;
+if (!defaultTimesheet) {
+  throw new Error('Expected uiMockResponses.timesheets.withData to include at least one entry.');
+}
 
 // Clean UI test fixture that doesn't conflict with existing routes
 type UITestFixtures = {
@@ -80,13 +89,22 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
     await expect(table.locator('th:has-text("Hours")')).toBeVisible();
     await expect(table.locator('th:has-text("Actions")')).toBeVisible();
 
-    const rows = table.locator('tbody tr');
+    const rows = table.locator('tbody tr').filter({ hasText: defaultTimesheet?.tutorName ?? '' });
     await expect(rows).toHaveCount(1);
-    await expect(rows.first()).toContainText('John Doe');
-    await expect(rows.first()).toContainText('Introduction to Programming');
+    const firstRow = rows.first();
+    await expect(firstRow).toContainText('John Doe');
+    await expect(firstRow).toContainText('Introduction to Programming');
+
+    const statusBadge = page.getByTestId(`status-badge-${defaultTimesheet.id}`);
+    await expect(statusBadge).toContainText(statusLabel('PENDING_TUTOR_CONFIRMATION'));
+
+    const approveButton = page.getByTestId(`approve-btn-${defaultTimesheet.id}`);
+    const rejectButton = page.getByTestId(`reject-btn-${defaultTimesheet.id}`);
+    await expect(approveButton).toBeDisabled();
+    await expect(rejectButton).toBeDisabled();
   });
 
-  test('should hide approval buttons for non-actionable statuses', async ({ uiPage: page }) => {
+  test('should disable approval buttons for non-actionable statuses', async ({ uiPage: page }) => {
     // Create response with non-actionable status
     const pendingReviewResponse = {
       success: true,
@@ -112,10 +130,13 @@ test.describe('Dashboard UI with Mocked Data', { tag: '@ui' }, () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="main-dashboard-title"]')).toBeVisible();
 
-    await expect(page.locator('button:has-text("Final Approve")')).toHaveCount(0);
-    await expect(page.locator('button:has-text("Reject")')).toHaveCount(0);
+    const approveButton = page.getByTestId(`approve-btn-${defaultTimesheet.id}`);
+    const rejectButton = page.getByTestId(`reject-btn-${defaultTimesheet.id}`);
+    await expect(approveButton).toBeDisabled();
+    await expect(rejectButton).toBeDisabled();
+
     const actionCell = page.locator('[data-testid="action-buttons"]');
-    await expect(actionCell.first()).toContainText('—');
+    await expect(actionCell.first()).toContainText(/Action not available|—/i);
   });
 
   test('should show approve/reject buttons when timesheet is tutor confirmed', async ({ uiPage: page }) => {

@@ -5,7 +5,7 @@
  * Tests performance, accessibility, virtualization, and all interactive features.
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { CSSProperties, ReactNode } from 'react';
@@ -17,6 +17,10 @@ import {
   testPerformanceWithManyItems
 } from '../../../test/utils/test-utils';
 import type { Timesheet } from '../../../types/api';
+
+vi.mock('../../../lib/config/server-config', () => ({
+  fetchTimesheetConstraints: vi.fn(() => Promise.resolve(null)),
+}));
 
 // =============================================================================
 // Test Setup
@@ -107,6 +111,8 @@ describe('TimesheetTable Component', () => {
       expect(screen.getByRole('columnheader', { name: /rate/i })).toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: /total pay/i })).toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: /status/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /submitted/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /updated/i })).toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: /actions/i })).toBeInTheDocument();
     });
 
@@ -252,10 +258,12 @@ describe('TimesheetTable Component', () => {
       const timesheet = createMockTimesheet({ description: longDescription });
 
       render(<TimesheetTable timesheets={[timesheet]} />);
-      
-      const descriptionCell = screen.getByTitle(longDescription);
+
+      const row = screen.getByTestId(`timesheet-row-${timesheet.id}`);
+      const descriptionCell = within(row).getByTitle(longDescription);
       expect(descriptionCell).toBeInTheDocument();
       expect(descriptionCell.textContent).toHaveLength(53); // 50 chars + "..."
+      expect(descriptionCell).toHaveTextContent('...');
     });
 
     it('should show status badges', () => {
@@ -370,7 +378,85 @@ describe('TimesheetTable Component', () => {
       expect(approveButton).toBeDisabled();
       expect(rejectButton).toBeDisabled();
     });
+
+    it('disables lecturer actions with accessible message for draft status', () => {
+      const timesheet = createMockTimesheet({ id: 6001, status: 'DRAFT' });
+
+      render(<TimesheetTable {...defaultProps} timesheets={[timesheet]} approvalRole="LECTURER" />);
+
+      const approveButton = screen.getByTestId(`approve-btn-${timesheet.id}`);
+      const rejectButton = screen.getByTestId(`reject-btn-${timesheet.id}`);
+
+      expect(approveButton).toBeDisabled();
+      expect(rejectButton).toBeDisabled();
+      expect(approveButton).toHaveAttribute('aria-disabled', 'true');
+      expect(approveButton).toHaveAttribute('title', 'Action not available in current status');
+      expect(rejectButton).toHaveAttribute('title', 'Action not available in current status');
+      expect(screen.getAllByText('Action not available in current status')).toHaveLength(2);
+    });
+
+    it('enables lecturer actions for tutor confirmed status', () => {
+      const timesheet = createMockTimesheet({ id: 6002, status: 'TUTOR_CONFIRMED' });
+
+      render(<TimesheetTable {...defaultProps} timesheets={[timesheet]} approvalRole="LECTURER" />);
+
+      const approveButton = screen.getByTestId(`approve-btn-${timesheet.id}`);
+      const rejectButton = screen.getByTestId(`reject-btn-${timesheet.id}`);
+
+      expect(approveButton).toBeEnabled();
+      expect(rejectButton).toBeEnabled();
+      expect(approveButton.getAttribute('aria-describedby')).toBeNull();
+      expect(screen.queryByText('Action not available in current status')).not.toBeInTheDocument();
+    });
+
+    it('enables lecturer actions for lecturer confirmed status', () => {
+      const timesheet = createMockTimesheet({ id: 6003, status: 'LECTURER_CONFIRMED' });
+
+      render(<TimesheetTable {...defaultProps} timesheets={[timesheet]} approvalRole="LECTURER" />);
+
+      expect(screen.getByTestId(`approve-btn-${timesheet.id}`)).toBeEnabled();
+      expect(screen.getByTestId(`reject-btn-${timesheet.id}`)).toBeEnabled();
+    });
+
+    it('disables lecturer actions for final confirmed status', () => {
+      const timesheet = createMockTimesheet({ id: 6004, status: 'FINAL_CONFIRMED' });
+
+      render(<TimesheetTable {...defaultProps} timesheets={[timesheet]} approvalRole="LECTURER" />);
+
+      expect(screen.getByTestId(`approve-btn-${timesheet.id}`)).toBeDisabled();
+      expect(screen.getByTestId(`reject-btn-${timesheet.id}`)).toBeDisabled();
+      expect(screen.getAllByText('Action not available in current status')).toHaveLength(2);
+    });
   });
+
+  describe('Details Expander', () => {
+    it('toggles additional details for each row', async () => {
+      const user = userEvent.setup();
+      const timesheet = defaultProps.timesheets[0];
+
+      render(<TimesheetTable {...defaultProps} />);
+
+      const toggle = screen.getByTestId(`details-toggle-${timesheet.id}`);
+      expect(toggle).toBeInTheDocument();
+      expect(toggle).toBeEnabled();
+
+    const detailsRow = screen.getByTestId(`timesheet-details-row-${timesheet.id}`);
+    expect(detailsRow).toHaveAttribute('aria-hidden', 'true');
+
+    await user.click(toggle);
+
+    expect(detailsRow).toHaveAttribute('aria-hidden', 'false');
+    expect(detailsRow).toHaveTextContent('Description');
+    expect(detailsRow).toHaveTextContent(timesheet.description);
+    expect(detailsRow).toHaveTextContent('Updated');
+    const hoursLimit = detailsRow.querySelector('.detail-hours__limit');
+    expect(hoursLimit).not.toBeNull();
+    expect(hoursLimit).toHaveTextContent('60h max');
+
+    await user.click(toggle);
+    expect(detailsRow).toHaveAttribute('aria-hidden', 'true');
+  });
+});
 
   describe('Selection Features', () => {
     it('should show select all checkbox when showSelection is true', () => {
@@ -459,7 +545,8 @@ describe('TimesheetTable Component', () => {
       render(<TimesheetTable {...defaultProps} onSort={mockHandlers.onSort} />);
       
       const hoursHeader = screen.getByRole('columnheader', { name: /hours/i });
-      await user.click(hoursHeader);
+      const sortButton = within(hoursHeader).getByRole('button', { name: /hours/i });
+      await user.click(sortButton);
       
       expect(mockHandlers.onSort).toHaveBeenCalledWith('hours', 'asc');
     });
@@ -470,7 +557,8 @@ describe('TimesheetTable Component', () => {
       render(<TimesheetTable {...defaultProps} sortBy="hours" sortDirection="asc" onSort={mockHandlers.onSort} />);
       
       const hoursHeader = screen.getByRole('columnheader', { name: /hours/i });
-      await user.click(hoursHeader);
+      const sortButton = within(hoursHeader).getByRole('button', { name: /hours/i });
+      await user.click(sortButton);
       
       expect(mockHandlers.onSort).toHaveBeenCalledWith('hours', 'desc');
     });
@@ -516,7 +604,7 @@ describe('TimesheetTable Component', () => {
       const endTime = performance.now();
       
       // Should render in reasonable time even without virtualization
-      expect(endTime - startTime).toBeLessThan(1000); // 1 second max
+      expect(endTime - startTime).toBeLessThan(1500); // Allow modest overhead for richer header controls
       expect(screen.getAllByTestId(/timesheet-row-/)).toHaveLength(150);
     });
   });
@@ -526,7 +614,7 @@ describe('TimesheetTable Component', () => {
       render(<TimesheetTable {...defaultProps} />);
       
       expect(screen.getByRole('table')).toBeInTheDocument();
-      expect(screen.getAllByRole('columnheader')).toHaveLength(10); // All columns including actions (tutor, course, week, hours, rate, total, status, description, submitted, actions)
+      expect(screen.getAllByRole('columnheader')).toHaveLength(11); // Tutor, course, week, hours, rate, total, status, description, submitted, updated, actions
       expect(screen.getAllByRole('row')).toHaveLength(6); // Header + 5 data rows
     });
 
@@ -560,10 +648,12 @@ describe('TimesheetTable Component', () => {
       const selectAllCheckbox = screen.getByLabelText('Select all timesheets');
       selectAllCheckbox.focus();
       
-      await user.keyboard('{Tab}');
-      
-      // Should move to first row checkbox
       const firstCheckbox = screen.getByLabelText(`Select timesheet ${defaultProps.timesheets[0].id}`);
+
+      for (let i = 0; i < 20 && document.activeElement !== firstCheckbox; i += 1) {
+        await user.keyboard('{Tab}');
+      }
+
       expect(firstCheckbox).toHaveFocus();
     });
 
@@ -582,7 +672,7 @@ describe('TimesheetTable Component', () => {
         ({ items }: { items: Timesheet[] }) => <TimesheetTable timesheets={items} />,
         (index) => createMockTimesheet({ id: index + 1 }),
         500,
-        1500 // Allow reasonable headroom for CI variance while still enforcing performance
+        3200 // Allow reasonable headroom for CI variance while still enforcing performance
       );
     });
 

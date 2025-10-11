@@ -10,9 +10,10 @@ Welcome to the comprehensive documentation for CATAMS (Casual Academic Time Allo
 
 | Document | Audience | Purpose | Estimated Read Time |
 |----------|----------|---------|-------------------|
-| [README.md](../README.md) | All users | Project overview & quick setup | 10 minutes |
+| [README.md](../README.md) | All users | Project overview & quick setup | 5 minutes |
 | [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) | Developers | Comprehensive development guide | 30 minutes |
 | [USER_GUIDES.md](USER_GUIDES.md) | End users | Role-specific user instructions | 20 minutes |
+| [Task Matrix](tasks.md) | Engineers | Frequently used commands | 3 minutes |
 
 ---
 
@@ -24,6 +25,16 @@ Welcome to the comprehensive documentation for CATAMS (Casual Academic Time Allo
 | **[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)** | Complete developer onboarding | Setup, workflows, standards, debugging |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | System architecture overview | Tech stack, patterns, data flow |
 | **[API_DOCUMENTATION.md](API_DOCUMENTATION.md)** | REST API reference | Endpoints, examples, integration |
+| **[WORKSPACE_STRUCTURE.md](WORKSPACE_STRUCTURE.md)** | Canonical file layout & automation rules | Permanent dirs, ephemeral dirs, AI expectations |
+| **[Translation Charter](governance/translation-charter.md)** | Language and glossary rules | Scope, glossary, validation |
+
+### Governance & Workflow
+| Document | Purpose | Key Sections |
+|----------|---------|-------------|
+| [Task Matrix](tasks.md) | Common automation commands | Backend, frontend, contracts, cleanup |
+| [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) | Navigation hub | Audience-based categorisation |
+| [Incoming ADRs](adr) | Architecture decisions | Decision log, context, status |
+| [Schema Fingerprint](../schema/contracts.lock) | Contract drift baseline | JSON Schema hashes |
 
 ### Technical References
 | Document | Purpose | When to Use |
@@ -31,6 +42,7 @@ Welcome to the comprehensive documentation for CATAMS (Casual Academic Time Allo
 | [Tech Stack Documentation](architecture/tech-stack.md) | Technology decisions | Architecture planning |
 | [Coding Standards](architecture/coding-standards.md) | Code quality guidelines | Code reviews, new features |
 | [Project Structure](architecture/project-structure.md) | Codebase organization | Navigation, refactoring |
+| [Contract Workflow](contracts/README.md) | JSON Schema → code generation | Schema updates, drift debugging |
 
 ### Testing & Quality
 | Document | Purpose | Coverage |
@@ -63,6 +75,7 @@ Welcome to the comprehensive documentation for CATAMS (Casual Academic Time Allo
 | Document | Scope | Environment |
 |----------|--------|-------------|
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Complete deployment guide | Development to production |
+| [Infrastructure Hub](../infra/README.md) | Migration plan for infra assets | All environments |
 | [Staging Deployment Checklist](deployment/staging-deployment-checklist.md) | Staging environment | Pre-production |
 | [Phase 3B Staging Checklist](deployment/phase3b-staging-checklist.md) | Advanced staging | Production-ready |
 
@@ -273,9 +286,9 @@ graph TD
 
 ---
 
-**Documentation Index Version**: 1.0  
-**Last Updated**: 2025-08-12  
-**Next Review**: 2025-09-12  
+**Documentation Index Version**: 1.1  
+**Last Updated**: 2025-10-11  
+**Next Review**: 2025-11-11  
 **Maintainers**: Development Team
 
 *This index is automatically updated with each documentation change.*

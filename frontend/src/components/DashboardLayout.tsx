@@ -69,7 +69,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     `flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
       isActive
         ? 'border-primary text-primary'
-        : 'border-transparent text-muted-foreground hover-border-gray-300 hover:text-foreground'
+        : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
     }`;
 
   return (
@@ -94,10 +94,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
           <div className="flex items-center gap-4" data-testid="header-right">
             {profile && (
-              <div className="flex items-center gap-4" data-testid="user-info">
-                <div className="hidden text-right sm:block" data-testid="user-details">
-                  <span className="font-semibold" data-testid="user-name">{profile.name}</span>
-                  <Badge variant={profile ? getRoleVariant(profile.role) : 'secondary'} data-testid="user-role-badge">
+              <div className="flex items-center gap-3 sm:gap-4" data-testid="user-info">
+                <div
+                  className="flex min-w-0 flex-col items-end text-right"
+                  data-testid="user-details"
+                >
+                  <span
+                    className="max-w-[9rem] truncate text-sm font-semibold sm:max-w-none sm:text-base"
+                    data-testid="user-name"
+                  >
+                    {profile.name}
+                  </span>
+                  <Badge
+                    variant={profile ? getRoleVariant(profile.role) : 'secondary'}
+                    className="mt-1"
+                    data-testid="user-role-badge"
+                  >
                     {profile ? getRoleDisplayName(profile.role) : ''}
                   </Badge>
                 </div>

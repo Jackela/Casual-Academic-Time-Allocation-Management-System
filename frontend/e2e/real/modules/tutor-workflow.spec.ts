@@ -1,16 +1,9 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import type { TimesheetStatus } from '../../../src/types/api';
 import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
 import { TUTOR_STORAGE } from '../utils/auth-storage';
-
-type TimesheetStatus =
-  | 'DRAFT'
-  | 'PENDING_TUTOR_CONFIRMATION'
-  | 'TUTOR_CONFIRMED'
-  | 'LECTURER_CONFIRMED'
-  | 'FINAL_CONFIRMED'
-  | 'REJECTED'
-  | 'MODIFICATION_REQUESTED';
+import { statusLabel, statusLabelPattern } from '../../utils/status-labels';
 
 type TimesheetRecord = {
   id: number;
@@ -359,6 +352,7 @@ test.describe('Tutor dashboard workflow', () => {
       'Status',
       'Description',
       'Submitted',
+      'Updated',
       'Actions',
     ]);
 
@@ -376,13 +370,13 @@ test.describe('Tutor dashboard workflow', () => {
     });
     await tutorDashboard.expectTimesheetData(3, {
       courseCode: 'MATH1001',
-      status: 'Awaiting Tutor',
+      status: statusLabel('PENDING_TUTOR_CONFIRMATION'),
       hours: 6,
       hourlyRate: 42,
     });
     await tutorDashboard.expectTimesheetData(4, {
       courseCode: 'PHYS1001',
-      status: 'Tutor Confirmed',
+      status: statusLabel('TUTOR_CONFIRMED'),
       hours: 12,
       hourlyRate: 48,
     });
@@ -404,7 +398,7 @@ test.describe('Tutor dashboard workflow', () => {
     });
 
     await tutorDashboard.updateEditForm({
-      hours: 11.6,
+      hours: 11,
       description: 'Adjusted tutorial sessions for COMP1001',
     });
 
@@ -416,14 +410,14 @@ test.describe('Tutor dashboard workflow', () => {
     expect(lastUpdateRequest).not.toBeNull();
     expect(lastUpdateRequest?.timesheetId).toBe(1);
     expect(lastUpdateRequest?.payload).toMatchObject({
-      hours: 11.6,
+      hours: 11,
       description: 'Adjusted tutorial sessions for COMP1001',
     });
 
     await tutorDashboard.expectTimesheetData(1, {
       courseCode: 'COMP1001',
       status: 'Rejected',
-      hours: 11.6,
+      hours: 11,
       hourlyRate: 45,
     });
   });
@@ -442,10 +436,141 @@ test.describe('Tutor dashboard workflow', () => {
 
     await tutorDashboard.expectTimesheetData(2, {
       courseCode: 'DATA2001',
-      status: 'Awaiting Tutor',
+      status: statusLabel('PENDING_TUTOR_CONFIRMATION'),
       hours: 8,
       hourlyRate: 50,
     });
+  });
+
+  test('allows bulk submitting draft timesheets', async ({ page }) => {
+    const now = new Date('2025-03-15T10:00:00Z').toISOString();
+    const draftTimesheets: TimesheetRecord[] = [
+      {
+        id: 201,
+        tutorId: 2,
+        courseId: 21,
+        courseCode: 'COMP2101',
+        courseName: 'Data Pipelines',
+        weekStartDate: '2025-03-10',
+        hours: 6,
+        hourlyRate: 46,
+        description: 'Draft: Lab supervision for COMP2101',
+        status: 'DRAFT',
+        createdAt: now,
+        updatedAt: now,
+        tutorName: 'John Doe',
+      },
+      {
+        id: 202,
+        tutorId: 2,
+        courseId: 22,
+        courseCode: 'INFO2300',
+        courseName: 'Information Design',
+        weekStartDate: '2025-03-10',
+        hours: 7.5,
+        hourlyRate: 47,
+        description: 'Draft: Workshop prep for INFO2300',
+        status: 'DRAFT',
+        createdAt: now,
+        updatedAt: now,
+        tutorName: 'John Doe',
+      },
+      {
+        id: 203,
+        tutorId: 2,
+        courseId: 23,
+        courseCode: 'MATH2501',
+        courseName: 'Discrete Mathematics',
+        weekStartDate: '2025-03-10',
+        hours: 5.5,
+        hourlyRate: 44,
+        description: 'Draft: Tutorial coverage for MATH2501',
+        status: 'DRAFT',
+        createdAt: now,
+        updatedAt: now,
+        tutorName: 'John Doe',
+      },
+    ];
+
+    const additionalTimesheets: TimesheetRecord[] = [
+      {
+        ...mockTimesheets.default.timesheets[0],
+        id: 204,
+        status: 'TUTOR_CONFIRMED',
+        updatedAt: now,
+      },
+    ];
+
+    replaceTimesheets([...draftTimesheets, ...additionalTimesheets]);
+
+    await page.reload();
+    await tutorDashboard.expectToBeLoaded();
+    await tutorDashboard.waitForMyTimesheetData();
+
+    const draftsTab = page.getByRole('button', { name: new RegExp('^Drafts \\(') });
+    await draftsTab.click();
+    await tutorDashboard.waitForMyTimesheetData();
+
+    const draftIds = draftTimesheets.map(timesheet => timesheet.id);
+    for (const id of draftIds) {
+      await tutorDashboard.selectTimesheet(id);
+    }
+
+    const submitSelectedButton = page.getByRole('button', { name: /Submit Selected/i });
+    await expect(submitSelectedButton).toContainText(`Submit Selected (${draftIds.length})`);
+    await expect(page.locator('.submission-preview')).toContainText(`${draftIds.length} timesheets will be submitted`);
+
+    const approvalResponses = draftIds.map(timesheetId =>
+      page.waitForResponse(response => {
+        if (!response.url().includes('/api/approvals')) return false;
+        if (response.request().method() !== 'POST') return false;
+        const body = response.request().postData();
+        if (!body) return false;
+        try {
+          const payload = JSON.parse(body);
+          return payload.timesheetId === timesheetId;
+        } catch {
+          return false;
+        }
+      })
+    );
+
+    const timesheetRefresh = page.waitForResponse(response =>
+      TIMESHEETS_LIST_ROUTE.test(response.url()) && response.request().method() === 'GET'
+    );
+    const summaryRefresh = page.waitForResponse(response =>
+      response.url().includes('/api/dashboard/summary') && response.request().method() === 'GET'
+    );
+
+    await tutorDashboard.clickSubmitSelectedButton();
+
+    const approvals = await Promise.all(approvalResponses);
+    await Promise.all([timesheetRefresh, summaryRefresh]);
+    await tutorDashboard.waitForMyTimesheetData();
+
+    const submittedIds = approvals.map(response => {
+      const body = response.request().postData();
+      if (!body) return null;
+      try {
+        return JSON.parse(body).timesheetId ?? null;
+      } catch {
+        return null;
+      }
+    }).filter((value): value is number => typeof value === 'number');
+
+    expect(new Set(submittedIds)).toEqual(new Set(draftIds));
+
+    for (const id of draftIds) {
+      const updated = currentTimesheetPage.timesheets.find(timesheet => timesheet.id === id);
+      expect(updated?.status).toBe('PENDING_TUTOR_CONFIRMATION');
+    }
+
+    await expect(page.getByRole('button', { name: new RegExp('^Drafts \\(0\\)') })).toBeVisible();
+
+    await page.getByRole('button', { name: /All Timesheets/i }).click();
+    for (const id of draftIds) {
+      await expect(tutorDashboard.getStatusBadge(id)).toContainText(statusLabelPattern('PENDING_TUTOR_CONFIRMATION'));
+    }
   });
 
   test('allows confirming a pending timesheet', async () => {
@@ -462,7 +587,7 @@ test.describe('Tutor dashboard workflow', () => {
 
     await tutorDashboard.expectTimesheetData(3, {
       courseCode: 'MATH1001',
-      status: 'Tutor Confirmed',
+      status: statusLabel('TUTOR_CONFIRMED'),
       hours: 6,
       hourlyRate: 42,
     });

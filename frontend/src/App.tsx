@@ -11,6 +11,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ErrorLogger, setupGlobalErrorHandling } from './utils/error-logger';
 import { initializeConfiguration } from './config';
 import { secureLogger } from './utils/secure-logger';
+import PageLoadingIndicator from './components/shared/feedback/PageLoadingIndicator';
 import './App.css';
 
 // Initialize configuration system
@@ -104,17 +105,31 @@ function ApprovalsHistoryPage() {
 }
 // Component to determine which dashboard to show based on user role
 const DashboardRoute = () => {
-  const { profile } = useUserProfile();
+  const { profile, loading } = useUserProfile();
 
-  switch (profile?.role) {
-    case 'LECTURER':
-      return <LecturerDashboard />;
-    case 'TUTOR':
-      return <TutorDashboard />;
+  console.info('[DashboardRoute] loading:', loading, 'profile:', profile);
+
+  if (loading || !profile?.role) {
+    return (
+      <PageLoadingIndicator
+        message="Preparing your dashboard…"
+        subMessage="Hold tight while we load your role and permissions."
+      />
+    );
+  }
+
+  console.info('[DashboardRoute] resolved role', profile.role);
+
+  const role = profile.role;
+  switch (role) {
     case 'ADMIN':
-      return <AdminDashboard />;
+      return <AdminDashboard key="admin-dashboard" />;
+    case 'LECTURER':
+      return <LecturerDashboard key="lecturer-dashboard" />;
+    case 'TUTOR':
+      return <TutorDashboard key="tutor-dashboard" />;
     default:
-      return <div>Unknown role: {profile?.role}</div>;
+      return <div className="unknown-role-banner">Unknown role: {role}</div>;
   }
 };
 

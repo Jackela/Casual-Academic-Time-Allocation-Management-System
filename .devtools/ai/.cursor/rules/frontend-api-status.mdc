@@ -1,0 +1,22 @@
+---
+description: Frontend API and status alignment with backend; canonical enums, mocks/schema, and UI mapping rules.
+globs:
+  - "frontend/src/**"
+alwaysApply: false
+---
+
+# Project Rule — Frontend API & Status Alignment
+
+## Canonical statuses (must match backend)
+`DRAFT | PENDING_TUTOR_REVIEW | APPROVED_BY_TUTOR | APPROVED_BY_LECTURER_AND_TUTOR | FINAL_APPROVED | REJECTED | MODIFICATION_REQUESTED`.
+
+## Enforce across layers
+- Types: update API client types and union literals to the canonical set; prefer `import type` to avoid value imports when only types are needed.
+- Mocks: adjust mock services and generators to return canonical statuses (e.g., APPROVE → `APPROVED_BY_TUTOR`).
+- Schema tests: update Vitest contract/schema checks to validate the canonical set.
+- UI: ensure badges/labels map from canonical statuses only; remove/deprecate legacy mappings.
+
+## Reporting
+- Vitest outputs JSON/HTML under `frontend/coverage/`.
+- Playwright uses JSON reporter via config; do not add CLI `--reporter=` overrides when config already specifies it.
+

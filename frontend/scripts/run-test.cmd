@@ -11,6 +11,7 @@ set "SCRIPT_DIR=%~dp0"
 for %%i in ("%SCRIPT_DIR%..") do set "PROJECT_ROOT=%%~fi"
 set "PROJECT_NAME="
 for %%i in ("%PROJECT_ROOT%") do set "PROJECT_NAME=%%~ni"
+set "PORT_LIST=3000 3001 4000 5000 5173 5174 4173 4174 5175 8000 8080 9229"
 
 echo Project: %PROJECT_NAME%
 echo Root: %PROJECT_ROOT%
@@ -36,7 +37,7 @@ for /f "tokens=2" %%i in ('tasklist /fo csv /fi "imagename eq node.exe" ^| finds
 )
 
 REM Clean up common development ports
-for %%p in (3000 3001 4000 5000 8000 8080 9229) do (
+for %%p in (%PORT_LIST%) do (
     for /f "tokens=5" %%i in ('netstat -ano ^| findstr ":%%p "') do (
         set "pid=%%i"
         if not "!pid!"=="" (
@@ -99,7 +100,7 @@ for /f "tokens=2" %%i in ('tasklist /fo csv /fi "imagename eq node.exe" ^| finds
 )
 
 REM Clean up ports again
-for %%p in (3000 3001 4000 5000 8000 8080 9229) do (
+for %%p in (%PORT_LIST%) do (
     for /f "tokens=5" %%i in ('netstat -ano ^| findstr ":%%p "') do (
         set "pid=%%i"
         if not "!pid!"=="" (

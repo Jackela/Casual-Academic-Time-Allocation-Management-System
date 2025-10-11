@@ -4,6 +4,7 @@ import { DashboardPage } from '../../shared/pages/DashboardPage';
 import { NavigationPage } from '../../shared/pages/NavigationPage';
 import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
 import { setupMockAuth } from '../../shared/mock-backend/auth';
+import { statusLabel } from '../../utils/status-labels';
 
 test.describe('P1 Tutor Confirmation (mock-only)', () => {
   test('Tutor confirms a pending timesheet (UI only)', async ({ page }) => {
@@ -71,7 +72,7 @@ test.describe('P1 Tutor Confirmation (mock-only)', () => {
     await tutorDashboardPage.expectTimesheetsTable();
 
     const statusBadge = page.getByTestId(`status-badge-${pendingTimesheet.id}`);
-    await expect(statusBadge).toContainText(/Awaiting Tutor|Pending Tutor Confirmation/);
+    await expect(statusBadge).toContainText(statusLabel('PENDING_TUTOR_CONFIRMATION'));
 
     const confirmButton = page.getByTestId(`confirm-btn-${pendingTimesheet.id}`);
     await expect(confirmButton).toBeVisible();
@@ -81,7 +82,7 @@ test.describe('P1 Tutor Confirmation (mock-only)', () => {
     ]);
 
     await tutorDashboardPage.waitForMyTimesheetData();
-    await expect(statusBadge).toContainText('Tutor Confirmed');
+    await expect(statusBadge).toContainText(statusLabel('TUTOR_CONFIRMED'));
   });
 });
 

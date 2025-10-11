@@ -1,9 +1,13 @@
-import { Fragment, memo } from 'react';
+import { Fragment, memo, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import TimesheetTable from '../../../shared/TimesheetTable/TimesheetTable';
 import { Button } from '../../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../ui/card';
 import type { ApprovalAction, Timesheet } from '../../../../types/api';
+import {
+  getBatchLecturerActionPermission,
+  LECTURER_ACTION_UNAVAILABLE_MESSAGE,
+} from '../../../shared/TimesheetTable/lecturer-action-utils';
 
 interface LecturerPendingTableProps {
   timesheets: Timesheet[];
@@ -39,15 +43,80 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
   const showBatchBar = canPerformApprovals && selectedTimesheets.length > 0;
   const disableActions = approvalLoading || !canPerformApprovals;
 
+  const selectedTimesheetEntities = useMemo(() => {
+    if (selectedTimesheets.length === 0) {
+      return [];
+    }
+
+    const timesheetMap = new Map<number, Timesheet>();
+    timesheets.forEach((item) => {
+      timesheetMap.set(item.id, item);
+    });
+
+    return selectedTimesheets
+      .map((id) => timesheetMap.get(id))
+      .filter((item): item is Timesheet => Boolean(item));
+  }, [timesheets, selectedTimesheets]);
+
+  const allItemsSelected = selectedTimesheetEntities.length === selectedTimesheets.length;
+
+  const selectedStatuses = useMemo(
+    () => selectedTimesheetEntities.map((item) => item.status),
+    [selectedTimesheetEntities],
+  );
+
+  const batchPermissions = useMemo(
+    () => getBatchLecturerActionPermission(selectedStatuses),
+    [selectedStatuses],
+  );
+
+  const statusApproveBlocked = !allItemsSelected || (selectedStatuses.length > 0 && !batchPermissions.canApprove);
+  const statusRejectBlocked = !allItemsSelected || (selectedStatuses.length > 0 && !batchPermissions.canReject);
+
+  const batchApproveDisabled = disableActions || !onApproveSelected || statusApproveBlocked;
+  const batchRejectDisabled = disableActions || !onRejectSelected || statusRejectBlocked;
+
+  const statusApproveReason = statusApproveBlocked
+    ? batchPermissions.approveReason ?? LECTURER_ACTION_UNAVAILABLE_MESSAGE
+    : undefined;
+  const statusRejectReason = statusRejectBlocked
+    ? batchPermissions.rejectReason ?? LECTURER_ACTION_UNAVAILABLE_MESSAGE
+    : undefined;
+
+  const approveDisabledReason =
+    !canPerformApprovals
+      ? 'You do not have permission to approve timesheets.'
+      : approvalLoading
+        ? 'Processing approval. Please wait before taking another action.'
+        : !onApproveSelected
+          ? 'Approve action is currently unavailable.'
+          : statusApproveReason;
+
+  const rejectDisabledReason =
+    !canPerformApprovals
+      ? 'You do not have permission to approve timesheets.'
+      : approvalLoading
+        ? 'Processing approval. Please wait before taking another action.'
+        : !onRejectSelected
+          ? 'Reject action is currently unavailable.'
+          : statusRejectReason;
+
+  const batchApproveHelpId = batchApproveDisabled && approveDisabledReason
+    ? 'lecturer-batch-approve-help'
+    : undefined;
+  const batchRejectHelpId = batchRejectDisabled && rejectDisabledReason
+    ? 'lecturer-batch-reject-help'
+    : undefined;
+
   const handleApproveSelected = async () => {
-    if (!onApproveSelected || disableActions) {
+    if (!onApproveSelected || batchApproveDisabled) {
       return;
     }
     await onApproveSelected();
   };
 
   const handleRejectSelected = async () => {
-    if (!onRejectSelected || disableActions) {
+    if (!onRejectSelected || batchRejectDisabled) {
       return;
     }
     await onRejectSelected();
@@ -135,21 +204,37 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 onClick={handleApproveSelected}
-                disabled={disableActions || !onApproveSelected}
+                disabled={batchApproveDisabled}
+                aria-disabled={batchApproveDisabled}
+                aria-describedby={batchApproveHelpId}
                 aria-label="Approve selected timesheets"
+                title={approveDisabledReason ?? 'Approve selected timesheets'}
                 className="h-11 min-w-[2.75rem] px-6"
               >
                 Approve Selected
               </Button>
+              {batchApproveHelpId && (
+                <span id={batchApproveHelpId} className="sr-only">
+                  {approveDisabledReason}
+                </span>
+              )}
               <Button
                 onClick={handleRejectSelected}
-                disabled={disableActions || !onRejectSelected}
+                disabled={batchRejectDisabled}
+                aria-disabled={batchRejectDisabled}
+                aria-describedby={batchRejectHelpId}
                 aria-label="Reject selected timesheets"
                 variant="outline"
+                title={rejectDisabledReason ?? 'Reject selected timesheets'}
                 className="h-11 min-w-[2.75rem] px-6"
               >
                 Reject Selected
               </Button>
+              {batchRejectHelpId && (
+                <span id={batchRejectHelpId} className="sr-only">
+                  {rejectDisabledReason}
+                </span>
+              )}
             </div>
           </div>
         </div>

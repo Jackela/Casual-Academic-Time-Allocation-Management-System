@@ -7,6 +7,16 @@ plugins {
 }
 
 import org.springframework.boot.gradle.tasks.run.BootRun
+import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.file.DirectoryProperty
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
 
 
 
@@ -19,6 +29,58 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
+}
+
+val schemaDirectory = layout.projectDirectory.dir("schema")
+val contractsScript = layout.projectDirectory.file("tools/scripts/contracts-pipeline.js")
+val contractsOutputDir = layout.buildDirectory.dir("generated-contracts")
+val contractsLockFile = layout.projectDirectory.file("schema/contracts.lock")
+val frontendContractsDir = layout.projectDirectory.dir("frontend/src/contracts/generated")
+
+val generateContracts by tasks.registering(Exec::class) {
+    group = "Contracts"
+    description = "Generates Java and TypeScript contracts from JSON Schema sources."
+    workingDir = layout.projectDirectory.asFile
+    commandLine("node", contractsScript.asFile.absolutePath)
+    environment(
+        mapOf(
+            "CONTRACTS_OUTPUT_DIR" to contractsOutputDir.get().asFile.absolutePath,
+            "CONTRACTS_LOCK_FILE" to contractsLockFile.asFile.absolutePath,
+        ),
+    )
+    inputs.files(fileTree(schemaDirectory) {
+        include("*.schema.json")
+    })
+    outputs.dir(contractsOutputDir)
+    outputs.dir(frontendContractsDir)
+    outputs.file(contractsLockFile)
+}
+
+val verifyContracts by tasks.registering(Exec::class) {
+    group = "Verification"
+    description = "Verifies that schema fingerprints and generated TypeScript contracts are up-to-date."
+    workingDir = layout.projectDirectory.asFile
+    commandLine("node", contractsScript.asFile.absolutePath, "--verify")
+    environment(
+        mapOf(
+            "CONTRACTS_OUTPUT_DIR" to contractsOutputDir.get().asFile.absolutePath,
+            "CONTRACTS_LOCK_FILE" to contractsLockFile.asFile.absolutePath,
+        ),
+    )
+    mustRunAfter(generateContracts)
+    inputs.files(fileTree(schemaDirectory) {
+        include("*.schema.json")
+    })
+    inputs.file(contractsLockFile)
+    inputs.dir(frontendContractsDir)
+}
+
+tasks.check {
+    dependsOn(verifyContracts)
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    dependsOn(generateContracts)
 }
 
 // Enforce modern API usage and fail on warnings to keep the codebase clean
@@ -47,6 +109,7 @@ repositories {
 
 val javaParserVersion = "3.26.0" // Use latest version
 val jacksonVersion = "2.15.3"
+val antlrVersion = "4.10.1"
 
 configurations {
     // Create a dedicated configuration to store dependencies for our generator tool
@@ -84,8 +147,8 @@ dependencies {
 
     // Core: JSON Schema Validator for response contract testing
     testImplementation("com.networknt:json-schema-validator:1.4.0")
-    // Core: YAML parser for schema extraction task
-    testImplementation("org.yaml:snakeyaml:2.2")
+    // Core: YAML parser for schema extraction task and reusable tooling
+    implementation("org.yaml:snakeyaml:2.2")
     // Keep test Jackson managed by Spring Boot BOM (avoid explicit version overrides)
 
     // Add dependencies for our generator tool
@@ -119,7 +182,19 @@ dependencies {
     testImplementation(libs.io.swagger.parser.v3.swagger.parser)
 
     // Karate DSL for API Testing
-    testImplementation("io.karatelabs:karate-junit5:1.5.1")
+    testImplementation("io.karatelabs:karate-junit5:1.5.1") {
+        exclude(group = "org.antlr", module = "antlr4-runtime")
+    }
+    implementation("org.antlr:antlr4-runtime:$antlrVersion")
+}
+
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.antlr" && requested.name == "antlr4-runtime") {
+            useVersion(antlrVersion)
+            because("Align ANTLR runtime version with Hibernate-generated grammars to prevent tool/runtime mismatch")
+        }
+    }
 }
 
 // 2. Configure node-gradle
@@ -147,11 +222,12 @@ tasks.register<com.github.gradle.node.npm.task.NpxTask>("bundleOpenApiSpec") {
 
     // 'npx redocly bundle path/to/your/main.yaml -o build/docs/api/openapi.yaml'
     command.set("redocly")
+    val bundledSpec = layout.buildDirectory.file("docs/api/openapi.yaml")
     args.set(listOf(
         "bundle",
         "docs/openapi.yaml", // Your main entry YAML file
         "--output",
-        "$buildDir/docs/api/openapi.yaml"
+        bundledSpec.get().asFile.absolutePath
     ))
 }
 
@@ -159,7 +235,7 @@ tasks.register<com.github.gradle.node.npm.task.NpxTask>("bundleOpenApiSpec") {
 openApiGenerate {
     generatorName.set("java")
     inputSpec.set("$projectDir/docs/openapi.yaml")
-    outputDir.set("$buildDir/generated/openapi")
+    outputDir.set(layout.buildDirectory.dir("generated/openapi").get().asFile.absolutePath)
     apiPackage.set("com.usyd.catams.client.api")
     modelPackage.set("com.usyd.catams.client.model")
     configOptions.set(mapOf(
@@ -170,34 +246,46 @@ openApiGenerate {
     ))
 }
 
-// Core: Task to extract schemas from OpenAPI spec into individual JSON files
-tasks.register("extractOpenApiSchemas") {
-    group = "OpenAPI"
-    description = "Extracts component schemas from openapi.yaml into individual JSON files."
+@CacheableTask
+abstract class ExtractOpenApiSchemas : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val openApiFile: RegularFileProperty
 
-    doLast {
-        val openApiFile = file("$projectDir/docs/openapi.yaml")
-        val outputDir = file("$buildDir/resources/test/openapi/schemas")
-        if (!outputDir.exists()) {
-            outputDir.mkdirs()
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction
+    fun extract() {
+        val yaml = org.yaml.snakeyaml.Yaml()
+        @Suppress("UNCHECKED_CAST")
+        val openApiData = openApiFile.get().asFile.inputStream().use { input ->
+            yaml.load<Map<String, Any?>>(input)
+        } ?: emptyMap()
+
+        val schemas = (openApiData["components"] as? Map<*, *>)?.get("schemas") as? Map<*, *> ?: emptyMap<Any?, Any?>()
+        if (schemas.isEmpty()) {
+            logger.info("No component schemas found in ${openApiFile.get().asFile}")
+            return
         }
 
-        val yaml = org.yaml.snakeyaml.Yaml()
-        val openApiData = yaml.load<Map<String, Any>>(openApiFile.inputStream())
-        val components = openApiData["components"] as? Map<String, Any>
-        val schemas = components?.get("schemas") as? Map<String, Any>
+        val outputDir = outputDirectory.get().asFile.apply { mkdirs() }
+        val objectMapper = ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT)
 
-        if (schemas != null) {
-            val objectMapper = com.fasterxml.jackson.databind.ObjectMapper().enable(com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT)
-            schemas.forEach { (schemaName, schemaData) ->
-                val schemaFile = file("$outputDir/$schemaName.json")
-                schemaFile.writeText(objectMapper.writeValueAsString(schemaData))
-                println("Extracted schema: $schemaName.json")
-            }
-        } else {
-            println("No schemas found in components.")
+        schemas.forEach { (schemaName, schemaData) ->
+            val name = schemaName?.toString() ?: return@forEach
+            val schemaFile = outputDir.resolve("$name.json")
+            schemaFile.writeText(objectMapper.writeValueAsString(schemaData))
+            logger.info("Extracted OpenAPI schema: $name")
         }
     }
+}
+
+val extractOpenApiSchemas by tasks.register<ExtractOpenApiSchemas>("extractOpenApiSchemas") {
+    group = "OpenAPI"
+    description = "Extracts component schemas from openapi.yaml into individual JSON files."
+    openApiFile.set(layout.projectDirectory.file("docs/openapi.yaml"))
+    outputDirectory.set(layout.buildDirectory.dir("resources/test/openapi/schemas"))
 }
 
 // 2. Create a custom Gradle task to run ContractGenerator
@@ -216,22 +304,38 @@ tasks.register<JavaExec>("generateSemanticContract") {
     mainClass.set("com.usyd.catams.tools.ContractGenerator")
     
     // Pass arguments, such as source file directory and output file path
+    val sourceDir = layout.projectDirectory.dir("src/main/java")
+    val contractOutput = layout.buildDirectory.file("docs/api/contract.json")
     args(
-        "--source", file("src/main/java").absolutePath,
-        "--output", file("$buildDir/docs/api/contract.json").absolutePath
+        "--source", sourceDir.asFile.absolutePath,
+        "--output", contractOutput.get().asFile.absolutePath
     )
     
     // Ensure output directory exists
     doFirst {
-        file("$buildDir/docs/api").mkdirs()
+        contractOutput.get().asFile.parentFile.mkdirs()
     }
 }
 
 
-tasks.withType<Test> {
-    useJUnitPlatform()
-    dependsOn("extractOpenApiSchemas") // Ensure schemas are extracted before tests run
+tasks.withType<Test>().configureEach {
+    dependsOn(extractOpenApiSchemas) // Ensure schemas are extracted before tests run
     finalizedBy(tasks.jacocoTestReport)
+}
+
+val integrationTest by tasks.registering(Test::class) {
+    description = "Runs Spring integration tests with Testcontainers profile."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter(tasks.test)
+    include("**/integration/**", "**/*IntegrationTest.class", "**/*IT.class")
+    systemProperty("spring.profiles.active", "integration-test")
+}
+
+tasks.check {
+    dependsOn(integrationTest)
 }
 
 jacoco {
@@ -254,7 +358,8 @@ sourceSets {
     main {
         java {
             // Core: Add generated sources to the main source set
-            srcDir("$buildDir/generated/openapi/src/main/java")
+            srcDir(layout.buildDirectory.dir("generated/openapi/src/main/java"))
+            srcDir(layout.buildDirectory.dir("generated-contracts/java"))
         }
         resources {
             srcDirs("src/main/resources")
@@ -268,6 +373,7 @@ sourceSets {
         }
     }
 }
+
 tasks.named<BootRun>("bootRun") {
     val activeProfiles = System.getenv("SPRING_PROFILES_ACTIVE") ?: ""
     val disableDevtools = System.getenv("DISABLE_DEVTOOLS") == "1" ||

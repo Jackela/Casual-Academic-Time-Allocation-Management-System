@@ -337,12 +337,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       role="main"
       aria-label="Tutor Dashboard"
     >
-      <TutorHeader
-        welcomeMessage={welcomeMessage}
-        title="Tutor Dashboard"
-        description="Here's an overview of your timesheets and earnings. Let's get started."
-      />
-
       {(hasAnyErrors || actionNotice) && (
         <div className="mb-6 space-y-4">
           {timesheetsError && (
@@ -378,60 +372,68 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
         </div>
       )}
 
-      <section className="mb-8" role="region" aria-label="Quick Actions">
-        <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="quick-actions">
-          <QuickAction
-            label="Create New Timesheet"
-            description="Start a new timesheet entry"
-            icon="📝"
-            onClick={() => handleQuickAction('create')}
-            shortcut="Ctrl+N"
-          />
-
-          <QuickAction
-            label="Refresh Data"
-            description="Reload the latest timesheets"
-            icon="🔄"
-            onClick={() => handleQuickAction('refresh')}
-            disabled={isTimesheetActionInFlight}
-            disabledReason={actionInFlightMessage}
-          />
-
-          <QuickAction
-            label="Submit All Drafts"
-            description="Submit all draft timesheets"
-            icon="📤"
-            onClick={() => handleQuickAction('submitDrafts')}
-            disabled={!canSubmitAllDrafts || isTimesheetActionInFlight}
-            disabledReason={!canSubmitAllDrafts ? 'There are no draft timesheets to submit.' : actionInFlightMessage}
-          />
-
-          <QuickAction
-            label="View Pay Summary"
-            description="Check earnings and payments"
-            icon="💰"
-            onClick={() => handleQuickAction('viewPay')}
-          />
-
-          <QuickAction
-            label="Export My Data"
-            description="Download timesheet records (coming soon)"
-            icon="📊"
-            onClick={() => handleQuickAction('export')}
-          />
-        </div>
-      </section>
-
-      <QuickStats
-        heading="Your Statistics"
-        ariaLabel="Your Statistics"
-        stats={quickStats}
-      />
-
       <DashboardLayoutShell
+        header={(
+          <TutorHeader
+            welcomeMessage={welcomeMessage}
+            title="Tutor Dashboard"
+            description="Here's an overview of your timesheets and earnings. Let's get started."
+          />
+        )}
         main={(
-          <section aria-label="My Timesheets">
+          <>
+            <section className="mb-8" role="region" aria-label="Quick Actions">
+              <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="quick-actions">
+                <QuickAction
+                  label="Create New Timesheet"
+                  description="Start a new timesheet entry"
+                  icon="📝"
+                  onClick={() => handleQuickAction('create')}
+                  shortcut="Ctrl+N"
+                />
+
+                <QuickAction
+                  label="Refresh Data"
+                  description="Reload the latest timesheets"
+                  icon="🔄"
+                  onClick={() => handleQuickAction('refresh')}
+                  disabled={isTimesheetActionInFlight}
+                  disabledReason={actionInFlightMessage}
+                />
+
+                <QuickAction
+                  label="Submit All Drafts"
+                  description="Submit all draft timesheets"
+                  icon="📤"
+                  onClick={() => handleQuickAction('submitDrafts')}
+                  disabled={!canSubmitAllDrafts || isTimesheetActionInFlight}
+                  disabledReason={!canSubmitAllDrafts ? 'There are no draft timesheets to submit.' : actionInFlightMessage}
+                />
+
+                <QuickAction
+                  label="View Pay Summary"
+                  description="Check earnings and payments"
+                  icon="💰"
+                  onClick={() => handleQuickAction('viewPay')}
+                />
+
+                <QuickAction
+                  label="Export My Data"
+                  description="Download timesheet records (coming soon)"
+                  icon="📊"
+                  onClick={() => handleQuickAction('export')}
+                />
+              </div>
+            </section>
+
+            <QuickStats
+              heading="Your Statistics"
+              ariaLabel="Your Statistics"
+              stats={quickStats}
+            />
+
+            <section aria-label="My Timesheets">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -573,7 +575,8 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                 )}
               </CardContent>
             </Card>
-          </section>
+            </section>
+          </>
         )}
         sidebar={(
           <>

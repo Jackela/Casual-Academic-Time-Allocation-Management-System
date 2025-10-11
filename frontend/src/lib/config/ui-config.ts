@@ -1,7 +1,17 @@
-import { useMemo, useCallback } from 'react';
-
-import { getTimesheetUiConstraints } from '../validation/ajv';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Currency, TimesheetUiConstraints } from '../../types/timesheet';
+import { secureLogger } from '../../utils/secure-logger';
+import { getTimesheetUiConstraints, setTimesheetValidatorConstraints } from '../validation/ajv';
+import {
+  fetchTimesheetConstraints,
+  type TimesheetConstraintOverrides,
+} from './server-config';
+
+type ConstraintSource =
+  | TimesheetUiConstraints
+  | TimesheetConstraintOverrides
+  | null
+  | undefined;
 
 const FALLBACK_CONSTRAINTS: TimesheetUiConstraints = {
   hours: {
@@ -15,32 +25,72 @@ const FALLBACK_CONSTRAINTS: TimesheetUiConstraints = {
   currency: 'AUD' as Currency,
 };
 
-let resolvedConstraints: TimesheetUiConstraints | null = null;
+const cloneConstraints = (source: TimesheetUiConstraints): TimesheetUiConstraints => ({
+  hours: { ...source.hours },
+  weekStart: { ...source.weekStart },
+  currency: source.currency,
+});
 
-const loadConstraints = (): TimesheetUiConstraints => {
-  if (resolvedConstraints) {
-    return resolvedConstraints;
-  }
+const mergeConstraintSources = (
+  ...sources: ConstraintSource[]
+): TimesheetUiConstraints => {
+  return sources.reduce<TimesheetUiConstraints>((acc, source) => {
+    if (!source) {
+      return acc;
+    }
 
-  try {
-    resolvedConstraints = getTimesheetUiConstraints();
-  } catch (error) {
-    resolvedConstraints = FALLBACK_CONSTRAINTS;
-  }
+    const typedSource = source as TimesheetConstraintOverrides & TimesheetUiConstraints;
 
-  return resolvedConstraints;
+    const hours = typedSource.hours;
+    if (hours) {
+      if (typeof hours.min === 'number' && Number.isFinite(hours.min)) {
+        acc.hours.min = hours.min;
+      }
+      if (typeof hours.max === 'number' && Number.isFinite(hours.max)) {
+        acc.hours.max = hours.max;
+      }
+      if (typeof hours.step === 'number' && hours.step > 0) {
+        acc.hours.step = hours.step;
+      }
+    }
+
+    const weekStart = typedSource.weekStart;
+    if (weekStart && typeof weekStart.mondayOnly === 'boolean') {
+      acc.weekStart.mondayOnly = weekStart.mondayOnly;
+    }
+
+    if (typedSource.currency) {
+      acc.currency = typedSource.currency;
+    }
+
+    return acc;
+  }, cloneConstraints(FALLBACK_CONSTRAINTS));
 };
 
-const constraints = loadConstraints();
+let schemaConstraints: TimesheetUiConstraints | null = null;
 
-export const HOURS_MIN = constraints.hours.min;
-export const HOURS_MAX = constraints.hours.max;
-export const HOURS_STEP = constraints.hours.step;
-export const CURRENCY = constraints.currency;
-export const MONDAY_ONLY = constraints.weekStart.mondayOnly;
+try {
+  schemaConstraints = getTimesheetUiConstraints();
+} catch (error) {
+  secureLogger.warn(
+    '[ui-config] Failed to load constraints from schema. Falling back to static defaults.',
+    error,
+  );
+}
+
+let cachedConstraints = mergeConstraintSources(
+  FALLBACK_CONSTRAINTS,
+  schemaConstraints,
+);
+setTimesheetValidatorConstraints(cachedConstraints);
+
+export let HOURS_MIN = cachedConstraints.hours.min;
+export let HOURS_MAX = cachedConstraints.hours.max;
+export let HOURS_STEP = cachedConstraints.hours.step;
+export let CURRENCY = cachedConstraints.currency;
+export let MONDAY_ONLY = cachedConstraints.weekStart.mondayOnly;
 export const WEEK_START_DAY = 1;
-
-export const UI_CONSTRAINTS = {
+export let UI_CONSTRAINTS = {
   HOURS_MIN,
   HOURS_MAX,
   HOURS_STEP,
@@ -49,18 +99,104 @@ export const UI_CONSTRAINTS = {
   WEEK_START_DAY,
 } as const;
 
-export const useUiConstraints = () =>
-  useMemo(
-    () => ({
-      HOURS_MIN,
-      HOURS_MAX,
-      HOURS_STEP,
-      CURRENCY,
-      WEEK_START_DAY,
-      mondayOnly: MONDAY_ONLY,
-    }),
-    [],
+const listeners = new Set<(next: TimesheetUiConstraints) => void>();
+let fetchState: 'idle' | 'pending' | 'settled' = 'idle';
+
+const updateExports = (next: TimesheetUiConstraints) => {
+  cachedConstraints = cloneConstraints(next);
+  HOURS_MIN = cachedConstraints.hours.min;
+  HOURS_MAX = cachedConstraints.hours.max;
+  HOURS_STEP = cachedConstraints.hours.step;
+  CURRENCY = cachedConstraints.currency;
+  MONDAY_ONLY = cachedConstraints.weekStart.mondayOnly;
+  UI_CONSTRAINTS = {
+    HOURS_MIN,
+    HOURS_MAX,
+    HOURS_STEP,
+    CURRENCY,
+    MONDAY_ONLY,
+    WEEK_START_DAY,
+  } as const;
+  setTimesheetValidatorConstraints(cachedConstraints);
+};
+
+const notifyListeners = () => {
+  for (const listener of listeners) {
+    listener(cloneConstraints(cachedConstraints));
+  }
+};
+
+const ensureServerConstraints = () => {
+  if (fetchState !== 'idle') {
+    return;
+  }
+
+  if (typeof window === 'undefined') {
+    fetchState = 'settled';
+    return;
+  }
+
+  fetchState = 'pending';
+
+  fetchTimesheetConstraints()
+    .then((overrides) => {
+      if (!overrides) {
+        return;
+      }
+
+      const merged = mergeConstraintSources(
+        FALLBACK_CONSTRAINTS,
+        schemaConstraints,
+        overrides,
+      );
+      updateExports(merged);
+      notifyListeners();
+    })
+    .catch((error) => {
+      secureLogger.warn(
+        '[ui-config] Unable to merge constraints from server payload.',
+        error,
+      );
+    })
+    .finally(() => {
+      fetchState = 'settled';
+    });
+};
+
+if (typeof window !== 'undefined') {
+  ensureServerConstraints();
+}
+
+export const useUiConstraints = () => {
+  const [constraints, setConstraints] = useState<TimesheetUiConstraints>(
+    cloneConstraints(cachedConstraints),
   );
+
+  useEffect(() => {
+    const handleUpdate = (next: TimesheetUiConstraints) => {
+      setConstraints(next);
+    };
+
+    listeners.add(handleUpdate);
+    ensureServerConstraints();
+
+    return () => {
+      listeners.delete(handleUpdate);
+    };
+  }, []);
+
+  return useMemo(
+    () => ({
+      HOURS_MIN: constraints.hours.min,
+      HOURS_MAX: constraints.hours.max,
+      HOURS_STEP: constraints.hours.step,
+      CURRENCY: constraints.currency,
+      WEEK_START_DAY,
+      mondayOnly: constraints.weekStart.mondayOnly,
+    }),
+    [constraints],
+  );
+};
 
 export const useCurrencyFormatter = () => {
   const { CURRENCY } = useUiConstraints();
@@ -102,3 +238,6 @@ export const useCurrencyFormatter = () => {
     [CURRENCY, baseFormatter],
   );
 };
+
+export const getUiConstraintsSnapshot = (): TimesheetUiConstraints =>
+  cloneConstraints(cachedConstraints);

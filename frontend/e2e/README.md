@@ -13,6 +13,7 @@ e2e/
 ├── real/                  # Backend-integrated specs and global setup
 ├── shared/                # Cross-suite page objects, utilities, auth helpers
 ├── utils/                 # REST helpers and readiness checks
+├── visual/                # Visual regression specs + snapshots (Playwright compare)
 └── config/                # Environment and endpoint configuration
 ```
 
@@ -54,12 +55,17 @@ e2e/
 # Run all tests
 npm run test:e2e
 
-# Run specific categories
-npm run test:e2e:smoke       # Smoke tests only
-npm run test:e2e:critical    # Critical functionality
-npm run test:e2e:integration # API integration tests
+# Targeted suites
+npm run test:e2e:mock        # Playwright mock project (MSW-powered)
+npm run test:e2e:real        # Full stack suite hitting the Spring backend
+npm run test:e2e:visual      # Visual regression checks
 
-# Run with UI
+# Tag-based filtered runs
+npm run test:e2e:smoke       # Smoke tests only (@smoke)
+npm run test:e2e:critical    # Business-critical scenarios (@critical)
+npm run test:e2e:integration # API integration coverage (@integration)
+
+# Run with UI inspector
 npm run test:e2e:ui
 
 # Debug mode
@@ -81,15 +87,14 @@ node ../../scripts/cleanup-ports.js --ports=8084,5174
 
 ### Module-specific Tests
 ```bash
-# Authentication tests
-npm run test:e2e:auth-modules
+# Run mock project tests that include @auth tagged scenarios
+npm run test:e2e:mock -- --grep @auth
 
-# Dashboard tests  
-npm run test:e2e:dashboard-modules
+# Focus on dashboard logic across suites
+npm run test:e2e -- --grep @dashboard
 
-# Individual test files
-npm run test:e2e:auth-login
-npm run test:e2e:dashboard-loading
+# Execute a specific spec file
+npm run test:e2e -- e2e/real/modules/tutor-workflow.spec.ts
 ```
 
 ## Best Practices Implemented

@@ -42,3 +42,7 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+app:
+  testing:
+    reset-token: test-reset-token

@@ -5,6 +5,7 @@ import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
 import { acquireAuthTokens, createTimesheetWithStatus, transitionTimesheet, finalizeTimesheet, type AuthContext } from '../../utils/workflow-helpers';
 import { E2E_CONFIG } from '../../config/e2e.config';
 import { LECTURER_STORAGE, TUTOR_STORAGE } from '../utils/auth-storage';
+import { statusLabel, statusLabelPattern } from '../../utils/status-labels';
 
 const uniqueDescription = (label: string) => `${label} ${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -71,13 +72,13 @@ test.describe('Critical User Journeys', () => {
         expect(count).toBeGreaterThan(0);
       }).toPass({ timeout: 20000 });
 
-      await expect(tutorDashboard.getStatusBadge(seed.id)).toContainText(/Pending Tutor Confirmation|Awaiting Tutor/i);
+      await expect(tutorDashboard.getStatusBadge(seed.id)).toContainText(statusLabel('PENDING_TUTOR_CONFIRMATION'));
       const confirmResponse = await tutorDashboard.confirmTimesheet(seed.id);
       expect(confirmResponse.status()).toBe(200);
       await expect(async () => {
         await tutorDashboard.refreshDashboard();
         const badgeText = await tutorDashboard.getStatusBadge(seed.id).textContent();
-        expect(badgeText).toMatch(/Tutor Confirmed/i);
+        expect(badgeText).toMatch(statusLabelPattern('TUTOR_CONFIRMED'));
       }).toPass({ timeout: 20000 });
 
       await transitionTimesheet(request, tokens, seed.id, 'LECTURER_CONFIRM');

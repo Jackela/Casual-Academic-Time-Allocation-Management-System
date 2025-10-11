@@ -5,5 +5,15 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.3.1"
+  },
+  "scripts": {
+    "bmad:refresh": "bmad-method install -f -i codex",
+    "bmad:list": "bmad-method list:agents",
+    "bmad:validate": "bmad-method validate",
+    "contracts:pipeline": "node tools/scripts/contracts-pipeline.js",
+    "contracts:verify": "node tools/scripts/contracts-pipeline.js --verify"
+  },
+  "devDependencies": {
+    "quicktype-core": "^23.0.59"
   }
 }

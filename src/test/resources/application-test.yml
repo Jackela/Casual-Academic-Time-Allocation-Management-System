@@ -44,3 +44,7 @@ logging:
     org.springframework.security: WARN
     org.hibernate: WARN
     org.springframework.web: WARN
+
+app:
+  testing:
+    reset-token: test-reset-token

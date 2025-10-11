@@ -5,7 +5,7 @@
  * memoization, and advanced features.
  */
 
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { Fragment, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import type { Timesheet, ApprovalAction, TimesheetStatus } from '../../../types/api';
 import { formatters } from '../../../utils/formatting';
 import { secureLogger } from '../../../utils/secure-logger';
@@ -13,6 +13,10 @@ import StatusBadge from '../StatusBadge/StatusBadge';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import RelativeTime from '../../RelativeTime';
 import './TimesheetTable.css';
+import { getLecturerActionPermission, LECTURER_ACTION_UNAVAILABLE_MESSAGE } from './lecturer-action-utils';
+import { useUiConstraints } from '../../../lib/config/ui-config';
+
+type UiConstraintSnapshot = ReturnType<typeof useUiConstraints>;
 
 // =============================================================================
 // Component Props & Types
@@ -57,7 +61,7 @@ interface TimesheetTablePagination {
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [20, 50, 100];
 
-type DerivedColumnKey = 'tutor' | 'course' | 'totalPay' | 'actions' | 'selection';
+type DerivedColumnKey = 'tutor' | 'course' | 'totalPay' | 'actions' | 'selection' | 'details';
 type TimesheetColumnKey = keyof Timesheet | DerivedColumnKey;
 
 interface Column {
@@ -67,6 +71,7 @@ interface Column {
   sortable?: boolean;
   visible?: boolean;
   render?: (timesheet: Timesheet, index: number) => React.ReactNode;
+  priority?: 'high' | 'medium' | 'low';
 }
 
 const createColumn = <K extends TimesheetColumnKey>(
@@ -106,6 +111,30 @@ const TimesheetRow = memo<TimesheetRowProps>(({
   actionsDisabled = false,
   actionsDisabledReason,
 }) => {
+  const uiConstraints = useUiConstraints();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const detailsId = useMemo(() => `timesheet-${timesheet.id}-details`, [timesheet.id]);
+
+  const visibleColumns = useMemo(
+    () => columns.filter(column => column.visible !== false),
+    [columns],
+  );
+
+  const detailColumns = useMemo(
+    () => visibleColumns.filter(column =>
+      (column.priority === 'low' || column.priority === 'medium') &&
+      column.key !== 'actions' &&
+      column.key !== 'details'
+    ),
+    [visibleColumns],
+  );
+
+  const hasDetailColumns = detailColumns.length > 0;
+
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [timesheet.id, columns]);
+
   const handleRowClick = useCallback(() => {
     onRowClick?.(timesheet);
   }, [timesheet, onRowClick]);
@@ -160,52 +189,140 @@ const TimesheetRow = memo<TimesheetRowProps>(({
     onApprovalAction(timesheet.id, 'TUTOR_CONFIRM');
   }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
 
+  const handleToggleDetails = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!hasDetailColumns) {
+      return;
+    }
+    setIsExpanded(previous => !previous);
+  }, [hasDetailColumns]);
+
   const totalPay = useMemo(() => timesheet.hours * timesheet.hourlyRate, [timesheet.hours, timesheet.hourlyRate]);
 
-  return (
-    <tr
-      className={`timesheet-row ${selected ? 'selected' : ''} ${index % 2 === 0 ? 'even' : 'odd'}`}
-      onClick={handleRowClick}
-      data-testid={`timesheet-row-${timesheet.id}`}
-      style={style}
-    >
-      {showSelection && (
-        <td className="cell selection-cell">
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={handleSelectionChange}
-            disabled={actionsDisabled}
-            title={actionsDisabled ? (actionsDisabledReason ?? 'Selection is disabled while actions are locked.') : undefined}
-            aria-label={`Select timesheet ${timesheet.id}`}
-          />
-        </td>
-      )}
+  const cellContentCache = new Map<TimesheetColumnKey, React.ReactNode>();
+  const baseCellProps: CellRendererProps = {
+    onApprove: handleApprove,
+    onReject: handleReject,
+    onEdit: handleEdit,
+    onSubmitDraft: handleSubmitDraft,
+    onConfirm: handleConfirm,
+    actionLoading,
+    totalPay,
+    actionMode,
+    approvalRole,
+    actionsDisabled,
+    actionsDisabledReason,
+    onToggleDetails: handleToggleDetails,
+    detailsId,
+    detailsExpanded: isExpanded,
+    detailsAvailable: hasDetailColumns,
+    constraints: uiConstraints,
+  };
 
-      {columns.filter(column => column.visible !== false).map(column => (
-        <td
-          key={column.key}
-          className={`cell ${column.key}-cell`}
-          style={{ width: column.width }}
+  const getCellContent = (column: Column): React.ReactNode => {
+    if (cellContentCache.has(column.key)) {
+      return cellContentCache.get(column.key) ?? null;
+    }
+
+    const content = column.render
+      ? column.render(timesheet, index)
+      : renderDefaultCell(column.key, timesheet, baseCellProps);
+
+    cellContentCache.set(column.key, content);
+    return content;
+  };
+
+  const detailCellProps: CellRendererProps = {
+    ...baseCellProps,
+    isDetailContent: true,
+  };
+
+  const getDetailContent = (key: TimesheetColumnKey): React.ReactNode => {
+    const column = visibleColumns.find(item => item.key === key);
+
+    if (column?.render) {
+      return column.render(timesheet, index);
+    }
+
+    if (isTimesheetKey(key)) {
+      return renderDefaultCell(key, timesheet, detailCellProps);
+    }
+
+    return renderDefaultCell(key, timesheet, detailCellProps);
+  };
+
+  const detailEntries = detailColumns.map((column) => ({
+    key: column.key,
+    label: column.label,
+    content: getDetailContent(column.key),
+  }));
+
+  const columnSpan = visibleColumns.length + (showSelection ? 1 : 0);
+
+  return (
+    <Fragment>
+      <tr
+        className={`timesheet-row ${selected ? 'selected' : ''} ${index % 2 === 0 ? 'even' : 'odd'}`}
+        onClick={handleRowClick}
+        data-testid={`timesheet-row-${timesheet.id}`}
+        style={style}
+      >
+        {showSelection && (
+          <td className="cell selection-cell priority-high">
+            <label className="selection-input-wrapper">
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={handleSelectionChange}
+                disabled={actionsDisabled}
+                title={actionsDisabled ? (actionsDisabledReason ?? 'Selection is disabled while actions are locked.') : undefined}
+                aria-label={`Select timesheet ${timesheet.id}`}
+              />
+            </label>
+          </td>
+        )}
+
+        {visibleColumns.map(column => {
+          const priorityClass = `priority-${column.priority ?? 'high'}`;
+          return (
+            <td
+              key={column.key}
+              className={`cell ${column.key}-cell ${priorityClass}`}
+              style={{ width: column.width }}
+              data-priority={column.priority ?? 'high'}
+            >
+              {getCellContent(column)}
+            </td>
+          );
+        })}
+      </tr>
+
+      {hasDetailColumns && (
+        <tr
+          className={`timesheet-detail-row ${isExpanded ? 'is-expanded' : ''}`}
+          aria-hidden={!isExpanded}
+          data-testid={`timesheet-details-row-${timesheet.id}`}
         >
-          {column.render
-            ? column.render(timesheet, index)
-            : renderDefaultCell(column.key, timesheet, {
-                onApprove: handleApprove,
-                onReject: handleReject,
-                onEdit: handleEdit,
-                onSubmitDraft: handleSubmitDraft,
-                onConfirm: handleConfirm,
-                actionLoading,
-                totalPay,
-                actionMode,
-                approvalRole,
-                actionsDisabled,
-                actionsDisabledReason,
-              })}
-        </td>
-      ))}
-    </tr>
+          <td className="cell detail-cell" colSpan={columnSpan}>
+            <div
+              id={detailsId}
+              className="timesheet-detail-content"
+              role="region"
+              aria-label={`Hidden details for timesheet ${timesheet.id}`}
+            >
+              <dl className="timesheet-detail-grid">
+                {detailEntries.map(entry => (
+                  <div key={entry.key} className="timesheet-detail-item">
+                    <dt>{entry.label}</dt>
+                    <dd>{entry.content}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </td>
+        </tr>
+      )}
+    </Fragment>
   );
 });
 
@@ -223,6 +340,12 @@ interface CellRendererProps {
   approvalRole?: ApprovalRole;
   actionsDisabled: boolean;
   actionsDisabledReason?: string;
+  onToggleDetails?: (event: React.MouseEvent) => void;
+  detailsId?: string;
+  detailsExpanded?: boolean;
+  detailsAvailable?: boolean;
+  isDetailContent?: boolean;
+  constraints: UiConstraintSnapshot;
 }
 
 const APPROVE_ACTION_BY_ROLE: Record<ApprovalRole, ApprovalAction> = {
@@ -231,11 +354,7 @@ const APPROVE_ACTION_BY_ROLE: Record<ApprovalRole, ApprovalAction> = {
   HR: 'HR_CONFIRM',
 };
 
-const ACTION_RULES: Record<ApprovalRole, { approve: TimesheetStatus[]; reject: TimesheetStatus[] }> = {
-  LECTURER: {
-    approve: ['TUTOR_CONFIRMED'],
-    reject: ['TUTOR_CONFIRMED'],
-  },
+const ACTION_RULES: Record<Exclude<ApprovalRole, 'LECTURER'>, { approve: TimesheetStatus[]; reject: TimesheetStatus[] }> = {
   ADMIN: {
     approve: ['LECTURER_CONFIRMED'],
     reject: ['LECTURER_CONFIRMED'],
@@ -253,11 +372,28 @@ function getApproveActionForRole(role?: ApprovalRole): ApprovalAction {
   return APPROVE_ACTION_BY_ROLE[role];
 }
 
-function getActionPermissions(role: ApprovalRole | undefined, status: TimesheetStatus) {
+interface ActionPermissions {
+  canApprove: boolean;
+  canReject: boolean;
+  approveReason?: string;
+  rejectReason?: string;
+}
+
+function getActionPermissions(role: ApprovalRole | undefined, status: TimesheetStatus): ActionPermissions {
   if (!role) {
     return {
       canApprove: true,
       canReject: true,
+    };
+  }
+
+  if (role === 'LECTURER') {
+    const lecturerPermissions = getLecturerActionPermission(status);
+    return {
+      canApprove: lecturerPermissions.canApprove,
+      canReject: lecturerPermissions.canReject,
+      approveReason: lecturerPermissions.approveReason,
+      rejectReason: lecturerPermissions.rejectReason,
     };
   }
 
@@ -269,7 +405,12 @@ function getActionPermissions(role: ApprovalRole | undefined, status: TimesheetS
 }
 
 const isTimesheetKey = (key: TimesheetColumnKey): key is keyof Timesheet => {
-  return key !== 'tutor' && key !== 'course' && key !== 'totalPay' && key !== 'actions' && key !== 'selection';
+  return key !== 'tutor'
+    && key !== 'course'
+    && key !== 'totalPay'
+    && key !== 'actions'
+    && key !== 'selection'
+    && key !== 'details';
 };
 
 function renderDefaultCell(
@@ -289,6 +430,11 @@ function renderDefaultCell(
     approvalRole,
     actionsDisabled,
     actionsDisabledReason,
+    onToggleDetails,
+    detailsId,
+    detailsExpanded,
+    detailsAvailable,
+    constraints,
   } = props;
 
   switch (key) {
@@ -321,6 +467,16 @@ function renderDefaultCell(
       return formatters.date(timesheet.weekStartDate);
 
     case 'hours':
+      if (props.isDetailContent) {
+        return (
+          <span className="detail-hours">
+            {formatters.hours(timesheet.hours)}
+            <span className="detail-hours__limit">
+              / {constraints.HOURS_MAX}h max
+            </span>
+          </span>
+        );
+      }
       return (
         <span className="hours-badge" data-testid={`hours-badge-${timesheet.id}`}>
           {formatters.hours(timesheet.hours)}
@@ -355,6 +511,14 @@ function renderDefaultCell(
       return (
         <RelativeTime
           timestamp={timesheet.createdAt}
+          className="timesheet-relative-time"
+        />
+      );
+
+    case 'updatedAt':
+      return (
+        <RelativeTime
+          timestamp={timesheet.updatedAt}
           className="timesheet-relative-time"
         />
       );
@@ -430,10 +594,17 @@ function renderDefaultCell(
         );
       }
 
-      const { canApprove, canReject } = getActionPermissions(approvalRole, timesheet.status);
-      secureLogger.debug('[TimesheetTable] action permissions', { role: approvalRole, status: timesheet.status, canApprove, canReject });
+      const actionPermissions = getActionPermissions(approvalRole, timesheet.status);
+      secureLogger.debug('[TimesheetTable] action permissions', {
+        role: approvalRole,
+        status: timesheet.status,
+        canApprove: actionPermissions.canApprove,
+        canReject: actionPermissions.canReject,
+      });
 
-      if (!canApprove && !canReject) {
+      const forceLecturerButtons = approvalRole === 'LECTURER';
+
+      if (!forceLecturerButtons && !actionPermissions.canApprove && !actionPermissions.canReject) {
         return (
           <div className="action-buttons no-actions" data-testid="action-buttons">
             <span aria-hidden="true">—</span>
@@ -446,30 +617,82 @@ function renderDefaultCell(
         ? 'Processing request…'
         : actionsDisabledReason ?? 'Action disabled for your role.';
 
+      const showApproveButton = forceLecturerButtons || actionPermissions.canApprove;
+      const showRejectButton = forceLecturerButtons || actionPermissions.canReject;
+
+      const approveDisabled = showApproveButton && (isLocked || !actionPermissions.canApprove);
+      const rejectDisabled = showRejectButton && (isLocked || !actionPermissions.canReject);
+
+      const approveDisabledReason = approveDisabled
+        ? (isLocked ? lockMessage : actionPermissions.approveReason ?? LECTURER_ACTION_UNAVAILABLE_MESSAGE)
+        : undefined;
+      const rejectDisabledReason = rejectDisabled
+        ? (isLocked ? lockMessage : actionPermissions.rejectReason ?? LECTURER_ACTION_UNAVAILABLE_MESSAGE)
+        : undefined;
+
+      const approveTooltipId = approveDisabledReason ? `timesheet-${timesheet.id}-approve-help` : undefined;
+      const rejectTooltipId = rejectDisabledReason ? `timesheet-${timesheet.id}-reject-help` : undefined;
+
       return (
         <div className="action-buttons" data-testid="action-buttons">
-          {canApprove && (
+          {showApproveButton && (
             <button
               onClick={onApprove}
-              disabled={isLocked}
+              disabled={approveDisabled}
+              aria-disabled={approveDisabled}
+              aria-describedby={approveTooltipId}
               className="approve-btn"
-              title={isLocked ? lockMessage : 'Final approve timesheet'}
+              title={approveDisabledReason ?? 'Final approve timesheet'}
               data-testid={`approve-btn-${timesheet.id}`}
             >
               {actionLoading ? <LoadingSpinner size="small" /> : 'Final Approve'}
             </button>
           )}
-          {canReject && (
+          {approveTooltipId && (
+            <span id={approveTooltipId} className="sr-only">
+              {approveDisabledReason}
+            </span>
+          )}
+          {showRejectButton && (
             <button
               onClick={onReject}
-              disabled={isLocked}
+              disabled={rejectDisabled}
+              aria-disabled={rejectDisabled}
+              aria-describedby={rejectTooltipId}
               className="reject-btn"
-              title={isLocked ? lockMessage : 'Reject timesheet'}
+              title={rejectDisabledReason ?? 'Reject timesheet'}
               data-testid={`reject-btn-${timesheet.id}`}
             >
               {actionLoading ? <LoadingSpinner size="small" /> : 'Reject'}
             </button>
           )}
+          {rejectTooltipId && (
+            <span id={rejectTooltipId} className="sr-only">
+              {rejectDisabledReason}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    case 'details': {
+      const disabled = !detailsAvailable || !onToggleDetails;
+      const expanded = Boolean(detailsExpanded);
+
+      return (
+        <div className="details-toggle">
+          <button
+            type="button"
+            onClick={onToggleDetails}
+            disabled={disabled}
+            className="details-toggle__button"
+            aria-expanded={expanded}
+            aria-controls={detailsId}
+            data-testid={`details-toggle-${timesheet.id}`}
+            title={disabled ? 'No additional details to show.' : expanded ? 'Hide additional details' : 'Show additional details'}
+          >
+            {expanded ? 'Hide Details' : 'Details'}
+          </button>
         </div>
       );
     }
@@ -544,40 +767,52 @@ const TableHeader = memo<TableHeaderProps>(({
       <tr className="table-header">
         {showSelection && (
           <th scope="col" className="cell selection-cell header-cell">
-            <input
-              type="checkbox"
-              checked={isAllSelected}
-              ref={input => {
-                if (input) {
-                  input.indeterminate = isIndeterminate;
-                }
-              }}
-              onChange={handleSelectAll}
-              disabled={disabled}
-              title={disabled ? (disabledReason ?? 'Selection is disabled while actions are locked.') : undefined}
-              aria-label="Select all timesheets"
-            />
+            <label className="selection-input-wrapper">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                ref={input => {
+                  if (input) {
+                    input.indeterminate = isIndeterminate;
+                  }
+                }}
+                onChange={handleSelectAll}
+                disabled={disabled}
+                title={disabled ? (disabledReason ?? 'Selection is disabled while actions are locked.') : undefined}
+                aria-label="Select all timesheets"
+              />
+            </label>
           </th>
         )}
 
         {columns.filter(column => column.visible !== false).map(column => {
           const isSorted = sortBy === column.key;
           const ariaSort = isSorted ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none';
+          const priorityClass = `priority-${column.priority ?? 'high'}`;
+          const isSortable = Boolean(column.sortable);
 
           return (
             <th
               key={column.key}
               scope="col"
-              className={`cell header-cell ${column.key}-header ${column.sortable ? 'sortable' : ''}`}
+              className={`cell header-cell ${column.key}-header ${isSortable ? 'sortable' : ''} ${priorityClass}`}
+              data-priority={column.priority ?? 'high'}
               style={{ width: column.width }}
               aria-sort={ariaSort}
-              onClick={column.sortable ? () => handleSort(column.key) : undefined}
             >
-              <span>{column.label}</span>
-              {column.sortable && (
-                <span className="sort-indicator" aria-hidden="true">
-                  {isSorted ? (sortDirection === 'asc' ? '↑' : '↓') : '⇅'}
-                </span>
+              {isSortable ? (
+                <button
+                  type="button"
+                  className="sortable-header-button"
+                  onClick={() => handleSort(column.key)}
+                >
+                  <span>{column.label}</span>
+                  <span className="sort-indicator" aria-hidden="true">
+                    {isSorted ? (sortDirection === 'asc' ? '↑' : '↓') : '⇅'}
+                  </span>
+                </button>
+              ) : (
+                <span>{column.label}</span>
               )}
             </th>
           );
@@ -624,6 +859,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         width: 150,
         sortable: true,
         visible: true,
+        priority: 'high',
       }));
     }
 
@@ -634,6 +870,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         width: 150,
         sortable: true,
         visible: true,
+        priority: 'high',
       }));
     }
 
@@ -644,6 +881,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         width: 140,
         sortable: true,
         visible: true,
+        priority: 'medium',
       }),
       createColumn({
         key: 'hours',
@@ -651,6 +889,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         width: 100,
         sortable: true,
         visible: true,
+        priority: 'medium',
       }),
       createColumn({
         key: 'hourlyRate',
@@ -658,6 +897,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         width: 110,
         sortable: true,
         visible: true,
+        priority: 'low',
       }),
       createColumn({
         key: 'totalPay',
@@ -665,6 +905,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         width: 130,
         sortable: true,
         visible: true,
+        priority: 'high',
       }),
       createColumn({
         key: 'status',
@@ -672,6 +913,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         width: 150,
         sortable: true,
         visible: true,
+        priority: 'high',
       }),
       createColumn({
         key: 'description',
@@ -679,6 +921,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         width: 220,
         sortable: false,
         visible: true,
+        priority: 'low',
       }),
       createColumn({
         key: 'createdAt',
@@ -686,6 +929,15 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         width: 140,
         sortable: true,
         visible: true,
+        priority: 'low',
+      }),
+      createColumn({
+        key: 'updatedAt',
+        label: 'Updated',
+        width: 140,
+        sortable: true,
+        visible: true,
+        priority: 'low',
       }),
     );
 
@@ -696,8 +948,18 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         width: 180,
         sortable: false,
         visible: true,
+        priority: 'high',
       }));
     }
+
+    dynamicColumns.push(createColumn({
+      key: 'details',
+      label: 'Details',
+      width: 120,
+      sortable: false,
+      visible: true,
+      priority: 'high',
+    }));
 
     return dynamicColumns;
   }, [showTutorInfo, showCourseInfo, showActions]);

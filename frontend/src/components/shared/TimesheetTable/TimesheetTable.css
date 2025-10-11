@@ -19,6 +19,11 @@
   position: relative;
 }
 
+.timesheet-table-container {
+  width: 100%;
+  overflow-x: hidden;
+}
+
 .timesheet-table--loading {
   opacity: 0.7;
   pointer-events: none;
@@ -53,6 +58,11 @@
   text-align: left;
   border-bottom: 1px solid #f3f4f6;
   vertical-align: middle;
+  min-width: 0;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .timesheet-table th {
@@ -72,58 +82,165 @@
   transition: background-color 0.15s ease;
 }
 
+.cell {
+  min-width: 0;
+}
+
+.selection-input-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.selection-input-wrapper input {
+  width: 20px;
+  height: 20px;
+}
+
+.action-buttons button,
+.tutor-actions button {
+  min-height: 44px;
+  min-width: 44px;
+  line-height: 1.5;
+}
+
+.details-toggle {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.details-toggle__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  color: #1f2937;
+  font-weight: 600;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.details-toggle__button:hover:not(:disabled) {
+  background-color: #e2e8f0;
+}
+
+.details-toggle__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.details-toggle__button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
 /* =============================================================================
    Column Widths and Responsive Layout
    ============================================================================= */
 
-.timesheet-table th:nth-child(1),
-.timesheet-table td:nth-child(1) {
-  width: 40px; /* Selection checkbox */
+.selection-cell {
   text-align: center;
+  width: 60px;
 }
 
-.timesheet-table th:nth-child(2),
-.timesheet-table td:nth-child(2) {
-  width: 120px; /* Tutor name */
+.tutor-cell,
+.tutor-header {
+  width: 150px;
 }
 
-.timesheet-table th:nth-child(3),
-.timesheet-table td:nth-child(3) {
-  width: 140px; /* Course */
+.course-cell,
+.course-header {
+  width: 150px;
 }
 
-.timesheet-table th:nth-child(4),
-.timesheet-table td:nth-child(4) {
-  width: 110px; /* Week */
+.weekStartDate-cell,
+.weekStartDate-header {
+  width: 140px;
 }
 
-.timesheet-table th:nth-child(5),
-.timesheet-table td:nth-child(5) {
-  width: 80px; /* Hours */
+.hours-cell,
+.hours-header,
+.hourlyRate-cell,
+.hourlyRate-header,
+.totalPay-cell,
+.totalPay-header {
   text-align: right;
 }
 
-.timesheet-table th:nth-child(6),
-.timesheet-table td:nth-child(6) {
-  width: 100px; /* Pay */
-  text-align: right;
-}
-
-.timesheet-table th:nth-child(7),
-.timesheet-table td:nth-child(7) {
-  width: 120px; /* Status */
+.status-cell,
+.status-header,
+.actions-cell,
+.actions-header,
+.details-cell,
+.details-header {
   text-align: center;
 }
 
-.timesheet-table th:nth-child(8),
-.timesheet-table td:nth-child(8) {
-  width: 100px; /* Actions */
-  text-align: center;
+.description-cell {
+  display: block;
 }
 
-.timesheet-table th:nth-child(9),
-.timesheet-table td:nth-child(9) {
-  min-width: 200px; /* Description - flexible */
+.details-header,
+.details-cell {
+  display: none;
+}
+
+.timesheet-detail-row {
+  display: none;
+  background: #f8fafc;
+}
+
+.timesheet-detail-row.is-expanded {
+  display: table-row;
+}
+
+.detail-cell {
+  padding: 0;
+  border-bottom: none;
+}
+
+.timesheet-detail-content {
+  padding: 16px;
+}
+
+.timesheet-detail-grid {
+  display: grid;
+  gap: 12px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.timesheet-detail-item dt {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #4b5563;
+  margin: 0;
+}
+
+.timesheet-detail-item dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #1f2937;
+  line-height: 1.5;
+}
+
+.detail-hours {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.detail-hours__limit {
+  font-size: 12px;
+  color: #64748b;
 }
 
 /* =============================================================================
@@ -543,14 +660,8 @@
    ============================================================================= */
 
 @media (max-width: 1024px) {
-  .timesheet-table th:nth-child(9),
-  .timesheet-table td:nth-child(9) {
-    display: none; /* Hide description on medium screens */
-  }
-  
-  .timesheet-table th:nth-child(2),
-  .timesheet-table td:nth-child(2) {
-    width: 100px; /* Smaller tutor column */
+  .timesheet-table {
+    font-size: 13px;
   }
 }
 
@@ -558,51 +669,56 @@
   .timesheet-table {
     font-size: 12px;
   }
-  
+
   .timesheet-table th,
   .timesheet-table td {
-    padding: 8px 12px;
+    padding: 10px 12px;
   }
-  
-  .timesheet-table th:nth-child(4),
-  .timesheet-table td:nth-child(4) {
-    display: none; /* Hide week column on mobile */
+
+  .priority-low {
+    display: none;
   }
-  
-  .timesheet-table th:nth-child(3),
-  .timesheet-table td:nth-child(3) {
-    width: 100px; /* Smaller course column */
+
+  .details-header,
+  .details-cell {
+    display: table-cell;
+    width: auto;
   }
-  
-  .course-code {
-    display: none; /* Hide course codes on mobile */
+
+  .details-toggle__button {
+    width: 100%;
   }
-  
+
+  .timesheet-detail-content {
+    padding: 12px;
+  }
+
   .action-buttons {
     flex-direction: column;
-    gap: 2px;
+    gap: 8px;
   }
-  
-  .action-button {
-    padding: 4px 8px;
-    font-size: 11px;
-    min-width: 60px;
+
+  .action-buttons button,
+  .tutor-actions button {
+    width: 100%;
   }
 }
 
 @media (max-width: 480px) {
-  .timesheet-table th:nth-child(2),
-  .timesheet-table td:nth-child(2) {
-    display: none; /* Hide tutor column on small mobile */
+  .timesheet-table {
+    font-size: 11px;
   }
-  
-  .timesheet-table th:nth-child(6),
-  .timesheet-table td:nth-child(6) {
-    width: 70px; /* Smaller pay column */
+
+  .priority-medium {
+    display: none;
   }
-  
-  .cell-pay {
-    font-size: 12px;
+
+  .action-buttons {
+    gap: 6px;
+  }
+
+  .timesheet-detail-grid {
+    grid-template-columns: 1fr;
   }
 }
 

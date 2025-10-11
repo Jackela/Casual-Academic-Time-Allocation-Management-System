@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.Map;
@@ -28,8 +29,11 @@ public class TestDataResetController {
     private final String resetToken;
 
     public TestDataResetController(TestDataResetService resetService,
-                                   @Value("${app.testing.reset-token}") String resetToken) {
+                                   @Value("${app.testing.reset-token:}") String resetToken) {
         this.resetService = resetService;
+        if (!StringUtils.hasText(resetToken)) {
+            throw new IllegalStateException("Missing app.testing.reset-token configuration for test reset endpoint");
+        }
         this.resetToken = resetToken;
     }
 

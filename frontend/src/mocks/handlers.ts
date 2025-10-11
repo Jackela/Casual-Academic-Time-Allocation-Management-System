@@ -29,7 +29,7 @@ const isApprovalRequest = (value: unknown): value is ApprovalRequest => {
 };
 
 export const handlers = [
-  http.post('http://localhost:8084/api/auth/login', async ({ request }) => {
+  http.post('*/api/auth/login', async ({ request }) => {
     const payload = await parseJson(request);
     const loginRequest = isLoginRequest(payload) ? payload : undefined;
     const email = loginRequest?.email ?? '';
@@ -51,8 +51,8 @@ export const handlers = [
     });
   }),
 
-  // Lecturer pending final approvals (APPROVED_BY_TUTOR)
-  http.get('http://localhost:8084/api/timesheets/pending-final-approval', () => {
+  // Lecturer pending final approvals (TUTOR_CONFIRMED)
+  http.get('*/api/timesheets/pending-final-approval', () => {
     return HttpResponse.json({
       content: [
         {
@@ -63,7 +63,7 @@ export const handlers = [
           tutorName: 'John Doe',
           hours: 10,
           hourlyRate: 45.0,
-          status: 'APPROVED_BY_TUTOR',
+          status: 'TUTOR_CONFIRMED',
           description: 'Review tutorial sessions',
         },
       ],
@@ -72,7 +72,7 @@ export const handlers = [
   }),
 
   // Approvals endpoint
-  http.post('http://localhost:8084/api/approvals', async ({ request }) => {
+  http.post('*/api/approvals', async ({ request }) => {
     const payload = await parseJson(request);
     const approvalRequest = isApprovalRequest(payload) ? payload : undefined;
 
@@ -83,13 +83,60 @@ export const handlers = [
     });
   }),
 
-  http.get('http://localhost:8084/api/timesheets/me', () => {
+  http.get('*/api/timesheets/me', () => {
     return HttpResponse.json({
       content: [
         { id: 1, courseId: 1, courseCode: 'COMP1001', hours: 10, hourlyRate: 45.0, status: 'REJECTED', description: 'Tutorial sessions' },
         { id: 2, courseId: 2, courseCode: 'DATA2001', hours: 8, hourlyRate: 50.0, status: 'DRAFT', description: 'Labs' },
       ],
       pageInfo: { totalElements: 2 },
+    });
+  }),
+
+  http.get('*/api/timesheets', () => {
+    return HttpResponse.json({
+      content: [
+        { id: 201, tutorId: 201, courseId: 1, courseCode: 'COMP1001', tutorName: 'Alex Rivers', hours: 12, hourlyRate: 45, status: 'TUTOR_CONFIRMED', description: 'Week 5 tutorials' },
+        { id: 202, tutorId: 202, courseId: 2, courseCode: 'DATA2001', tutorName: 'Morgan Lee', hours: 9, hourlyRate: 50, status: 'LECTURER_CONFIRMED', description: 'Data lab support' },
+        { id: 203, tutorId: 203, courseId: 3, courseCode: 'STAT3004', tutorName: 'Taylor Kim', hours: 7.5, hourlyRate: 48, status: 'MODIFICATION_REQUESTED', description: 'Assignment marking' },
+        { id: 204, tutorId: 3, courseId: 4, courseCode: 'MATH2002', tutorName: 'Jamie Chen', hours: 5, hourlyRate: 42, status: 'DRAFT', description: 'Tutorial prep notes' },
+      ],
+      pageInfo: {
+        currentPage: 0,
+        pageSize: 50,
+        totalElements: 3,
+        totalPages: 1,
+        first: true,
+        last: true,
+        numberOfElements: 3,
+        empty: false,
+      },
+    });
+  }),
+
+  http.get('*/api/dashboard/summary', () => {
+    return HttpResponse.json({
+      totalTimesheets: 42,
+      pendingApprovals: 3,
+      totalHours: 128,
+      totalPayroll: 5400,
+      tutorCount: 18,
+      statusBreakdown: {
+        DRAFT: 5,
+        PENDING_TUTOR_CONFIRMATION: 4,
+        TUTOR_CONFIRMED: 6,
+        LECTURER_CONFIRMED: 10,
+        FINAL_CONFIRMED: 12,
+        REJECTED: 2,
+        MODIFICATION_REQUESTED: 3,
+      },
+      recentActivity: [],
+      upcomingDeadlines: [],
+      systemMetrics: {
+        uptime: '99.9%',
+        averageApprovalTime: '6h',
+        escalationsThisWeek: 1,
+      },
     });
   }),
 ];

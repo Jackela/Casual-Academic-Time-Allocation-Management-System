@@ -1,0 +1,43 @@
+---
+description: Terminal orchestration rules for one-shot and long-running scripts; enforce sentinel, non-interactive flags, Windows-safe Gradle invocation, health checks, and cleanup.
+globs:
+  - "scripts/**/*.js"
+  - "scripts/**/*.ts"
+alwaysApply: false
+---
+
+# Project Rule — Scripts Orchestration
+
+Applies automatically to files under `scripts/**`.
+
+## Hard requirements (one-shot commands)
+- Print sentinel and two newlines at the end: `[TASK_DONE]` then `\n\n`.
+  - PowerShell example: append `; Write-Host "[TASK_DONE]"; Write-Host ""; Write-Host ""`.
+  - Node orchestrators: always call `process.stdout.write("\n\n[TASK_DONE]\n\n"); process.exit(0|1);` in the final path (success and failure).
+- Non-interactive, noise-reduced by default:
+  - Prefer `--no-color/--json` when available.
+  - Gradle must use `--console=plain`.
+  - Do not rely on pagers. Avoid PowerShell piping that turns object streams into text (no `| cat`); run scripts directly.
+- Windows-safe Gradle invocation when spawned from Node:
+  - Use `cmd.exe /d /s /c call gradlew.bat ...` to avoid “Terminate batch job (Y/N)?” and lingering jobs.
+- Long-running/serve/watch commands must NOT block the IDE and must NOT print the sentinel; run with controlled timeout or in the background.
+- Health checks and total timeout are mandatory for any external service orchestration (e.g., backend server, docker compose). On failure:
+  - Print the last 200 lines (or sufficiently contextual logs), then print sentinel and exit non-zero.
+- Cleanup and idempotence:
+  - Never leave child processes or ports occupied on failure; clean up or warn explicitly before exit.
+  - Do not hardcode ports; read from a single source of truth (config files/env).
+
+## Examples
+- One-shot Node script tail:
+  ```js
+  function cleanExit(code){ try{ process.stdout.write("\n\n[TASK_DONE]\n\n"); }catch{} process.exit(code); }
+  process.on('SIGINT', ()=>cleanExit(130));
+  process.on('SIGTERM', ()=>cleanExit(143));
+  // ... main ... finally { cleanExit(exitCode); }
+  ```
+- Gradle from Node on Windows:
+  ```js
+  const args = ['/d','/s','/c','call','gradlew.bat','test','--console=plain'];
+  spawn('cmd.exe', args, { shell:true });
+  ```
+

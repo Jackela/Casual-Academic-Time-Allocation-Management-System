@@ -361,8 +361,8 @@ describe('LoginPage Component Tests', () => {
       await user.click(submitButton);
 
       // Check loading state immediately
-      expect(screen.getByRole('button', { name: /signing in\.\.\./i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /signing in\.\.\./i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /signing in…/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /signing in…/i })).toBeDisabled();
       
       // Form fields should be disabled during loading
       expect(emailInput).toBeDisabled();
@@ -370,7 +370,7 @@ describe('LoginPage Component Tests', () => {
 
       // Wait for loading to complete
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: /signing in\.\.\./i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /signing in…/i })).not.toBeInTheDocument();
       });
     });
   });

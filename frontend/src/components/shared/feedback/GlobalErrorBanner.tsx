@@ -1,4 +1,4 @@
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertOctagon, AlertTriangle, RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '../../ui/button';
 
@@ -14,8 +14,8 @@ export interface GlobalErrorBannerProps {
 }
 
 const iconBySeverity: Record<NonNullable<GlobalErrorBannerProps['severity']>, ReactNode> = {
-  error: <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />,
-  warning: <AlertTriangle className="h-5 w-5 text-warning" aria-hidden="true" />,
+  error: <AlertOctagon className="h-5 w-5 text-destructive" aria-hidden="true" />,
+  warning: <AlertTriangle className="h-5 w-5 text-amber-500" aria-hidden="true" />,
 };
 
 export function GlobalErrorBanner({

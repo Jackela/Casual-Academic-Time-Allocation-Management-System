@@ -1,0 +1,25 @@
+# Default owners
+* @catams/maintainers
+
+# Backend (Java)
+src/main/java/ @catams/backend-core
+src/test/java/ @catams/backend-core
+
+# Frontend (React/Vite)
+frontend/ @catams/frontend-guild
+
+# Contracts & schemas
+schema/ @catams/backend-core @catams/frontend-guild
+
+# Documentation
+docs/ @catams/documentation
+README.md @catams/documentation
+CONTRIBUTING.md @catams/documentation
+
+# Infrastructure & DevOps
+infra/ @catams/platform
+docker-compose.yml @catams/platform
+
+# Automation Scripts
+tools/scripts/ @catams/platform
+scripts/ @catams/platform

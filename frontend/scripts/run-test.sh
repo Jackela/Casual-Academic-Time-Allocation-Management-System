@@ -14,6 +14,7 @@ NC='\033[0m' # No Color
 # Project root detection
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+TEST_PORTS=(3000 3001 4000 5000 5173 5174 4173 4174 5175 8000 8080 9229)
 
 echo -e "${GREEN}Starting test execution with cleanup...${NC}"
 
@@ -36,7 +37,7 @@ cleanup_on_exit() {
     pkill -f "node.*$(basename "$PROJECT_ROOT")" 2>/dev/null || true
     
     # Clean up common development ports
-    for port in 3000 3001 4000 5000 8000 8080 9229; do
+    for port in "${TEST_PORTS[@]}"; do
         lsof -ti:$port | xargs -r kill -TERM 2>/dev/null || true
     done
     
@@ -59,7 +60,7 @@ echo -e "${YELLOW}Running pre-flight cleanup...${NC}"
 pkill -f "node.*$(basename "$PROJECT_ROOT")" 2>/dev/null || true
 
 # Clean up ports from previous runs
-for port in 3000 3001 4000 5000 8000 8080 9229; do
+for port in "${TEST_PORTS[@]}"; do
     lsof -ti:$port | xargs -r kill -TERM 2>/dev/null || true
 done
 

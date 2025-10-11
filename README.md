@@ -1,6 +1,30 @@
 # CATAMS - Casual Academic Time Allocation Management System (Baseline v1)
 
-CATAMS manages timesheets and approval workflows for Tutors, Lecturers, and Admins. Baseline v1 documents the current monolithic backend (Spring Boot + DDD) and React frontend. This README is human-oriented and comprehensive. For AI-oriented deep context, see `PROJECT_DOCS.md`.
+CATAMS manages timesheets and approval workflows for Tutors, Lecturers, and Admins. Baseline v1 documents the current monolithic backend (Spring Boot + DDD) and React frontend. This README stays human-oriented and concise. Deep-dive documentation lives under `docs/` (see [`DOCUMENTATION_INDEX.md`](docs/DOCUMENTATION_INDEX.md)).
+
+## Workspace Map
+
+| Path | Purpose |
+| --- | --- |
+| `src/main/java/com/usyd/catams` | Spring Boot monolith (DDD layers) |
+| `src/test/java/com/usyd/catams` | Unit + integration test suites |
+| `frontend/` | React + Vite application, Vitest, Playwright |
+| `schema/` | Canonical JSON Schemas for contract-first flow |
+| `docs/` | Architecture, ADRs, governance, testing references |
+| `tools/scripts/` | Authoritative automation entry points |
+| `infra/` | Deployment, IaC, and platform runbooks |
+| `.devtools/` | AI/assistant configuration (kept out of runtime paths) |
+
+## Quick Commands
+
+Everyday workflows live in [`docs/tasks.md`](docs/tasks.md). Highlights:
+
+- Full backend verification: `./gradlew clean test`
+- Backend integration slice: `./gradlew integrationTest`
+- Frontend verification: `cd frontend && npm ci && npm run test:ci`
+- Mock E2E sweep: `cd frontend && npm run test:e2e:mock`
+- Real E2E sweep (requires backend on :8084): `cd frontend && npm run test:e2e:real`
+- Contract pipeline: `./gradlew generateContracts && ./gradlew verifyContracts`
 
 ## Features
 
@@ -185,6 +209,13 @@ node scripts/test-frontend-unit-select.js --pattern="auth.*.spec"
 
 - All one-shot Node scripts emit `[TASK_DONE]` and exit non-interactively.
 - Windows: Gradle is invoked via `cmd /d /s /c call gradlew.bat ...` (handled by scripts).
+
+## Contributing & Governance
+
+- Follow the guidelines in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- Ownership map lives in [`.github/CODEOWNERS`](.github/CODEOWNERS).
+- Language and glossary rules: [`docs/governance/translation-charter.md`](docs/governance/translation-charter.md).
+- Structural decisions and migrations are tracked in [`docs/adr/`](docs/adr).
 
 ## Baseline
 

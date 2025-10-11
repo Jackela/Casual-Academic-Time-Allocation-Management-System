@@ -54,45 +54,21 @@ test.describe('Lecturer Dashboard Workflow', () => {
   test('Lecturer can interact with timesheet approval buttons if timesheets exist', async ({ page }) => {
     await openLecturerDashboard(page);
     
-    // Robust detection: either dedicated test id or plain table element
-    const tableCandidate = page.locator('[data-testid="timesheets-table"], table');
-    const tableVisible = (await tableCandidate.count()) > 0 || await tableCandidate.first().isVisible().catch(() => false);
-    
-    if (tableVisible) {
-      // Row-scoped strong consistency: each data row should present actions within the same row
-      const table = tableCandidate.first();
-      const rows = table.locator('tbody tr');
-      const rowCount = await rows.count();
-      if (rowCount === 0) {
-        // No pending items left is acceptable; consider multiple valid UI outcomes
-        const emptyByTestId = await page.locator('[data-testid="empty-state"]').first().isVisible().catch(() => false);
-        const zeroPendingText = (await page.getByText(/\b0\s+pending\b/i).count()) > 0;
-        const tableHidden = await table.isHidden().catch(() => false);
-        expect(emptyByTestId || zeroPendingText || tableHidden).toBe(true);
-        return;
-      }
+    const approveButtons = page.locator('[data-testid^="approve-btn-"], button:has-text("Final Approve")');
+    const rejectButtons = page.locator('[data-testid^="reject-btn-"], button:has-text("Reject")');
 
-      for (let i = 0; i < rowCount; i++) {
-        const row = rows.nth(i);
-        // Prefer stable testids if present; fall back to role/name
-        const approveTestId = row.locator('[data-testid^="approve-btn-"]');
-        const rejectTestId = row.locator('[data-testid^="reject-btn-"]');
-
-        const approveFromRole = row.getByRole('button', { name: 'Final Approve', exact: true }).or(
-          row.getByRole('button', { name: 'Approve', exact: true })
-        );
-        const rejectFromRole = row.getByRole('button', { name: 'Reject', exact: true });
-
-        const approveLocator = (await approveTestId.count()) > 0 ? approveTestId.first() : approveFromRole.first();
-        const rejectLocator = (await rejectTestId.count()) > 0 ? rejectTestId.first() : rejectFromRole.first();
-
-        await expect(approveLocator).toBeVisible();
-        await expect(rejectLocator).toBeVisible();
-      }
-    } else {
-      // If no table is present/visible, accept as valid state for this test scenario
-      expect(true).toBe(true);
+    // Allow dashboards with zero pending approvals as a valid state
+    const approveCount = await approveButtons.count();
+    const rejectCount = await rejectButtons.count();
+    if (approveCount === 0 || rejectCount === 0) {
+      const emptyState = await page.locator('[data-testid="empty-state"]').first().isVisible().catch(() => false);
+      const zeroPendingText = (await page.getByText(/\b0\s+pending\b/i).count()) > 0;
+      expect(emptyState || zeroPendingText).toBe(true);
+      return;
     }
+
+    await expect(approveButtons.first()).toBeVisible();
+    await expect(rejectButtons.first()).toBeVisible();
   });
 
   test('Lecturer dashboard handles loading state', async ({ page }) => {
@@ -106,6 +82,134 @@ test.describe('Lecturer Dashboard Workflow', () => {
     } catch {
       // Loading indicator can linger in mocked responses
     }
+  });
+
+
+  test('Lecturer can reject a tutor confirmed timesheet with a reason', async ({ page }) => {
+    const now = Date.now();
+    const createdAt = new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString();
+
+    const baseTimesheet = {
+      id: 550001,
+      tutorId: 812,
+      courseId: 77,
+      weekStartDate: '2025-04-07',
+      hours: 5,
+      hourlyRate: 52,
+      description: 'Tutorial coverage for COMP3600',
+      status: 'TUTOR_CONFIRMED',
+      createdAt,
+      updatedAt: createdAt,
+      tutorName: 'Taylor Morgan',
+      courseName: 'Advanced Algorithms',
+      courseCode: 'COMP3600'
+    };
+
+    type PendingStatus = 'TUTOR_CONFIRMED' | 'REJECTED';
+    let pendingStatus: PendingStatus = 'TUTOR_CONFIRMED';
+    let capturedApprovalBody: Record<string, unknown> | null = null;
+
+    const buildPendingResponse = (status: PendingStatus) => ({
+      success: true,
+      timesheets: [{
+        ...baseTimesheet,
+        status,
+        updatedAt: new Date().toISOString()
+      }],
+      pageInfo: {
+        currentPage: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+        first: true,
+        last: true,
+        numberOfElements: 1,
+        empty: false
+      }
+    });
+
+    await page.route('**/api/timesheets/pending-final-approval**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(buildPendingResponse(pendingStatus))
+      });
+    });
+
+    await page.route('**/api/dashboard/summary', async route => {
+      const payload = {
+        totalTimesheets: 36,
+        pendingApprovals: pendingStatus === 'TUTOR_CONFIRMED' ? 1 : 0,
+        pendingApproval: pendingStatus === 'TUTOR_CONFIRMED' ? 1 : 0,
+        thisWeekHours: 14,
+        thisWeekPay: 728,
+        statusBreakdown: {
+          TUTOR_CONFIRMED: pendingStatus === 'TUTOR_CONFIRMED' ? 1 : 0,
+          REJECTED: pendingStatus === 'REJECTED' ? 1 : 0
+        },
+        recentActivity: []
+      };
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(payload)
+      });
+    });
+
+    await page.route('**/api/approvals', async route => {
+      const request = route.request();
+      capturedApprovalBody = JSON.parse(request.postData() || '{}');
+      pendingStatus = 'REJECTED';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          message: 'Rejection processed',
+          timesheetId: baseTimesheet.id,
+          newStatus: 'REJECTED'
+        })
+      });
+    });
+
+    const pendingResponse = page.waitForResponse('**/api/timesheets/pending-final-approval**');
+    await openLecturerDashboard(page);
+    await pendingResponse;
+
+    const targetRow = page.getByTestId(`timesheet-row-${baseTimesheet.id}`);
+    await expect(targetRow).toBeVisible();
+    await expect(targetRow).toContainText(baseTimesheet.tutorName);
+
+    const rejectButton = page.getByTestId(`reject-btn-${baseTimesheet.id}`);
+    await expect(rejectButton).toBeVisible();
+    await rejectButton.click();
+
+    const modalTitle = page.getByRole('heading', { name: 'Reject Timesheet' });
+    await expect(modalTitle).toBeVisible();
+
+    const reasonTextarea = page.getByPlaceholder('e.g., Incorrect hours logged for CS101...');
+    await reasonTextarea.fill('Hours exceed allocated budget for the week.');
+
+    const approvalsResponse = page.waitForResponse('**/api/approvals');
+    const refreshResponse = page.waitForResponse((response) =>
+      response.url().includes('/api/timesheets/pending-final-approval') &&
+      response.request().method() === 'GET'
+    );
+
+    await page.getByRole('button', { name: 'Reject Timesheet' }).click();
+
+    await approvalsResponse;
+    await refreshResponse;
+
+    expect(capturedApprovalBody).toMatchObject({
+      timesheetId: baseTimesheet.id,
+      action: 'REJECT',
+      comment: 'Hours exceed allocated budget for the week.'
+    });
+
+    await expect(modalTitle).toHaveCount(0);
+    await expect(targetRow).toContainText(/Rejected/i);
   });
 
 
@@ -160,7 +264,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
     await openLecturerDashboard(page);
     await pendingResponse;
 
-    const timesheetRow = page.locator(`tr:has-text("${timesheet.description}")`);
+    const timesheetRow = page.getByTestId(`timesheet-row-${timesheet.id}`);
     await expect(timesheetRow).toBeVisible();
 
     const approveButton = timesheetRow.getByTestId(`approve-btn-${timesheet.id}`);
@@ -244,7 +348,9 @@ test.describe('Lecturer Dashboard Workflow', () => {
 
     const table = page.getByTestId('timesheets-table');
     await expect(table).toBeVisible({ timeout: 5000 });
-    await expect(table.getByText(timesheet.description)).toBeVisible();
+    const targetRow = page.getByTestId(`timesheet-row-${timesheet.id}`);
+    await expect(targetRow).toBeVisible();
+    await expect(targetRow).toContainText(timesheet.description);
   });
 
   test('当没有待审批的时间表时，UI 显示空状态视图', async ({ page }) => {

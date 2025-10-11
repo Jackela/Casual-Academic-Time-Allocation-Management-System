@@ -43,7 +43,13 @@ describe("LecturerPendingTable", () => {
   });
 
   it("renders sticky batch bar when rows are selected", () => {
-    renderComponent({ selectedTimesheets: [1, 2] });
+    renderComponent({
+      timesheets: [
+        createMockTimesheet({ id: 1, status: "TUTOR_CONFIRMED" }),
+        createMockTimesheet({ id: 2, status: "TUTOR_CONFIRMED" }),
+      ],
+      selectedTimesheets: [1, 2],
+    });
 
     const bar = screen.getByTestId("lecturer-batch-action-bar");
     expect(bar).toBeInTheDocument();
@@ -60,6 +66,7 @@ describe("LecturerPendingTable", () => {
 
   it("disables batch actions when approvals are loading or callbacks missing", () => {
     renderComponent({
+      timesheets: [createMockTimesheet({ id: 1, status: "TUTOR_CONFIRMED" })],
       selectedTimesheets: [1],
       approvalLoading: true,
       onApproveSelected: undefined,
@@ -79,6 +86,10 @@ describe("LecturerPendingTable", () => {
     const user = userEvent.setup();
 
     renderComponent({
+      timesheets: [
+        createMockTimesheet({ id: 1, status: "TUTOR_CONFIRMED" }),
+        createMockTimesheet({ id: 2, status: "TUTOR_CONFIRMED" }),
+      ],
       selectedTimesheets: [1, 2],
       onApproveSelected: approveSpy,
       onRejectSelected: rejectSpy,
@@ -89,5 +100,52 @@ describe("LecturerPendingTable", () => {
 
     expect(approveSpy).toHaveBeenCalledTimes(1);
     expect(rejectSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables batch actions with accessible reason when status is not eligible", () => {
+    renderComponent({
+      timesheets: [createMockTimesheet({ id: 42, status: "DRAFT" })],
+      selectedTimesheets: [42],
+    });
+
+    const approveButton = screen.getByRole("button", { name: /approve selected/i });
+    const rejectButton = screen.getByRole("button", { name: /reject selected/i });
+    const statusMessages = screen.getAllByText("Action not available in current status");
+
+    expect(approveButton).toBeDisabled();
+    expect(rejectButton).toBeDisabled();
+    expect(approveButton).toHaveAttribute("title", "Action not available in current status");
+    expect(rejectButton).toHaveAttribute("title", "Action not available in current status");
+    expect(statusMessages).toHaveLength(2);
+  });
+
+  it("enables batch actions when all selections are lecturer confirmed", () => {
+    renderComponent({
+      timesheets: [
+        createMockTimesheet({ id: 11, status: "LECTURER_CONFIRMED" }),
+        createMockTimesheet({ id: 12, status: "LECTURER_CONFIRMED" }),
+      ],
+      selectedTimesheets: [11, 12],
+    });
+
+    expect(screen.getByRole("button", { name: /approve selected/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /reject selected/i })).not.toBeDisabled();
+  });
+
+  it("disables batch actions for mixed status selections", () => {
+    renderComponent({
+      timesheets: [
+        createMockTimesheet({ id: 21, status: "TUTOR_CONFIRMED" }),
+        createMockTimesheet({ id: 22, status: "LECTURER_CONFIRMED" }),
+      ],
+      selectedTimesheets: [21, 22],
+    });
+
+    const approveButton = screen.getByRole("button", { name: /approve selected/i });
+    const rejectButton = screen.getByRole("button", { name: /reject selected/i });
+
+    expect(approveButton).toBeDisabled();
+    expect(rejectButton).toBeDisabled();
+    expect(screen.getAllByText("Action not available in current status")).toHaveLength(2);
   });
 });

@@ -77,6 +77,17 @@ export default defineConfig({
         baseURL: E2E_CONFIG.FRONTEND.URL,
       },
     },
+    {
+      name: 'visual',
+      testDir: './e2e/visual',
+      retries: 0,
+      fullyParallel: false,
+      workers: 1,
+      use: {
+        colorScheme: 'light',
+        viewport: { width: 1280, height: 900 },
+      },
+    },
   ],
 
   /* Auto-start dev server for E2E tests (disabled when external orchestrator provides it) */

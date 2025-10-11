@@ -4,6 +4,7 @@ import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
 import { E2E_CONFIG } from '../../config/e2e.config';
 import { TUTOR_STORAGE } from '../utils/auth-storage';
 import { acquireAuthTokens, finalizeTimesheet, createTimesheetWithStatus, type AuthContext } from '../../utils/workflow-helpers';
+import { statusLabel, statusLabelPattern } from '../../utils/status-labels';
 
 test.describe('Tutor UAT - Core Workflow', () => {
   let tokens: AuthContext;
@@ -55,13 +56,13 @@ test.describe('Tutor UAT - Core Workflow', () => {
 
     const row = tutorDashboard.page.getByTestId(`timesheet-row-${seeded.id}`);
     await expect(row).toBeVisible();
-    await expect(tutorDashboard.getStatusBadge(seeded.id)).toContainText(/Draft/i);
+    await expect(tutorDashboard.getStatusBadge(seeded.id)).toContainText(statusLabel('DRAFT'));
 
     await tutorDashboard.submitDraft(seeded.id);
     await expect(async () => {
       await tutorDashboard.refreshDashboard();
       const text = await tutorDashboard.getStatusBadge(seeded.id).textContent();
-      expect(text).toMatch(/Pending Tutor Confirmation|Awaiting Tutor/i);
+      expect(text).toMatch(statusLabelPattern('PENDING_TUTOR_CONFIRMATION'));
     }).toPass({ timeout: 20000 });
   });
 });

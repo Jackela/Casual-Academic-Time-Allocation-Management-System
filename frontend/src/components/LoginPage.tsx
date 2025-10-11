@@ -186,7 +186,7 @@ const LoginPage: React.FC = () => {
               className="w-full"
               data-testid="login-submit-button"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Signing in…' : 'Sign In'}
             </Button>
           </form>
         </CardContent>

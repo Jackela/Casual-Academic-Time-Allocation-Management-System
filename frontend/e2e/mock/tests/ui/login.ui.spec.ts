@@ -95,7 +95,7 @@ test.describe('Login UI with Mocked Responses', { tag: '@ui' }, () => {
     await submitButton.click();
     
     // Should show loading text
-    await expect(submitButton).toContainText('Signing in...');
+    await expect(submitButton).toContainText(/Signing in…/);
     await expect(submitButton).toBeDisabled();
   });
 });

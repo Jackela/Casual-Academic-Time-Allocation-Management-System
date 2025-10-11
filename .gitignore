@@ -260,8 +260,18 @@ coverage/
 logs/
 
 # Local AI/assistant tooling caches
-.cursor/
-.claude/
-.gemini/
 .bamd
 .bamd/
+.bmad-core/
+.bmad-*/
+
+# Frontend generated artifacts
+frontend/playwright-report/
+frontend/test-results/
+frontend/__screenshots__/
+frontend/clips/
+frontend/coverage/
+frontend/dist/
+
+# Tooling archives
+tools/logs/archive/
