@@ -8,9 +8,22 @@
 import { memo } from 'react';
 import type { TimesheetStatus } from '../../../types/api';
 import { Badge } from '../../ui/badge';
+import { cn } from '../../../lib/utils';
 import { statusConfigs } from './status-badge-utils';
 
 const STATUS_BADGE_BASE_CLASS = 'status-badge';
+
+const SIZE_CLASS_MAP: Record<NonNullable<StatusBadgeProps['size']>, string> = {
+  small: 'px-2.5 py-1 text-xs',
+  medium: 'px-3 py-1.5 text-sm',
+  large: 'px-3.5 py-1.5 text-base',
+};
+
+const ICON_SIZE_CLASS_MAP: Record<NonNullable<StatusBadgeProps['size']>, string> = {
+  small: 'text-[0.55rem]',
+  medium: 'text-[0.65rem]',
+  large: 'text-[0.75rem]',
+};
 // =============================================================================
 // Component Props & Types
 // =============================================================================
@@ -41,13 +54,16 @@ const StatusBadge = memo<StatusBadgeProps>(({
 }) => {
   const config = statusConfigs[status] ?? statusConfigs.DRAFT;
   const testId = dataTestId ?? `status-badge-${status.toLowerCase()}`;
-  const composedClassName = [
+  const sizeClassName = SIZE_CLASS_MAP[size] ?? SIZE_CLASS_MAP.medium;
+  const iconSizeClassName = ICON_SIZE_CLASS_MAP[size] ?? ICON_SIZE_CLASS_MAP.medium;
+  const composedClassName = cn(
     STATUS_BADGE_BASE_CLASS,
     `${STATUS_BADGE_BASE_CLASS}--${size}`,
+    'inline-flex items-center gap-1 rounded-md border border-border/40 font-medium leading-tight tracking-normal text-foreground/90 whitespace-nowrap select-none cursor-default transition-none shadow-none',
+    'max-w-none min-w-0',
+    sizeClassName,
     className,
-  ]
-    .filter(Boolean)
-    .join(' ');
+  );
 
   return (
     <Badge
@@ -58,7 +74,12 @@ const StatusBadge = memo<StatusBadgeProps>(({
       aria-label={`Status: ${config.label}. ${config.description}`}
     >
       {showIcon ? (
-        <span aria-hidden="true" className={`${STATUS_BADGE_BASE_CLASS}__icon`}>•</span>
+        <span
+          aria-hidden="true"
+        className={cn(`${STATUS_BADGE_BASE_CLASS}__icon text-current`, iconSizeClassName)}
+        >
+          •
+        </span>
       ) : null}
       {config.label}
     </Badge>
@@ -100,11 +121,13 @@ export const StatusBadgeGroup = memo<StatusBadgeGroupProps>(({
     .filter(Boolean)
     .join(' ');
 
-  const overflowClassName = [
+  const overflowClassName = cn(
     STATUS_BADGE_BASE_CLASS,
     `${STATUS_BADGE_BASE_CLASS}--${size}`,
     `${STATUS_BADGE_BASE_CLASS}--more`,
-  ].join(' ');
+    'inline-flex items-center justify-center rounded-md border border-dashed border-border/40 bg-muted/30 text-muted-foreground whitespace-nowrap select-none cursor-default transition-none shadow-none',
+    SIZE_CLASS_MAP[size] ?? SIZE_CLASS_MAP.small,
+  );
 
   return (
     <div className={groupClassName} data-testid="status-badge-group">

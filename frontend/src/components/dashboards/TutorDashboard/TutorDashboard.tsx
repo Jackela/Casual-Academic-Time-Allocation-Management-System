@@ -16,7 +16,6 @@ import type { Timesheet } from '../../../types/api';
 import { TimesheetService } from '../../../services/timesheets';
 import { Button } from '../../ui/button';
 import {
-  DashboardLayoutShell,
   TutorHeader,
   QuickStats,
   PaySummary,
@@ -29,6 +28,7 @@ import {
   TimesheetForm
 } from './components';
 import type { TimesheetFormData } from './components';
+import '../../../styles/dashboard-shell.css';
 
 // =============================================================================
 // Component Props & Types
@@ -329,111 +329,115 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const hasAnyErrors = Boolean(hasPrimaryErrors || actionError);
   const actionInFlightMessage = ACTION_LOCK_MESSAGE;
   const canSubmitAllDrafts = allTimesheets.some(t => t.status === 'DRAFT' || t.status === 'MODIFICATION_REQUESTED');
+  const feedbackStack = (hasAnyErrors || actionNotice) ? (
+    <div className="space-y-4">
+      {timesheetsError && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
+          <span>Failed to load timesheets: {timesheetsError}</span>
+          <Button variant="destructive" size="sm" className="ml-4" data-testid="retry-button-timesheets" onClick={() => refetchTimesheets()}>Retry</Button>
+        </div>
+      )}
+      {dashboardError && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
+          <span>Failed to load dashboard: {dashboardError}</span>
+          <Button variant="destructive" size="sm" className="ml-4" data-testid="retry-button-dashboard" onClick={refetchDashboard}>Retry</Button>
+        </div>
+      )}
+      {(createError || updateError) && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
+          <span>{createError || updateError}</span>
+          <Button variant="ghost" size="sm" className="ml-4" onClick={() => { resetCreate(); resetUpdate(); }}>Dismiss</Button>
+        </div>
+      )}
+      {actionError && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
+          <span>{actionError}</span>
+          <Button variant="ghost" size="sm" className="ml-4" onClick={clearActionFeedback}>Dismiss</Button>
+        </div>
+      )}
+      {actionNotice && (
+        <div className="rounded-md border border-primary/40 bg-primary/10 p-4 text-sm text-primary" data-testid="action-notice">
+          <span>{actionNotice}</span>
+          <Button variant="ghost" size="sm" className="ml-4" onClick={() => setActionNotice(null)}>Dismiss</Button>
+        </div>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div
-      className={`p-4 sm:p-6 lg:p-8 ${className}`}
+      className={`dashboard-shell p-4 sm:p-6 lg:p-8 ${className}`}
       data-testid="tutor-dashboard"
       role="main"
       aria-label="Tutor Dashboard"
     >
-      {(hasAnyErrors || actionNotice) && (
-        <div className="mb-6 space-y-4">
-          {timesheetsError && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
-              <span>Failed to load timesheets: {timesheetsError}</span>
-              <Button variant="destructive" size="sm" className="ml-4" data-testid="retry-button-timesheets" onClick={() => refetchTimesheets()}>Retry</Button>
-            </div>
-          )}
-          {dashboardError && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
-              <span>Failed to load dashboard: {dashboardError}</span>
-              <Button variant="destructive" size="sm" className="ml-4" data-testid="retry-button-dashboard" onClick={refetchDashboard}>Retry</Button>
-            </div>
-          )}
-          {(createError || updateError) && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
-              <span>{createError || updateError}</span>
-              <Button variant="ghost" size="sm" className="ml-4" onClick={() => { resetCreate(); resetUpdate(); }}>Dismiss</Button>
-            </div>
-          )}
-          {actionError && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
-              <span>{actionError}</span>
-              <Button variant="ghost" size="sm" className="ml-4" onClick={clearActionFeedback}>Dismiss</Button>
-            </div>
-          )}
-          {actionNotice && (
-            <div className="rounded-md border border-primary/40 bg-primary/10 p-4 text-sm text-primary" data-testid="action-notice">
-              <span>{actionNotice}</span>
-              <Button variant="ghost" size="sm" className="ml-4" onClick={() => setActionNotice(null)}>Dismiss</Button>
-            </div>
-          )}
-        </div>
-      )}
+      <div className="dashboard-header">
+        <TutorHeader
+          welcomeMessage={welcomeMessage}
+          title="Tutor Dashboard"
+          description="Here's an overview of your timesheets and earnings. Let's get started."
+        />
+        {feedbackStack}
+      </div>
 
-      <DashboardLayoutShell
-        header={(
-          <TutorHeader
-            welcomeMessage={welcomeMessage}
-            title="Tutor Dashboard"
-            description="Here's an overview of your timesheets and earnings. Let's get started."
+      <div className="dashboard-body">
+        <section
+          className="body-main"
+          role="region"
+          aria-label="Tutor dashboard content"
+        >
+          <section className="mb-8" role="region" aria-label="Quick Actions">
+            <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="quick-actions">
+              <QuickAction
+                label="Create New Timesheet"
+                description="Start a new timesheet entry"
+                icon="📝"
+                onClick={() => handleQuickAction('create')}
+                shortcut="Ctrl+N"
+              />
+
+              <QuickAction
+                label="Refresh Data"
+                description="Reload the latest timesheets"
+                icon="🔄"
+                onClick={() => handleQuickAction('refresh')}
+                disabled={isTimesheetActionInFlight}
+                disabledReason={actionInFlightMessage}
+              />
+
+              <QuickAction
+                label="Submit All Drafts"
+                description="Submit all draft timesheets"
+                icon="📤"
+                onClick={() => handleQuickAction('submitDrafts')}
+                disabled={!canSubmitAllDrafts || isTimesheetActionInFlight}
+                disabledReason={!canSubmitAllDrafts ? 'There are no draft timesheets to submit.' : actionInFlightMessage}
+              />
+
+              <QuickAction
+                label="View Pay Summary"
+                description="Check earnings and payments"
+                icon="💰"
+                onClick={() => handleQuickAction('viewPay')}
+              />
+
+              <QuickAction
+                label="Export My Data"
+                description="Download timesheet records (coming soon)"
+                icon="📊"
+                onClick={() => handleQuickAction('export')}
+              />
+            </div>
+          </section>
+
+          <QuickStats
+            heading="Your Statistics"
+            ariaLabel="Your Statistics"
+            stats={quickStats}
           />
-        )}
-        main={(
-          <>
-            <section className="mb-8" role="region" aria-label="Quick Actions">
-              <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="quick-actions">
-                <QuickAction
-                  label="Create New Timesheet"
-                  description="Start a new timesheet entry"
-                  icon="📝"
-                  onClick={() => handleQuickAction('create')}
-                  shortcut="Ctrl+N"
-                />
 
-                <QuickAction
-                  label="Refresh Data"
-                  description="Reload the latest timesheets"
-                  icon="🔄"
-                  onClick={() => handleQuickAction('refresh')}
-                  disabled={isTimesheetActionInFlight}
-                  disabledReason={actionInFlightMessage}
-                />
-
-                <QuickAction
-                  label="Submit All Drafts"
-                  description="Submit all draft timesheets"
-                  icon="📤"
-                  onClick={() => handleQuickAction('submitDrafts')}
-                  disabled={!canSubmitAllDrafts || isTimesheetActionInFlight}
-                  disabledReason={!canSubmitAllDrafts ? 'There are no draft timesheets to submit.' : actionInFlightMessage}
-                />
-
-                <QuickAction
-                  label="View Pay Summary"
-                  description="Check earnings and payments"
-                  icon="💰"
-                  onClick={() => handleQuickAction('viewPay')}
-                />
-
-                <QuickAction
-                  label="Export My Data"
-                  description="Download timesheet records (coming soon)"
-                  icon="📊"
-                  onClick={() => handleQuickAction('export')}
-                />
-              </div>
-            </section>
-
-            <QuickStats
-              heading="Your Statistics"
-              ariaLabel="Your Statistics"
-              stats={quickStats}
-            />
-
-            <section aria-label="My Timesheets">
+          <section aria-label="My Timesheets">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -575,32 +579,34 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                 )}
               </CardContent>
             </Card>
-            </section>
-          </>
-        )}
-        sidebar={(
-          <>
-            <NotificationsPanel
-              rejectedCount={visibleRejectedCount}
-              draftCount={visibleDraftCount}
-              deadlines={visibleDeadlines}
-              onDismiss={handleNotificationDismiss}
+          </section>
+        </section>
+
+        <aside
+          className="body-sidebar"
+          data-testid="dashboard-sidebar"
+          aria-label="Tutor support summary"
+        >
+          <NotificationsPanel
+            rejectedCount={visibleRejectedCount}
+            draftCount={visibleDraftCount}
+            deadlines={visibleDeadlines}
+            onDismiss={handleNotificationDismiss}
+          />
+          <UpcomingDeadlines deadlines={visibleDeadlines} />
+          <CompletionProgress completionRate={completionRate} />
+          <div ref={paySummaryRef} tabIndex={-1}>
+            <PaySummary
+              totalEarned={tutorStats.totalPay}
+              thisWeekPay={thisWeekSummary.pay}
+              averagePerTimesheet={tutorStats.averagePayPerTimesheet}
+              paymentStatus={tutorStats.statusCounts || {}}
             />
-            <UpcomingDeadlines deadlines={visibleDeadlines} />
-            <CompletionProgress completionRate={completionRate} />
-            <div ref={paySummaryRef} tabIndex={-1}>
-              <PaySummary
-                totalEarned={tutorStats.totalPay}
-                thisWeekPay={thisWeekSummary.pay}
-                averagePerTimesheet={tutorStats.averagePayPerTimesheet}
-                paymentStatus={tutorStats.statusCounts || {}}
-              />
-            </div>
-            <EarningsBreakdown timesheets={allTimesheets} />
-            <SupportResources resources={supportResources} />
-          </>
-        )}
-      />
+          </div>
+          <EarningsBreakdown timesheets={allTimesheets} />
+          <SupportResources resources={supportResources} />
+        </aside>
+      </div>
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>

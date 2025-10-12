@@ -22,6 +22,7 @@ import {
   CardDescription,
 } from "../../ui/card";
 import { Button } from "../../ui/button";
+import "../../../styles/dashboard-shell.css";
 
 export interface LecturerDashboardShellProps {
   className?: string;
@@ -226,7 +227,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
 
   if (pageLoading) {
     return (
-      <div className={`p-4 sm:p-6 lg:p-8 ${className}`}>
+      <div className={`dashboard-shell p-4 sm:p-6 lg:p-8 ${className}`}>
         <PageLoadingIndicator
           message="Loading pending timesheets…"
           subMessage="Fetching lecturer metrics and approval queue."
@@ -242,72 +243,74 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
 
   return (
     <div
-      className={`p-4 sm:p-6 lg:p-8 ${className}`}
+      className={`dashboard-shell p-4 sm:p-6 lg:p-8 ${className}`}
       data-testid="lecturer-dashboard"
       role="main"
       aria-label={`Lecturer Dashboard (${sessionStatus})`}
     >
-      <LecturerSummaryBanner
-        welcomeMessage={welcomeMessage}
-        urgentCount={urgentCount}
-        metrics={metrics}
-      />
+      <div className="dashboard-header">
+        <LecturerSummaryBanner
+          welcomeMessage={welcomeMessage}
+          urgentCount={urgentCount}
+          metrics={metrics}
+        />
 
-      <LecturerFiltersPanel
-        filters={filters}
-        courseOptions={courseOptions}
-        isRefreshing={isRefreshing}
-        onRefresh={handleRefreshClick}
-        onUpdateFilters={updateFilters}
-        onClearFilters={handleClearFilters}
-      />
+        <LecturerFiltersPanel
+          filters={filters}
+          courseOptions={courseOptions}
+          isRefreshing={isRefreshing}
+          onRefresh={handleRefreshClick}
+          onUpdateFilters={updateFilters}
+          onClearFilters={handleClearFilters}
+        />
 
-      {pageErrors.length > 0 && (
-        <div className="mb-6 space-y-3">
-          {pageErrors.map(({ source, message }) => (
+        {pageErrors.length > 0 && (
+          <div className="space-y-3">
+            {pageErrors.map(({ source, message }) => (
+              <GlobalErrorBanner
+                key={source}
+                title={source === 'pending' ? 'Failed to fetch pending timesheets' : 'Failed to fetch dashboard summary'}
+                message={message}
+                actionLabel="Retry"
+                onAction={() => handlePageErrorRetry(source)}
+              />
+            ))}
+          </div>
+        )}
+
+        {errors.approval && (
+          <div>
             <GlobalErrorBanner
-              key={source}
-              title={source === 'pending' ? 'Failed to fetch pending timesheets' : 'Failed to fetch dashboard summary'}
-              message={message}
-              actionLabel="Retry"
-              onAction={() => handlePageErrorRetry(source)}
+              title="Approval could not be completed"
+              message={
+                <div className="space-y-2">
+                  <span>Please try again.</span>
+                  {showErrorDetails && (
+                    <pre
+                      className="rounded-md bg-black/10 p-2 text-xs"
+                      data-testid="approval-error-raw"
+                    >
+                      {errors.approval}
+                    </pre>
+                  )}
+                </div>
+              }
+              severity="warning"
+              actionLabel={showErrorDetails ? 'Hide details' : 'Details'}
+              onAction={() => setShowErrorDetails((prev) => !prev)}
+              onDismiss={() => {
+                setShowErrorDetails(false);
+                resetApproval();
+              }}
+              data-testid="approval-error-banner"
             />
-          ))}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
-      {errors.approval && (
-        <div className="mb-6">
-          <GlobalErrorBanner
-            title="Approval could not be completed"
-            message={
-              <div className="space-y-2">
-                <span>Please try again.</span>
-                {showErrorDetails && (
-                  <pre
-                    className="rounded-md bg-black/10 p-2 text-xs"
-                    data-testid="approval-error-raw"
-                  >
-                    {errors.approval}
-                  </pre>
-                )}
-              </div>
-            }
-            severity="warning"
-            actionLabel={showErrorDetails ? 'Hide details' : 'Details'}
-            onAction={() => setShowErrorDetails((prev) => !prev)}
-            onDismiss={() => {
-              setShowErrorDetails(false);
-              resetApproval();
-            }}
-            data-testid="approval-error-banner"
-          />
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="dashboard-body">
         <section
-          className="lg:col-span-2"
+          className="body-main"
           role="region"
           aria-label="Pending Approvals"
         >
@@ -329,7 +332,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
         </section>
 
         <aside
-          className="space-y-6 lg:col-span-1"
+          className="body-sidebar"
           data-testid="dashboard-sidebar"
         >
           {Object.keys(metrics.statusBreakdown).length > 0 && (

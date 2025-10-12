@@ -53,8 +53,12 @@ const config: Config = {
           foreground: 'hsl(var(--secondary-foreground))',
         },
         destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
+          DEFAULT: 'hsl(var(--destructive, 0 72.2% 50.6%))',
+          foreground: 'hsl(var(--destructive-foreground, 0 0% 98%))',
+        },
+        warning: {
+          DEFAULT: 'hsl(var(--warning, 37 92% 50%))',
+          foreground: 'hsl(var(--warning-foreground, 24 96% 12%))',
         },
         muted: {
           DEFAULT: 'hsl(var(--muted))',

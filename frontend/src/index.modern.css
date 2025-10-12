@@ -36,9 +36,20 @@
   --brand-primary: 231 77% 68%; /* #667eea */
   --brand-secondary: 258 42% 61%; /* #764ba2 */
   
-  /* Typography */
+  /* Typography scale */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+
+  --line-height-tight: 1.2;
+  --line-height-base: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* Typography defaults */
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  line-height: var(--line-height-base);
   font-weight: 400;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -84,6 +95,7 @@
     padding: 0;
     min-width: 320px;
     min-height: 100vh;
+    font-feature-settings: 'tnum';
   }
 
   #root {

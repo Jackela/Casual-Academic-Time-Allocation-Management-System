@@ -15,6 +15,7 @@ import AdminMetricsPanel from './components/AdminMetricsPanel';
 import AdminPendingReviewPanel from './components/AdminPendingReviewPanel';
 import AdminRejectionModal from './components/AdminRejectionModal';
 import ErrorBoundary from '../../ErrorBoundary';
+import '../../../styles/dashboard-shell.css';
 
 export interface AdminDashboardProps {
   className?: string;
@@ -84,99 +85,27 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
     refetchDashboard();
   }, [actionState.isSubmitting, loading.dashboard, loading.timesheets, refreshTimesheets, refetchDashboard]);
 
-  const hasPageErrors = pageErrors.length > 0;
-
-  let content;
   if (pageLoading) {
-    console.info('[AdminDashboardShell] pageLoading true, rendering loading indicator');
-    content = (
-      <PageLoadingIndicator
-        message="Loading admin dashboard…"
-        subMessage="Fetching the latest metrics and pending timesheets."
-      />
-    );
-  } else {
-    content = (
-      <>
-        <AdminDashboardHeader
-          welcomeMessage={welcomeMessage}
-          searchQuery={searchQuery}
-          onSearch={handleSearch}
-          onRefresh={handleRefresh}
-          isRefreshing={isRefreshingData}
-          refreshDisabledReason={refreshDisabledReason}
-          urgentCount={urgentCount}
-          pendingApprovals={metrics.pendingApprovals}
-        />
-
-        <AdminNavTabs
-          tabs={tabs}
-          currentTab={currentTab}
-          onTabChange={handleTabChange}
-        />
-
-        {hasPageErrors && (
-          <div className="mb-6 space-y-3">
-            {pageErrors.map(({ source, message }) => (
-              <GlobalErrorBanner
-                key={source}
-                title={source === 'timesheets' ? 'Failed to load timesheets' : 'Failed to load admin dashboard data'}
-                message={message}
-                actionLabel="Retry"
-                onAction={() => handlePageErrorRetry(source)}
-              />
-            ))}
-          </div>
-        )}
-
-        {errors.approval && (
-          <div className="mb-6">
-            <GlobalErrorBanner
-              title="Approval failed"
-              message={errors.approval}
-              severity="warning"
-              onDismiss={resetApproval}
-              data-testid="approval-error-banner"
-            />
-          </div>
-        )}
-
-        <div className="space-y-6">
-          <div style={{ display: currentTab === 'overview' ? undefined : 'none' }}>
-            <AdminMetricsPanel
-              metrics={metrics}
-              isLoading={loading.dashboard}
-            />
-          </div>
-
-          <div style={{ display: currentTab === 'pending' ? undefined : 'none' }}>
-            <ErrorBoundary level="component">
-              <AdminPendingReviewPanel
-                timesheets={filteredTimesheets}
-                loading={loading.timesheets}
-                actionState={actionState}
-                selectedTimesheets={selectedTimesheets}
-                onSelectionChange={handleSelectionChange}
-                onApprovalAction={handleApprovalAction}
-              />
-            </ErrorBoundary>
-          </div>
-        </div>
-
-        <AdminRejectionModal
-          open={rejectionModal.open}
-          timesheetId={rejectionModal.timesheetId}
-          targetTimesheet={rejectionTargetTimesheet}
-          comment={rejectionComment}
-          validationError={rejectionValidationError}
-          onCancel={handleRejectionCancel}
-          onSubmit={handleRejectionSubmit}
-          onCommentChange={setRejectionComment}
-          actionState={actionState}
-        />
-      </>
+    return (
+      <div
+        className={`dashboard-shell p-4 sm:p-6 lg:p-8 ${className}`}
+        data-testid="admin-dashboard"
+        role="main"
+        aria-label={`Admin Dashboard (${sessionStatus})`}
+      >
+        <ErrorBoundary level="component">
+          <PageLoadingIndicator
+            message="Loading admin dashboard…"
+            subMessage="Fetching the latest metrics and pending timesheets."
+          />
+        </ErrorBoundary>
+      </div>
     );
   }
+
+  const hasPageErrors = pageErrors.length > 0;
+
+  const shouldShowSidebar = currentTab !== 'overview';
 
   console.info('[AdminDashboardShell] render body ready', {
     currentTab,
@@ -188,13 +117,109 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
 
   return (
     <div
-      className={`p-4 sm:p-6 lg:p-8 ${className}`}
+      className={`dashboard-shell p-4 sm:p-6 lg:p-8 ${className}`}
       data-testid="admin-dashboard"
       role="main"
       aria-label={`Admin Dashboard (${sessionStatus})`}
     >
       <ErrorBoundary level="component">
-        {content}
+        <>
+          <div className="dashboard-header">
+            <AdminDashboardHeader
+              welcomeMessage={welcomeMessage}
+              searchQuery={searchQuery}
+              onSearch={handleSearch}
+              onRefresh={handleRefresh}
+              isRefreshing={isRefreshingData}
+              refreshDisabledReason={refreshDisabledReason}
+              urgentCount={urgentCount}
+              pendingApprovals={metrics.pendingApprovals}
+            />
+
+            <AdminNavTabs
+              tabs={tabs}
+              currentTab={currentTab}
+              onTabChange={handleTabChange}
+            />
+
+            {hasPageErrors && (
+              <div className="space-y-3">
+                {pageErrors.map(({ source, message }) => (
+                  <GlobalErrorBanner
+                    key={source}
+                    title={source === 'timesheets' ? 'Failed to load timesheets' : 'Failed to load admin dashboard data'}
+                    message={message}
+                    actionLabel="Retry"
+                    onAction={() => handlePageErrorRetry(source)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {errors.approval && (
+              <GlobalErrorBanner
+                title="Approval failed"
+                message={errors.approval}
+                severity="warning"
+                onDismiss={resetApproval}
+                data-testid="approval-error-banner"
+              />
+            )}
+          </div>
+
+          <div className="dashboard-body">
+            <section
+              className="body-main"
+              role="region"
+              aria-label={currentTab === 'pending' ? 'Pending approvals' : 'Overview metrics'}
+            >
+              <div style={{ display: currentTab === 'overview' ? undefined : 'none' }}>
+                <AdminMetricsPanel
+                  metrics={metrics}
+                  isLoading={loading.dashboard}
+                />
+              </div>
+
+              <div style={{ display: currentTab === 'pending' ? undefined : 'none' }}>
+                <ErrorBoundary level="component">
+                  <AdminPendingReviewPanel
+                    timesheets={filteredTimesheets}
+                    loading={loading.timesheets}
+                    actionState={actionState}
+                    selectedTimesheets={selectedTimesheets}
+                    onSelectionChange={handleSelectionChange}
+                    onApprovalAction={handleApprovalAction}
+                  />
+                </ErrorBoundary>
+              </div>
+            </section>
+
+            {shouldShowSidebar && (
+              <aside
+                className="body-sidebar"
+                aria-label="Dashboard summary"
+                data-testid="dashboard-sidebar"
+              >
+                <AdminMetricsPanel
+                  metrics={metrics}
+                  isLoading={loading.dashboard}
+                />
+              </aside>
+            )}
+          </div>
+
+          <AdminRejectionModal
+            open={rejectionModal.open}
+            timesheetId={rejectionModal.timesheetId}
+            targetTimesheet={rejectionTargetTimesheet}
+            comment={rejectionComment}
+            validationError={rejectionValidationError}
+            onCancel={handleRejectionCancel}
+            onSubmit={handleRejectionSubmit}
+            onCommentChange={setRejectionComment}
+            actionState={actionState}
+          />
+        </>
       </ErrorBoundary>
     </div>
   );

@@ -227,3 +227,9 @@ temp/
 
 # Project specific exclusions
 nul
+\
+# Temporary artifacts
+clips/
+playwright-report/
+test-results/
+*.log

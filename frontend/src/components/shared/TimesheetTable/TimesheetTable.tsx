@@ -11,7 +11,8 @@ import { formatters } from '../../../utils/formatting';
 import { secureLogger } from '../../../utils/secure-logger';
 import StatusBadge from '../StatusBadge/StatusBadge';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
-import RelativeTime from '../../RelativeTime';
+import { Button } from '../../ui/button';
+import RelativeTime from '../RelativeTime';
 import './TimesheetTable.css';
 import { getLecturerActionPermission, LECTURER_ACTION_UNAVAILABLE_MESSAGE } from './lecturer-action-utils';
 import { useUiConstraints } from '../../../lib/config/ui-config';
@@ -77,6 +78,24 @@ interface Column {
 const createColumn = <K extends TimesheetColumnKey>(
   column: { key: K } & Omit<Column, 'key'>
 ): Column => column;
+
+const defaultColumnLayoutClass = 'min-w-[8rem] !whitespace-nowrap !break-normal';
+const columnLayoutClasses: Partial<Record<TimesheetColumnKey, string>> = {
+  tutor: 'min-w-[14rem] !whitespace-nowrap !break-normal',
+  course: 'min-w-[12rem] !whitespace-nowrap !break-normal',
+  weekStartDate: 'min-w-[8rem] !whitespace-nowrap !break-normal',
+  hours: 'min-w-[5rem] !whitespace-nowrap !break-normal !text-right',
+  hourlyRate: 'min-w-[6.5rem] !whitespace-nowrap !break-normal !text-right',
+  totalPay: 'min-w-[7.5rem] !whitespace-nowrap !break-normal !text-right',
+  status: 'min-w-[9rem] !whitespace-nowrap !break-normal',
+  description: 'min-w-[18rem] !whitespace-normal !break-words',
+  createdAt: 'min-w-[9rem] !whitespace-nowrap !break-normal',
+  updatedAt: 'min-w-[9rem] !whitespace-nowrap !break-normal',
+  actions: 'min-w-[12rem] !whitespace-nowrap !break-normal',
+  details: 'min-w-[6rem] !whitespace-nowrap !break-normal',
+};
+const selectionColumnLayoutClass = 'min-w-[3.5rem] !whitespace-nowrap !break-normal';
+const baseCellPaddingClass = 'px-4 py-3 text-sm align-middle';
 
 interface TimesheetRowProps {
   timesheet: Timesheet;
@@ -268,7 +287,7 @@ const TimesheetRow = memo<TimesheetRowProps>(({
         style={style}
       >
         {showSelection && (
-          <td className="cell selection-cell priority-high">
+          <td className={`cell selection-cell priority-high ${baseCellPaddingClass} ${selectionColumnLayoutClass}`}>
             <label className="selection-input-wrapper">
               <input
                 type="checkbox"
@@ -284,10 +303,18 @@ const TimesheetRow = memo<TimesheetRowProps>(({
 
         {visibleColumns.map(column => {
           const priorityClass = `priority-${column.priority ?? 'high'}`;
+          const layoutClass = columnLayoutClasses[column.key] ?? defaultColumnLayoutClass;
+          const cellClassName = [
+            'cell',
+            `${column.key}-cell`,
+            priorityClass,
+            baseCellPaddingClass,
+            layoutClass,
+          ].filter(Boolean).join(' ');
           return (
             <td
               key={column.key}
-              className={`cell ${column.key}-cell ${priorityClass}`}
+              className={cellClassName}
               style={{ width: column.width }}
               data-priority={column.priority ?? 'high'}
             >
@@ -303,7 +330,7 @@ const TimesheetRow = memo<TimesheetRowProps>(({
           aria-hidden={!isExpanded}
           data-testid={`timesheet-details-row-${timesheet.id}`}
         >
-          <td className="cell detail-cell" colSpan={columnSpan}>
+          <td className={`cell detail-cell ${baseCellPaddingClass} !whitespace-normal !break-words`} colSpan={columnSpan}>
             <div
               id={detailsId}
               className="timesheet-detail-content"
@@ -558,37 +585,43 @@ function renderDefaultCell(
 
         return (
           <div className="action-buttons tutor-actions" data-testid="action-buttons">
-            <button
+            <Button
               type="button"
               onClick={onEdit}
               disabled={editDisabled}
+              variant="secondary"
+              size="sm"
               className="edit-btn"
               title={editTitle}
               data-testid={`edit-btn-${timesheet.id}`}
             >
               Edit
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={onSubmitDraft}
               disabled={submitDisabled}
+              variant="default"
+              size="sm"
               className="submit-btn"
               title={submitTitle}
               data-testid={`submit-btn-${timesheet.id}`}
             >
               Submit
-            </button>
+            </Button>
             {canConfirm && (
-              <button
+              <Button
                 type="button"
                 onClick={onConfirm}
                 disabled={confirmDisabled}
+                variant="default"
+                size="sm"
                 className="confirm-btn"
                 title={confirmTitle}
                 data-testid={`confirm-btn-${timesheet.id}`}
               >
                 Confirm
-              </button>
+              </Button>
             )}
           </div>
         );
@@ -636,17 +669,20 @@ function renderDefaultCell(
       return (
         <div className="action-buttons" data-testid="action-buttons">
           {showApproveButton && (
-            <button
+            <Button
+              type="button"
               onClick={onApprove}
               disabled={approveDisabled}
               aria-disabled={approveDisabled}
               aria-describedby={approveTooltipId}
+              variant="default"
+              size="sm"
               className="approve-btn"
               title={approveDisabledReason ?? 'Final approve timesheet'}
               data-testid={`approve-btn-${timesheet.id}`}
             >
               {actionLoading ? <LoadingSpinner size="small" /> : 'Final Approve'}
-            </button>
+            </Button>
           )}
           {approveTooltipId && (
             <span id={approveTooltipId} className="sr-only">
@@ -654,17 +690,20 @@ function renderDefaultCell(
             </span>
           )}
           {showRejectButton && (
-            <button
+            <Button
+              type="button"
               onClick={onReject}
               disabled={rejectDisabled}
               aria-disabled={rejectDisabled}
               aria-describedby={rejectTooltipId}
+              variant="destructive"
+              size="sm"
               className="reject-btn"
               title={rejectDisabledReason ?? 'Reject timesheet'}
               data-testid={`reject-btn-${timesheet.id}`}
             >
               {actionLoading ? <LoadingSpinner size="small" /> : 'Reject'}
-            </button>
+            </Button>
           )}
           {rejectTooltipId && (
             <span id={rejectTooltipId} className="sr-only">
@@ -766,7 +805,10 @@ const TableHeader = memo<TableHeaderProps>(({
     <thead>
       <tr className="table-header">
         {showSelection && (
-          <th scope="col" className="cell selection-cell header-cell">
+          <th
+            scope="col"
+            className={`cell selection-cell header-cell ${baseCellPaddingClass} ${selectionColumnLayoutClass}`}
+          >
             <label className="selection-input-wrapper">
               <input
                 type="checkbox"
@@ -790,12 +832,22 @@ const TableHeader = memo<TableHeaderProps>(({
           const ariaSort = isSorted ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none';
           const priorityClass = `priority-${column.priority ?? 'high'}`;
           const isSortable = Boolean(column.sortable);
+          const layoutClass = columnLayoutClasses[column.key] ?? defaultColumnLayoutClass;
+          const headerClassName = [
+            'cell',
+            'header-cell',
+            `${column.key}-header`,
+            isSortable ? 'sortable' : '',
+            priorityClass,
+            baseCellPaddingClass,
+            layoutClass,
+          ].filter(Boolean).join(' ');
 
           return (
             <th
               key={column.key}
               scope="col"
-              className={`cell header-cell ${column.key}-header ${isSortable ? 'sortable' : ''} ${priorityClass}`}
+              className={headerClassName}
               data-priority={column.priority ?? 'high'}
               style={{ width: column.width }}
               aria-sort={ariaSort}
@@ -965,6 +1017,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   }, [showTutorInfo, showCourseInfo, showActions]);
 
   const virtualizationEnabled = timesheets.length >= virtualizeThreshold;
+  const containerBaseClass = ['timesheet-table-container', 'overflow-x-auto', className].filter(Boolean).join(' ');
 
   const renderPagination = () => {
     if (!pagination) {
@@ -1072,7 +1125,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 
   if (loading) {
     return (
-      <div className={`timesheet-table-container loading ${className}`}>
+      <div className={`${containerBaseClass} loading`}>
         <div className="loading-state" data-testid="loading-state">
           <LoadingSpinner size="large" />
           <p data-testid="loading-text">{loadingMessage}</p>
@@ -1083,7 +1136,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 
   if (timesheets.length === 0) {
     return (
-      <div className={`timesheet-table-container empty ${className}`}>
+      <div className={`${containerBaseClass} empty`}>
         <div className="empty-state" data-testid="empty-state">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="#ccc" role="img" aria-label="No timesheets">
             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
@@ -1097,11 +1150,17 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 
   return (
     <div
-      className={`timesheet-table-container ${className}`}
+      className={containerBaseClass}
       data-testid="timesheet-table"
       data-virtualized={virtualizationEnabled ? 'true' : 'false'}
+      style={{ overflowX: 'auto' }}
     >
-      <table className="timesheet-table" data-testid="timesheets-table" role="table" aria-label="Timesheets">
+      <table
+        className="timesheet-table w-full min-w-[60rem]"
+        data-testid="timesheets-table"
+        role="table"
+        aria-label="Timesheets"
+      >
         <TableHeader
           columns={columns}
           showSelection={showSelection}
