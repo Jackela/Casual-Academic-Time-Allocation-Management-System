@@ -9,7 +9,7 @@ import { memo } from 'react';
 import type { TimesheetStatus } from '../../../types/api';
 import { Badge } from '../../ui/badge';
 import { cn } from '../../../lib/utils';
-import { statusConfigs } from './status-badge-utils';
+import { getStatusConfig } from '../../../lib/config/statusMap';
 
 const STATUS_BADGE_BASE_CLASS = 'status-badge';
 
@@ -52,23 +52,31 @@ const StatusBadge = memo<StatusBadgeProps>(({
   size = 'medium',
   showIcon = false,
 }) => {
-  const config = statusConfigs[status] ?? statusConfigs.DRAFT;
+  const config = getStatusConfig(status);
   const testId = dataTestId ?? `status-badge-${status.toLowerCase()}`;
   const sizeClassName = SIZE_CLASS_MAP[size] ?? SIZE_CLASS_MAP.medium;
   const iconSizeClassName = ICON_SIZE_CLASS_MAP[size] ?? ICON_SIZE_CLASS_MAP.medium;
   const composedClassName = cn(
     STATUS_BADGE_BASE_CLASS,
     `${STATUS_BADGE_BASE_CLASS}--${size}`,
-    'inline-flex items-center gap-1 rounded-md border border-border/40 font-medium leading-tight tracking-normal text-foreground/90 whitespace-nowrap select-none cursor-default transition-none shadow-none',
+    'inline-flex items-center gap-1 rounded-md border font-medium leading-tight tracking-normal whitespace-nowrap select-none cursor-default transition-none shadow-none',
     'max-w-none min-w-0',
     sizeClassName,
     className,
   );
 
+  // Use SSOT colors and styles
+  const customStyle = {
+    backgroundColor: config.bgColor,
+    borderColor: config.color,
+    color: config.textColor,
+  };
+
   return (
     <Badge
       variant={config.variant}
       className={composedClassName}
+      style={customStyle}
       title={config.description}
       data-testid={testId}
       aria-label={`Status: ${config.label}. ${config.description}`}
@@ -76,7 +84,7 @@ const StatusBadge = memo<StatusBadgeProps>(({
       {showIcon ? (
         <span
           aria-hidden="true"
-        className={cn(`${STATUS_BADGE_BASE_CLASS}__icon text-current`, iconSizeClassName)}
+          className={cn(`${STATUS_BADGE_BASE_CLASS}__icon text-current`, iconSizeClassName)}
         >
           •
         </span>

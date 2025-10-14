@@ -13,6 +13,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  color: inherit;
+  --spinner-primary: var(--status-pending-border);
+  --spinner-secondary: hsl(var(--muted-foreground));
+  --spinner-success: var(--status-final-border);
+  --spinner-warning: var(--status-confirmed-border);
+  --spinner-error: var(--status-rejected-border);
+  --spinner-white: hsl(var(--background));
+  --spinner-gray: hsl(var(--muted-foreground));
 }
 
 /* Screen reader only text */
@@ -61,33 +69,13 @@
    Color Variants
    ============================================================================= */
 
-.loading-spinner--primary {
-  color: #3B82F6;
-}
-
-.loading-spinner--secondary {
-  color: #6B7280;
-}
-
-.loading-spinner--success {
-  color: #10B981;
-}
-
-.loading-spinner--warning {
-  color: #F59E0B;
-}
-
-.loading-spinner--error {
-  color: #EF4444;
-}
-
-.loading-spinner--white {
-  color: #FFFFFF;
-}
-
-.loading-spinner--gray {
-  color: #9CA3AF;
-}
+.loading-spinner--primary { color: var(--spinner-primary); }
+.loading-spinner--secondary { color: var(--spinner-secondary); }
+.loading-spinner--success { color: var(--spinner-success); }
+.loading-spinner--warning { color: var(--spinner-warning); }
+.loading-spinner--error { color: var(--spinner-error); }
+.loading-spinner--white { color: var(--spinner-white); }
+.loading-spinner--gray { color: var(--spinner-gray); }
 
 /* =============================================================================
    Speed Variants
@@ -231,7 +219,7 @@
   bottom: 0;
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(2px);
-  z-index: 9999;
+  z-index: var(--z-overlay);
 }
 
 .loading-spinner-container--centered {
@@ -246,7 +234,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 10000;
+  z-index: var(--z-modal);
 }
 
 .loading-spinner--centered {
@@ -270,18 +258,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
+  background: hsl(var(--background) / 0.1);
   backdrop-filter: blur(1px);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.2s ease, visibility 0.2s ease;
-  z-index: 10;
+  z-index: var(--z-elevated);
 }
 
 .loading-overlay-backdrop--visible {
   opacity: 1;
   visibility: visible;
-  background: rgba(255, 255, 255, 0.8);
+  background: hsl(var(--background) / 0.75);
 }
 
 .loading-overlay-content {

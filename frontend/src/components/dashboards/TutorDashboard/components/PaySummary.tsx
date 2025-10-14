@@ -3,6 +3,7 @@ import { Card, CardContent, CardTitle } from '../../../ui/card';
 import { Button } from '../../../ui/button';
 import { useCurrencyFormatter } from '../../../../lib/config/ui-config';
 import { messages } from '../../../../i18n/messages';
+import { formatters } from '../../../../utils/formatting';
 
 export interface PaySummaryProps {
   totalEarned: number;
@@ -22,6 +23,7 @@ const PaySummary = memo<PaySummaryProps>(({ totalEarned, thisWeekPay, averagePer
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
+  const nextPaymentDate = formatters.date('2024-01-31');
   const cardClassName = ['p-4', className].filter(Boolean).join(' ');
 
   return (
@@ -46,7 +48,7 @@ const PaySummary = memo<PaySummaryProps>(({ totalEarned, thisWeekPay, averagePer
           <div className="space-y-1 text-sm text-muted-foreground">
             <p>{paymentStatus.FINAL_CONFIRMED || 0} Final Confirmed</p>
             <p>{paymentStatus.LECTURER_CONFIRMED || 0} Awaiting Final Approval</p>
-            <p className="font-medium text-primary">Next Payment Date: Jan 31, 2024</p>
+            <p className="font-medium text-primary">Next Payment Date: {nextPaymentDate}</p>
           </div>
         </div>
 

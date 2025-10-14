@@ -6,6 +6,7 @@ import {
   fetchTimesheetConstraints,
   type TimesheetConstraintOverrides,
 } from './server-config';
+import { formatCurrency } from '../../utils/formatting';
 
 type ConstraintSource =
   | TimesheetUiConstraints
@@ -201,15 +202,14 @@ export const useUiConstraints = () => {
 export const useCurrencyFormatter = () => {
   const { CURRENCY } = useUiConstraints();
 
-  const baseFormatter = useMemo(
-    () =>
-      new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: CURRENCY,
-        currencyDisplay: 'code',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
+  const baseOptions = useMemo<Intl.NumberFormatOptions>(
+    () => ({
+      style: 'currency',
+      currency: CURRENCY,
+      currencyDisplay: 'code',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }),
     [CURRENCY],
   );
 
@@ -220,22 +220,18 @@ export const useCurrencyFormatter = () => {
           ? value
           : Number(value) || 0;
 
-      if (!options) {
-        return baseFormatter.format(amount);
+      const mergedOptions: Intl.NumberFormatOptions = {
+        ...baseOptions,
+        ...options,
+      };
+
+      if (mergedOptions.style === 'currency' && !mergedOptions.currency) {
+        mergedOptions.currency = CURRENCY;
       }
 
-      const formatter = new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: CURRENCY,
-        currencyDisplay: 'code',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-        ...options,
-      });
-
-      return formatter.format(amount);
+      return formatCurrency(amount, mergedOptions);
     },
-    [CURRENCY, baseFormatter],
+    [CURRENCY, baseOptions],
   );
 };
 

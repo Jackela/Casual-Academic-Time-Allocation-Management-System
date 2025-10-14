@@ -3,6 +3,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import design tokens and unified layout systems */
+@import './styles/design-tokens.css';
+@import './styles/unified-grid.css';
+@import './styles/dashboard-shell.css';
+
 /* =============================================================================
    CSS Variables and Theme Definitions
    ============================================================================= */
@@ -236,11 +241,6 @@
 }
 
 /* Dashboard layout styles */
-.dashboard-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  @apply text-white shadow-lg sticky top-0 z-50;
-}
-
 /* =============================================================================
    Dark Mode Enhancements
    ============================================================================= */

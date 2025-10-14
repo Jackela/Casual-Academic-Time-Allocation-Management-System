@@ -34,8 +34,8 @@ const EarningsBreakdown = memo<EarningsBreakdownProps>(({ timesheets }) => {
           <div key={course} className="flex justify-between text-sm">
             <span className="font-medium text-foreground">{course}</span>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <span>{hours}h</span>
-              <span>${formatters.currencyValue(pay)}</span>
+              <span>{formatters.hours(hours)}</span>
+              <span>{formatters.currency(pay)}</span>
             </div>
           </div>
         ))}

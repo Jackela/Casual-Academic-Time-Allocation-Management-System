@@ -38,7 +38,7 @@ const QuickStatCard = memo<QuickStat>(({ title, value, subtitle, trend = 'stable
       {icon && <span className="text-2xl text-muted-foreground">{icon}</span>}
     </CardHeader>
     <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-2xl font-bold dashboard-number text-right">{value}</div>
       {subtitle && (
         <p className="text-xs text-muted-foreground">
           {trend === 'up' && '↗ '}

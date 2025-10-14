@@ -7,6 +7,103 @@
 
 import type { TimesheetStatus, User } from '../types/api';
 
+const DEFAULT_LOCALE = 'en-AU';
+const DEFAULT_CURRENCY = 'AUD';
+
+const DEFAULT_CURRENCY_FORMAT: Intl.NumberFormatOptions = {
+  style: 'currency',
+  currency: DEFAULT_CURRENCY,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+};
+
+const DEFAULT_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+};
+
+const SHORT_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  month: 'short',
+  day: 'numeric',
+};
+
+const DATE_TIME_FORMAT: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+};
+
+const DATE_SHORT_NUMERIC_FORMAT: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+};
+
+const DECIMAL_FRACTION_FORMAT: Intl.NumberFormatOptions = {
+  style: 'decimal',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+};
+
+const NUMBER_FALLBACK = '0';
+
+const toNumber = (value: number | string): number | null => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+const coerceCurrencyValue = (value: number | string): number => {
+  const numeric = toNumber(value);
+  return numeric ?? 0;
+};
+
+const formatDateInternal = (
+  dateString: string,
+  options: Intl.DateTimeFormatOptions,
+  locale: string = DEFAULT_LOCALE,
+): string => {
+  if (!dateString) return '';
+
+  try {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+      return dateString;
+    }
+
+    return new Intl.DateTimeFormat(locale, options).format(date);
+  } catch {
+    return dateString;
+  }
+};
+
+const formatNumberInternal = (
+  value: number | string,
+  options?: Intl.NumberFormatOptions,
+  locale: string = DEFAULT_LOCALE,
+): string => {
+  const numeric = toNumber(value);
+  if (numeric === null) {
+    return NUMBER_FALLBACK;
+  }
+
+  try {
+    return new Intl.NumberFormat(locale, options).format(numeric);
+  } catch {
+    return NUMBER_FALLBACK;
+  }
+};
+
 // =============================================================================
 // Date Formatting
 // =============================================================================
@@ -14,47 +111,34 @@ import type { TimesheetStatus, User } from '../types/api';
 /**
  * Format date string to Australian locale format
  */
-export function formatDate(dateString: string, options?: Intl.DateTimeFormatOptions): string {
-  if (!dateString) return '';
-  
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString; // Return original if invalid
-    
-    const defaultOptions: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    };
-    
-    return date.toLocaleDateString('en-AU', { ...defaultOptions, ...options });
-  } catch {
-    return dateString; // Return original if formatting fails
-  }
+export function formatDate(
+  dateString: string,
+  options?: Intl.DateTimeFormatOptions,
+  locale: string = DEFAULT_LOCALE,
+): string {
+  const finalOptions = { ...DEFAULT_DATE_FORMAT, ...options };
+  return formatDateInternal(dateString, finalOptions, locale);
 }
 
 /**
  * Format date string to include time
  */
-export function formatDateTime(dateString: string): string {
-  return formatDate(dateString, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+export function formatDateTime(dateString: string, locale: string = DEFAULT_LOCALE): string {
+  return formatDateInternal(dateString, DATE_TIME_FORMAT, locale);
 }
 
 /**
  * Format date to short format (DD/MM/YYYY)
  */
-export function formatDateShort(dateString: string): string {
-  return formatDate(dateString, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
+export function formatDateShort(dateString: string, locale: string = DEFAULT_LOCALE): string {
+  return formatDateInternal(dateString, DATE_SHORT_NUMERIC_FORMAT, locale);
+}
+
+/**
+ * Format date to month + day label (e.g. "Oct 4")
+ */
+export function formatDateMonthDay(dateString: string, locale: string = DEFAULT_LOCALE): string {
+  return formatDateInternal(dateString, SHORT_DATE_FORMAT, locale);
 }
 
 /**
@@ -103,28 +187,36 @@ export function formatRelativeTime(dateString: string): string {
 // =============================================================================
 
 /**
- * Format number as Australian currency
+ * Format number as currency using centralized defaults
  */
-export function formatCurrency(amount: number | string, options?: Intl.NumberFormatOptions): string {
-  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-  
-  if (isNaN(numAmount)) return '$0.00';
-  
-  const defaultOptions: Intl.NumberFormatOptions = {
-    style: 'currency',
-    currency: 'AUD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+export function formatCurrency(
+  amount: number | string,
+  options?: Intl.NumberFormatOptions,
+  locale: string = DEFAULT_LOCALE,
+): string {
+  const mergedOptions: Intl.NumberFormatOptions = {
+    ...DEFAULT_CURRENCY_FORMAT,
+    ...options,
   };
-  
-  return new Intl.NumberFormat('en-AU', { ...defaultOptions, ...options }).format(numAmount);
+
+  if (mergedOptions.style !== 'currency') {
+    delete mergedOptions.currency;
+    delete mergedOptions.currencyDisplay;
+  } else if (!mergedOptions.currency) {
+    mergedOptions.currency = DEFAULT_CURRENCY;
+  }
+
+  return formatNumberInternal(coerceCurrencyValue(amount), mergedOptions, locale);
 }
 
 /**
- * Format number as currency without symbol
+ * Format number as currency value without the currency symbol/code
  */
-export function formatCurrencyValue(amount: number | string): string {
-  return formatCurrency(amount, { style: 'decimal' });
+export function formatCurrencyValue(
+  amount: number | string,
+  locale: string = DEFAULT_LOCALE,
+): string {
+  return formatCurrency(amount, { ...DECIMAL_FRACTION_FORMAT }, locale);
 }
 
 /**
@@ -138,6 +230,17 @@ export function formatTotalPay(hours: number, hourlyRate: number): string {
 // =============================================================================
 // Number Formatting
 // =============================================================================
+
+/**
+ * Format numeric values with optional locale overrides
+ */
+export function formatNumber(
+  value: number | string,
+  options?: Intl.NumberFormatOptions,
+  locale: string = DEFAULT_LOCALE,
+): string {
+  return formatNumberInternal(value, options, locale);
+}
 
 /**
  * Format hours with 'h' suffix
@@ -178,6 +281,47 @@ export function formatCompactNumber(value: number): string {
   }
   
   return value.toString();
+}
+
+// =============================================================================
+// Timesheet Activity Helpers
+// =============================================================================
+
+export interface TimesheetActivitySummary {
+  headline: 'Updated' | 'Submitted';
+  primaryTimestamp: string;
+  primaryAbsoluteLabel: string;
+  createdAbsoluteLabel: string;
+  hasUpdates: boolean;
+}
+
+export function formatTimesheetActivity(
+  createdAt: string,
+  updatedAt?: string,
+  locale: string = DEFAULT_LOCALE,
+): TimesheetActivitySummary {
+  const createdSafe = createdAt ?? '';
+  const updatedSafe = updatedAt ?? '';
+  const hasUpdates = Boolean(updatedSafe && updatedSafe !== createdSafe);
+  const primaryTimestamp = hasUpdates ? updatedSafe : createdSafe;
+
+  if (!primaryTimestamp) {
+    return {
+      headline: 'Submitted',
+      primaryTimestamp: '',
+      primaryAbsoluteLabel: '',
+      createdAbsoluteLabel: '',
+      hasUpdates: false,
+    };
+  }
+
+  return {
+    headline: hasUpdates ? 'Updated' : 'Submitted',
+    primaryTimestamp,
+    primaryAbsoluteLabel: formatDateTime(primaryTimestamp, locale),
+    createdAbsoluteLabel: formatDateTime(createdSafe || primaryTimestamp, locale),
+    hasUpdates,
+  };
 }
 
 // =============================================================================
@@ -329,6 +473,7 @@ export const formatters = {
   // Date & Time
   date: formatDate,
   dateTime: formatDateTime,
+  dateMonthDay: formatDateMonthDay,
   dateShort: formatDateShort,
   relativeTime: formatRelativeTime,
   
@@ -337,12 +482,14 @@ export const formatters = {
   currencyValue: formatCurrencyValue,
   totalPay: formatTotalPay,
   hours: formatHours,
+  number: formatNumber,
   percentage: formatPercentage,
   compactNumber: formatCompactNumber,
   
   // Status & Display
   timesheetStatus: formatTimesheetStatus,
   statusBadgeClass: getStatusBadgeClass,
+  activity: formatTimesheetActivity,
   userRole: formatUserRole,
   
   // Text

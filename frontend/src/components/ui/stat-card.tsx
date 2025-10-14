@@ -9,7 +9,8 @@ import { memo } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { Card } from './card';
 import { Badge } from './badge';
-import { cn, formatCurrency, formatPercentage } from '../../lib/utils';
+import { cn } from '../../lib/utils';
+import { formatCurrency, formatNumber, formatPercentage } from '../../utils/formatting';
 
 // Icons - using simple SVG icons for now, can be replaced with lucide-react
 const TrendingUpIcon = () => (
@@ -182,12 +183,17 @@ const StatCard = memo<StatCardProps>(({
 }) => {
   const variantStyles = getVariantStyles(variant);
   const sizeStyles = getSizeStyles(size);
+  const isNumericValue = typeof value === 'number';
 
   // Format value if it's a number
-  const formattedValue = typeof value === 'number' 
-    ? (title.toLowerCase().includes('earn') || title.toLowerCase().includes('pay') || title.toLowerCase().includes('revenue'))
-      ? formatCurrency(value)
-      : value.toLocaleString()
+  const formattedValue = typeof value === 'number'
+    ? (
+        title.toLowerCase().includes('earn') ||
+        title.toLowerCase().includes('pay') ||
+        title.toLowerCase().includes('revenue')
+      )
+        ? formatCurrency(value)
+        : formatNumber(value)
     : value;
 
   // Loading state
@@ -247,7 +253,8 @@ const StatCard = memo<StatCardProps>(({
         <div className={cn(
           'font-bold',
           sizeStyles.value,
-          variantStyles.value
+          variantStyles.value,
+          isNumericValue && 'dashboard-number text-right'
         )}>
           {formattedValue}
         </div>

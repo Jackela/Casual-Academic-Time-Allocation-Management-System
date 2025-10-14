@@ -150,7 +150,11 @@ const AdminRejectionModal = memo<AdminRejectionModalProps>(({
   })();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation">
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4 elevation-overlay"
+      style={{ backgroundColor: 'var(--overlay-backdrop)' }}
+      role="presentation"
+    >
       <Card
         ref={dialogRef}
         role="dialog"

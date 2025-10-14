@@ -6,15 +6,13 @@
  */
 
 import React, { Fragment, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import type { Timesheet, ApprovalAction, TimesheetStatus } from '../../../types/api';
+import type { Timesheet, ApprovalAction } from '../../../types/api';
 import { formatters } from '../../../utils/formatting';
-import { secureLogger } from '../../../utils/secure-logger';
 import StatusBadge from '../StatusBadge/StatusBadge';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
-import { Button } from '../../ui/button';
 import RelativeTime from '../RelativeTime';
+import TimesheetActions from './TimesheetActions';
 import './TimesheetTable.css';
-import { getLecturerActionPermission, LECTURER_ACTION_UNAVAILABLE_MESSAGE } from './lecturer-action-utils';
 import { useUiConstraints } from '../../../lib/config/ui-config';
 
 type UiConstraintSnapshot = ReturnType<typeof useUiConstraints>;
@@ -62,7 +60,7 @@ interface TimesheetTablePagination {
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [20, 50, 100];
 
-type DerivedColumnKey = 'tutor' | 'course' | 'totalPay' | 'actions' | 'selection' | 'details';
+type DerivedColumnKey = 'tutor' | 'course' | 'totalPay' | 'actions' | 'selection' | 'details' | 'timeline';
 type TimesheetColumnKey = keyof Timesheet | DerivedColumnKey;
 
 interface Column {
@@ -89,13 +87,14 @@ const columnLayoutClasses: Partial<Record<TimesheetColumnKey, string>> = {
   totalPay: 'min-w-[7.5rem] !whitespace-nowrap !break-normal !text-right',
   status: 'min-w-[9rem] !whitespace-nowrap !break-normal',
   description: 'min-w-[18rem] !whitespace-normal !break-words',
-  createdAt: 'min-w-[9rem] !whitespace-nowrap !break-normal',
-  updatedAt: 'min-w-[9rem] !whitespace-nowrap !break-normal',
+  timeline: 'min-w-[12rem] !whitespace-nowrap !break-normal',
   actions: 'min-w-[12rem] !whitespace-nowrap !break-normal',
   details: 'min-w-[6rem] !whitespace-nowrap !break-normal',
 };
 const selectionColumnLayoutClass = 'min-w-[3.5rem] !whitespace-nowrap !break-normal';
 const baseCellPaddingClass = 'px-4 py-3 text-sm align-middle';
+const numericColumnKeys: TimesheetColumnKey[] = ['hours', 'hourlyRate', 'totalPay'];
+const numericColumnSet = new Set<TimesheetColumnKey>(numericColumnKeys);
 
 interface TimesheetRowProps {
   timesheet: Timesheet;
@@ -310,6 +309,7 @@ const TimesheetRow = memo<TimesheetRowProps>(({
             priorityClass,
             baseCellPaddingClass,
             layoutClass,
+            numericColumnSet.has(column.key) ? 'numeric-cell' : '',
           ].filter(Boolean).join(' ');
           return (
             <td
@@ -381,54 +381,11 @@ const APPROVE_ACTION_BY_ROLE: Record<ApprovalRole, ApprovalAction> = {
   HR: 'HR_CONFIRM',
 };
 
-const ACTION_RULES: Record<Exclude<ApprovalRole, 'LECTURER'>, { approve: TimesheetStatus[]; reject: TimesheetStatus[] }> = {
-  ADMIN: {
-    approve: ['LECTURER_CONFIRMED'],
-    reject: ['LECTURER_CONFIRMED'],
-  },
-  HR: {
-    approve: ['LECTURER_CONFIRMED'],
-    reject: ['LECTURER_CONFIRMED'],
-  },
-};
-
 function getApproveActionForRole(role?: ApprovalRole): ApprovalAction {
   if (!role) {
     return 'LECTURER_CONFIRM';
   }
   return APPROVE_ACTION_BY_ROLE[role];
-}
-
-interface ActionPermissions {
-  canApprove: boolean;
-  canReject: boolean;
-  approveReason?: string;
-  rejectReason?: string;
-}
-
-function getActionPermissions(role: ApprovalRole | undefined, status: TimesheetStatus): ActionPermissions {
-  if (!role) {
-    return {
-      canApprove: true,
-      canReject: true,
-    };
-  }
-
-  if (role === 'LECTURER') {
-    const lecturerPermissions = getLecturerActionPermission(status);
-    return {
-      canApprove: lecturerPermissions.canApprove,
-      canReject: lecturerPermissions.canReject,
-      approveReason: lecturerPermissions.approveReason,
-      rejectReason: lecturerPermissions.rejectReason,
-    };
-  }
-
-  const rules = ACTION_RULES[role];
-  return {
-    canApprove: rules.approve.includes(status),
-    canReject: rules.reject.includes(status),
-  };
 }
 
 const isTimesheetKey = (key: TimesheetColumnKey): key is keyof Timesheet => {
@@ -534,183 +491,49 @@ function renderDefaultCell(
         </div>
       );
 
-    case 'createdAt':
-      return (
-        <RelativeTime
-          timestamp={timesheet.createdAt}
-          className="timesheet-relative-time"
-        />
-      );
+    case 'timeline': {
+      const activity = formatters.activity(timesheet.createdAt, timesheet.updatedAt);
 
-    case 'updatedAt':
       return (
-        <RelativeTime
-          timestamp={timesheet.updatedAt}
-          className="timesheet-relative-time"
-        />
+        <div className="timeline-cell" data-testid={`timesheet-activity-${timesheet.id}`}>
+          <div className="timeline-primary">
+            <span className="timeline-headline">{activity.headline}</span>
+            <RelativeTime
+              timestamp={activity.primaryTimestamp}
+              className="timeline-relative"
+            />
+          </div>
+          <div className="timeline-meta" aria-live="polite">
+            <span className="timeline-absolute">{activity.primaryAbsoluteLabel}</span>
+            {activity.hasUpdates ? (
+              <span className="timeline-submitted">Submitted {activity.createdAbsoluteLabel}</span>
+            ) : null}
+          </div>
+        </div>
       );
+    }
 
     case 'actions': {
-      if (actionMode === 'tutor') {
-        const isDraft = timesheet.status === 'DRAFT' || timesheet.status === 'MODIFICATION_REQUESTED' || timesheet.status === 'REJECTED';
-        const canConfirm = timesheet.status === 'PENDING_TUTOR_CONFIRMATION';
-        const isLocked = actionLoading || actionsDisabled;
-        const lockMessage = actionsDisabled
-          ? actionsDisabledReason ?? 'You do not have permission to perform this action.'
-          : 'Please wait for the current action to finish.';
-        const busyMessage = actionLoading ? 'Processing request…' : lockMessage;
-
-        const editDisabled = !onEdit || isLocked;
-        const editTitle = editDisabled
-          ? (!onEdit ? 'Editing is unavailable for this timesheet.' : busyMessage)
-          : 'Edit timesheet';
-
-        const submitDisabled = !onSubmitDraft || !isDraft || isLocked;
-        const submitTitle = submitDisabled
-          ? (!onSubmitDraft
-            ? 'Submitting is unavailable for this timesheet.'
-            : !isDraft
-              ? 'Only draft or modification-requested timesheets can be submitted.'
-              : busyMessage)
-          : 'Submit draft for approval';
-
-        const confirmDisabled = !onConfirm || !canConfirm || isLocked;
-        const confirmTitle = confirmDisabled
-          ? (!onConfirm
-            ? 'Confirmation is unavailable for this timesheet.'
-            : !canConfirm
-              ? 'Only timesheets awaiting confirmation can be confirmed.'
-              : busyMessage)
-          : 'Confirm submitted timesheet';
-
-        return (
-          <div className="action-buttons tutor-actions" data-testid="action-buttons">
-            <Button
-              type="button"
-              onClick={onEdit}
-              disabled={editDisabled}
-              variant="secondary"
-              size="sm"
-              className="edit-btn"
-              title={editTitle}
-              data-testid={`edit-btn-${timesheet.id}`}
-            >
-              Edit
-            </Button>
-            <Button
-              type="button"
-              onClick={onSubmitDraft}
-              disabled={submitDisabled}
-              variant="default"
-              size="sm"
-              className="submit-btn"
-              title={submitTitle}
-              data-testid={`submit-btn-${timesheet.id}`}
-            >
-              Submit
-            </Button>
-            {canConfirm && (
-              <Button
-                type="button"
-                onClick={onConfirm}
-                disabled={confirmDisabled}
-                variant="default"
-                size="sm"
-                className="confirm-btn"
-                title={confirmTitle}
-                data-testid={`confirm-btn-${timesheet.id}`}
-              >
-                Confirm
-              </Button>
-            )}
-          </div>
-        );
+      // Determine the correct mode based on actionMode and approvalRole
+      let mode: 'tutor' | 'lecturer' | 'admin' = 'tutor';
+      
+      if (actionMode !== 'tutor') {
+        mode = approvalRole === 'ADMIN' ? 'admin' : 'lecturer';
       }
-
-      const actionPermissions = getActionPermissions(approvalRole, timesheet.status);
-      secureLogger.debug('[TimesheetTable] action permissions', {
-        role: approvalRole,
-        status: timesheet.status,
-        canApprove: actionPermissions.canApprove,
-        canReject: actionPermissions.canReject,
-      });
-
-      const forceLecturerButtons = approvalRole === 'LECTURER';
-
-      if (!forceLecturerButtons && !actionPermissions.canApprove && !actionPermissions.canReject) {
-        return (
-          <div className="action-buttons no-actions" data-testid="action-buttons">
-            <span aria-hidden="true">—</span>
-          </div>
-        );
-      }
-
-      const isLocked = actionLoading || actionsDisabled;
-      const lockMessage = actionLoading
-        ? 'Processing request…'
-        : actionsDisabledReason ?? 'Action disabled for your role.';
-
-      const showApproveButton = forceLecturerButtons || actionPermissions.canApprove;
-      const showRejectButton = forceLecturerButtons || actionPermissions.canReject;
-
-      const approveDisabled = showApproveButton && (isLocked || !actionPermissions.canApprove);
-      const rejectDisabled = showRejectButton && (isLocked || !actionPermissions.canReject);
-
-      const approveDisabledReason = approveDisabled
-        ? (isLocked ? lockMessage : actionPermissions.approveReason ?? LECTURER_ACTION_UNAVAILABLE_MESSAGE)
-        : undefined;
-      const rejectDisabledReason = rejectDisabled
-        ? (isLocked ? lockMessage : actionPermissions.rejectReason ?? LECTURER_ACTION_UNAVAILABLE_MESSAGE)
-        : undefined;
-
-      const approveTooltipId = approveDisabledReason ? `timesheet-${timesheet.id}-approve-help` : undefined;
-      const rejectTooltipId = rejectDisabledReason ? `timesheet-${timesheet.id}-reject-help` : undefined;
 
       return (
-        <div className="action-buttons" data-testid="action-buttons">
-          {showApproveButton && (
-            <Button
-              type="button"
-              onClick={onApprove}
-              disabled={approveDisabled}
-              aria-disabled={approveDisabled}
-              aria-describedby={approveTooltipId}
-              variant="default"
-              size="sm"
-              className="approve-btn"
-              title={approveDisabledReason ?? 'Final approve timesheet'}
-              data-testid={`approve-btn-${timesheet.id}`}
-            >
-              {actionLoading ? <LoadingSpinner size="small" /> : 'Final Approve'}
-            </Button>
-          )}
-          {approveTooltipId && (
-            <span id={approveTooltipId} className="sr-only">
-              {approveDisabledReason}
-            </span>
-          )}
-          {showRejectButton && (
-            <Button
-              type="button"
-              onClick={onReject}
-              disabled={rejectDisabled}
-              aria-disabled={rejectDisabled}
-              aria-describedby={rejectTooltipId}
-              variant="destructive"
-              size="sm"
-              className="reject-btn"
-              title={rejectDisabledReason ?? 'Reject timesheet'}
-              data-testid={`reject-btn-${timesheet.id}`}
-            >
-              {actionLoading ? <LoadingSpinner size="small" /> : 'Reject'}
-            </Button>
-          )}
-          {rejectTooltipId && (
-            <span id={rejectTooltipId} className="sr-only">
-              {rejectDisabledReason}
-            </span>
-          )}
-        </div>
+        <TimesheetActions
+          timesheet={timesheet}
+          mode={mode}
+          loading={actionLoading === timesheet.id}
+          disabled={actionsDisabled}
+          disabledReason={actionsDisabledReason}
+          onEdit={onEdit}
+          onSubmit={onSubmitDraft}
+          onConfirm={onConfirm}
+          onApprove={onApprove}
+          onReject={onReject}
+        />
       );
     }
 
@@ -841,6 +664,7 @@ const TableHeader = memo<TableHeaderProps>(({
             priorityClass,
             baseCellPaddingClass,
             layoutClass,
+            numericColumnSet.has(column.key) ? 'numeric-header' : '',
           ].filter(Boolean).join(' ');
 
           return (
@@ -976,20 +800,12 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         priority: 'low',
       }),
       createColumn({
-        key: 'createdAt',
-        label: 'Submitted',
-        width: 140,
+        key: 'timeline',
+        label: 'Activity',
+        width: 180,
         sortable: true,
         visible: true,
-        priority: 'low',
-      }),
-      createColumn({
-        key: 'updatedAt',
-        label: 'Updated',
-        width: 140,
-        sortable: true,
-        visible: true,
-        priority: 'low',
+        priority: 'medium',
       }),
     );
 
@@ -1138,7 +954,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
     return (
       <div className={`${containerBaseClass} empty`}>
         <div className="empty-state" data-testid="empty-state">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="#ccc" role="img" aria-label="No timesheets">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="No timesheets">
             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
           </svg>
           <h3 data-testid="empty-state-title">No Timesheets</h3>
@@ -1151,7 +967,6 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   return (
     <div
       className={containerBaseClass}
-      data-testid="timesheet-table"
       data-virtualized={virtualizationEnabled ? 'true' : 'false'}
       style={{ overflowX: 'auto' }}
     >
@@ -1225,17 +1040,6 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 TimesheetTable.displayName = 'TimesheetTable';
 
 export default TimesheetTable;
-
-
-
-
-
-
-
-
-
-
-
 
 
 

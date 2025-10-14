@@ -22,6 +22,7 @@ import {
   CardDescription,
 } from "../../ui/card";
 import { Button } from "../../ui/button";
+import { formatters } from "../../../utils/formatting";
 import "../../../styles/dashboard-shell.css";
 
 export interface LecturerDashboardShellProps {
@@ -45,7 +46,7 @@ const StatusBreakdown = memo<{ statusBreakdown: Partial<Record<TimesheetStatus, 
             if (count === 0) return null;
 
             const safeCount = count ?? 0;
-          const percentage = total > 0 ? (safeCount / total) * 100 : 0;
+            const percentage = total > 0 ? (safeCount / total) * 100 : 0;
 
             return (
               <div key={status} className="flex items-center justify-between">
@@ -53,7 +54,7 @@ const StatusBreakdown = memo<{ statusBreakdown: Partial<Record<TimesheetStatus, 
                 <div className="text-right">
                   <p className="font-semibold">{count}</p>
                   <p className="text-xs text-muted-foreground">
-                    {percentage.toFixed(1)}%
+                    {formatters.percentage(percentage)}
                   </p>
                 </div>
               </div>
@@ -227,11 +228,15 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
 
   if (pageLoading) {
     return (
-      <div className={`dashboard-shell p-4 sm:p-6 lg:p-8 ${className}`}>
-        <PageLoadingIndicator
-          message="Loading pending timesheets…"
-          subMessage="Fetching lecturer metrics and approval queue."
-        />
+      <div className="unified-container">
+        <div className={`macro-grid ${className}`}>
+          <div className="macro-grid-hero">
+            <PageLoadingIndicator
+              message="Loading pending timesheets…"
+              subMessage="Fetching lecturer metrics and approval queue."
+            />
+          </div>
+        </div>
       </div>
     );
   }
@@ -242,107 +247,109 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
   const isRefreshing = loading.pending || loading.dashboard;
 
   return (
-    <div
-      className={`dashboard-shell p-4 sm:p-6 lg:p-8 ${className}`}
-      data-testid="lecturer-dashboard"
-      role="main"
-      aria-label={`Lecturer Dashboard (${sessionStatus})`}
-    >
-      <div className="dashboard-header">
-        <LecturerSummaryBanner
-          welcomeMessage={welcomeMessage}
-          urgentCount={urgentCount}
-          metrics={metrics}
-        />
+    <div className="unified-container">
+      <div
+        className={`macro-grid ${className}`}
+        data-testid="lecturer-dashboard"
+        role="main"
+        aria-label={`Lecturer Dashboard (${sessionStatus})`}
+      >
+        <header className="macro-grid-hero">
+          <LecturerSummaryBanner
+            welcomeMessage={welcomeMessage}
+            urgentCount={urgentCount}
+            metrics={metrics}
+          />
 
-        <LecturerFiltersPanel
-          filters={filters}
-          courseOptions={courseOptions}
-          isRefreshing={isRefreshing}
-          onRefresh={handleRefreshClick}
-          onUpdateFilters={updateFilters}
-          onClearFilters={handleClearFilters}
-        />
-
-        {pageErrors.length > 0 && (
-          <div className="space-y-3">
-            {pageErrors.map(({ source, message }) => (
-              <GlobalErrorBanner
-                key={source}
-                title={source === 'pending' ? 'Failed to fetch pending timesheets' : 'Failed to fetch dashboard summary'}
-                message={message}
-                actionLabel="Retry"
-                onAction={() => handlePageErrorRetry(source)}
-              />
-            ))}
-          </div>
-        )}
-
-        {errors.approval && (
-          <div>
-            <GlobalErrorBanner
-              title="Approval could not be completed"
-              message={
-                <div className="space-y-2">
-                  <span>Please try again.</span>
-                  {showErrorDetails && (
-                    <pre
-                      className="rounded-md bg-black/10 p-2 text-xs"
-                      data-testid="approval-error-raw"
-                    >
-                      {errors.approval}
-                    </pre>
-                  )}
-                </div>
-              }
-              severity="warning"
-              actionLabel={showErrorDetails ? 'Hide details' : 'Details'}
-              onAction={() => setShowErrorDetails((prev) => !prev)}
-              onDismiss={() => {
-                setShowErrorDetails(false);
-                resetApproval();
-              }}
-              data-testid="approval-error-banner"
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="dashboard-body">
-        <section
-          className="body-main"
-          role="region"
-          aria-label="Pending Approvals"
-        >
-          <LecturerPendingTable
-            timesheets={displayTimesheets}
-            hasNoPendingTimesheets={noPendingTimesheets}
-            showFilteredEmptyState={showFilteredEmptyState}
-            loading={loading.pending}
-            approvalLoading={loading.approval}
-            canPerformApprovals={canPerformApprovals}
-            selectedTimesheets={selectedTimesheets}
-            onSelectionChange={handleSelectionChange}
-            onApprovalAction={handleApprovalAction}
-            onApproveSelected={handleBatchApproval}
-            onRejectSelected={handleBatchRejection}
-            actionLoadingId={actionLoadingId}
+          <LecturerFiltersPanel
+            filters={filters}
+            courseOptions={courseOptions}
+            isRefreshing={isRefreshing}
+            onRefresh={handleRefreshClick}
+            onUpdateFilters={updateFilters}
             onClearFilters={handleClearFilters}
           />
-        </section>
 
-        <aside
-          className="body-sidebar"
-          data-testid="dashboard-sidebar"
-        >
-          {Object.keys(metrics.statusBreakdown).length > 0 && (
-            <StatusBreakdown statusBreakdown={metrics.statusBreakdown} />
+          {pageErrors.length > 0 && (
+            <div className="space-y-3">
+              {pageErrors.map(({ source, message }) => (
+                <GlobalErrorBanner
+                  key={source}
+                  title={source === 'pending' ? 'Failed to fetch pending timesheets' : 'Failed to fetch dashboard summary'}
+                  message={message}
+                  actionLabel="Retry"
+                  onAction={() => handlePageErrorRetry(source)}
+                />
+              ))}
+            </div>
           )}
-        </aside>
+
+          {errors.approval && (
+            <div>
+              <GlobalErrorBanner
+                title="Approval could not be completed"
+                message={
+                  <div className="space-y-2">
+                    <span>Please try again.</span>
+                    {showErrorDetails && (
+                      <pre
+                        className="rounded-md bg-black/10 p-2 text-xs"
+                        data-testid="approval-error-raw"
+                      >
+                        {errors.approval}
+                      </pre>
+                    )}
+                  </div>
+                }
+                severity="warning"
+                actionLabel={showErrorDetails ? 'Hide details' : 'Details'}
+                onAction={() => setShowErrorDetails((prev) => !prev)}
+                onDismiss={() => {
+                  setShowErrorDetails(false);
+                  resetApproval();
+                }}
+                data-testid="approval-error-banner"
+              />
+            </div>
+          )}
+        </header>
+
+        <main className="macro-grid-content has-sidebar">
+          <section
+            className="macro-grid-main"
+            role="region"
+            aria-label="Pending Approvals"
+          >
+            <LecturerPendingTable
+              timesheets={displayTimesheets}
+              hasNoPendingTimesheets={noPendingTimesheets}
+              showFilteredEmptyState={showFilteredEmptyState}
+              loading={loading.pending}
+              approvalLoading={loading.approval}
+              canPerformApprovals={canPerformApprovals}
+              selectedTimesheets={selectedTimesheets}
+              onSelectionChange={handleSelectionChange}
+              onApprovalAction={handleApprovalAction}
+              onApproveSelected={handleBatchApproval}
+              onRejectSelected={handleBatchRejection}
+              actionLoadingId={actionLoadingId}
+              onClearFilters={handleClearFilters}
+            />
+          </section>
+
+          <aside
+            className="macro-grid-sidebar"
+            data-testid="dashboard-sidebar"
+          >
+            {Object.keys(metrics.statusBreakdown).length > 0 && (
+              <StatusBreakdown statusBreakdown={metrics.statusBreakdown} />
+            )}
+          </aside>
+        </main>
       </div>
 
       {rejectionModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4 elevation-modal">
           <Card
             ref={rejectionDialogRef}
             role="dialog"

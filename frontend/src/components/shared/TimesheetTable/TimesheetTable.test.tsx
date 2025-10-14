@@ -111,8 +111,7 @@ describe('TimesheetTable Component', () => {
       expect(screen.getByRole('columnheader', { name: /rate/i })).toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: /total pay/i })).toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: /status/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /submitted/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /updated/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /activity/i })).toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: /actions/i })).toBeInTheDocument();
     });
 
@@ -614,7 +613,7 @@ describe('TimesheetTable Component', () => {
       render(<TimesheetTable {...defaultProps} />);
       
       expect(screen.getByRole('table')).toBeInTheDocument();
-      expect(screen.getAllByRole('columnheader')).toHaveLength(11); // Tutor, course, week, hours, rate, total, status, description, submitted, updated, actions
+      expect(screen.getAllByRole('columnheader')).toHaveLength(11); // Tutor, course, week, hours, rate, total, status, description, activity, actions, details
       expect(screen.getAllByRole('row')).toHaveLength(6); // Header + 5 data rows
     });
 

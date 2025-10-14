@@ -316,10 +316,12 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   // Loading state
   if (timesheetsLoading || dashboardLoading) {
     return (
-      <div className={`tutor-dashboard loading ${className}`} data-testid="loading-state">
-        <div className="dashboard-loading" data-testid="loading-state-container">
-          <LoadingSpinner size="large" data-testid="spinner" />
-          <p data-testid="loading-text">Loading your timesheets...</p>
+      <div className="unified-container">
+        <div className={`macro-grid ${className}`} data-testid="loading-state">
+          <div className="macro-grid-hero" data-testid="loading-state-container">
+            <LoadingSpinner size="large" data-testid="spinner" />
+            <p data-testid="loading-text">Loading your timesheets...</p>
+          </div>
         </div>
       </div>
     );
@@ -365,27 +367,28 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   ) : null;
 
   return (
-    <div
-      className={`dashboard-shell p-4 sm:p-6 lg:p-8 ${className}`}
-      data-testid="tutor-dashboard"
-      role="main"
-      aria-label="Tutor Dashboard"
-    >
-      <div className="dashboard-header">
-        <TutorHeader
-          welcomeMessage={welcomeMessage}
-          title="Tutor Dashboard"
-          description="Here's an overview of your timesheets and earnings. Let's get started."
-        />
-        {feedbackStack}
-      </div>
+    <div className="unified-container">
+      <div
+        className={`macro-grid ${className}`}
+        data-testid="tutor-dashboard"
+        role="main"
+        aria-label="Tutor Dashboard"
+      >
+        <header className="macro-grid-hero">
+          <TutorHeader
+            welcomeMessage={welcomeMessage}
+            title="Tutor Dashboard"
+            description="Here's an overview of your timesheets and earnings. Let's get started."
+          />
+          {feedbackStack}
+        </header>
 
-      <div className="dashboard-body">
-        <section
-          className="body-main"
-          role="region"
-          aria-label="Tutor dashboard content"
-        >
+        <main className="macro-grid-content has-sidebar">
+          <section
+            className="macro-grid-main"
+            role="region"
+            aria-label="Tutor dashboard content"
+          >
           <section className="mb-8" role="region" aria-label="Quick Actions">
             <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="quick-actions">
@@ -580,36 +583,37 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
               </CardContent>
             </Card>
           </section>
-        </section>
+          </section>
 
-        <aside
-          className="body-sidebar"
-          data-testid="dashboard-sidebar"
-          aria-label="Tutor support summary"
-        >
-          <NotificationsPanel
-            rejectedCount={visibleRejectedCount}
-            draftCount={visibleDraftCount}
-            deadlines={visibleDeadlines}
-            onDismiss={handleNotificationDismiss}
-          />
-          <UpcomingDeadlines deadlines={visibleDeadlines} />
-          <CompletionProgress completionRate={completionRate} />
-          <div ref={paySummaryRef} tabIndex={-1}>
-            <PaySummary
-              totalEarned={tutorStats.totalPay}
-              thisWeekPay={thisWeekSummary.pay}
-              averagePerTimesheet={tutorStats.averagePayPerTimesheet}
-              paymentStatus={tutorStats.statusCounts || {}}
+          <aside
+            className="macro-grid-sidebar"
+            data-testid="dashboard-sidebar"
+            aria-label="Tutor support summary"
+          >
+            <NotificationsPanel
+              rejectedCount={visibleRejectedCount}
+              draftCount={visibleDraftCount}
+              deadlines={visibleDeadlines}
+              onDismiss={handleNotificationDismiss}
             />
-          </div>
-          <EarningsBreakdown timesheets={allTimesheets} />
-          <SupportResources resources={supportResources} />
-        </aside>
+            <UpcomingDeadlines deadlines={visibleDeadlines} />
+            <CompletionProgress completionRate={completionRate} />
+            <div ref={paySummaryRef} tabIndex={-1}>
+              <PaySummary
+                totalEarned={tutorStats.totalPay}
+                thisWeekPay={thisWeekSummary.pay}
+                averagePerTimesheet={tutorStats.averagePayPerTimesheet}
+                paymentStatus={tutorStats.statusCounts || {}}
+              />
+            </div>
+            <EarningsBreakdown timesheets={allTimesheets} />
+            <SupportResources resources={supportResources} />
+          </aside>
+        </main>
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4 elevation-modal" onClick={() => setShowForm(false)}>
           <div className="relative w-full max-w-lg rounded-lg bg-card shadow-lg" onClick={e => e.stopPropagation()}>
             <TimesheetForm
               isEdit={!!editingTimesheet}

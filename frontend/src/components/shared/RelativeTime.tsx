@@ -51,31 +51,50 @@ export interface RelativeTimeProps {
 
 const DEFAULT_FALLBACK = '—';
 
+const ISO_TIMEZONE_PATTERN = /(Z|[+-]\d{2}:?\d{2})$/i;
+
+const normalizeTimestamp = (value: string): string => {
+  const trimmed = value.trim();
+  if (ISO_TIMEZONE_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Treat naive timestamps as UTC to avoid client timezone skew.
+  return `${trimmed}Z`;
+};
+
 const parseTimestamp = (value: string): Date | null => {
   if (!value) {
     return null;
   }
 
-  const date = new Date(value);
+  const normalized = normalizeTimestamp(value);
+  const date = new Date(normalized);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
 const computeRelativeDescriptor = (target: Date, now: Date) => {
-  const diffInSeconds = (target.getTime() - now.getTime()) / 1000;
+  const diffInSeconds = (now.getTime() - target.getTime()) / 1000;
   const absoluteSeconds = Math.abs(diffInSeconds);
+  const isFuture = diffInSeconds < 0;
+  const roundingSeconds = diffInSeconds >= 0 ? diffInSeconds : absoluteSeconds;
 
   for (const threshold of RELATIVE_TIME_THRESHOLDS) {
     if (absoluteSeconds < threshold.max) {
       return {
-        value: Math.round(diffInSeconds / threshold.value),
+        value: Math.round(roundingSeconds / threshold.value),
         unit: threshold.unit,
+        absoluteSeconds,
+        isFuture,
       };
     }
   }
 
   return {
-    value: Math.round(diffInSeconds / 31557600),
+    value: Math.round(roundingSeconds / 31557600),
     unit: 'year' as const,
+    absoluteSeconds,
+    isFuture,
   };
 };
 
@@ -108,10 +127,19 @@ const RelativeTime = ({
       return null;
     }
 
-    const { value, unit } = computeRelativeDescriptor(parsedDate, referenceNow);
+    const descriptor = computeRelativeDescriptor(parsedDate, referenceNow);
     const relativeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
-    const relativeText = relativeFormatter.format(value, unit);
     const { absolute, iso } = formatAbsoluteTimestamp(parsedDate);
+    let relativeText: string;
+
+    if (descriptor.absoluteSeconds < 60) {
+      relativeText = 'Just now';
+    } else if (descriptor.isFuture) {
+      relativeText = absolute;
+    } else {
+      const scaledValue = descriptor.value === 0 ? 1 : Math.max(descriptor.value, 1);
+      relativeText = relativeFormatter.format(-scaledValue, descriptor.unit);
+    }
 
     return {
       relativeText,
@@ -172,7 +200,7 @@ const RelativeTime = ({
         id={tooltipId}
         aria-hidden={!isOpen}
         className={cn(
-          'pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-max max-w-[18rem] -translate-x-1/2 rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-lg transition-opacity duration-150',
+          'pointer-events-none absolute left-1/2 top-full mt-2 w-max max-w-[18rem] -translate-x-1/2 rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-lg transition-opacity duration-150 elevation-tooltip',
           isOpen ? 'opacity-100' : 'opacity-0',
         )}
       >

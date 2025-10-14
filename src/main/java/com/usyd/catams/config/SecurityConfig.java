@@ -61,6 +61,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers(HttpMethod.POST, "/actuator/shutdown").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/test-data/reset").permitAll()
                 .anyRequest().authenticated()
             )

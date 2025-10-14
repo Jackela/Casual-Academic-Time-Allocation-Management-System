@@ -1,49 +1,141 @@
-:root {
-  --dashboard-shell-gap: clamp(1.5rem, 1.8vw, 2.25rem);
-  --dashboard-stack-gap: clamp(1rem, 1.4vw, 1.75rem);
-  --dashboard-sidebar-min: 280px;
-  --dashboard-sidebar-max: 360px;
-}
+/**
+ * Unified dashboard layout system.
+ * Provides consistent hero treatment, body grid, and numeric typography
+ * across Tutor, Lecturer, and Admin dashboards.
+ */
 
 .dashboard-shell {
-  display: grid;
-  gap: var(--dashboard-shell-gap);
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--grid-gap-primary);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.dashboard-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto auto 0;
   width: 100%;
-  box-sizing: border-box;
+  height: var(--hero-height-base);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--brand-primary, var(--primary))) 0%,
+    hsl(var(--brand-secondary, var(--primary))) 48%,
+    hsl(var(--primary)) 100%
+  );
+  border-bottom-left-radius: clamp(2.5rem, 6vw, 4rem);
+  border-bottom-right-radius: clamp(2.5rem, 6vw, 4rem);
+  box-shadow: 0 32px 70px rgba(15, 23, 42, 0.28);
+  opacity: 0.95;
+  pointer-events: none;
+  z-index: var(--z-background);
+}
+
+.dashboard-shell > * {
+  position: relative;
+  z-index: var(--z-base);
 }
 
 .dashboard-header {
+  position: relative;
   display: grid;
-  gap: var(--dashboard-stack-gap);
-  align-content: start;
+  gap: var(--grid-gap-secondary);
+  padding: var(--grid-hero-padding);
+  margin: 0;
+  border-radius: var(--hero-border-radius);
+  background: hsl(var(--card) / 0.92);
+  border: 1px solid hsl(var(--card-foreground) / 0.08);
+  box-shadow: 0 24px 65px rgba(15, 23, 42, 0.15);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: var(--z-elevated);
+}
+
+.dashboard-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+      circle at top left,
+      rgba(255, 255, 255, 0.35),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(59, 130, 246, 0.18),
+      transparent 55%
+    );
+  pointer-events: none;
+  z-index: var(--z-background);
 }
 
 .dashboard-body {
+  position: relative;
   display: grid;
-  gap: var(--dashboard-shell-gap);
+  gap: var(--grid-gap-primary);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  z-index: var(--z-content);
 }
 
-.dashboard-body > * {
-  min-width: 0;
+.dashboard-body.has-sidebar {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .body-main,
 .body-sidebar {
   display: grid;
-  gap: var(--dashboard-stack-gap);
-  align-content: start;
-  min-width: 0;
+  gap: var(--grid-gap-secondary);
+}
+
+.body-sidebar {
+  position: relative;
+  z-index: var(--z-content);
 }
 
 @media (min-width: 1024px) {
-  .dashboard-body {
-    grid-template-columns: minmax(0, 1fr) minmax(var(--dashboard-sidebar-min), var(--dashboard-sidebar-max));
-    align-items: start;
+  .dashboard-body.has-sidebar {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  }
+
+  .body-sidebar {
+    position: sticky;
+    top: clamp(1.25rem, 2.75vw, 3rem);
+    align-self: start;
   }
 }
 
-@media (min-width: 1280px) {
-  .dashboard-body {
-    grid-template-columns: minmax(0, 1.75fr) minmax(var(--dashboard-sidebar-min), var(--dashboard-sidebar-max));
+@media (min-width: 1440px) {
+  .dashboard-body.has-sidebar {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
   }
+}
+
+.dashboard-number,
+.numeric-display,
+.numeric-cell,
+.numeric-header {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.dashboard-number,
+.numeric-display,
+.numeric-cell {
+  text-align: right;
+}
+
+.numeric-cell {
+  white-space: nowrap;
+}
+
+.dashboard-footer {
+  display: grid;
+  gap: var(--grid-gap-secondary);
+  margin-top: auto;
 }

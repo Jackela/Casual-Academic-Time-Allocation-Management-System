@@ -95,9 +95,9 @@ async function dockerAvailable(timeoutMs = 4000) {
   return false;
 }
 
-const DEFAULT_HEALTH_DELAY_MS = 1000;
+const DEFAULT_HEALTH_DELAY_MS = 5000;
 const FAST_FAIL_MIN_ATTEMPTS = parseInt(process.env.E2E_FAST_FAIL_MIN_ATTEMPTS || '10', 10);
-const FAST_FAIL_GRACE_MS = parseInt(process.env.E2E_FAST_FAIL_GRACE_MS || '20000', 10);
+const FAST_FAIL_GRACE_MS = parseInt(process.env.E2E_FAST_FAIL_GRACE_MS || '60000', 10);
 
 async function checkHealth(url) {
   try {
@@ -113,7 +113,23 @@ async function startBackendE2E({ timeoutMs = 180000, stream = true } = {}) {
   const port = params.backendPort || 8084;
   const healthPath = params.backendHealthCheckPath || '/actuator/health';
   const healthUrl = `http://127.0.0.1:${port}${healthPath}`;
-  const fastFail = process.env.E2E_FAST_FAIL === '1' || process.env.E2E_FAST_FAIL === 'true';
+  const shutdownUrl = (() => {
+    try {
+      const parsed = new URL(healthUrl);
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      if (segments.length === 0) {
+        segments.push('actuator', 'shutdown');
+      } else {
+        segments[segments.length - 1] = 'shutdown';
+      }
+      parsed.pathname = `/${segments.join('/')}`;
+      return parsed.toString();
+    } catch {
+      return `http://127.0.0.1:${port}/actuator/shutdown`;
+    }
+  })();
+  // Enable fast fail by default for better user experience
+  const fastFail = true;
   const startTime = Date.now();
 
   await killPortWindows(port);
@@ -151,7 +167,8 @@ env.JAVA_TOOL_OPTIONS = env.JAVA_TOOL_OPTIONS
   ? `${env.JAVA_TOOL_OPTIONS} ${extraJvmFlags}`
   : extraJvmFlags;
 
-  const proc = spawn(process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew', args, {
+  const gradleCmd = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+  const proc = spawn(gradleCmd, args, {
     cwd: join(__dirname, '..', '..'),
     stdio: stream ? 'inherit' : 'pipe',
     shell: true,
@@ -168,8 +185,10 @@ env.JAVA_TOOL_OPTIONS = env.JAVA_TOOL_OPTIONS
   let attempts = 0;
   let ready = false;
   const startHealth = Date.now();
-  const delayMs = fastFail ? DEFAULT_HEALTH_DELAY_MS : 2000;
-  while (Date.now() - startHealth < effectiveTimeout) {
+  const delayMs = DEFAULT_HEALTH_DELAY_MS; // 5 seconds between attempts
+  
+  // Hard limit: max 10 attempts regardless of time
+  while (attempts < FAST_FAIL_MIN_ATTEMPTS && Date.now() - startHealth < effectiveTimeout) {
     attempts += 1;
     const ok = await checkHealth(healthUrl);
     if (ok) {
@@ -178,8 +197,10 @@ env.JAVA_TOOL_OPTIONS = env.JAVA_TOOL_OPTIONS
     }
     const elapsed = Date.now() - startHealth;
     info(`health attempt ${attempts} failed (elapsed ${elapsed}ms)`);
-    const fastFailExceeded = fastFail && attempts >= FAST_FAIL_MIN_ATTEMPTS && elapsed >= FAST_FAIL_GRACE_MS;
-    if (fastFailExceeded) {
+    
+    // Stop after 10 attempts
+    if (attempts >= FAST_FAIL_MIN_ATTEMPTS) {
+      info(`Fast fail: reached maximum ${FAST_FAIL_MIN_ATTEMPTS} attempts`);
       break;
     }
     await sleep(delayMs);
@@ -199,14 +220,30 @@ env.JAVA_TOOL_OPTIONS = env.JAVA_TOOL_OPTIONS
 
   const stop = () => {
     return (async () => {
-      try { proc.kill('SIGTERM'); } catch {}
-      const closed = await waitForExit(proc, 10000);
-      if (!closed) {
-        try { proc.kill('SIGKILL'); } catch {}
-        await waitForExit(proc, 3000);
+      let gracefullyRequested = false;
+      try {
+        info(`requesting graceful shutdown via ${shutdownUrl}`);
+        const response = await fetch(shutdownUrl, { method: 'POST' });
+        gracefullyRequested = response.ok;
+        if (!response.ok) {
+          warn(`shutdown endpoint responded with status ${response.status}`);
+        }
+      } catch (shutdownError) {
+        warn(`failed to call shutdown endpoint: ${shutdownError.message || shutdownError}`);
       }
+
+      const closedAfterShutdown = await waitForExit(proc, 10000);
+      if (!closedAfterShutdown) {
+        try { proc.kill('SIGTERM'); } catch {}
+        const closedAfterTerm = await waitForExit(proc, 5000);
+        if (!closedAfterTerm) {
+          try { proc.kill('SIGKILL'); } catch {}
+          await waitForExit(proc, 3000);
+        }
+      }
+
       await killPortWindows(port);
-      return true;
+      return gracefullyRequested;
     })();
   };
 

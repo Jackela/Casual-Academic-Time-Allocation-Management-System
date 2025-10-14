@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import TimesheetTable from '../../../shared/TimesheetTable/TimesheetTable';
 import { Button } from '../../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../ui/card';
+import BatchActions from '../../../shared/TimesheetTable/BatchActions';
 import type { ApprovalAction, Timesheet } from '../../../../types/api';
 import {
   getBatchLecturerActionPermission,
@@ -101,12 +102,6 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
           ? 'Reject action is currently unavailable.'
           : statusRejectReason;
 
-  const batchApproveHelpId = batchApproveDisabled && approveDisabledReason
-    ? 'lecturer-batch-approve-help'
-    : undefined;
-  const batchRejectHelpId = batchRejectDisabled && rejectDisabledReason
-    ? 'lecturer-batch-reject-help'
-    : undefined;
 
   const handleApproveSelected = async () => {
     if (!onApproveSelected || batchApproveDisabled) {
@@ -190,7 +185,7 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
 
       {showBatchBar && (
         <div
-          className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 sm:px-6"
+          className="fixed inset-x-0 bottom-4 flex justify-center px-4 sm:px-6 elevation-toast"
           data-testid="lecturer-batch-action-bar"
         >
           <div className="flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-border bg-card/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/85 sm:flex-row sm:items-center sm:justify-between">
@@ -201,41 +196,18 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
             >
               {selectedTimesheets.length} selected
             </span>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                onClick={handleApproveSelected}
-                disabled={batchApproveDisabled}
-                aria-disabled={batchApproveDisabled}
-                aria-describedby={batchApproveHelpId}
-                aria-label="Approve selected timesheets"
-                title={approveDisabledReason ?? 'Approve selected timesheets'}
-                className="h-11 min-w-[2.75rem] px-6"
-              >
-                Approve Selected
-              </Button>
-              {batchApproveHelpId && (
-                <span id={batchApproveHelpId} className="sr-only">
-                  {approveDisabledReason}
-                </span>
-              )}
-              <Button
-                onClick={handleRejectSelected}
-                disabled={batchRejectDisabled}
-                aria-disabled={batchRejectDisabled}
-                aria-describedby={batchRejectHelpId}
-                aria-label="Reject selected timesheets"
-                variant="outline"
-                title={rejectDisabledReason ?? 'Reject selected timesheets'}
-                className="h-11 min-w-[2.75rem] px-6"
-              >
-                Reject Selected
-              </Button>
-              {batchRejectHelpId && (
-                <span id={batchRejectHelpId} className="sr-only">
-                  {rejectDisabledReason}
-                </span>
-              )}
-            </div>
+            <BatchActions
+              selectedCount={selectedTimesheets.length}
+              loading={approvalLoading}
+              disabled={!canPerformApprovals}
+              onApprove={onApproveSelected}
+              onReject={onRejectSelected}
+              approveDisabled={batchApproveDisabled}
+              rejectDisabled={batchRejectDisabled}
+              approveDisabledReason={approveDisabledReason}
+              rejectDisabledReason={rejectDisabledReason}
+              mode="lecturer"
+            />
           </div>
         </div>
       )}

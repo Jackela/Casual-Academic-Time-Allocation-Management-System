@@ -80,8 +80,8 @@ const LecturerSummaryBanner = memo<LecturerSummaryBannerProps>(({ welcomeMessage
         />
         <StatCard
           title="This Week Hours"
-          value={`${metrics.thisWeekHours}h`}
-          subtitle={`$${formatters.currencyValue(metrics.thisWeekPay)}`}
+          value={formatters.hours(metrics.thisWeekHours)}
+          subtitle={formatters.currency(metrics.thisWeekPay)}
           icon="⏰"
         />
         <StatCard

@@ -6,7 +6,7 @@
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { formatters } from "../../../utils/formatting";
+import { formatCurrency, formatters } from "../../../utils/formatting";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { MockedFunction } from "vitest";
 import type { ApprovalRequest, ApprovalResponse } from "../../../types/api";
@@ -110,12 +110,6 @@ const mockAdminStats = {
   averagePayPerTimesheet: 280.5,
   systemMetrics: mockAdminSummary.systemMetrics,
 };
-
-const formatCurrency = (value: number): string =>
-  new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
 
 beforeEach(() => {
   vi.clearAllMocks();

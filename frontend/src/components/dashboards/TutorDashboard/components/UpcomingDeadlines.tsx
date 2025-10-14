@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import type { DashboardDeadline } from '../../../../types/api';
+import { formatDateMonthDay } from '../../../../utils/formatting';
 
 export interface UpcomingDeadlinesProps {
   deadlines: DashboardDeadline[];
@@ -15,7 +16,7 @@ const UpcomingDeadlines = memo<UpcomingDeadlinesProps>(({ deadlines }) => (
         {deadlines.map((deadline, index) => {
           const dateValue = deadline.deadline ?? deadline.dueDate;
           const formattedDate = dateValue
-            ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(dateValue))
+            ? formatDateMonthDay(dateValue)
             : 'TBD';
           const courseLabel = deadline.courseName ?? 'Course';
 

@@ -192,7 +192,7 @@ export const useTutorDashboardViewModel = (): TutorDashboardViewModel => {
       {
         id: "total-earned",
         title: "Total Earned",
-        value: `$${formatters.currencyValue(tutorStats.totalPay)}`,
+        value: formatters.currency(tutorStats.totalPay),
         subtitle: "All time",
         icon: "💰",
       },

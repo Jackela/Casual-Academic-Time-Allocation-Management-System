@@ -13,6 +13,9 @@ export const badgeVariants = cva(
         warning: 'border-transparent bg-amber-500 text-amber-950',
         info: 'border-transparent bg-blue-500 text-white',
         neutral: 'border-transparent bg-muted text-muted-foreground',
+        lecturer: 'badge-role badge-role-lecturer',
+        tutor: 'badge-role badge-role-tutor',
+        admin: 'badge-role badge-role-admin',
       },
       size: {
         default: 'h-6',

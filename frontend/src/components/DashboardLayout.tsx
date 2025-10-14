@@ -76,7 +76,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* Header */}
       <header
-        className="sticky top-0 z-50 bg-gradient-to-r from-brand-primary to-brand-secondary text-white shadow-md"
+        className="sticky top-0 bg-gradient-to-r from-brand-primary to-brand-secondary text-white shadow-md elevation-sticky"
         data-testid="layout-dashboard-header"
       >
         <div
