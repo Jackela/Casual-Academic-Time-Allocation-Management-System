@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -84,6 +84,7 @@ test('Figure A5: Lecturer approval selection', async ({ page }) => {
   await login(page, email, password);
   await page.getByTestId('lecturer-dashboard').waitFor({ state: 'visible' });
   const firstCheckbox = page.getByRole('checkbox', { name: /Select timesheet/ }).first();
+  await expect(firstCheckbox).toBeEnabled({ timeout: 10000 });
   await firstCheckbox.check();
   await page.getByRole('button', { name: /Approve selected/i }).waitFor({ state: 'visible' });
   await capture(page, 'fig-a5-lecturer-batch-approve.png');

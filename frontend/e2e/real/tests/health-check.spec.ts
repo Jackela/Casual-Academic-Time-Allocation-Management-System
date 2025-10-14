@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
+import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
 
 // Env and storage readiness check for e2e mode
 // This test does NOT depend on backend. It only verifies that the browser environment
@@ -7,6 +9,18 @@ type E2EEnvSnapshot = { storage?: Record<string, unknown> };
 type E2EGlobal = typeof window & { __E2E_ENV__?: E2EEnvSnapshot };
 
 test.describe('E2E Env & Storage Readiness', () => {
+  let dataFactory: TestDataFactory;
+
+  test.beforeEach(async ({ page, request }) => {
+    dataFactory = await createTestDataFactory(request);
+    await signInAsRole(page, 'tutor');
+  });
+
+  test.afterEach(async ({ page }) => {
+    await dataFactory?.cleanupAll();
+    await clearAuthSessionFromPage(page);
+  });
+
   test('should expose bypass role and preloaded storage in e2e mode', async ({ page }) => {
     test.setTimeout(15000);
 

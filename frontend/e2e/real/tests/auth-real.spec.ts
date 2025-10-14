@@ -1,21 +1,30 @@
 import { test, expect } from '@playwright/test';
 import { E2E_CONFIG } from '../../config/e2e.config';
-import { ADMIN_STORAGE, LECTURER_STORAGE, TUTOR_STORAGE } from '../utils/auth-storage';
-import { acquireAuthTokens, type AuthContext } from '../../utils/workflow-helpers';
+import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
+import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
+import type { AuthContext } from '../../utils/workflow-helpers';
 
 const adminHeaders = (tokens: AuthContext) => ({
   Authorization: `Bearer ${tokens.admin.token}`,
   'Content-Type': 'application/json',
 });
 
+let dataFactory: TestDataFactory;
+let tokens: AuthContext;
+test.beforeEach(async ({ request }) => {
+  dataFactory = await createTestDataFactory(request);
+  tokens = dataFactory.getAuthTokens();
+});
+
+test.afterEach(async ({ page }) => {
+  await dataFactory?.cleanupAll();
+  await clearAuthSessionFromPage(page);
+});
+
 test.describe('Persisted authentication states', () => {
   test.describe('admin session', () => {
-    test.use({ storageState: ADMIN_STORAGE });
-
-    let tokens: AuthContext;
-
-    test.beforeAll(async ({ request }) => {
-      tokens = await acquireAuthTokens(request);
+    test.beforeEach(async ({ page }) => {
+      await signInAsRole(page, 'admin');
     });
 
     test('can access protected summary endpoint without re-authenticating', async ({ request }) => {
@@ -27,7 +36,9 @@ test.describe('Persisted authentication states', () => {
   });
 
   test.describe('lecturer session', () => {
-    test.use({ storageState: LECTURER_STORAGE });
+    test.beforeEach(async ({ page }) => {
+      await signInAsRole(page, 'lecturer');
+    });
 
     test('lands on lecturer dashboard', async ({ page }) => {
       await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
@@ -37,7 +48,9 @@ test.describe('Persisted authentication states', () => {
   });
 
   test.describe('tutor session', () => {
-    test.use({ storageState: TUTOR_STORAGE });
+    test.beforeEach(async ({ page }) => {
+      await signInAsRole(page, 'tutor');
+    });
 
     test('shows tutor dashboard summary', async ({ page }) => {
       await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
@@ -64,7 +77,9 @@ test('login API rejects invalid credentials', async ({ request }) => {
 });
 
 test.describe('logout behaviour', () => {
-  test.use({ storageState: TUTOR_STORAGE });
+  test.beforeEach(async ({ page }) => {
+    await signInAsRole(page, 'tutor');
+  });
 
   test('clears tutor session and redirects to login', async ({ page }) => {
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });

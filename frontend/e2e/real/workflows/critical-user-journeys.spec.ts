@@ -2,34 +2,32 @@ import { test, expect } from '@playwright/test';
 import { DashboardPage } from '../../shared/pages/DashboardPage';
 import { NavigationPage } from '../../shared/pages/NavigationPage';
 import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
-import { acquireAuthTokens, createTimesheetWithStatus, transitionTimesheet, finalizeTimesheet, type AuthContext } from '../../utils/workflow-helpers';
 import { E2E_CONFIG } from '../../config/e2e.config';
-import { LECTURER_STORAGE, TUTOR_STORAGE } from '../utils/auth-storage';
 import { statusLabel, statusLabelPattern } from '../../utils/status-labels';
+import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
+import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
+import type { AuthContext } from '../../utils/workflow-helpers';
 
 const uniqueDescription = (label: string) => `${label} ${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
 test.describe('Critical User Journeys', () => {
+  let dataFactory: TestDataFactory;
   let tokens: AuthContext;
-  const cleanupIds: number[] = [];
 
-  test.beforeAll(async ({ request }) => {
-    tokens = await acquireAuthTokens(request);
+  test.beforeEach(async ({ request }) => {
+    dataFactory = await createTestDataFactory(request);
+    tokens = dataFactory.getAuthTokens();
   });
 
-  test.afterEach(async ({ request }) => {
-    while (cleanupIds.length) {
-      const id = cleanupIds.pop();
-      if (!id) continue;
-      await finalizeTimesheet(request, tokens, id).catch(() => undefined);
-      await request.delete(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${id}`, {
-        headers: { Authorization: `Bearer ${tokens.admin.token}` }
-      }).catch(() => undefined);
-    }
+  test.afterEach(async ({ page }) => {
+    await clearAuthSessionFromPage(page);
+    await dataFactory?.cleanupAll();
   });
 
   test.describe('Lecturer overview', () => {
-    test.use({ storageState: LECTURER_STORAGE });
+    test.beforeEach(async ({ page }) => {
+      await signInAsRole(page, 'lecturer');
+    });
 
     test('Lecturer can view dashboard overview', async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
@@ -51,37 +49,36 @@ test.describe('Critical User Journeys', () => {
   });
 
   test.describe('Cross-role approval lifecycle', () => {
-    test.use({ storageState: TUTOR_STORAGE });
+    test.beforeEach(async ({ page }) => {
+      await signInAsRole(page, 'tutor');
+    });
 
     test('End-to-end approval flow follows SSOT lifecycle', async ({ page, request }) => {
       const description = uniqueDescription('Critical Workflow');
-      const seed = await createTimesheetWithStatus(request, tokens, {
+      const seed = await dataFactory.createTimesheetForTest({
         description,
         targetStatus: 'PENDING_TUTOR_CONFIRMATION'
       });
-      cleanupIds.push(seed.id);
 
       const tutorDashboard = new TutorDashboardPage(page);
 
       await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
       await tutorDashboard.expectToBeLoaded();
       await tutorDashboard.waitForMyTimesheetData();
-      await expect(async () => {
-        await tutorDashboard.refreshDashboard();
-        const count = await tutorDashboard.page.getByTestId(`timesheet-row-${seed.id}`).count();
-        expect(count).toBeGreaterThan(0);
-      }).toPass({ timeout: 20000 });
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await tutorDashboard.waitForMyTimesheetData();
+      const row = tutorDashboard.getTimesheetRow(seed.id, seed.description);
+      await expect(row).toBeVisible({ timeout: 20000 });
 
       await expect(tutorDashboard.getStatusBadge(seed.id)).toContainText(statusLabel('PENDING_TUTOR_CONFIRMATION'));
       const confirmResponse = await tutorDashboard.confirmTimesheet(seed.id);
       expect(confirmResponse.status()).toBe(200);
-      await expect(async () => {
-        await tutorDashboard.refreshDashboard();
-        const badgeText = await tutorDashboard.getStatusBadge(seed.id).textContent();
-        expect(badgeText).toMatch(statusLabelPattern('TUTOR_CONFIRMED'));
-      }).toPass({ timeout: 20000 });
+      await expect(tutorDashboard.getStatusBadge(seed.id)).toHaveText(
+        statusLabelPattern('TUTOR_CONFIRMED'),
+        { timeout: 20000 }
+      );
 
-      await transitionTimesheet(request, tokens, seed.id, 'LECTURER_CONFIRM');
+      await dataFactory.transitionTimesheet(seed.id, 'LECTURER_CONFIRM');
 
       const finalApproval = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
         headers: {

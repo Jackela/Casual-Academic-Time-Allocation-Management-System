@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
-import { LECTURER_STORAGE } from '../utils/auth-storage';
+import { test, expect, type Page } from '@playwright/test';
+import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
+import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
 
 /**
  * Lecturer Dashboard Workflow Tests
@@ -11,7 +11,16 @@ import { LECTURER_STORAGE } from '../utils/auth-storage';
  * - Approve and reject actions
  */
 
-test.use({ storageState: LECTURER_STORAGE });
+let dataFactory: TestDataFactory;
+test.beforeEach(async ({ page, request }) => {
+  dataFactory = await createTestDataFactory(request);
+  await signInAsRole(page, 'lecturer');
+});
+
+test.afterEach(async ({ page }) => {
+  await clearAuthSessionFromPage(page);
+  await dataFactory?.cleanupAll();
+});
 
 const openLecturerDashboard = async (page: Page) => {
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });

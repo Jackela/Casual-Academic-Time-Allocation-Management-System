@@ -1,0 +1,36 @@
+{
+  "historicalData": [],
+  "strategyPerformance": [],
+  "patternLibrary": [
+    [
+      "success_contexts",
+      {}
+    ],
+    [
+      "failure_contexts",
+      {}
+    ],
+    [
+      "strategy_preferences",
+      {}
+    ],
+    [
+      "performance_correlations",
+      {}
+    ]
+  ],
+  "contextPatterns": [],
+  "metrics": {
+    "totalLearningEvents": 0,
+    "patternsRecognized": 0,
+    "predictionsGenerated": 0,
+    "correctPredictions": 0,
+    "adaptationEvents": 0,
+    "dataPointsAnalyzed": 0,
+    "averageAccuracy": 0,
+    "learningVelocity": 0,
+    "modelConfidence": 0
+  },
+  "lastSaved": "2025-10-14T02:55:47.290Z",
+  "version": "1.0.0"
+}

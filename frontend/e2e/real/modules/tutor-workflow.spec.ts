@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import type { TimesheetStatus } from '../../../src/types/api';
 import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
-import { TUTOR_STORAGE } from '../utils/auth-storage';
+import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
+import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
 import { statusLabel, statusLabelPattern } from '../../utils/status-labels';
 
 type TimesheetRecord = {
@@ -148,7 +148,16 @@ const mockTimesheets: { default: TimesheetPagePayload; empty: TimesheetPagePaylo
   },
 };
 
-test.use({ storageState: TUTOR_STORAGE });
+let dataFactory: TestDataFactory;
+test.beforeEach(async ({ page, request }) => {
+  dataFactory = await createTestDataFactory(request);
+  await signInAsRole(page, 'tutor');
+});
+
+test.afterEach(async ({ page }) => {
+  await clearAuthSessionFromPage(page);
+  await dataFactory?.cleanupAll();
+});
 
 test.describe('Tutor dashboard workflow', () => {
   let tutorDashboard: TutorDashboardPage;

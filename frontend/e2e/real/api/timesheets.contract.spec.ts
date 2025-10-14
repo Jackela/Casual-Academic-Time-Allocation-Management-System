@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 import { TimesheetApiClient } from '../../utils/api-client';
 import { E2E_CONFIG } from '../../config/e2e.config';
 import type { TimesheetPage, ApprovalAction } from '../../../src/types/api';
-import { acquireAuthTokens, createTimesheetWithStatus, finalizeTimesheet, type AuthContext } from '../../utils/workflow-helpers';
+import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
+import type { AuthContext } from '../../utils/workflow-helpers';
 
 const BACKEND_URL = E2E_CONFIG.BACKEND.URL;
 
@@ -10,43 +11,41 @@ test.describe('Timesheet API Contract', () => {
   let adminClient: TimesheetApiClient;
   let lecturerClient: TimesheetApiClient;
   let tutorClient: TimesheetApiClient;
+  let dataFactory: TestDataFactory;
   let tokens: AuthContext;
-  const seededTimesheets: number[] = [];
 
-  test.beforeAll(async ({ request }) => {
-    tokens = await acquireAuthTokens(request);
+  test.beforeEach(async ({ request }) => {
+    dataFactory = await createTestDataFactory(request);
+    tokens = dataFactory.getAuthTokens();
 
     adminClient = new TimesheetApiClient(BACKEND_URL);
     const adminAuth = await adminClient.authenticate({
       email: E2E_CONFIG.USERS.admin.email,
-      password: E2E_CONFIG.USERS.admin.password
+      password: E2E_CONFIG.USERS.admin.password,
     });
     expect(adminAuth.token).toBeTruthy();
 
     lecturerClient = new TimesheetApiClient(BACKEND_URL);
     const lecturerAuth = await lecturerClient.authenticate({
       email: E2E_CONFIG.USERS.lecturer.email,
-      password: E2E_CONFIG.USERS.lecturer.password
+      password: E2E_CONFIG.USERS.lecturer.password,
     });
     expect(lecturerAuth.token).toBeTruthy();
 
     tutorClient = new TimesheetApiClient(BACKEND_URL);
     const tutorAuth = await tutorClient.authenticate({
       email: E2E_CONFIG.USERS.tutor.email,
-      password: E2E_CONFIG.USERS.tutor.password
+      password: E2E_CONFIG.USERS.tutor.password,
     });
     expect(tutorAuth.token).toBeTruthy();
   });
 
-  test.afterEach(async ({ request }) => {
-    for (const id of seededTimesheets.splice(0)) {
-      await finalizeTimesheet(request, tokens, id).catch(() => undefined);
-    }
+  test.afterEach(async () => {
+    await dataFactory?.cleanupAll();
   });
 
-  test('should return paginated pending timesheets for admin', async ({ request }) => {
-    const seeded = await createTimesheetWithStatus(request, tokens, { targetStatus: 'TUTOR_CONFIRMED' });
-    seededTimesheets.push(seeded.id);
+  test('should return paginated pending timesheets for admin', async () => {
+    const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'TUTOR_CONFIRMED' });
 
     const response = await adminClient.getPendingTimesheets(0, 20);
     expect(response.timesheets.length).toBeGreaterThan(0);
@@ -55,9 +54,8 @@ test.describe('Timesheet API Contract', () => {
     expect(match?.status).toBe('TUTOR_CONFIRMED');
   });
 
-  test('should support pagination parameters', async ({ request }) => {
-    const seeded = await createTimesheetWithStatus(request, tokens, { targetStatus: 'TUTOR_CONFIRMED' });
-    seededTimesheets.push(seeded.id);
+  test('should support pagination parameters', async () => {
+    await dataFactory.createTimesheetForTest({ targetStatus: 'TUTOR_CONFIRMED' });
 
     const pageSize = 1;
     const page = await adminClient.getPendingTimesheets(0, pageSize);
@@ -69,7 +67,7 @@ test.describe('Timesheet API Contract', () => {
     const unauthenticatedClient = new TimesheetApiClient(BACKEND_URL);
     await expect(unauthenticatedClient.getPendingTimesheets()).rejects.toMatchObject({
       status: 401,
-      success: false
+      success: false,
     });
   });
 
@@ -92,19 +90,19 @@ test.describe('Timesheet API Contract', () => {
     }
   });
 
-  test('should reject invalid approval actions with validation error', async ({ request }) => {
-    const seeded = await createTimesheetWithStatus(request, tokens, { targetStatus: 'LECTURER_CONFIRMED' });
-    seededTimesheets.push(seeded.id);
+  test('should reject invalid approval actions with validation error', async () => {
+    const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'LECTURER_CONFIRMED' });
 
     const invalidAction = 'INVALID_ACTION' as unknown as ApprovalAction;
-    await expect(adminClient.processApproval({
-      timesheetId: seeded.id,
-      action: invalidAction,
-      comment: 'invalid'
-    })).rejects.toMatchObject({
+    await expect(
+      adminClient.processApproval({
+        timesheetId: seeded.id,
+        action: invalidAction,
+        comment: 'invalid',
+      }),
+    ).rejects.toMatchObject({
       success: false,
-      status: 400
+      status: 400,
     });
   });
 });
-

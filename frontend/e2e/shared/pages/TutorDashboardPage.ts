@@ -468,6 +468,17 @@ export class TutorDashboardPage {
     await this.waitForMyTimesheetData();
   }
 
+  getTimesheetRow(timesheetId: number, description?: string) {
+    const rowById = this.page.getByTestId(`timesheet-row-${timesheetId}`);
+    if (!description) {
+      return rowById;
+    }
+    const fallback = this.page.locator('[data-testid^="timesheet-row-"], .timesheet-row', {
+      hasText: description
+    });
+    return rowById.or(fallback);
+  }
+
   getStatusBadge(timesheetId: number) {
     return this.page.getByTestId(`status-badge-${timesheetId}`);
   }

@@ -1,11 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { acquireAuthTokens, createTimesheetWithStatus, finalizeTimesheet, type AuthContext } from '../../utils/workflow-helpers';
-import { ADMIN_STORAGE } from '../utils/auth-storage';
+import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
+import type { AuthContext } from '../../utils/workflow-helpers';
 import { E2E_CONFIG } from '../../config/e2e.config';
 
 const uniqueDescription = (label: string) => `${label} ${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-test.use({ storageState: ADMIN_STORAGE });
 
 const adminHeaders = (tokens: AuthContext) => ({
   Authorization: `Bearer ${tokens.admin.token}`,
@@ -13,38 +11,36 @@ const adminHeaders = (tokens: AuthContext) => ({
 });
 
 test.describe('Admin Backend Workflows', () => {
+  let dataFactory: TestDataFactory;
   let tokens: AuthContext;
-  const seeded: number[] = [];
 
-  test.beforeAll(async ({ request }) => {
-    tokens = await acquireAuthTokens(request);
+  test.beforeEach(async ({ request }) => {
+    dataFactory = await createTestDataFactory(request);
+    tokens = dataFactory.getAuthTokens();
   });
 
-  test.afterEach(async ({ request }) => {
-    for (const id of seeded.splice(0)) {
-      await finalizeTimesheet(request, tokens, id).catch(() => undefined);
-    }
+  test.afterEach(async () => {
+    await dataFactory?.cleanupAll();
   });
 
   test('Admin can perform final approval via API', async ({ request }) => {
-    const seed = await createTimesheetWithStatus(request, tokens, {
+    const seed = await dataFactory.createTimesheetForTest({
       description: uniqueDescription('Admin Final Approve'),
-      targetStatus: 'LECTURER_CONFIRMED'
+      targetStatus: 'LECTURER_CONFIRMED',
     });
-    seeded.push(seed.id);
 
     const response = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
       headers: adminHeaders(tokens),
       data: {
         timesheetId: seed.id,
         action: 'HR_CONFIRM',
-        comment: 'Approved for payroll'
-      }
+        comment: 'Approved for payroll',
+      },
     });
     expect(response.ok()).toBeTruthy();
 
     const detail = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${seed.id}`, {
-      headers: adminHeaders(tokens)
+      headers: adminHeaders(tokens),
     });
     expect(detail.ok()).toBeTruthy();
     const payload = await detail.json();
@@ -53,25 +49,23 @@ test.describe('Admin Backend Workflows', () => {
   });
 
   test('Admin approval journey transitions record to final confirmed', async ({ request }) => {
-    const seed = await createTimesheetWithStatus(request, tokens, {
+    const seed = await dataFactory.createTimesheetForTest({
       description: uniqueDescription('Admin Journey'),
-      targetStatus: 'LECTURER_CONFIRMED'
+      targetStatus: 'LECTURER_CONFIRMED',
     });
-    seeded.push(seed.id);
 
-    // Admin final confirmation
     const approveResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
       headers: adminHeaders(tokens),
       data: {
         timesheetId: seed.id,
         action: 'HR_CONFIRM',
-        comment: 'Auto-approved during E2E journey'
-      }
+        comment: 'Auto-approved during E2E journey',
+      },
     });
     expect(approveResponse.ok()).toBeTruthy();
 
     const pendingQueue = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/pending-final-approval`, {
-      headers: adminHeaders(tokens)
+      headers: adminHeaders(tokens),
     });
     expect(pendingQueue.ok()).toBeTruthy();
     const queuePayload = await pendingQueue.json();
@@ -80,24 +74,23 @@ test.describe('Admin Backend Workflows', () => {
   });
 
   test('Admin can reject lecturer confirmed timesheet with justification', async ({ request }) => {
-    const seed = await createTimesheetWithStatus(request, tokens, {
+    const seed = await dataFactory.createTimesheetForTest({
       description: uniqueDescription('Admin Reject'),
-      targetStatus: 'LECTURER_CONFIRMED'
+      targetStatus: 'LECTURER_CONFIRMED',
     });
-    seeded.push(seed.id);
 
     const rejectResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
       headers: adminHeaders(tokens),
       data: {
         timesheetId: seed.id,
         action: 'REJECT',
-        comment: 'Needs correction before payroll'
-      }
+        comment: 'Needs correction before payroll',
+      },
     });
     expect(rejectResponse.ok()).toBeTruthy();
 
     const detail = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${seed.id}`, {
-      headers: adminHeaders(tokens)
+      headers: adminHeaders(tokens),
     });
     expect(detail.ok()).toBeTruthy();
     const payload = await detail.json();
@@ -107,7 +100,7 @@ test.describe('Admin Backend Workflows', () => {
 
   test('Admin dashboard summary endpoint returns metrics', async ({ request }) => {
     const summaryResponse = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/dashboard/summary`, {
-      headers: adminHeaders(tokens)
+      headers: adminHeaders(tokens),
     });
     expect(summaryResponse.ok()).toBeTruthy();
 
@@ -118,4 +111,3 @@ test.describe('Admin Backend Workflows', () => {
     });
   });
 });
-

@@ -1,0 +1,203 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-14T00:01:24.653Z",
+    "trigger": "shutdown",
+    "nodeVersion": "v22.17.0",
+    "platform": "win32",
+    "arch": "x64",
+    "pid": 67260,
+    "uptime": 472.1261735,
+    "cwd": "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools"
+  },
+  "diagnostics": {
+    "timestamp": 1760400084619,
+    "processInfo": {
+      "pid": 67260,
+      "ppid": 15904,
+      "platform": "win32",
+      "arch": "x64",
+      "nodeVersion": "v22.17.0",
+      "title": "PowerShell 7 (x86)",
+      "argv": [
+        "C:\\nvm4w\\nodejs\\node.exe",
+        "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools\\scripts\\test-backend.js",
+        "unit"
+      ],
+      "execPath": "C:\\nvm4w\\nodejs\\node.exe",
+      "cwd": "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools",
+      "uptime": 472.0929792,
+      "memoryUsage": {
+        "rss": 148320256,
+        "heapTotal": 46317568,
+        "heapUsed": 25108448,
+        "external": 3673334,
+        "arrayBuffers": 1586422
+      },
+      "cpuUsage": {
+        "user": 3640000,
+        "system": 2390000
+      }
+    },
+    "handles": {
+      "current": [
+        {
+          "type": "Server",
+          "readable": false,
+          "writable": false,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": false,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "ChildProcess",
+          "readable": false,
+          "writable": false,
+          "connecting": false
+        }
+      ],
+      "counts": {},
+      "leaks": [],
+      "suspicious": []
+    },
+    "timers": {
+      "active": [
+        {
+          "type": "FileHandleCloseReq",
+          "hasRef": true
+        },
+        {
+          "type": "FSReqCallback",
+          "hasRef": true
+        },
+        {
+          "type": "FSReqCallback",
+          "hasRef": true
+        }
+      ],
+      "counts": {
+        "setTimeout": 0,
+        "setInterval": 0,
+        "setImmediate": 0
+      },
+      "leaks": []
+    },
+    "eventLoop": {
+      "delay": null,
+      "blocked": false,
+      "performance": "good"
+    },
+    "memory": {
+      "heapUsed": 25132072,
+      "heapTotal": 46317568,
+      "external": 3673334,
+      "rss": 148320256,
+      "heapUtilization": 54.26034458458613,
+      "memoryPressure": false
+    },
+    "nodeRunning": {
+      "available": true,
+      "output": "",
+      "timestamp": 1760400084652
+    },
+    "recommendations": []
+  },
+  "metrics": {
+    "totalDiagnosticRuns": 1,
+    "handleLeaksDetected": 0,
+    "timerLeaksDetected": 0,
+    "eventLoopDelaysDetected": 0,
+    "reportsGenerated": 0,
+    "averageDiagnosticTime": 16.4511,
+    "isDiagnosticActive": true,
+    "handleHistorySize": 1,
+    "timerHistorySize": 1,
+    "eventLoopHistorySize": 0,
+    "suspiciousHandles": 0,
+    "config": {
+      "enableHandleTracking": true,
+      "enableTimerTracking": true,
+      "enableEventLoopMonitoring": true,
+      "diagnosticInterval": 30000,
+      "handleLeakThreshold": 100,
+      "timerLeakThreshold": 50,
+      "eventLoopDelayThreshold": 100,
+      "reportDirectory": "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools\\diagnostic-reports",
+      "autoGenerateReports": true,
+      "maxReportFiles": 10
+    }
+  },
+  "history": {
+    "handles": [
+      {
+        "timestamp": 1760400084620,
+        "totalHandles": 5,
+        "byType": {
+          "Server": 1,
+          "Socket": 3,
+          "ChildProcess": 1
+        }
+      }
+    ],
+    "timers": [
+      {
+        "timestamp": 1760400084620,
+        "totalTimers": 0,
+        "byType": {
+          "setTimeout": 0,
+          "setInterval": 0,
+          "setImmediate": 0
+        }
+      }
+    ],
+    "eventLoop": []
+  },
+  "processHandles": [
+    {
+      "type": "Server",
+      "readable": false,
+      "writable": false,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": false,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "ChildProcess",
+      "readable": false,
+      "writable": false,
+      "connecting": false
+    }
+  ],
+  "recommendations": []
+}

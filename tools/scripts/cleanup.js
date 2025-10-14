@@ -5,14 +5,22 @@
  * Handles process cleanup, port cleanup, and resource cleanup
  */
 
-const { exec } = require('child_process');
-const util = require('util');
-const execPromise = util.promisify(exec);
+const path = require('path')
+const { exec } = require('child_process')
+const util = require('util')
+const SafeProcessManager = require('./lib/safe-process-manager')
+const execPromise = util.promisify(exec)
 
 class CleanupManager {
   constructor(options = {}) {
-    this.gentle = options.gentle || false;
-    this.verbose = options.verbose || false;
+    this.gentle = Boolean(options.gentle)
+    this.verbose = Boolean(options.verbose)
+    this.sessionId = options.sessionId || null
+    this.safeProcessManager = new SafeProcessManager({
+      sessionId: this.sessionId,
+      ledgerPath: options.ledgerPath,
+      log: (message, level = 'INFO') => this.log(message, level)
+    })
   }
 
   log(message, level = 'INFO') {
@@ -39,11 +47,20 @@ class CleanupManager {
     this.log('Stopping Gradle daemons...');
     const success = await this.execSafe('./gradlew --stop');
     if (!success && !this.gentle) {
-      // Force kill Java processes
-      if (process.platform === 'win32') {
-        await this.execSafe('taskkill /F /IM java.exe /T 2>nul');
+      if (this.safeProcessManager.isActive()) {
+        const result = await this.safeProcessManager.terminateByPattern(['gradle', 'java'], { force: true });
+        this.log(`Safe cleanup targeted ${result.attempted} Gradle/JVM processes, terminated ${result.terminated}.`);
+        if (result.errors.length) {
+          this.log(
+            `Encountered ${result.errors.length} errors while terminating Gradle/JVM processes.`,
+            'WARN'
+          );
+        }
       } else {
-        await this.execSafe('pkill -f gradle');
+        this.log(
+          'Safe process manager unavailable; skipping aggressive Gradle termination to avoid affecting unrelated processes.',
+          'WARN'
+        );
       }
     }
   }
@@ -56,13 +73,17 @@ class CleanupManager {
   async cleanupNodeProcesses() {
     if (!this.gentle) {
       this.log('Cleaning up Node.js processes...');
-      if (process.platform === 'win32') {
-        // Don't kill current process
-        const currentPid = process.pid;
-        const result = await this.execSafe(`wmic process where "name='node.exe' and ProcessId!=${currentPid}" get ProcessId /format:value`);
-        // Implementation would parse and kill specific PIDs
+      if (this.safeProcessManager.isActive()) {
+        const result = await this.safeProcessManager.terminateByPattern(['node', 'npm'], { force: true });
+        this.log(`Safe cleanup targeted ${result.attempted} Node-related processes, terminated ${result.terminated}.`);
+        if (result.errors.length) {
+          this.log(
+            `Encountered ${result.errors.length} errors attempting to terminate Node-related processes.`,
+            'WARN'
+          );
+        }
       } else {
-        await this.execSafe(`pkill -f node | grep -v ${process.pid}`);
+        this.log('Safe process manager unavailable; skipping Node.js process cleanup.', 'WARN');
       }
     }
   }
@@ -137,7 +158,7 @@ class CleanupManager {
 
 function printUsage() {
   console.log('\n🧹 Cleanup Script Usage:');
-  console.log('node tools/scripts/cleanup.js [mode]');
+  console.log('node tools/scripts/cleanup.js [mode] [--session=<sessionId>] [--ledger=<path>]');
   console.log('\nModes:');
   console.log('  gentle    - Basic cleanup (Gradle + ports)');
   console.log('  normal    - Standard cleanup (default)');
@@ -145,21 +166,76 @@ function printUsage() {
   console.log('  emergency - Aggressive cleanup (kills processes)');
   console.log('\nExamples:');
   console.log('  node tools/scripts/cleanup.js');
-  console.log('  node tools/scripts/cleanup.js emergency');
+  console.log('  node tools/scripts/cleanup.js emergency --session=session_123');
+  console.log('  node tools/scripts/cleanup.js --mode=full --session=session_123 --ledger=./tmp/process-ledger.json');
+}
+
+function parseArgs(argv) {
+  const options = {
+    mode: 'normal',
+    sessionId: null,
+    ledgerPath: null,
+    help: false
+  };
+
+  const positional = [];
+
+  for (const arg of argv.slice(2)) {
+    if (arg === '--help' || arg === '-h') {
+      options.help = true;
+      continue;
+    }
+
+    if (arg.startsWith('--')) {
+      const [flag, value] = arg.split('=', 2);
+      switch (flag) {
+        case '--mode':
+          if (value) {
+            options.mode = value;
+          }
+          break;
+        case '--session':
+          if (value) {
+            options.sessionId = value;
+          }
+          break;
+        case '--ledger':
+          if (value) {
+            options.ledgerPath = path.resolve(process.cwd(), value);
+          }
+          break;
+        default:
+          break;
+      }
+      continue;
+    }
+
+    positional.push(arg);
+  }
+
+  if (positional.length > 0) {
+    options.mode = positional[0];
+  }
+
+  return options;
 }
 
 async function main() {
-  const [,, mode] = process.argv;
-  
-  if (mode === '--help' || mode === '-h') {
+  const options = parseArgs(process.argv);
+
+  if (options.help) {
     printUsage();
     return;
   }
 
-  const cleanup = new CleanupManager({ verbose: true });
+  const cleanup = new CleanupManager({
+    verbose: true,
+    sessionId: options.sessionId,
+    ledgerPath: options.ledgerPath
+  });
   
   try {
-    await cleanup.run(mode || 'normal');
+    await cleanup.run(options.mode || 'normal');
   } catch (error) {
     console.error('Cleanup failed:', error.message);
     process.exit(1);

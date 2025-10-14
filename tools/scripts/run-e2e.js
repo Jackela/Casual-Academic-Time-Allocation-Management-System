@@ -3,7 +3,7 @@
  * Layered E2E runner (cross-platform, Node-only)
  *
  * Usage examples:
- *   node scripts/run-e2e.js --project=ui           # run only ui-tests project
+ *   node scripts/run-e2e.js --project=ui           # run only ui project
  *   node scripts/run-e2e.js --project=mobile       # run only mobile-tests project
  *   node scripts/run-e2e.js --project=all          # run all playwright projects
  *   node scripts/run-e2e.js --project=ui --keep    # keep backend running after tests
@@ -40,7 +40,7 @@ async function main() {
     // Use reporters from Playwright config to ensure JSON is written to file
     const base = ['playwright', 'test', '--workers=1', '--retries=0'];
     let runArgs = base;
-    if (args.project === 'ui') runArgs = [...base, '--project=ui-tests', '--grep-invert=@mobile'];
+    if (args.project === 'ui') runArgs = [...base, '--project=ui', '--grep-invert=@mobile'];
     else if (args.project === 'mobile') runArgs = [...base, '--project=mobile-tests'];
     // else 'all' runs default (all projects)
 

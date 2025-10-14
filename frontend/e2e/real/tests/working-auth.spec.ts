@@ -1,22 +1,47 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { E2E_CONFIG } from '../../config/e2e.config';
 import { DashboardPage } from '../../shared/pages/DashboardPage';
-import { LECTURER_STORAGE } from '../utils/auth-storage';
+import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
+import { clearAuthSessionFromPage, signInAsRole, type UserRole } from '../../api/auth-helper';
+import type { AuthContext } from '../../utils/workflow-helpers';
+
+let dataFactory: TestDataFactory;
+let tokens: AuthContext;
+const trackedPages = new Set<Page>();
+
+const trackSession = async (page: Page, role: UserRole) => {
+  await signInAsRole(page, role);
+  trackedPages.add(page);
+};
+
+test.beforeEach(async ({ request }) => {
+  dataFactory = await createTestDataFactory(request);
+  tokens = dataFactory.getAuthTokens();
+  trackedPages.clear();
+});
+
+test.afterEach(async () => {
+  for (const page of trackedPages) {
+    await clearAuthSessionFromPage(page);
+  }
+  trackedPages.clear();
+  await dataFactory?.cleanupAll();
+});
 
 test.describe('Authentication Integration Tests', { tag: '@auth' }, () => {
   test('should authenticate via API with correct credentials', async ({ request }) => {
     const response = await request.post(`${E2E_CONFIG.BACKEND.URL}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`, {
       data: {
         email: 'lecturer@example.com',
-        password: 'Lecturer123!'
+        password: 'Lecturer123!',
       },
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     });
-    
+
     console.log('Auth response status:', response.status());
-    
+
     if (response.status() === 200) {
       const data = await response.json();
       expect(data).toHaveProperty('token');
@@ -29,7 +54,9 @@ test.describe('Authentication Integration Tests', { tag: '@auth' }, () => {
   });
 
   test.describe('stored lecturer session', () => {
-    test.use({ storageState: LECTURER_STORAGE });
+    test.beforeEach(async ({ page }) => {
+      await trackSession(page, 'lecturer');
+    });
 
     test('reuses session without manual login', async ({ page }) => {
       const dashboardPage = new DashboardPage(page);
@@ -52,16 +79,16 @@ test.describe('API Authentication Contract', { tag: '@api' }, () => {
     const response = await request.post(`${E2E_CONFIG.BACKEND.URL}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`, {
       data: {
         email: 'lecturer@example.com',
-        password: 'Lecturer123!'
+        password: 'Lecturer123!',
       },
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     });
-    
+
     const responseText = await response.text();
     console.log('Auth API contract validation - Status:', response.status());
-    
+
     if (response.status() === 200) {
       const data = JSON.parse(responseText);
       // Validate API contract
@@ -76,5 +103,15 @@ test.describe('API Authentication Contract', { tag: '@api' }, () => {
     } else {
       expect([400, 401, 500]).toContain(response.status());
     }
+  });
+
+  test('admin token from test factory provides access to summary endpoint', async ({ request }) => {
+    const summaryResponse = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/dashboard/summary`, {
+      headers: {
+        Authorization: `Bearer ${tokens.admin.token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    expect(summaryResponse.ok()).toBeTruthy();
   });
 });

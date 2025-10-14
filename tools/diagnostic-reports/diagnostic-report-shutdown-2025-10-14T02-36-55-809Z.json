@@ -1,0 +1,615 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-14T02:36:55.809Z",
+    "trigger": "shutdown",
+    "nodeVersion": "v22.17.0",
+    "platform": "win32",
+    "arch": "x64",
+    "pid": 53044,
+    "uptime": 900.5881689,
+    "cwd": "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools"
+  },
+  "diagnostics": {
+    "timestamp": 1760409415744,
+    "processInfo": {
+      "pid": 53044,
+      "ppid": 74984,
+      "platform": "win32",
+      "arch": "x64",
+      "nodeVersion": "v22.17.0",
+      "title": "C:\\WINDOWS\\system32\\cmd.exe ",
+      "argv": [
+        "C:\\nvm4w\\nodejs\\node.exe",
+        "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools\\scripts\\test-backend.js",
+        "integration"
+      ],
+      "execPath": "C:\\nvm4w\\nodejs\\node.exe",
+      "cwd": "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools",
+      "uptime": 900.5230675,
+      "memoryUsage": {
+        "rss": 157388800,
+        "heapTotal": 53108736,
+        "heapUsed": 22276640,
+        "external": 3026789,
+        "arrayBuffers": 943531
+      },
+      "cpuUsage": {
+        "user": 10734000,
+        "system": 6781000
+      }
+    },
+    "handles": {
+      "current": [
+        {
+          "type": "Socket",
+          "readable": false,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": false,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Server",
+          "readable": false,
+          "writable": false,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "ChildProcess",
+          "readable": false,
+          "writable": false,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": false,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "ChildProcess",
+          "readable": false,
+          "writable": false,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": false,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "ChildProcess",
+          "readable": false,
+          "writable": false,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": false,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "ChildProcess",
+          "readable": false,
+          "writable": false,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": false,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "ChildProcess",
+          "readable": false,
+          "writable": false,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": false,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "ChildProcess",
+          "readable": false,
+          "writable": false,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": false,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "Socket",
+          "readable": true,
+          "writable": true,
+          "connecting": false
+        },
+        {
+          "type": "ChildProcess",
+          "readable": false,
+          "writable": false,
+          "connecting": false
+        }
+      ],
+      "counts": {},
+      "leaks": [],
+      "suspicious": []
+    },
+    "timers": {
+      "active": [
+        {
+          "type": "FSReqCallback",
+          "hasRef": true
+        },
+        {
+          "type": "FSReqCallback",
+          "hasRef": true
+        }
+      ],
+      "counts": {
+        "setTimeout": 0,
+        "setInterval": 0,
+        "setImmediate": 0
+      },
+      "leaks": []
+    },
+    "eventLoop": {
+      "delay": null,
+      "blocked": false,
+      "performance": "good"
+    },
+    "memory": {
+      "heapUsed": 22292000,
+      "heapTotal": 53108736,
+      "external": 3026789,
+      "rss": 157388800,
+      "heapUtilization": 41.97426201218571,
+      "memoryPressure": false
+    },
+    "nodeRunning": {
+      "available": true,
+      "output": "",
+      "timestamp": 1760409415809
+    },
+    "recommendations": []
+  },
+  "metrics": {
+    "totalDiagnosticRuns": 6,
+    "handleLeaksDetected": 0,
+    "timerLeaksDetected": 0,
+    "eventLoopDelaysDetected": 0,
+    "reportsGenerated": 0,
+    "averageDiagnosticTime": 55.364046875,
+    "isDiagnosticActive": true,
+    "handleHistorySize": 6,
+    "timerHistorySize": 6,
+    "eventLoopHistorySize": 5,
+    "suspiciousHandles": 0,
+    "config": {
+      "enableHandleTracking": true,
+      "enableTimerTracking": true,
+      "enableEventLoopMonitoring": true,
+      "diagnosticInterval": 30000,
+      "handleLeakThreshold": 100,
+      "timerLeakThreshold": 50,
+      "eventLoopDelayThreshold": 100,
+      "reportDirectory": "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools\\diagnostic-reports",
+      "autoGenerateReports": true,
+      "maxReportFiles": 10
+    }
+  },
+  "history": {
+    "handles": [
+      {
+        "timestamp": 1760409274692,
+        "totalHandles": 22,
+        "byType": {
+          "Socket": 16,
+          "Server": 1,
+          "ChildProcess": 5
+        }
+      },
+      {
+        "timestamp": 1760409304699,
+        "totalHandles": 26,
+        "byType": {
+          "Socket": 19,
+          "Server": 1,
+          "ChildProcess": 6
+        }
+      },
+      {
+        "timestamp": 1760409334721,
+        "totalHandles": 26,
+        "byType": {
+          "Socket": 19,
+          "Server": 1,
+          "ChildProcess": 6
+        }
+      },
+      {
+        "timestamp": 1760409364727,
+        "totalHandles": 26,
+        "byType": {
+          "Socket": 19,
+          "Server": 1,
+          "ChildProcess": 6
+        }
+      },
+      {
+        "timestamp": 1760409394728,
+        "totalHandles": 26,
+        "byType": {
+          "Socket": 19,
+          "Server": 1,
+          "ChildProcess": 6
+        }
+      },
+      {
+        "timestamp": 1760409415744,
+        "totalHandles": 30,
+        "byType": {
+          "Socket": 22,
+          "Server": 1,
+          "ChildProcess": 7
+        }
+      }
+    ],
+    "timers": [
+      {
+        "timestamp": 1760409274693,
+        "totalTimers": 0,
+        "byType": {
+          "setTimeout": 0,
+          "setInterval": 0,
+          "setImmediate": 0
+        }
+      },
+      {
+        "timestamp": 1760409304699,
+        "totalTimers": 0,
+        "byType": {
+          "setTimeout": 0,
+          "setInterval": 0,
+          "setImmediate": 0
+        }
+      },
+      {
+        "timestamp": 1760409334721,
+        "totalTimers": 0,
+        "byType": {
+          "setTimeout": 0,
+          "setInterval": 0,
+          "setImmediate": 0
+        }
+      },
+      {
+        "timestamp": 1760409364727,
+        "totalTimers": 0,
+        "byType": {
+          "setTimeout": 0,
+          "setInterval": 0,
+          "setImmediate": 0
+        }
+      },
+      {
+        "timestamp": 1760409394728,
+        "totalTimers": 0,
+        "byType": {
+          "setTimeout": 0,
+          "setInterval": 0,
+          "setImmediate": 0
+        }
+      },
+      {
+        "timestamp": 1760409415744,
+        "totalTimers": 0,
+        "byType": {
+          "setTimeout": 0,
+          "setInterval": 0,
+          "setImmediate": 0
+        }
+      }
+    ],
+    "eventLoop": [
+      {
+        "timestamp": 1760409274693,
+        "delay": 31.529603233684213,
+        "blocked": false
+      },
+      {
+        "timestamp": 1760409304699,
+        "delay": 32.93691459198243,
+        "blocked": false
+      },
+      {
+        "timestamp": 1760409334721,
+        "delay": 32.99789184891823,
+        "blocked": false
+      },
+      {
+        "timestamp": 1760409364727,
+        "delay": 34.046893911464245,
+        "blocked": false
+      },
+      {
+        "timestamp": 1760409394728,
+        "delay": 33.600407512544805,
+        "blocked": false
+      }
+    ]
+  },
+  "processHandles": [
+    {
+      "type": "Socket",
+      "readable": false,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": false,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Server",
+      "readable": false,
+      "writable": false,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "ChildProcess",
+      "readable": false,
+      "writable": false,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": false,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "ChildProcess",
+      "readable": false,
+      "writable": false,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": false,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "ChildProcess",
+      "readable": false,
+      "writable": false,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": false,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "ChildProcess",
+      "readable": false,
+      "writable": false,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": false,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "ChildProcess",
+      "readable": false,
+      "writable": false,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": false,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "ChildProcess",
+      "readable": false,
+      "writable": false,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": false,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "Socket",
+      "readable": true,
+      "writable": true,
+      "connecting": false
+    },
+    {
+      "type": "ChildProcess",
+      "readable": false,
+      "writable": false,
+      "connecting": false
+    }
+  ],
+  "recommendations": []
+}

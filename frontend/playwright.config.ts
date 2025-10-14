@@ -73,7 +73,7 @@ export default defineConfig({
       workers: 1,
       timeout: 60000,
       use: {
-        storageState: './e2e/shared/.auth/admin.json',
+        storageState: './e2e/shared/.auth/storageState.json',
         baseURL: E2E_CONFIG.FRONTEND.URL,
       },
     },

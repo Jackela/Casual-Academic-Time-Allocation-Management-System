@@ -1,33 +1,28 @@
 import { test, expect, type Page } from '@playwright/test';
 import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
-import { acquireAuthTokens, createTimesheetWithStatus, finalizeTimesheet, transitionTimesheet, type AuthContext } from '../../utils/workflow-helpers';
 import { E2E_CONFIG } from '../../config/e2e.config';
-import { TUTOR_STORAGE } from '../utils/auth-storage';
 import { statusLabel, statusLabelPattern } from '../../utils/status-labels';
+import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
+import type { AuthContext } from '../../utils/workflow-helpers';
+import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
 
 /**
  * Real backend verification using live data and SSOT workflow
  */
 
-test.use({ storageState: TUTOR_STORAGE });
-
 test.describe('Real Backend Timesheet Operations', () => {
+  let dataFactory: TestDataFactory;
   let tokens: AuthContext;
-  const cleanupIds: number[] = [];
 
-  test.beforeAll(async ({ request }) => {
-    tokens = await acquireAuthTokens(request);
+  test.beforeEach(async ({ page, request }) => {
+    dataFactory = await createTestDataFactory(request);
+    tokens = dataFactory.getAuthTokens();
+    await signInAsRole(page, 'tutor');
   });
 
-  test.afterEach(async ({ request }) => {
-    while (cleanupIds.length) {
-      const id = cleanupIds.pop();
-      if (!id) continue;
-      await finalizeTimesheet(request, tokens, id).catch(() => undefined);
-      await request.delete(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${id}`, {
-        headers: { Authorization: `Bearer ${tokens.admin.token}` }
-      }).catch(() => undefined);
-    }
+  test.afterEach(async ({ page }) => {
+    await dataFactory?.cleanupAll();
+    await clearAuthSessionFromPage(page);
   });
 
   const openTutorDashboard = async (page: Page) => {
@@ -59,53 +54,45 @@ test.describe('Real Backend Timesheet Operations', () => {
     }
   });
 
-  test('creates draft timesheet via API seed and displays in UI', async ({ page, request }) => {
+  test('creates draft timesheet via API seed and displays in UI', async ({ page }) => {
     const description = `Real backend draft ${Date.now()}`;
-    const seed = await createTimesheetWithStatus(request, tokens, {
+    const seed = await dataFactory.createTimesheetForTest({
       description,
       targetStatus: 'DRAFT'
     });
-    cleanupIds.push(seed.id);
 
     const dashboard = await openTutorDashboard(page);
 
-    await expect(async () => {
-      await dashboard.refreshDashboard();
-      const count = await dashboard.page.getByTestId(`timesheet-row-${seed.id}`).count();
-      expect(count).toBeGreaterThan(0);
-    }).toPass({ timeout: 20000 });
-
-    const row = dashboard.page.getByTestId(`timesheet-row-${seed.id}`);
-    await expect(row).toBeVisible();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await dashboard.waitForMyTimesheetData();
+    const row = dashboard.getTimesheetRow(seed.id, seed.description);
+    await expect(row).toBeVisible({ timeout: 20000 });
     await expect(dashboard.getStatusBadge(seed.id)).toContainText(statusLabel('DRAFT'));
     await expect(row).toContainText(description);
   });
 
-  test('submits tutor draft and sees pending confirmation status', async ({ page, request }) => {
+  test('submits tutor draft and sees pending confirmation status', async ({ page }) => {
     const description = `Submit flow ${Date.now()}`;
-    const draft = await createTimesheetWithStatus(request, tokens, {
+    const draft = await dataFactory.createTimesheetForTest({
       description,
       targetStatus: 'DRAFT'
     });
-    cleanupIds.push(draft.id);
 
     const dashboard = await openTutorDashboard(page);
 
-    await expect(async () => {
-      await dashboard.refreshDashboard();
-      const count = await dashboard.page.getByTestId(`timesheet-row-${draft.id}`).count();
-      expect(count).toBeGreaterThan(0);
-    }).toPass({ timeout: 20000 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await dashboard.waitForMyTimesheetData();
+    const row = dashboard.getTimesheetRow(draft.id, draft.description);
+    await expect(row).toBeVisible({ timeout: 20000 });
 
     await dashboard.submitDraft(draft.id);
-    await expect(async () => {
-      await dashboard.refreshDashboard();
-      const text = await dashboard.getStatusBadge(draft.id).textContent();
-      expect(text).toMatch(statusLabelPattern('PENDING_TUTOR_CONFIRMATION'));
-    }).toPass({ timeout: 20000 });
+    await expect(dashboard.getStatusBadge(draft.id)).toHaveText(
+      statusLabelPattern('PENDING_TUTOR_CONFIRMATION'),
+      { timeout: 20000 }
+    );
 
-    await transitionTimesheet(request, tokens, draft.id, 'TUTOR_CONFIRM');
-    await transitionTimesheet(request, tokens, draft.id, 'LECTURER_CONFIRM');
+    await dataFactory.transitionTimesheet(draft.id, 'TUTOR_CONFIRM');
+    await dataFactory.transitionTimesheet(draft.id, 'LECTURER_CONFIRM');
   });
 
   test('returns validation error when creating invalid timesheet', async ({ request }) => {

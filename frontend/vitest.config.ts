@@ -2,6 +2,8 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
+const testIncludePatterns = ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'];
+
 export default defineConfig({
   plugins: [react()],
   test: {
@@ -10,7 +12,7 @@ export default defineConfig({
     globalTeardown: './src/test-utils/global-teardown.ts',
     globals: false,
     css: true,
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    include: testIncludePatterns,
     // Increase test timeout for async operations
     testTimeout: 15000, // 15 seconds instead of default 5 seconds
     hookTimeout: 10000, // 10 seconds for setup/teardown hooks
@@ -19,7 +21,8 @@ export default defineConfig({
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: true // Ensures proper cleanup and resource management
+        singleFork: true, // Ensures proper cleanup and resource management
+        execArgv: ['--max-old-space-size=6144'] // Prevent worker OOM for large component suites
       }
     },
     exclude: [
@@ -52,10 +55,7 @@ export default defineConfig({
       }
     },
     // Reporter configuration
-    reporter: ['verbose', 'json'],
-    outputFile: {
-      json: './coverage/test-results.json'
-    }
+    reporters: ['verbose']
   },
   resolve: {
     alias: {

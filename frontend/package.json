@@ -19,8 +19,8 @@
     "test:unit:script": "bash scripts/run-test.sh unit",
     "test:component": "cross-env NODE_ENV=test vitest run --reporter=verbose src/components/",
     "test:component:script": "bash scripts/run-test.sh component",
-    "test:api": "cross-env NODE_ENV=test vitest run src/api/",
-    "test:contract": "cross-env NODE_ENV=test vitest run src/api/ --testNamePattern=\"[cC]ontract|[sS]chema\"",
+    "test:api": "cross-env NODE_ENV=test vitest run e2e/real/api/",
+    "test:contract": "cross-env NODE_ENV=test playwright test e2e/real/api --project=real --config=playwright.config.ts",
     "test:coverage": "cross-env NODE_ENV=test vitest run --reporter=verbose --coverage",
     "test:coverage:win": "cross-env NODE_ENV=test vitest run --reporter=verbose --coverage",
     "test:e2e": "npm run test:e2e:full",
@@ -98,3 +98,4 @@
     "why-is-node-running": "^2.3.0"
   }
 }
+

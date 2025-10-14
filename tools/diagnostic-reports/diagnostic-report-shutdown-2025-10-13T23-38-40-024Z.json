@@ -1,0 +1,223 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-13T23:38:40.024Z",
+    "trigger": "shutdown",
+    "nodeVersion": "v22.17.0",
+    "platform": "win32",
+    "arch": "x64",
+    "pid": 47460,
+    "uptime": 563.9972399,
+    "cwd": "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools"
+  },
+  "diagnostics": {
+    "timestamp": 1760398720019,
+    "processInfo": {
+      "pid": 47460,
+      "ppid": 39016,
+      "platform": "win32",
+      "arch": "x64",
+      "nodeVersion": "v22.17.0",
+      "title": "PowerShell 7 (x86)",
+      "argv": [
+        "C:\\nvm4w\\nodejs\\node.exe",
+        "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools\\scripts\\test-backend.js",
+        "integration"
+      ],
+      "execPath": "C:\\nvm4w\\nodejs\\node.exe",
+      "cwd": "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools",
+      "uptime": 563.9914876,
+      "memoryUsage": {
+        "rss": 154730496,
+        "heapTotal": 53719040,
+        "heapUsed": 25859368,
+        "external": 4101030,
+        "arrayBuffers": 2014118
+      },
+      "cpuUsage": {
+        "user": 4609000,
+        "system": 3062000
+      }
+    },
+    "handles": {
+      "current": [
+        {
+          "type": "Server",
+          "readable": false,
+          "writable": false,
+          "connecting": false
+        }
+      ],
+      "counts": {},
+      "leaks": [],
+      "suspicious": []
+    },
+    "timers": {
+      "active": [
+        {
+          "type": "FileHandleCloseReq",
+          "hasRef": true
+        },
+        {
+          "type": "FSReqCallback",
+          "hasRef": true
+        },
+        {
+          "type": "FSReqCallback",
+          "hasRef": true
+        }
+      ],
+      "counts": {
+        "setTimeout": 0,
+        "setInterval": 0,
+        "setImmediate": 0
+      },
+      "leaks": []
+    },
+    "eventLoop": {
+      "delay": null,
+      "blocked": false,
+      "performance": "good"
+    },
+    "memory": {
+      "heapUsed": 25869536,
+      "heapTotal": 53719040,
+      "external": 4101030,
+      "rss": 154730496,
+      "heapUtilization": 48.15710779641631,
+      "memoryPressure": false
+    },
+    "nodeRunning": {
+      "available": true,
+      "output": "",
+      "timestamp": 1760398720024
+    },
+    "recommendations": []
+  },
+  "metrics": {
+    "totalDiagnosticRuns": 4,
+    "handleLeaksDetected": 0,
+    "timerLeaksDetected": 0,
+    "eventLoopDelaysDetected": 0,
+    "reportsGenerated": 0,
+    "averageDiagnosticTime": 6.475312499999999,
+    "isDiagnosticActive": true,
+    "handleHistorySize": 4,
+    "timerHistorySize": 4,
+    "eventLoopHistorySize": 3,
+    "suspiciousHandles": 0,
+    "config": {
+      "enableHandleTracking": true,
+      "enableTimerTracking": true,
+      "enableEventLoopMonitoring": true,
+      "diagnosticInterval": 30000,
+      "handleLeakThreshold": 100,
+      "timerLeakThreshold": 50,
+      "eventLoopDelayThreshold": 100,
+      "reportDirectory": "D:\\Code\\Casual-Academic-Time-Allocation-Management-System\\tools\\diagnostic-reports",
+      "autoGenerateReports": true,
+      "maxReportFiles": 10
+    }
+  },
+  "history": {
+    "handles": [
+      {
+        "timestamp": 1760398634177,
+        "totalHandles": 4,
+        "byType": {
+          "Server": 1,
+          "Socket": 2,
+          "ChildProcess": 1
+        }
+      },
+      {
+        "timestamp": 1760398664186,
+        "totalHandles": 4,
+        "byType": {
+          "Server": 1,
+          "Socket": 2,
+          "ChildProcess": 1
+        }
+      },
+      {
+        "timestamp": 1760398694199,
+        "totalHandles": 8,
+        "byType": {
+          "Server": 1,
+          "Socket": 5,
+          "ChildProcess": 2
+        }
+      },
+      {
+        "timestamp": 1760398720019,
+        "totalHandles": 1,
+        "byType": {
+          "Server": 1
+        }
+      }
+    ],
+    "timers": [
+      {
+        "timestamp": 1760398634177,
+        "totalTimers": 0,
+        "byType": {
+          "setTimeout": 0,
+          "setInterval": 0,
+          "setImmediate": 0
+        }
+      },
+      {
+        "timestamp": 1760398664187,
+        "totalTimers": 0,
+        "byType": {
+          "setTimeout": 0,
+          "setInterval": 0,
+          "setImmediate": 0
+        }
+      },
+      {
+        "timestamp": 1760398694199,
+        "totalTimers": 0,
+        "byType": {
+          "setTimeout": 0,
+          "setInterval": 0,
+          "setImmediate": 0
+        }
+      },
+      {
+        "timestamp": 1760398720019,
+        "totalTimers": 0,
+        "byType": {
+          "setTimeout": 0,
+          "setInterval": 0,
+          "setImmediate": 0
+        }
+      }
+    ],
+    "eventLoop": [
+      {
+        "timestamp": 1760398634177,
+        "delay": 30.211233032258065,
+        "blocked": false
+      },
+      {
+        "timestamp": 1760398664187,
+        "delay": 30.354586040485827,
+        "blocked": false
+      },
+      {
+        "timestamp": 1760398694199,
+        "delay": 30.330843157398046,
+        "blocked": false
+      }
+    ]
+  },
+  "processHandles": [
+    {
+      "type": "Server",
+      "readable": false,
+      "writable": false,
+      "connecting": false
+    }
+  ],
+  "recommendations": []
+}

@@ -9,21 +9,7 @@ import { waitForBackendReady } from '../utils/health-checker';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const AUTH_DIR = path.resolve(__dirname, '../shared/.auth');
-
-type RoleKey = 'admin' | 'lecturer' | 'tutor';
-
-interface RoleDefinition {
-  role: RoleKey;
-  storageFile: string;
-  emailEnv: string;
-  passwordEnv: string;
-}
-
-const ROLE_DEFINITIONS: RoleDefinition[] = [
-  { role: 'admin', storageFile: 'admin.json', emailEnv: 'E2E_ADMIN_EMAIL', passwordEnv: 'E2E_ADMIN_PASSWORD' },
-  { role: 'lecturer', storageFile: 'lecturer.json', emailEnv: 'E2E_LECTURER_EMAIL', passwordEnv: 'E2E_LECTURER_PASSWORD' },
-  { role: 'tutor', storageFile: 'tutor.json', emailEnv: 'E2E_TUTOR_EMAIL', passwordEnv: 'E2E_TUTOR_PASSWORD' },
-];
+const STORAGE_STATE_FILE = path.resolve(AUTH_DIR, 'storageState.json');
 
 const truthy = new Set(['1', 'true', 'TRUE', 'yes', 'YES']);
 
@@ -32,16 +18,13 @@ const asBool = (value?: string | null): boolean => (value ? truthy.has(value) : 
 const hasRealProject = (config: FullConfig): boolean =>
   config.projects.some((project) => project.name === 'real');
 
-const storagePathFor = (definition: RoleDefinition) => path.resolve(AUTH_DIR, definition.storageFile);
-
 const ensureStorageDirectory = async () => {
   await fs.mkdir(AUTH_DIR, { recursive: true });
 };
 
-const removeExistingState = async (definition: RoleDefinition) => {
-  const target = storagePathFor(definition);
+const removeExistingState = async () => {
   try {
-    await fs.rm(target);
+    await fs.rm(STORAGE_STATE_FILE);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw error;
@@ -54,14 +37,14 @@ interface Credentials {
   password: string;
 }
 
-const readCredentials = (definition: RoleDefinition): Credentials => {
-  const fallback = E2E_CONFIG.USERS[definition.role];
-  const email = (process.env[definition.emailEnv] ?? fallback.email ?? '').trim();
-  const password = (process.env[definition.passwordEnv] ?? fallback.password ?? '').trim();
+const readAdminCredentials = (): Credentials => {
+  const fallback = E2E_CONFIG.USERS.admin;
+  const email = (process.env.E2E_ADMIN_EMAIL ?? fallback.email ?? '').trim();
+  const password = (process.env.E2E_ADMIN_PASSWORD ?? fallback.password ?? '').trim();
 
   if (!email || !password) {
     throw new Error(
-      `[real/global.setup] Missing credentials for ${definition.role}. Ensure ${definition.emailEnv} and ${definition.passwordEnv} are set.`
+      '[real/global.setup] Missing admin credentials. Ensure E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD are set.'
     );
   }
 
@@ -87,7 +70,7 @@ const waitForLoginPage = async (loginPage: LoginPage, attempts: number = 3) => {
   }
 };
 
-const performLogin = async (definition: RoleDefinition, credentials: Credentials) => {
+const performLoginAndPersist = async (credentials: Credentials) => {
   const browser = await chromium.launch();
 
   try {
@@ -102,12 +85,13 @@ const performLogin = async (definition: RoleDefinition, credentials: Credentials
 
     if (!response.ok()) {
       throw new Error(
-        `[real/global.setup] Authentication for ${definition.role} failed (${response.status()} ${response.statusText()}).`
+        `[real/global.setup] Authentication failed (${response.status()} ${response.statusText()}).`
       );
     }
 
     await ensureStorageDirectory();
-    await context.storageState({ path: storagePathFor(definition) });
+    await context.storageState({ path: STORAGE_STATE_FILE });
+    console.info(`[real/global.setup] Stored shared auth state at ${STORAGE_STATE_FILE}`);
   } finally {
     await browser.close();
   }
@@ -133,26 +117,12 @@ export default async function globalSetup(config: FullConfig) {
     throw error;
   }
 
-  const failures: Array<{ role: RoleKey; error: unknown }> = [];
-
-  for (const definition of ROLE_DEFINITIONS) {
-    try {
-      const credentials = readCredentials(definition);
-      await removeExistingState(definition);
-      await performLogin(definition, credentials);
-      console.info(`[real/global.setup] Stored ${definition.role} state at ${storagePathFor(definition)}`);
-    } catch (error) {
-      await removeExistingState(definition).catch(() => undefined);
-      failures.push({ role: definition.role, error });
-    }
-  }
-
-  if (failures.length > 0) {
-    failures.forEach(({ role, error }) => {
-      console.error(`[real/global.setup] Failed to capture storage state for ${role}`, error);
-    });
-    throw new Error(
-      `[real/global.setup] Unable to prepare storage state for roles: ${failures.map(({ role }) => role).join(', ')}`
-    );
+  try {
+    const credentials = readAdminCredentials();
+    await removeExistingState();
+    await performLoginAndPersist(credentials);
+  } catch (error) {
+    await removeExistingState().catch(() => undefined);
+    throw error;
   }
 }

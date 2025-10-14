@@ -1,18 +1,33 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { DashboardPage } from '../../shared/pages/DashboardPage';
 import { NavigationPage } from '../../shared/pages/NavigationPage';
 import { TimesheetPage } from '../../shared/pages/TimesheetPage';
-import { LECTURER_STORAGE, TUTOR_STORAGE } from '../utils/auth-storage';
 import { E2E_CONFIG } from '../../config/e2e.config';
-import { acquireAuthTokens } from '../../utils/workflow-helpers';
+import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
+import { clearAuthSessionFromPage, signInAsRole, type UserRole } from '../../api/auth-helper';
+import type { AuthContext } from '../../utils/workflow-helpers';
 
 /**
- * Example suite demonstrating the shared Page Object Model with persisted auth states.
+ * Example suite demonstrating the shared Page Object Model with isolated auth sessions.
  */
 test.describe('Page Object Model Examples', () => {
   let dashboardPage: DashboardPage;
   let navigationPage: NavigationPage;
   let timesheetPage: TimesheetPage;
+  let dataFactory: TestDataFactory;
+  let tokens: AuthContext;
+  const trackedPages = new Set<Page>();
+
+  const trackSession = async (page: Page, role: UserRole) => {
+    await signInAsRole(page, role);
+    trackedPages.add(page);
+  };
+
+  test.beforeEach(async ({ request }) => {
+    dataFactory = await createTestDataFactory(request);
+    tokens = dataFactory.getAuthTokens();
+    trackedPages.clear();
+  });
 
   test.beforeEach(async ({ page }) => {
     dashboardPage = new DashboardPage(page);
@@ -20,8 +35,18 @@ test.describe('Page Object Model Examples', () => {
     timesheetPage = new TimesheetPage(page);
   });
 
+  test.afterEach(async () => {
+    for (const page of trackedPages) {
+      await clearAuthSessionFromPage(page);
+    }
+    trackedPages.clear();
+    await dataFactory?.cleanupAll();
+  });
+
   test.describe('Lecturer workflows', () => {
-    test.use({ storageState: LECTURER_STORAGE });
+    test.beforeEach(async ({ page }) => {
+      await trackSession(page, 'lecturer');
+    });
 
     test('can review dashboard data using page objects', async ({ page }) => {
       await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
@@ -82,24 +107,25 @@ test.describe('Page Object Model Examples', () => {
   });
 
   test('Multi-role authentication workflow with Page Objects', async ({ browser, request }) => {
-    const lecturerContext = await browser.newContext({ storageState: LECTURER_STORAGE });
+    const lecturerContext = await browser.newContext();
     const lecturerPage = await lecturerContext.newPage();
+    await trackSession(lecturerPage, 'lecturer');
     const lecturerDashboard = new DashboardPage(lecturerPage);
     await lecturerPage.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await lecturerDashboard.expectUserInfo('Dr. Jane Smith', 'Lecturer');
     await lecturerContext.close();
 
-    const tutorContext = await browser.newContext({ storageState: TUTOR_STORAGE });
+    const tutorContext = await browser.newContext();
     const tutorPage = await tutorContext.newPage();
+    await trackSession(tutorPage, 'tutor');
     const tutorDashboard = new DashboardPage(tutorPage);
     await tutorPage.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await tutorDashboard.expectUserInfo('John Doe', 'Tutor');
     await tutorContext.close();
 
-    const adminTokens = await acquireAuthTokens(request);
     const summaryResponse = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/dashboard/summary`, {
       headers: {
-        Authorization: `Bearer ${adminTokens.admin.token}`,
+        Authorization: `Bearer ${tokens.admin.token}`,
         'Content-Type': 'application/json',
       },
     });

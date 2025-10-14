@@ -13,9 +13,10 @@
 */
 
 const { readFileSync } = require('fs');
-const { join } = require('path');
+const path = require('path');
 const url = require('url');
 const portsUtil = require('./lib/port-utils');
+const SafeProcessManager = require('./lib/safe-process-manager');
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -26,6 +27,13 @@ function parseArgs() {
         .split(',')
         .map((s) => Number(s.trim()))
         .filter((n) => Number.isInteger(n) && n > 0);
+    } else if (a.startsWith('--session=')) {
+      out.sessionId = a.replace('--session=', '').trim();
+    } else if (a.startsWith('--ledger=')) {
+      const resolved = a.replace('--ledger=', '').trim();
+      if (resolved) {
+        out.ledgerPath = path.resolve(process.cwd(), resolved);
+      }
     }
   }
   return out;
@@ -33,7 +41,7 @@ function parseArgs() {
 
 function readE2EParams() {
   try {
-    const p = join(__dirname, '..', 'frontend', 'scripts', 'e2e.params.json');
+    const p = path.join(__dirname, '..', 'frontend', 'scripts', 'e2e.params.json');
     const raw = readFileSync(p, 'utf-8');
     return JSON.parse(raw);
   } catch (e) {
@@ -52,20 +60,45 @@ function extractPortFromUrl(maybeUrl, fallback) {
   return fallback;
 }
 
-async function cleanupPort(port) {
+async function cleanupPort(port, safeManager) {
   const pids = await portsUtil.findPidsByPort(port);
   if (!pids.length) {
     console.log(`[cleanup] No process is listening on port ${port}`);
     return;
   }
   console.log(`[cleanup] Port ${port} is used by PIDs: ${pids.join(', ')}`);
-  for (const pid of pids) {
+
+  if (!safeManager || !safeManager.isActive()) {
+    console.warn(`[cleanup] Safe process manager inactive. Skipping termination for port ${port}.`);
+    return;
+  }
+
+  const trackedPids = safeManager.filterTrackedPids(pids);
+  const skipped = pids.filter((pid) => !trackedPids.includes(pid));
+
+  if (skipped.length) {
+    console.warn(`[cleanup] Skipping untracked PIDs on port ${port}: ${skipped.join(', ')}`);
+  }
+
+  if (!trackedPids.length) {
+    console.warn(`[cleanup] No tracked processes associated with port ${port}. Nothing to terminate.`);
+    return;
+  }
+
+  for (const pid of trackedPids) {
     try {
       const cmd = await portsUtil.getCmdline(pid);
-      console.log(`  - Killing PID ${pid}${cmd ? ` [${cmd.substring(0, 160)}${cmd.length > 160 ? '…' : ''}]` : ''}`);
-      await portsUtil.killPid(pid, true);
+      console.log(`  - Terminating tracked PID ${pid}${cmd ? ` [${cmd.substring(0, 160)}${cmd.length > 160 ? '…' : ''}]` : ''}`);
     } catch (e) {
-      console.warn(`  ! Failed to kill PID ${pid}: ${String(e)}`);
+      console.log(`  - Terminating tracked PID ${pid}`);
+    }
+  }
+
+  const result = await safeManager.terminatePids(trackedPids, { force: true });
+  console.log(`[cleanup] Terminated ${result.terminated}/${result.attempted} tracked processes for port ${port}.`);
+  if (result.errors.length) {
+    for (const error of result.errors) {
+      console.warn(`  ! Failed to terminate tracked PID ${error.pid}: ${error.error}`);
     }
   }
   // small delay then verify
@@ -92,6 +125,15 @@ async function stopGradleDaemons() {
 (async () => {
   const args = parseArgs();
   let ports = args.ports;
+  const safeManager = new SafeProcessManager({
+    sessionId: args.sessionId,
+    ledgerPath: args.ledgerPath,
+    log: (message, level = 'INFO') => console.log(`[safe-cleanup][${level}] ${message}`)
+  });
+
+  if (!safeManager.isActive()) {
+    console.warn('[cleanup] Safe process manager inactive. Provide --session (and optional --ledger) to enable tracked cleanup.');
+  }
 
   if (!ports || !ports.length) {
     const e2e = readE2EParams();
@@ -106,7 +148,7 @@ async function stopGradleDaemons() {
 
   console.log(`[cleanup] Target ports: ${ports.join(', ')}`);
   for (const port of ports) {
-    await cleanupPort(port);
+    await cleanupPort(port, safeManager);
   }
   await stopGradleDaemons();
   console.log('[cleanup] Done.');
