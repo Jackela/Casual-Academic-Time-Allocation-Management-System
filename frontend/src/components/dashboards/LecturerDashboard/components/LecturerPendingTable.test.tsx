@@ -65,6 +65,8 @@ describe("LecturerPendingTable", () => {
   });
 
   it("disables batch actions when approvals are loading or callbacks missing", () => {
+    // When callbacks are undefined, BatchActions doesn't render any buttons
+    // This test verifies that the batch bar is hidden when no actions are available
     renderComponent({
       timesheets: [createMockTimesheet({ id: 1, status: "TUTOR_CONFIRMED" })],
       selectedTimesheets: [1],
@@ -73,11 +75,14 @@ describe("LecturerPendingTable", () => {
       onRejectSelected: undefined,
     });
 
-    const approveButton = screen.getByRole("button", { name: /approve selected/i });
-    const rejectButton = screen.getByRole("button", { name: /reject selected/i });
-
-    expect(approveButton).toBeDisabled();
-    expect(rejectButton).toBeDisabled();
+    // Batch bar should still show with count, but no action buttons
+    const batchBar = screen.getByTestId("lecturer-batch-action-bar");
+    expect(batchBar).toBeInTheDocument();
+    expect(screen.getByTestId("lecturer-batch-count")).toHaveTextContent("1 selected");
+    
+    // No action buttons should be rendered when callbacks are undefined
+    expect(screen.queryByRole("button", { name: /approve selected/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reject selected/i })).not.toBeInTheDocument();
   });
 
   it("invokes batch callbacks when actions are triggered", async () => {

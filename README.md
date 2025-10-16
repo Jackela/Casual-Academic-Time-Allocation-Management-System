@@ -159,32 +159,43 @@ cd frontend && npm install && npm run dev
 
 ## Testing
 
-### Full suites
+### Full Test Suites
 
 ```bash
+# Backend
 node scripts/test-backend-unit.js
-node scripts/test-backend-integration.js
-node scripts/test-frontend-unit.js
-node scripts/test-frontend-contract.js
-node scripts/run-e2e.js --project=all
+node tools/scripts/test-backend-integration-select.js
+
+# Frontend
+cd frontend && npm run test:unit
+cd frontend && npm run test:contract
+
+# End-to-End
+cd frontend && npm run test:e2e
 ```
 
-#### Cross-platform Cleanup
+#### Cross-Platform Cleanup
 
-Use the provided cleanup utility to terminate lingering dev/test processes and free ports (Windows/PowerShell and Linux/macOS supported):
+Use cleanup utilities to terminate lingering processes and free ports:
 
 ```bash
-node scripts/cleanup-ports.js
-# or specify ports explicitly
+# Port cleanup only
 node scripts/cleanup-ports.js --ports=8084,5174
+
+# Comprehensive cleanup (ports + processes + temp files)
+node tools/scripts/cleanup.js [gentle|normal|full|emergency]
 ```
 
-### Selective (faster iteration)
+### Selective Tests (Faster Iteration)
 
 ```bash
-node scripts/test-backend-unit-select.js --tests="*TimesheetServiceUnitTest*"
-node scripts/test-backend-integration-select.js --tests="*TimesheetIntegrationTest*"
-node scripts/test-frontend-unit-select.js --pattern="auth.*.spec"
+# Backend selective tests
+node tools/scripts/test-backend-unit-select.js --tests="*TimesheetServiceUnitTest*"
+node tools/scripts/test-backend-integration-select.js --tests="*TimesheetIntegrationTest*"
+
+# Frontend selective tests  
+cd frontend && npm run test:unit -- src/components/specific-component.test.ts
+cd frontend && npm run test:e2e:smoke  # Smoke tests only
 ```
 
 ### Reports

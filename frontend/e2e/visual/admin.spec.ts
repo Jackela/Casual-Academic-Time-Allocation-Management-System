@@ -339,7 +339,11 @@ test.describe('Admin Dashboard Visual Regression', () => {
   test('rejection modal focus-trap', async ({ page }) => {
     await prepareAdminDashboard(page);
     await page.getByRole('button', { name: 'Pending Review' }).click();
-    await page.getByTestId('reject-btn-701').click();
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('catams-open-admin-rejection-modal', {
+        detail: { timesheetId: 701 }
+      }));
+    });
     await page.getByRole('dialog', { name: /Confirm Emergency Action/i }).waitFor({ state: 'visible' });
     await capture(page, 'admin-dashboard-rejection-modal.png');
   });

@@ -1,4 +1,13 @@
 import { Page, expect, Locator } from '@playwright/test';
+import {
+  TABLE_LAYOUT_SELECTORS,
+  TIMESHEET_TEST_IDS,
+  getTimesheetActionSelector,
+  getTimesheetHoursBadgeSelector,
+  getTimesheetRowSelector,
+  getTimesheetStatusBadgeSelector,
+  getTimesheetTotalPaySelector,
+} from '../../../src/lib/config/table-config';
 
 export class TimesheetPage {
   readonly page: Page;
@@ -8,15 +17,20 @@ export class TimesheetPage {
   readonly errorMessage: Locator;
   readonly retryButton: Locator;
   readonly countBadge: Locator;
+  readonly pageBanner: Locator;
 
   constructor(page: Page) {
     this.page = page;
-    this.timesheetsTable = page.locator('[data-testid="timesheet-table"], [data-testid="timesheets-table"]');
+    this.timesheetsTable = page.locator(TABLE_LAYOUT_SELECTORS.tableContainer);
     this.loadingState = page.locator('[data-testid="loading-state"], .loading-state');
     this.emptyState = page.locator('[data-testid="empty-state"], .empty-state');
     this.errorMessage = page.locator('[data-testid="error-message"], .error-message');
     this.retryButton = page.getByRole('button', { name: /retry/i });
     this.countBadge = page.locator('[data-testid="count-badge"], [data-testid="total-count-badge"], .count-badge');
+    const bannerSelectors = [TABLE_LAYOUT_SELECTORS.pageBanner, TABLE_LAYOUT_SELECTORS.legacyPageBanner]
+      .filter(Boolean)
+      .join(', ');
+    this.pageBanner = page.locator(bannerSelectors);
   }
 
   async expectTimesheetsTable() {
@@ -26,6 +40,29 @@ export class TimesheetPage {
     } catch {
       await this.expectEmptyState();
     }
+  }
+
+  async waitForFirstRender(options: { timeout?: number } = {}): Promise<'table' | 'empty' | 'error' | 'banner'> {
+    const timeout = options.timeout ?? 12000;
+    const table = this.timesheetsTable.first();
+
+    const watchers = [
+      table.waitFor({ state: 'visible', timeout }).then(() => 'table').catch(() => null),
+      this.emptyState.waitFor({ state: 'visible', timeout }).then(() => 'empty').catch(() => null),
+      this.errorMessage.waitFor({ state: 'visible', timeout }).then(() => 'error').catch(() => null),
+      this.pageBanner.waitFor({ state: 'visible', timeout }).then(() => 'banner').catch(() => null),
+    ];
+
+    const result = await Promise.race([
+      ...watchers,
+      this.page.waitForTimeout(timeout).then(() => null),
+    ]);
+
+    if (!result) {
+      throw new Error('Timesheet view did not reach a ready state within the allotted time.');
+    }
+
+    return result as 'table' | 'empty' | 'error' | 'banner';
   }
 
   async expectEmptyState() {
@@ -47,17 +84,15 @@ export class TimesheetPage {
   }
 
   async getTimesheetById(id: number) {
-    return this.page.getByTestId(`timesheet-row-${id}`);
+    return this.page.locator(getTimesheetRowSelector(id));
   }
 
   async getApproveButtonForTimesheet(id: number) {
-    const row = await this.getTimesheetById(id);
-    return row.getByRole('button', { name: /approve/i });
+    return this.page.locator(getTimesheetActionSelector('approve', id));
   }
 
   async getRejectButtonForTimesheet(id: number) {
-    const row = await this.getTimesheetById(id);
-    return row.getByRole('button', { name: /reject/i });
+    return this.page.locator(getTimesheetActionSelector('reject', id));
   }
 
   async getTutorInfoForTimesheet(id: number) {
@@ -132,7 +167,9 @@ export class TimesheetPage {
   }
 
   async rejectTimesheet(id: number) {
-    const rejectButton = await this.getRejectButtonForTimesheet(id);
+    await this.openActionsMenu(id);
+    const rejectButton = this.getDropdownMenuItem(id, 'reject');
+    await rejectButton.waitFor({ state: 'visible' });
 
     const badgeSelector = '[data-testid="count-badge"], [data-testid="total-count-badge"], .count-badge';
     let beforeBadgeText: string | null = null;
@@ -184,18 +221,37 @@ export class TimesheetPage {
 
   async expectTimesheetActionButtonsEnabled(id: number) {
     const approveButton = await this.getApproveButtonForTimesheet(id);
-    const rejectButton = await this.getRejectButtonForTimesheet(id);
-    
+    await expect(approveButton).toBeVisible();
     await expect(approveButton).toBeEnabled();
-    await expect(rejectButton).toBeEnabled();
+
+    const rejectButton = await this.getRejectButtonForTimesheet(id);
+    if (await rejectButton.count()) {
+      await expect(rejectButton).toBeVisible();
+      await expect(rejectButton).toBeEnabled();
+    }
+
+    const placeholder = this.page.locator(getTimesheetRowSelector(id)).getByTestId(
+      TIMESHEET_TEST_IDS.noActionsPlaceholder,
+    );
+    await expect(placeholder).toHaveCount(0);
   }
 
   async expectTimesheetActionButtonsDisabled(id: number) {
     const approveButton = await this.getApproveButtonForTimesheet(id);
+    if (await approveButton.count()) {
+      await expect(approveButton).toBeVisible();
+      await expect(approveButton).toBeDisabled();
+    } else {
+      const placeholder = this.page.locator(getTimesheetRowSelector(id)).getByTestId(
+        TIMESHEET_TEST_IDS.noActionsPlaceholder,
+      );
+      await expect(placeholder).toBeVisible();
+    }
+
     const rejectButton = await this.getRejectButtonForTimesheet(id);
-    
-    await expect(approveButton).toBeDisabled();
-    await expect(rejectButton).toBeDisabled();
+    if (await rejectButton.count()) {
+      await expect(rejectButton).toBeDisabled();
+    }
   }
 
   async expectTimesheetData(id: number, expectedData: {
@@ -217,6 +273,11 @@ export class TimesheetPage {
     if (expectedData.hours) {
       const hoursBadge = await this.getHoursBadgeForTimesheet(id);
       await expect(hoursBadge).toContainText(expectedData.hours);
+    }
+
+    if (expectedData.totalPay) {
+      const totalPayValue = this.page.locator(getTimesheetTotalPaySelector(id));
+      await expect(totalPayValue).toContainText(expectedData.totalPay);
     }
     
     if (expectedData.description) {

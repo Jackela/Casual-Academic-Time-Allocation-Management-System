@@ -20,17 +20,46 @@
   --hero-height-base: clamp(14rem, 26vw, 22rem);
 
   /* Unified Z-Index Scale */
+  /* Corrected z-index stack: lowest to highest */
   --z-background: -1;
   --z-base: 0;
   --z-content: 1;
   --z-elevated: 2;
   --z-sticky: 4;
-  --z-popover: 8;
-  --z-overlay: 10;
-  --z-modal-backdrop: 12;
-  --z-modal: 13;
-  --z-toast: 20;
-  --z-tooltip: 30;
+  --z-header: 100;
+  --z-banner: 200;
+  --z-popover: 400;
+  --z-overlay: 900;
+  --z-modal-backdrop: 950;
+  --z-modal: 1000;
+  --z-toast: 1500;
+  --z-tooltip: 2000;
+
+  /* MUST-FIX: Responsive Breakpoints (eliminate magic numbers) */
+  --breakpoint-mobile: 768px;
+  --breakpoint-tablet: 1024px;
+  --breakpoint-tablet-landscape: 1280px;
+  --breakpoint-desktop: 1440px;
+  --breakpoint-desktop-wide: 1920px;
+
+  /* MUST-FIX: Table Column Fixed Widths (SSOT for layout stability) */
+  --col-tutor-width: 150px;
+  --col-course-width: 150px;
+  --col-week-starting-width: 140px;
+  --col-hours-width: 100px;
+  --col-rate-width: 110px;
+  --col-total-pay-width: 130px;
+  --col-status-width: 160px;
+  --col-description-width: 220px;
+  --col-actions-width: 200px;
+  --col-last-updated-width: 150px;
+  --col-activity-width: 180px;
+  --col-details-width: 120px;
+
+  /* MUST-FIX: Toast Safe Zone Constraints */
+  --toast-top-clearance: 80px;
+  --toast-max-width: 420px;
+  --toast-right-offset: 16px;
 
   /* Status Badge Tokens */
   --status-draft-border: hsl(var(--muted-foreground));
@@ -97,6 +126,7 @@
 .elevation-content { z-index: var(--z-content); }
 .elevation-elevated { z-index: var(--z-elevated); }
 .elevation-sticky { z-index: var(--z-sticky); }
+.elevation-banner { z-index: var(--z-banner); }
 .elevation-popover { z-index: var(--z-popover); }
 .elevation-overlay { z-index: var(--z-overlay); }
 .elevation-modal-backdrop { z-index: var(--z-modal-backdrop); }

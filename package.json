@@ -11,7 +11,8 @@
     "bmad:list": "bmad-method list:agents",
     "bmad:validate": "bmad-method validate",
     "contracts:pipeline": "node tools/scripts/contracts-pipeline.js",
-    "contracts:verify": "node tools/scripts/contracts-pipeline.js --verify"
+    "contracts:verify": "node tools/scripts/contracts-pipeline.js --verify",
+    "test:pyramid": "node scripts/test-frontend-pyramid.js"
   },
   "devDependencies": {
     "quicktype-core": "^23.0.59"

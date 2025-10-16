@@ -1,7 +1,33 @@
 import { test as base, expect, mockResponses } from '../../fixtures/base';
 import { setupMockAuth } from '../../shared/mock-backend/auth';
+import { DashboardPage } from '../../shared/pages/DashboardPage';
 
 const test = base;
+const dashboardSummary = {
+  totalTimesheets: 48,
+  pendingApprovals: 3,
+  pendingApproval: 3,
+  thisWeekHours: 18,
+  thisWeekPay: 864,
+  statusBreakdown: {
+    LECTURER_CONFIRMED: 12,
+    TUTOR_CONFIRMED: 9,
+    FINAL_CONFIRMED: 20,
+  },
+  recentActivity: [
+    {
+      id: 1,
+      description: 'Tutor confirmed COMP3101 submission',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    },
+  ],
+  upcomingDeadlines: [],
+  systemMetrics: {
+    uptime: '99.9%',
+    averageApprovalTime: '6h',
+    escalationsThisWeek: 0,
+  },
+};
 
 test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' }, () => {
   test.describe.configure({ mode: 'serial' });
@@ -23,6 +49,13 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
         body: JSON.stringify(mockResponses.timesheets.withData)
       });
     });
+    await page.route('**/api/dashboard/summary*', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(dashboardSummary),
+      });
+    });
 
     // Test login flow
     await page.goto('/login?disableAutoAuth=1');
@@ -40,21 +73,14 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
     // Should redirect to dashboard
     await page.waitForURL('/dashboard', { timeout: 15000 });
     await timesheetResponse;
-    await page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
-    await page.waitForFunction(() =>
-      !!document.querySelector('[data-testid="timesheets-table"], table')
-      || !!document.querySelector('[data-testid="empty-state"]'),
-      undefined,
-      { timeout: 15000 }
-    );
 
-    // Presence-first checks (more resilient than visibility in parallel environments)
-    const hasTable = (await page.locator('[data-testid="timesheets-table"], table').count()) > 0
-      || await page.locator('[data-testid="timesheets-table"], table').first().isVisible().catch(() => false);
-    const hasEmptyState = (await page.locator('[data-testid="empty-state"]').count()) > 0
-      || await page.locator('[data-testid="empty-state"], text="No pending", text="No data"').first().isVisible().catch(() => false);
+    const dashboard = new DashboardPage(page);
+    await dashboard.waitForDashboardReady();
+    await dashboard.expectToBeLoaded('LECTURER');
+    await dashboard.expectResponsiveColumns();
 
-    expect(hasTable || hasEmptyState).toBeTruthy();
+    const state = await dashboard.timesheetPage.waitForFirstRender();
+    expect(['table', 'empty'].includes(state)).toBeTruthy();
   });
 
   test('should handle dashboard with authentication state', async ({ mockedPage }) => {
@@ -69,6 +95,13 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
         body: JSON.stringify(mockResponses.timesheets.withData)
       });
     });
+    await page.route('**/api/dashboard/summary*', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(dashboardSummary),
+      });
+    });
 
     const timesheetResponse = page.waitForResponse(response =>
       response.url().includes('/api/timesheets/pending-final-approval')
@@ -77,20 +110,13 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
 
     await page.goto('/dashboard');
     await timesheetResponse;
-    await page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
-    await page.waitForFunction(() =>
-      !!document.querySelector('[data-testid="timesheets-table"], table')
-      || !!document.querySelector('[data-testid="empty-state"]'),
-      undefined,
-      { timeout: 15000 }
-    );
 
-    const hasTable = (await page.locator('[data-testid="timesheets-table"], table').count()) > 0
-      || await page.locator('[data-testid="timesheets-table"], table').first().isVisible().catch(() => false);
-    const hasEmptyState = (await page.locator('[data-testid="empty-state"]').count()) > 0
-      || await page.locator('[data-testid="empty-state"], text="No pending", text="No data"').first().isVisible().catch(() => false);
-
-    expect(hasTable || hasEmptyState).toBeTruthy();
+    const dashboard = new DashboardPage(page);
+    await dashboard.waitForDashboardReady();
+    await dashboard.expectToBeLoaded('LECTURER');
+    await dashboard.expectResponsiveColumns();
+    const state = await dashboard.timesheetPage.waitForFirstRender();
+    expect(['table', 'empty'].includes(state)).toBeTruthy();
   });
 
   test('should handle dashboard with empty data', async ({ mockedPage }) => {
@@ -105,15 +131,26 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
         body: JSON.stringify(mockResponses.timesheets.empty)
       });
     });
+    await page.route('**/api/dashboard/summary*', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...dashboardSummary,
+          pendingApprovals: 0,
+          pendingApproval: 0,
+        }),
+      });
+    });
 
     await page.goto('/dashboard');
-    await page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
 
-    // Should show empty state (flexible)
-    const emptyStateVisible = (await page.locator('[data-testid="empty-state"]').count()) > 0
-      || await page.locator('[data-testid="empty-state"], text="No pending", text="No data", text="Empty"').first().isVisible({ timeout: 10000 }).catch(() => false);
-    const tableRows = await page.locator('[data-testid="timesheets-table"] tbody tr').count().catch(() => 0);
-    expect(emptyStateVisible || tableRows === 0).toBeTruthy();
+    const dashboard = new DashboardPage(page);
+    await dashboard.waitForDashboardReady();
+    await dashboard.expectToBeLoaded('LECTURER');
+    await dashboard.expectResponsiveColumns();
+    const state = await dashboard.timesheetPage.waitForFirstRender();
+    expect(['empty', 'table'].includes(state)).toBeTruthy();
   });
 
   test('should redirect unauthenticated users to login', async ({ mockedPage }) => {
@@ -138,6 +175,13 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
         body: JSON.stringify({ error: 'Server error' })
       });
     });
+    await page.route('**/api/dashboard/summary*', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(dashboardSummary),
+      });
+    });
 
     const timesheetErrorResponse = page.waitForResponse(response =>
       response.url().includes('/api/timesheets/pending-final-approval')
@@ -146,10 +190,15 @@ test.describe('Frontend-Only Tests with Full API Mocking', { tag: '@frontend' },
 
     await page.goto('/dashboard');
     await timesheetErrorResponse;
-    await page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
+
+    const dashboard = new DashboardPage(page);
+    await dashboard.waitForDashboardReady();
+    await dashboard.expectToBeLoaded('LECTURER');
 
     const errorBanner = page.getByRole('alert');
+    await expect(errorBanner).toBeVisible();
     await expect(errorBanner).toContainText(/Failed to fetch pending timesheets/i);
     await expect(errorBanner.getByRole('button', { name: /retry/i })).toBeVisible();
+    await expect(dashboard.timesheetPage.timesheetsTable).toHaveCount(0);
   });
 });

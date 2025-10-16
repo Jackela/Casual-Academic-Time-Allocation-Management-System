@@ -6,7 +6,6 @@ export { default as SupportResources } from './SupportResources';
 export { default as QuickAction } from './QuickAction';
 export { default as CompletionProgress } from './CompletionProgress';
 export { default as UpcomingDeadlines } from './UpcomingDeadlines';
-export { default as NotificationsPanel } from './NotificationsPanel';
 export { default as EarningsBreakdown } from './EarningsBreakdown';
 export { default as TimesheetForm } from './TimesheetForm';
 export type { TimesheetFormData } from './TimesheetForm';

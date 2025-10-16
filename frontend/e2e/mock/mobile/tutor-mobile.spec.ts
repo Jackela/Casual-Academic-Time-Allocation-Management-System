@@ -1,4 +1,5 @@
-import { test, expect } from '../../fixtures/base';
+import { test } from '../../fixtures/base';
+import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
 // Mobile-only suite: collected only by the mobile-tests project via testMatch
 test.describe('Tutor Dashboard Responsive Design', () => {
   test.describe.configure({ mode: 'serial' });
@@ -26,16 +27,10 @@ test.describe('Tutor Dashboard Responsive Design', () => {
     await page.goto('/dashboard');
     await respPromise.catch(() => undefined);
 
-    const mainTitle = page.getByTestId('main-dashboard-title');
-    const fallbackTitle = page.getByTestId('dashboard-title');
-    const layoutAnchor = page.getByTestId('dashboard-title-anchor');
-    if (await mainTitle.count() > 0) {
-      await expect(mainTitle.first()).toBeVisible({ timeout: 20000 });
-    } else if (await fallbackTitle.count() > 0) {
-      await expect(fallbackTitle.first()).toBeVisible({ timeout: 20000 });
-    } else {
-      await expect(layoutAnchor.first()).toBeVisible({ timeout: 20000 });
-    }
+    const tutorDashboard = new TutorDashboardPage(page);
+    await tutorDashboard.waitForDashboardReady({ timeout: 20000 });
+    await tutorDashboard.expectMobileLayout();
+    await tutorDashboard.expectResponsiveColumns();
   });
 });
 

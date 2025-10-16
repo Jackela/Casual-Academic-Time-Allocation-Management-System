@@ -3,6 +3,8 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
+import http from 'node:http';
+import https from 'node:https';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import tcpPortUsed from 'tcp-port-used';
@@ -243,6 +245,97 @@ async function isServiceHealthy(url) {
   }
 }
 
+/**
+ * Issue a POST request to reset backend test data
+ * @param {string} url - Reset endpoint URL
+ * @param {string} token - Reset token for authentication
+ * @returns {Promise<{status: number, ok: boolean, body: string}>}
+ */
+async function issueResetRequest(url, token) {
+  if (typeof fetch === 'function') {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-Test-Reset-Token': token,
+        'Content-Type': 'application/json',
+      },
+    });
+    const bodyText = await response.text().catch(() => '');
+    return {
+      status: response.status,
+      ok: response.ok,
+      body: bodyText,
+    };
+  }
+
+  // Fallback to http/https module if fetch is not available
+  return await new Promise((resolve, reject) => {
+    try {
+      const target = new URL(url);
+      const lib = target.protocol === 'https:' ? https : http;
+      const options = {
+        method: 'POST',
+        hostname: target.hostname,
+        port: target.port || (target.protocol === 'https:' ? 443 : 80),
+        path: `${target.pathname}${target.search}`,
+        headers: {
+          'X-Test-Reset-Token': token,
+          'Content-Type': 'application/json',
+          'Content-Length': '0',
+        },
+      };
+
+      const req = lib.request(options, (res) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          const body = Buffer.concat(chunks).toString('utf8');
+          const status = res.statusCode ?? 0;
+          resolve({
+            status,
+            ok: status >= 200 && status < 300,
+            body,
+          });
+        });
+      });
+
+      req.on('error', reject);
+      req.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Reset backend test data via API endpoint
+ * @param {string} backendUrl - Base backend URL
+ * @param {Object} options - Reset options
+ */
+async function resetBackendData(backendUrl, options = {}) {
+  const resetPath = options.resetPath || process.env.E2E_RESET_PATH || '/api/test-data/reset';
+  const resetToken = options.resetToken || process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset';
+  const resetDisabled = isTruthy(process.env.E2E_DISABLE_RESET);
+
+  if (resetDisabled) {
+    logWarning('Skipping test data reset (E2E_DISABLE_RESET flag detected)');
+    return;
+  }
+
+  const resetUrl = new URL(resetPath, backendUrl).toString();
+  logStep('RESET', `Resetting backend test data via ${resetUrl}`);
+
+  try {
+    const response = await issueResetRequest(resetUrl, resetToken);
+    if (!response.ok) {
+      throw new Error(`status ${response.status}${response.body ? ` - ${response.body}` : ''}`);
+    }
+    logSuccess('Test data reset completed');
+  } catch (error) {
+    throw new Error(`Failed to reset backend test data: ${error.message}`);
+  }
+}
+
 function collectPlaywrightArgs() {
   const envArgs = parseArgList(process.env.PLAYWRIGHT_ARGS);
   const cliArgs = process.argv.slice(2);
@@ -465,6 +558,11 @@ async function main() {
       backendHealthUrl,
       backendProfile,
     });
+
+    // Reset backend test data after backend is ready
+    if (!isTruthy(process.env.E2E_SKIP_BACKEND)) {
+      await resetBackendData(backendUrl);
+    }
 
     await ensureFrontend({
       frontendPort,

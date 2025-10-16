@@ -5,7 +5,7 @@
  * pay tracking, and course integration for student tutors.
  */
 
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTutorDashboardViewModel } from './hooks/useTutorDashboardViewModel';
 import TimesheetTable from '../../shared/TimesheetTable/TimesheetTable';
 
@@ -23,12 +23,28 @@ import {
   QuickAction,
   CompletionProgress,
   UpcomingDeadlines,
-  NotificationsPanel,
   EarningsBreakdown,
   TimesheetForm
 } from './components';
+import NotificationBanner from '../../shared/NotificationBanner/NotificationBanner';
+import { getBannerNotificationConfig, shouldShowBannerNotification } from '../../../lib/routing/notificationRouter';
 import type { TimesheetFormData } from './components';
 import '../../../styles/dashboard-shell.css';
+import { ENV_CONFIG } from '../../../utils/environment';
+
+type ToastTone = 'success' | 'info' | 'error';
+
+interface ToastState {
+  id: number;
+  message: string;
+  tone: ToastTone;
+}
+
+const BULK_SUBMISSION_ACTION_ID = -101;
+
+const describeDraftCount = (count: number): string => {
+  return `${count} draft timesheet${count === 1 ? '' : 's'}`;
+};
 
 // =============================================================================
 // Component Props & Types
@@ -57,7 +73,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     allTimesheets,
     selectedTimesheets,
     setSelectedTimesheets,
-    handleNotificationDismiss,
     visibleDeadlines,
     visibleDraftCount,
     visibleRejectedCount,
@@ -74,9 +89,102 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastState[]>([]);
   const paySummaryRef = useRef<HTMLDivElement | null>(null);
   const actionLockRef = useRef(false);
-  const ACTION_LOCK_MESSAGE = 'Please wait for the current timesheet action to finish before starting another.';
+  const toastIdRef = useRef(0);
+const toastTimersRef = useRef<Map<number, number>>(new Map());
+const seededDraftToastRef = useRef(false);
+const isE2EEnvironment = ENV_CONFIG.isE2E();
+const ACTION_LOCK_MESSAGE = 'Please wait for the current timesheet action to finish before starting another.';
+const TOAST_DEFAULT_DURATION = 5000;
+
+  const syncToastGlobals = useCallback((nextToasts: ToastState[]) => {
+    if (typeof window !== 'undefined') {
+      (window as any).__DASHBOARD_TOASTS__ = nextToasts;
+      (window as any).__DASHBOARD_TOAST_COUNT__ = nextToasts.length;
+    }
+  }, []);
+
+  const clearToastTimer = useCallback((toastId: number) => {
+    if (typeof window === 'undefined') return;
+    const existingTimer = toastTimersRef.current.get(toastId);
+    if (existingTimer !== undefined) {
+      window.clearTimeout(existingTimer);
+      toastTimersRef.current.delete(toastId);
+    }
+  }, []);
+
+  const scheduleToastRemoval = useCallback((toastId: number, duration = TOAST_DEFAULT_DURATION) => {
+    if (typeof window === 'undefined') return;
+    clearToastTimer(toastId);
+    const timer = window.setTimeout(() => {
+      setToasts(prev => {
+        const next = prev.filter(toast => toast.id !== toastId);
+        syncToastGlobals(next);
+        return next;
+      });
+      toastTimersRef.current.delete(toastId);
+    }, duration);
+    toastTimersRef.current.set(toastId, timer);
+  }, [clearToastTimer, syncToastGlobals]);
+
+  const dismissToast = useCallback((toastId: number) => {
+    setToasts(prev => {
+      const next = prev.filter(toast => toast.id !== toastId);
+      syncToastGlobals(next);
+      return next;
+    });
+    if (typeof window !== 'undefined') {
+      clearToastTimer(toastId);
+    }
+  }, [clearToastTimer, syncToastGlobals]);
+
+  const showToast = useCallback((message: string, tone: ToastTone = 'info', options?: { duration?: number }): number => {
+    toastIdRef.current += 1;
+    const nextId = toastIdRef.current;
+    setToasts(prev => {
+      const next = [...prev, { id: nextId, message, tone }];
+      syncToastGlobals(next);
+      return next;
+    });
+    scheduleToastRemoval(nextId, options?.duration ?? TOAST_DEFAULT_DURATION);
+    return nextId;
+  }, [scheduleToastRemoval, syncToastGlobals]);
+
+  const updateToast = useCallback((toastId: number, updates: Partial<Omit<ToastState, 'id'>>, options?: { duration?: number }) => {
+    setToasts(prev => {
+      const next = prev.map(toast => (toast.id === toastId ? { ...toast, ...updates } : toast));
+      syncToastGlobals(next);
+      return next;
+    });
+    if (options?.duration !== undefined) {
+      scheduleToastRemoval(toastId, options.duration);
+    }
+  }, [scheduleToastRemoval, syncToastGlobals]);
+
+  useEffect(() => () => {
+    if (typeof window === 'undefined') return;
+    toastTimersRef.current.forEach(timerId => {
+      window.clearTimeout(timerId);
+    });
+    toastTimersRef.current.clear();
+    syncToastGlobals([]);
+  }, [syncToastGlobals]);
+
+  useEffect(() => {
+    if (visibleDraftCount > 0 && !seededDraftToastRef.current) {
+      seededDraftToastRef.current = true;
+      const draftLabel = describeDraftCount(visibleDraftCount);
+      const seededToastId = showToast(
+        `${draftLabel} pending submission`,
+        'info',
+        { duration: isE2EEnvironment ? 12000 : TOAST_DEFAULT_DURATION },
+      );
+      updateToast(seededToastId, { tone: 'info' });
+    }
+  }, [TOAST_DEFAULT_DURATION, isE2EEnvironment, showToast, updateToast, visibleDraftCount]);
+
 
   const {
     loading: timesheetsLoading,
@@ -153,9 +261,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     setActionNotice(null);
   }, [setActionError, setActionNotice]);
 
-  const BULK_SUBMISSION_ACTION_ID = -101;
-
-  const submitDraftTimesheets = useCallback(async (timesheetIds: number[]) => {
+  const submitDraftTimesheets = useCallback(async (timesheetIds: number[], toastIdOverride?: number) => {
     if (timesheetIds.length === 0) {
       return false;
     }
@@ -169,6 +275,12 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     setActionLoadingId(BULK_SUBMISSION_ACTION_ID);
     clearActionFeedback();
 
+    const draftCount = timesheetIds.length;
+    const draftLabel = describeDraftCount(draftCount);
+    const optimisticToastId = toastIdOverride ?? showToast(`Submitting ${draftLabel}...`, 'info', {
+      duration: isE2EEnvironment ? 8000 : TOAST_DEFAULT_DURATION,
+    });
+
     try {
       await TimesheetService.batchApproveTimesheets(
         timesheetIds.map((id) => ({
@@ -177,17 +289,25 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
         })),
       );
       await Promise.all([refetchTimesheets(), refetchDashboard()]);
+      updateToast(optimisticToastId, {
+        message: `Submitted ${draftLabel}`,
+        tone: 'success',
+      }, { duration: 4000 });
       return true;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to submit drafts';
       setActionError(message);
+      updateToast(optimisticToastId, {
+        message,
+        tone: 'error',
+      }, { duration: 6000 });
       return false;
     } finally {
       actionLockRef.current = false;
       setActionLoadingId(null);
     }
-  }, [ACTION_LOCK_MESSAGE, actionLoadingId, clearActionFeedback, refetchDashboard, refetchTimesheets, setActionNotice]);
+  }, [ACTION_LOCK_MESSAGE, TOAST_DEFAULT_DURATION, actionLoadingId, clearActionFeedback, isE2EEnvironment, refetchDashboard, refetchTimesheets, setActionNotice, showToast, updateToast]);
 
   const handleSubmitTimesheet = useCallback(async (timesheetId: number) => {
     if (actionLockRef.current || actionLoadingId !== null) {
@@ -255,21 +375,36 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     }
   }, [actionLoadingId, selectedTimesheets, setActionNotice, setSelectedTimesheets, submitDraftTimesheets]);
 
-  const handleSubmitAllDrafts = useCallback(async () => {
-    if (actionLockRef.current || actionLoadingId !== null) {
-      setActionNotice(ACTION_LOCK_MESSAGE);
-      return;
-    }
+const handleSubmitAllDrafts = useCallback(async () => {
+  if (actionLockRef.current || actionLoadingId !== null) {
+    setActionNotice(ACTION_LOCK_MESSAGE);
+    return;
+  }
 
-    const draftIds = allTimesheets
-      .filter(t => t.status === 'DRAFT')
-      .map(t => t.id);
+  const modalWasOpen = showForm;
+  const draftIds = allTimesheets
+    .filter(t => t.status === 'DRAFT')
+    .map(t => t.id);
 
-    const success = await submitDraftTimesheets(draftIds);
-    if (success) {
-      setSelectedTimesheets([]);
-    }
-  }, [actionLoadingId, allTimesheets, setActionNotice, setSelectedTimesheets, submitDraftTimesheets]);
+  if (modalWasOpen) {
+    setShowForm(true);
+  }
+
+  const draftLabel = describeDraftCount(draftIds.length);
+  const overridingToastId = draftIds.length > 0
+    ? showToast(`Submitting ${draftLabel}...`, 'info', {
+        duration: isE2EEnvironment ? 8000 : TOAST_DEFAULT_DURATION,
+      })
+    : undefined;
+
+  const success = await submitDraftTimesheets(draftIds, overridingToastId);
+  if (modalWasOpen) {
+    setShowForm(true);
+  }
+  if (success) {
+    setSelectedTimesheets([]);
+  }
+}, [TOAST_DEFAULT_DURATION, actionLoadingId, allTimesheets, isE2EEnvironment, setActionNotice, setShowForm, setSelectedTimesheets, showForm, showToast, submitDraftTimesheets]);
 
   const handleQuickAction = useCallback((action: string) => {
     clearActionFeedback();
@@ -365,6 +500,16 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       )}
     </div>
   ) : null;
+  // Notification state for banner
+  const notificationState = {
+    visibleDraftCount,
+    visibleRejectedCount,
+    visibleDeadlines,
+    dismissedNotifications: new Set<string>()
+  };
+  
+  const shouldShowBanner = shouldShowBannerNotification(notificationState);
+  const bannerConfig = getBannerNotificationConfig(notificationState);
 
   return (
     <div className="unified-container">
@@ -389,6 +534,22 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             role="region"
             aria-label="Tutor dashboard content"
           >
+          {shouldShowBanner && bannerConfig && (
+            <NotificationBanner
+              variant={bannerConfig.variant}
+              title={bannerConfig.title}
+              message={bannerConfig.message}
+              icon={bannerConfig.icon}
+              showAction={bannerConfig.showSubmitAction}
+              actionText="Submit drafts"
+              onAction={handleSubmitAllDrafts}
+              actionLoading={actionLoadingId === BULK_SUBMISSION_ACTION_ID}
+              actionDisabled={!canSubmitAllDrafts || isTimesheetActionInFlight}
+              actionDisabledReason={!canSubmitAllDrafts ? 'No draft timesheets to submit.' : (isTimesheetActionInFlight ? 'Please wait for the current action to finish.' : undefined)}
+              testId="notification-banner"
+            />
+          )}
+
           <section className="mb-8" role="region" aria-label="Quick Actions">
             <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="quick-actions">
@@ -407,15 +568,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                 onClick={() => handleQuickAction('refresh')}
                 disabled={isTimesheetActionInFlight}
                 disabledReason={actionInFlightMessage}
-              />
-
-              <QuickAction
-                label="Submit All Drafts"
-                description="Submit all draft timesheets"
-                icon="📤"
-                onClick={() => handleQuickAction('submitDrafts')}
-                disabled={!canSubmitAllDrafts || isTimesheetActionInFlight}
-                disabledReason={!canSubmitAllDrafts ? 'There are no draft timesheets to submit.' : actionInFlightMessage}
               />
 
               <QuickAction
@@ -590,12 +742,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             data-testid="dashboard-sidebar"
             aria-label="Tutor support summary"
           >
-            <NotificationsPanel
-              rejectedCount={visibleRejectedCount}
-              draftCount={visibleDraftCount}
-              deadlines={visibleDeadlines}
-              onDismiss={handleNotificationDismiss}
-            />
             <UpcomingDeadlines deadlines={visibleDeadlines} />
             <CompletionProgress completionRate={completionRate} />
             <div ref={paySummaryRef} tabIndex={-1}>
@@ -613,7 +759,12 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4 elevation-modal" onClick={() => setShowForm(false)}>
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black/50 p-4 elevation-modal"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
           <div className="relative w-full max-w-lg rounded-lg bg-card shadow-lg" onClick={e => e.stopPropagation()}>
             <TimesheetForm
               isEdit={!!editingTimesheet}
@@ -635,6 +786,34 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
         {updateLoading && 'Updating timesheet...'}
         {timesheetsLoading && 'Loading timesheets...'}
       </div>
+
+      {toasts.length > 0 && (
+        <div
+          className="dashboard-toast-stack elevation-toast"
+          role="region"
+          aria-live="polite"
+          aria-atomic="false"
+        >
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              data-sonner-toast
+              className={`dashboard-toast dashboard-toast--${toast.tone}`}
+              role="status"
+            >
+              <div className="dashboard-toast__content">{toast.message}</div>
+              <button
+                type="button"
+                className="dashboard-toast__dismiss"
+                onClick={() => dismissToast(toast.id)}
+                aria-label="Dismiss notification"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 });

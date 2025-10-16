@@ -3,8 +3,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promises as fs } from 'node:fs';
 import { E2E_CONFIG } from '../config/e2e.config';
-import { LoginPage } from '../shared/pages/LoginPage';
 import { waitForBackendReady } from '../utils/health-checker';
+import { loginAsRole } from '../api/auth-helper';
+import { STORAGE_KEYS } from '../../src/utils/storage-keys';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,62 +33,31 @@ const removeExistingState = async () => {
   }
 };
 
-interface Credentials {
-  email: string;
-  password: string;
-}
-
-const readAdminCredentials = (): Credentials => {
-  const fallback = E2E_CONFIG.USERS.admin;
-  const email = (process.env.E2E_ADMIN_EMAIL ?? fallback.email ?? '').trim();
-  const password = (process.env.E2E_ADMIN_PASSWORD ?? fallback.password ?? '').trim();
-
-  if (!email || !password) {
-    throw new Error(
-      '[real/global.setup] Missing admin credentials. Ensure E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD are set.'
-    );
-  }
-
-  return { email, password };
-};
-
-const waitForLoginPage = async (loginPage: LoginPage, attempts: number = 3) => {
-  const loginUrl = `${E2E_CONFIG.FRONTEND.URL}/login`;
-
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    try {
-      await loginPage.page.goto(loginUrl, {
-        waitUntil: 'domcontentloaded',
-        timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.STARTUP,
-      });
-      return;
-    } catch (error) {
-      if (attempt === attempts) {
-        throw error;
-      }
-      await loginPage.page.waitForTimeout(1000 * attempt);
-    }
-  }
-};
-
-const performLoginAndPersist = async (credentials: Credentials) => {
+const performLoginAndPersist = async () => {
   const browser = await chromium.launch();
 
   try {
     const context = await browser.newContext();
     const page = await context.newPage();
-    const loginPage = new LoginPage(page);
+    const session = await loginAsRole(page.request, 'admin');
 
-    await waitForLoginPage(loginPage);
-    const response = await loginPage.login(credentials.email, credentials.password, {
-      waitUntil: 'networkidle',
-    });
+    // Inject auth state before any document scripts run
+    await context.addInitScript(({ keys, sessionData }) => {
+      try {
+        localStorage.setItem(keys.TOKEN, sessionData.token);
+        localStorage.setItem(keys.USER, JSON.stringify(sessionData.user));
+        if (sessionData.refreshToken) {
+          localStorage.setItem(keys.REFRESH_TOKEN, sessionData.refreshToken);
+        }
+        if (sessionData.expiresAt) {
+          localStorage.setItem(keys.TOKEN_EXPIRY, String(sessionData.expiresAt));
+        }
+      } catch {
+        // ignore
+      }
+    }, { keys: STORAGE_KEYS, sessionData: session });
 
-    if (!response.ok()) {
-      throw new Error(
-        `[real/global.setup] Authentication failed (${response.status()} ${response.statusText()}).`
-      );
-    }
+    await page.goto(E2E_CONFIG.FRONTEND.URL, { waitUntil: 'domcontentloaded' });
 
     await ensureStorageDirectory();
     await context.storageState({ path: STORAGE_STATE_FILE });
@@ -118,9 +88,8 @@ export default async function globalSetup(config: FullConfig) {
   }
 
   try {
-    const credentials = readAdminCredentials();
     await removeExistingState();
-    await performLoginAndPersist(credentials);
+    await performLoginAndPersist();
   } catch (error) {
     await removeExistingState().catch(() => undefined);
     throw error;

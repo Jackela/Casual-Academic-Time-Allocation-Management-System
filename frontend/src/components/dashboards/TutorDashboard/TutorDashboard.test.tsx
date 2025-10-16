@@ -306,7 +306,7 @@ describe("TutorDashboard Component", () => {
       render(<TutorDashboard />, { wrapper });
 
       await waitFor(() => {
-        expect(screen.getByTestId("timesheet-table")).toBeInTheDocument();
+        expect(screen.getByTestId("timesheets-table")).toBeInTheDocument();
       });
 
       // Should show tutor-relevant columns

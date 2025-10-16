@@ -10,6 +10,8 @@ import type { TimesheetStatus } from '../../../types/api';
 import { Badge } from '../../ui/badge';
 import { cn } from '../../../lib/utils';
 import { getStatusConfig } from '../../../lib/config/statusMap';
+import { formatAbsoluteDateTime } from '../../../lib/formatters/date-formatters';
+import { getStatusUIMetadata } from '../../../lib/config/ui-config';
 
 const STATUS_BADGE_BASE_CLASS = 'status-badge';
 
@@ -34,6 +36,9 @@ export interface StatusBadgeProps {
   dataTestId?: string;
   size?: 'small' | 'medium' | 'large';
   showIcon?: boolean;
+  lastModified?: Date | string | null;
+  submittedAt?: Date | string | null;
+  showTimestampTooltip?: boolean;
 }
 
 // =============================================================================
@@ -51,8 +56,12 @@ const StatusBadge = memo<StatusBadgeProps>(({
   dataTestId,
   size = 'medium',
   showIcon = false,
+  lastModified,
+  submittedAt,
+  showTimestampTooltip = false,
 }) => {
   const config = getStatusConfig(status);
+  const uiMetadata = getStatusUIMetadata(status);
   const testId = dataTestId ?? `status-badge-${status.toLowerCase()}`;
   const sizeClassName = SIZE_CLASS_MAP[size] ?? SIZE_CLASS_MAP.medium;
   const iconSizeClassName = ICON_SIZE_CLASS_MAP[size] ?? ICON_SIZE_CLASS_MAP.medium;
@@ -70,9 +79,34 @@ const StatusBadge = memo<StatusBadgeProps>(({
     backgroundColor: config.bgColor,
     borderColor: config.color,
     color: config.textColor,
+    minWidth: `${uiMetadata.chipMinWidth}px`,
   };
 
-  return (
+  const formattedSubmittedAt = submittedAt ? formatAbsoluteDateTime(submittedAt) : null;
+  const formattedLastModified = lastModified ? formatAbsoluteDateTime(lastModified) : null;
+  const shouldShowTimestampTooltip =
+    showTimestampTooltip &&
+    uiMetadata.showTimestampInTooltip &&
+    (formattedSubmittedAt || formattedLastModified);
+
+  const tooltipContent = shouldShowTimestampTooltip ? (
+    <div className="text-sm">
+      {formattedSubmittedAt && (
+        <div>
+          <strong>Submitted:</strong> {formattedSubmittedAt}
+        </div>
+      )}
+      {formattedLastModified && (
+        <div>
+          <strong>Last updated:</strong> {formattedLastModified}
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  const tooltipId = shouldShowTimestampTooltip ? `${testId}-tooltip` : undefined;
+
+  const badge = (
     <Badge
       variant={config.variant}
       className={composedClassName}
@@ -80,6 +114,11 @@ const StatusBadge = memo<StatusBadgeProps>(({
       title={config.description}
       data-testid={testId}
       aria-label={`Status: ${config.label}. ${config.description}`}
+      data-has-timestamp-tooltip={shouldShowTimestampTooltip ? 'true' : undefined}
+      data-tooltip-last-updated={formattedLastModified ?? undefined}
+      data-tooltip-submitted={formattedSubmittedAt ?? undefined}
+      aria-describedby={tooltipId}
+      tabIndex={0}
     >
       {showIcon ? (
         <span
@@ -92,6 +131,23 @@ const StatusBadge = memo<StatusBadgeProps>(({
       {config.label}
     </Badge>
   );
+
+  if (tooltipContent && tooltipId) {
+    return (
+      <span className="relative inline-flex group">
+        {badge}
+        <span
+          id={tooltipId}
+          role="tooltip"
+          className="pointer-events-none absolute left-1/2 top-full z-[1500] mt-2 -translate-x-1/2 rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-medium text-slate-900 shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+        >
+          {tooltipContent}
+        </span>
+      </span>
+    );
+  }
+
+  return badge;
 });
 
 StatusBadge.displayName = 'StatusBadge';

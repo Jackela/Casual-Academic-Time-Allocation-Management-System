@@ -155,8 +155,8 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
   const lockMessage = loading ? 'Processing request...' : disabledReason || 'Action disabled';
 
   return (
-    <div 
-      className="flex items-center gap-2 min-w-fit" 
+    <div
+      className="timesheet-actions flex items-center gap-2 min-w-fit justify-end flex-nowrap"
       data-testid="timesheet-actions"
       data-status={timesheet.status}
       data-mode={mode}
@@ -178,7 +178,7 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
             onClick={action.onClick}
             disabled={actionDisabled}
             variant={resolvedVariant}
-            size={action.size || 'sm'}
+            size={action.size ?? 'xs'}
             title={title}
             className={`
               action-button 

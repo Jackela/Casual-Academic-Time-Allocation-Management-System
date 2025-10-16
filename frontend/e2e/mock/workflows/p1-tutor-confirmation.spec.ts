@@ -64,12 +64,12 @@ test.describe('P1 Tutor Confirmation (mock-only)', () => {
     await setupMockAuth(page, 'tutor');
     await page.goto('/dashboard');
     await page.waitForURL('**/dashboard');
+    await dashboardPage.waitForDashboardReady();
     await dashboardPage.expectToBeLoaded('TUTOR');
     await navigationPage.expectUserInfo('John Doe', 'Tutor');
 
-    // Verify initial state, click Approve, verify updated state and toast
-    await tutorDashboardPage.waitForMyTimesheetData();
-    await tutorDashboardPage.expectTimesheetsTable();
+    await tutorDashboardPage.waitForDashboardReady();
+    await tutorDashboardPage.expectResponsiveColumns();
 
     const statusBadge = page.getByTestId(`status-badge-${pendingTimesheet.id}`);
     await expect(statusBadge).toContainText(statusLabel('PENDING_TUTOR_CONFIRMATION'));
@@ -81,7 +81,7 @@ test.describe('P1 Tutor Confirmation (mock-only)', () => {
       confirmButton.click()
     ]);
 
-    await tutorDashboardPage.waitForMyTimesheetData();
+    await tutorDashboardPage.waitForDashboardReady();
     await expect(statusBadge).toContainText(statusLabel('TUTOR_CONFIRMED'));
   });
 });

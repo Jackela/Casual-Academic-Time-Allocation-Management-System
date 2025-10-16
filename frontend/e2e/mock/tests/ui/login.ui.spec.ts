@@ -1,4 +1,5 @@
 import { test, expect, mockResponses } from '../../../fixtures/base';
+import { DashboardPage } from '../../../shared/pages/DashboardPage';
 
 test.describe('Login UI with Mocked Responses', { tag: '@ui' }, () => {
   test('should display login form elements', async ({ page }) => {
@@ -33,6 +34,10 @@ test.describe('Login UI with Mocked Responses', { tag: '@ui' }, () => {
     
     // Should redirect to dashboard
     await expect(page).toHaveURL(/\/dashboard/);
+    const dashboard = new DashboardPage(page);
+    await dashboard.waitForDashboardReady();
+    await dashboard.expectToBeLoaded('LECTURER');
+    await dashboard.expectResponsiveColumns();
   });
 
   test('should show error message for failed login', async ({ page }) => {

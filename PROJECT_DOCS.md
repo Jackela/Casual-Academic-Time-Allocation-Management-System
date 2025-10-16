@@ -97,6 +97,7 @@ sequenceDiagram
   - Unit (Vitest): 104/104 PASS → `frontend/coverage/test-results.json`
   - Contract/API (Vitest): 17/17 PASS → `frontend/coverage/test-results.json`
   - E2E (Playwright, all projects): 54/54 PASS → `frontend/playwright-report/results.json`
+- Reference: `docs/testing/CONFIG_MOCK.md` documents the Playwright config mock contract and required alignment with design tokens.
 
 ## Orchestration Rules
 
@@ -106,12 +107,13 @@ sequenceDiagram
 - Playwright JSON reporter configured in `frontend/playwright.config.ts`.
 - Tests avoid magic values: enum names over raw strings; BigDecimal via `compareTo`; thresholds injected from properties.
 
-## How to Run (2025-10-11 refresh)
+## How to Run (2025-01-14 refresh)
 
 ### Backend (Spring Boot)
 - Full suite / CI parity: `./gradlew test`
-- Targeted unit slice: `node tools/scripts/test-backend-unit.js`
-- Targeted integration slice: `node tools/scripts/test-backend-integration.js`
+- Targeted unit slice: `node scripts/test-backend-unit.js`
+- Selective unit tests: `node tools/scripts/test-backend-unit-select.js --tests="*TimesheetTest*"`
+- Selective integration tests: `node tools/scripts/test-backend-integration-select.js --tests="*IntegrationTest*"`
 
 ### Frontend (React/Vite)
 - Complete coverage run (Vitest): `npm run test:coverage`
@@ -120,16 +122,18 @@ sequenceDiagram
 - Contract/API schema checks: `npm run test:contract`
 
 ### End-to-End (Playwright Orchestrated)
-- Full pipeline (auto-select projects): `npm run test:e2e`
+- Full pipeline with data reset: `npm run test:e2e`
 - Mock-only fast pass: `npm run test:e2e:mock`
 - Backend-integrated scenarios: `npm run test:e2e:real`
 - Visual regression sweeps: `npm run test:e2e:visual`
 - Tag filters: `npm run test:e2e:smoke | npm run test:e2e:critical | npm run test:e2e:integration`
 - Launch reporter UI for latest run: `npm run test:e2e:report`
+- Disable data reset: `E2E_DISABLE_RESET=true npm run test:e2e`
 
 ### Utilities
 - Cross-platform port cleanup: `node scripts/cleanup-ports.js --ports=8084,5174`
-- Full stack orchestrated regression: `node tools/scripts/test-all.js`
+- Comprehensive cleanup: `node tools/scripts/cleanup.js [gentle|normal|full|emergency]`
+- AI smart test runner: `npm run test:ai` (pyramid strategy)
 
 ## Report Locations
 
@@ -182,3 +186,14 @@ sequenceDiagram
 - Added `CONTRIBUTING.md` and `.github/CODEOWNERS` for governance.
 - Established contract-first workflow (`tools/scripts/contracts-pipeline.js`) producing Java/TypeScript artifacts and the `schema/contracts.lock` drift gate.
 - Codified quick command references and workspace map in `README.md`.
+
+## Script Cleanup (2025-01-14)
+
+- Removed over-engineered and redundant scripts (~1,800 lines deleted)
+- Merged E2E data reset functionality into main E2E runner
+- Standardized script organization following SSOT principles
+- Cleaned up: `test-frontend.js` (1272 lines over-engineered), `run-e2e.js` (outdated), experimental files, temporary scripts
+- Unified test runner library (`test-runner-fixed.js` → `test-runner.js`)
+- Updated `frontend/scripts/run-e2e-tests.js` with data reset capabilities
+- Removed `test:e2e:ai` npm script (functionality merged into `test:e2e`)
+- See detailed report: `docs/SCRIPT_CLEANUP.md`

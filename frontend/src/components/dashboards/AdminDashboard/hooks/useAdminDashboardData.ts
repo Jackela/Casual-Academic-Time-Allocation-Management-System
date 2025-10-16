@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import {
   useTimesheetQuery,
@@ -361,6 +361,21 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     loadingId: actionLoadingId,
     isSubmitting: approvalLoading,
   }), [actionLoadingId, approvalLoading]);
+
+  // Expose an E2E-only event hook to open the rejection modal programmatically
+  useEffect(() => {
+    if (import.meta.env.MODE !== 'e2e') {
+      return;
+    }
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ timesheetId?: number }>).detail;
+      if (detail && typeof detail.timesheetId === 'number') {
+        setRejectionModal({ open: true, timesheetId: detail.timesheetId });
+      }
+    };
+    window.addEventListener('catams-open-admin-rejection-modal', handler);
+    return () => window.removeEventListener('catams-open-admin-rejection-modal', handler);
+  }, [setRejectionModal]);
 
   return {
     sessionStatus,

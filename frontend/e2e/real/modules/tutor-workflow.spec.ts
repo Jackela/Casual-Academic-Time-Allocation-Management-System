@@ -356,38 +356,36 @@ test.describe('Tutor dashboard workflow', () => {
       'Course',
       'Week Starting',
       'Hours',
-      'Rate',
       'Total Pay',
       'Status',
       'Description',
-      'Submitted',
-      'Updated',
       'Actions',
+      'Details',
     ]);
 
-    await tutorDashboard.expectTimesheetData(1, {
+  await tutorDashboard.expectTimesheetData(1, {
       courseCode: 'COMP1001',
       status: 'Rejected',
       hours: 10,
-      hourlyRate: 45,
+      totalPay: 450,
     });
     await tutorDashboard.expectTimesheetData(2, {
       courseCode: 'DATA2001',
       status: 'Draft',
       hours: 8,
-      hourlyRate: 50,
+      totalPay: 400,
     });
     await tutorDashboard.expectTimesheetData(3, {
       courseCode: 'MATH1001',
       status: statusLabel('PENDING_TUTOR_CONFIRMATION'),
       hours: 6,
-      hourlyRate: 42,
+      totalPay: 252,
     });
     await tutorDashboard.expectTimesheetData(4, {
       courseCode: 'PHYS1001',
       status: statusLabel('TUTOR_CONFIRMED'),
       hours: 12,
-      hourlyRate: 48,
+      totalPay: 576,
     });
 
     await tutorDashboard.expectSubmitButtonVisible(2);
@@ -427,7 +425,7 @@ test.describe('Tutor dashboard workflow', () => {
       courseCode: 'COMP1001',
       status: 'Rejected',
       hours: 11,
-      hourlyRate: 45,
+      totalPay: 495,
     });
   });
 
@@ -447,7 +445,7 @@ test.describe('Tutor dashboard workflow', () => {
       courseCode: 'DATA2001',
       status: statusLabel('PENDING_TUTOR_CONFIRMATION'),
       hours: 8,
-      hourlyRate: 50,
+      totalPay: 400,
     });
   });
 
@@ -598,7 +596,7 @@ test.describe('Tutor dashboard workflow', () => {
       courseCode: 'MATH1001',
       status: statusLabel('TUTOR_CONFIRMED'),
       hours: 6,
-      hourlyRate: 42,
+      totalPay: 252,
     });
   });
 

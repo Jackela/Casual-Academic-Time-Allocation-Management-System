@@ -21,7 +21,7 @@ test.describe('Action Button Hardening', () => {
       courseCode: 'COMP1001',
     };
 
-    let currentStatus: 'DRAFT' | 'SUBMITTED' = 'DRAFT';
+    let currentStatus: 'DRAFT' | 'PENDING_TUTOR_CONFIRMATION' = 'DRAFT';
     const approvalRequests: Array<{ action: string; timesheetId: number }> = [];
 
     await page.route('**/api/timesheets*', async route => {
@@ -68,7 +68,7 @@ test.describe('Action Button Hardening', () => {
 
       const payload = request.postDataJSON() as { timesheetId: number; action: string };
       approvalRequests.push({ action: payload.action, timesheetId: payload.timesheetId });
-      currentStatus = 'SUBMITTED';
+      currentStatus = 'PENDING_TUTOR_CONFIRMATION';
 
       await new Promise(resolve => setTimeout(resolve, 250));
       await route.fulfill({
@@ -85,8 +85,10 @@ test.describe('Action Button Hardening', () => {
     await page.goto('/dashboard');
     await page.waitForURL('**/dashboard');
 
+    await dashboardPage.waitForDashboardReady();
     await dashboardPage.expectToBeLoaded('TUTOR');
-    await tutorDashboardPage.waitForMyTimesheetData();
+    await tutorDashboardPage.waitForDashboardReady();
+    await tutorDashboardPage.expectResponsiveColumns();
     await tutorDashboardPage.expectTimesheetsTable();
 
     const submitButton = page.getByTestId(`submit-btn-${draftTimesheet.id}`);
@@ -108,6 +110,7 @@ test.describe('Action Button Hardening', () => {
     );
 
     await page.waitForTimeout(200);
+    await tutorDashboardPage.waitForDashboardReady();
 
     expect(approvalRequests).toHaveLength(1);
     expect(approvalRequests[0]).toMatchObject({

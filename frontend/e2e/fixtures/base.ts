@@ -1,4 +1,5 @@
 import { test as base, Page } from '@playwright/test';
+import type { BrowserContext, Route } from '@playwright/test';
 import { STORAGE_KEYS } from '../../src/utils/storage-keys';
 import { E2E_CONFIG } from '../config/e2e.config';
 
@@ -118,6 +119,48 @@ export const defaultMockAuthBundles = {
   admin: defaultAdminAuth,
 } as const;
 
+const MOCK_UI_LAYOUT_CONFIG = {
+  featureFlags: {
+    ENABLE_ACTIVITY_COLUMN: false,
+    ENABLE_LAST_UPDATED_COLUMN: true,
+    ENABLE_CONFIG_DRIVEN_COLUMNS: false,
+    ENABLE_CARD_VIEW: false,
+  },
+  layout: {
+    breakpoints: {
+      mobile: '768px',
+      tablet: '1024px',
+      tabletLandscape: '1280px',
+      desktop: '1440px',
+      desktopWide: '1920px',
+    },
+    columnWidths: {
+      weekStarting: '140px',
+      hours: '100px',
+      rate: '110px',
+      totalPay: '130px',
+      status: '160px',
+      actions: '200px',
+      lastUpdated: '150px',
+    },
+    toast: {
+      topClearance: '80px',
+      maxWidth: '420px',
+      rightOffset: '16px',
+    },
+    zIndex: {
+      header: 100,
+      banner: 200,
+      popover: 400,
+      overlay: 900,
+      modalBackdrop: 950,
+      modal: 1000,
+      toast: 1500,
+      tooltip: 2000,
+    },
+  },
+} as const;
+
 export const mockResponses = {
   auth: {
     success: defaultLecturerAuth.response,
@@ -142,7 +185,7 @@ export const mockResponses = {
           hours: 10,
           hourlyRate: 45.00,
           description: 'Tutorial sessions and marking for COMP1001',
-          status: 'PENDING',
+          status: 'PENDING_TUTOR_CONFIRMATION',
           tutorName: 'John Doe',
           courseName: 'Introduction to Programming',
           courseCode: 'COMP1001'
@@ -275,6 +318,50 @@ const resetMockTimesheets = () => {
   mockTimesheets = INITIAL_MOCK_TIMESHEETS.map(cloneTimesheet);
 };
 
+const respondWithLayoutConfig = async (route: Route) => {
+  const method = route.request().method();
+  if (method !== 'GET') {
+    await route.fulfill({
+      status: 204,
+      headers: {
+        'access-control-allow-origin': '*',
+        'access-control-allow-credentials': 'true',
+        'access-control-allow-methods': 'GET,OPTIONS',
+        'access-control-allow-headers': '*',
+      },
+      body: '',
+    });
+    return;
+  }
+
+  console.info('[mock-config] fulfilling', route.request().url());
+
+  await route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    headers: {
+      'access-control-allow-origin': '*',
+      'access-control-allow-credentials': 'true',
+    },
+    body: JSON.stringify(MOCK_UI_LAYOUT_CONFIG),
+  });
+};
+
+const CONFIG_ROUTES_REGISTERED = new WeakSet<BrowserContext>();
+
+const registerConfigRoutes = async (context: BrowserContext): Promise<void> => {
+  if (CONFIG_ROUTES_REGISTERED.has(context)) {
+    return;
+  }
+
+  console.info('[mock-config] registerConfigRoutes invoked');
+
+  await context.route('**/api/config*', respondWithLayoutConfig);
+  await context.route('**/api/timesheets/config*', respondWithLayoutConfig);
+
+  CONFIG_ROUTES_REGISTERED.add(context);
+};
+
 const normalizeApprovalAction = (action: string): ApprovalTransition => {
   const map: Record<string, ApprovalTransition> = {
     SUBMIT_DRAFT: 'SUBMIT_FOR_APPROVAL',
@@ -395,6 +482,9 @@ const getMockDashboardSummary = () => {
 };
 
 const registerMockBackendRoutes = async (page: Page) => {
+  await page.route('**/api/config*', respondWithLayoutConfig);
+  await page.route('**/api/timesheets/config*', respondWithLayoutConfig);
+
   await page.route('**/api/timesheets/pending-final-approval**', async (route) => {
     if (route.request().method() !== 'GET') {
       await route.fallback();
@@ -483,6 +573,13 @@ type TestFixtures = {
 export const test = base.extend<TestFixtures>({
   // Page with mocked API responses - enhanced with realistic delays
   mockedPage: async ({ page }, use) => {
+    page.on('console', (message) => {
+      const type = message.type();
+      if (type === 'error' || type === 'warning') {
+        console.log(`[browser:${type}] ${message.text()}`);
+      }
+    });
+
     // Mock authentication endpoints with realistic delays
     await page.route(`**${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`, async (route, request) => {
       await new Promise(resolve => setTimeout(resolve, 200)); // Realistic API delay
@@ -560,7 +657,7 @@ export const test = base.extend<TestFixtures>({
               hours: 10,
               hourlyRate: 45.00,
               description: 'Tutorial sessions and marking for COMP1001',
-              status: 'PENDING',
+              status: 'PENDING_TUTOR_CONFIRMATION',
               createdAt: '2025-01-27T09:00:00Z',
               updatedAt: '2025-01-27T09:00:00Z',
               tutorName: 'John Doe',
@@ -705,6 +802,7 @@ export const test = base.extend<TestFixtures>({
 
 // Global test hooks for all tests using this extended fixture
 test.beforeEach(async ({ page }, testInfo) => {
+  await registerConfigRoutes(page.context());
   resetMockTimesheets();
   await registerMockBackendRoutes(page);
 

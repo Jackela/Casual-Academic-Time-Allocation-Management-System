@@ -350,7 +350,7 @@ const prepareTutorDashboard = async (page: Page, options: TutorDashboardMockOpti
   } else if ((options.timesheets ?? BASE_TIMESHEETS).length === 0) {
     await page.getByTestId('empty-state').waitFor({ state: 'visible' });
   } else {
-    await page.getByTestId('timesheet-table').waitFor({ state: 'visible' });
+    await page.locator('[data-testid="timesheet-table"], [data-testid="timesheets-table"]').first().waitFor({ state: 'visible' });
   }
 
   await page.waitForTimeout(200);

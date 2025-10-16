@@ -1,12 +1,12 @@
-/* Modern CSS with Tailwind integration */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* Import design tokens and unified layout systems */
 @import './styles/design-tokens.css';
 @import './styles/unified-grid.css';
 @import './styles/dashboard-shell.css';
+
+/* Modern CSS with Tailwind integration */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* =============================================================================
    CSS Variables and Theme Definitions

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import {
   usePendingTimesheets,
@@ -255,6 +255,21 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
 
     return pendingTimesheets[0]?.id ?? null;
   }, [loading.approval, rejectionModal, selectedTimesheetsState, pendingTimesheets]);
+
+  // Expose an E2E-only event hook to open the rejection modal programmatically
+  useEffect(() => {
+    if (import.meta.env.MODE !== 'e2e') {
+      return;
+    }
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ timesheetId?: number }>).detail;
+      if (detail && typeof detail.timesheetId === 'number') {
+        setRejectionModal({ open: true, timesheetId: detail.timesheetId });
+      }
+    };
+    window.addEventListener('catams-open-lecturer-rejection-modal', handler);
+    return () => window.removeEventListener('catams-open-lecturer-rejection-modal', handler);
+  }, [setRejectionModal]);
 
   const handleApprovalAction = useCallback(async (timesheetId: number, action: ApprovalAction) => {
     if (!canPerformApprovals || approvalLoading || actionLockRef.current) {

@@ -12,6 +12,12 @@ const FRONTEND_PORT = process.env.E2E_FRONTEND_PORT || frontendUrl.port || '5174
 export default defineConfig({
   testDir: './e2e',
   testIgnore: ['**/e2e/examples/**'],
+  testMatch: [
+    '**/e2e/real/**/*.spec.ts',
+    '**/e2e/mock/**/*.spec.ts',
+    '**/e2e/visual/**/*.spec.ts',
+    '**/e2e/visual/layout-compliance.spec.ts', // NEW: Layout quality gates
+  ],
   /* Global setup to handle authentication */
   globalSetup: './e2e/real/global.setup.ts',
   /* Allow skipping backend readiness from env for mocked-only runs */

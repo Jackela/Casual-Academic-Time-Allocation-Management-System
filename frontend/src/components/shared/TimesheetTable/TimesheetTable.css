@@ -55,12 +55,12 @@
 
 .timesheet-table th,
 .timesheet-table td {
-  padding: 12px 16px;
+  padding: 8px 16px;
   text-align: left;
   border-bottom: 1px solid hsl(var(--border));
   vertical-align: middle;
   min-width: 0;
-  line-height: 1.5;
+  line-height: 1.4;
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -201,6 +201,14 @@
 
 .description-cell {
   display: block;
+}
+
+.last-updated-cell {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }
 
 .details-header,
@@ -505,6 +513,64 @@
 .action-button:not(:disabled):hover {
   transform: translateY(-1px);
   box-shadow: 0 18px 32px rgba(15, 23, 42, 0.16);
+}
+
+.actions-cell {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.timesheet-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 0.375rem;
+  padding-block: 0.125rem;
+  min-height: 0;
+}
+
+.timesheet-actions .action-button {
+  min-height: 0;
+  padding: 0 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.actions-cell .timesheet-actions {
+  width: 100%;
+}
+
+@media (max-width: 1280px) {
+  [data-column='hourlyRate'],
+  [data-column='hourlyRate'] * {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  [data-column='hours'],
+  [data-column='hours'] * {
+    display: none !important;
+  }
+
+  .timesheet-table th.course-header,
+  .timesheet-table td.course-cell {
+    position: sticky;
+    left: 0;
+    background: hsl(var(--card));
+    z-index: calc(var(--z-sticky) + 1);
+    box-shadow: 4px 0 12px rgba(15, 23, 42, 0.08);
+  }
+
+  .timesheet-table th.actions-header,
+  .timesheet-table td.actions-cell {
+    position: sticky;
+    right: 0;
+    background: hsl(var(--card));
+    z-index: calc(var(--z-sticky) + 1);
+    box-shadow: -4px 0 12px rgba(15, 23, 42, 0.08);
+  }
 }
 
 .action-button--primary {

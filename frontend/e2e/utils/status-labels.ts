@@ -1,5 +1,5 @@
 import type { TimesheetStatus } from '../../src/types/api';
-import { getStatusConfig } from '../../src/components/shared/StatusBadge/status-badge-utils';
+import { getStatusConfig } from '../../src/lib/config/statusMap';
 
 const escapeForRegex = (label: string): string =>
   label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');

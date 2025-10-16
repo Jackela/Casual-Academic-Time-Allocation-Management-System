@@ -1,14 +1,13 @@
 /*
-  Shared test runner utilities (CommonJS) to enforce DRY across all test scripts.
+  Fixed test runner utilities - Ensures proper process cleanup and exit
 */
 
 const { spawn } = require('child_process');
 const path = require('path');
 
-const projectRoot = path.join(__dirname, '..', '..', '..');
+const projectRoot = path.join(__dirname, '..', '..');
 
 function getGradleCommand() {
-  // PowerShell does not resolve commands from current directory without explicit .\ prefix
   return process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew';
 }
 
@@ -17,31 +16,96 @@ function runCommand(command, args, options = {}) {
     const child = spawn(command, args, {
       cwd: options.cwd || projectRoot,
       shell: true,
-      stdio: options.stdio || 'inherit'
+      stdio: options.stdio || 'inherit',
+      // Windows-specific: detach child process to prevent hanging
+      detached: false,
+      // Kill child processes when parent exits
+      killSignal: 'SIGTERM'
     });
-    child.on('close', (code) => (code === 0 ? resolve(code) : reject(new Error(`${command} ${args.join(' ')} failed with exit ${code}`))));
-    child.on('error', reject);
+
+    // Store child process reference for cleanup
+    const childPid = child.pid;
+    
+    // Set timeout to prevent hanging
+    const timeout = setTimeout(() => {
+      console.log(`⚠️ Process timeout, killing PID ${childPid}`);
+      try {
+        if (process.platform === 'win32') {
+          require('child_process').execSync(`taskkill /F /T /PID ${childPid}`, { stdio: 'ignore' });
+        } else {
+          process.kill(-childPid, 'SIGKILL');
+        }
+      } catch (e) {
+        // Ignore kill errors
+      }
+      reject(new Error(`Command timeout after 300 seconds: ${command} ${args.join(' ')}`));
+    }, 300000); // 5 minute timeout
+
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+      if (code === 0) {
+        resolve(code);
+      } else {
+        reject(new Error(`${command} ${args.join(' ')} failed with exit ${code}`));
+      }
+    });
+
+    child.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+
+    // Cleanup on process exit
+    const cleanup = () => {
+      clearTimeout(timeout);
+      try {
+        if (process.platform === 'win32') {
+          require('child_process').execSync(`taskkill /F /T /PID ${childPid}`, { stdio: 'ignore' });
+        } else {
+          process.kill(-childPid, 'SIGTERM');
+        }
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    };
+
+    process.on('exit', cleanup);
+    process.on('SIGINT', cleanup);
+    process.on('SIGTERM', cleanup);
   });
 }
 
 function runGradleTests(testPatterns, javaProps = {}, extraArgs = []) {
   const gradleCmd = getGradleCommand();
-  const baseArgs = ['test', '--no-daemon', '--stacktrace', '--info', `-Dorg.gradle.logging.level=info`];
+  const baseArgs = [
+    'test', 
+    '--no-daemon',  // Critical: prevent daemon hanging
+    '--stacktrace', 
+    '--info', 
+    '-Dorg.gradle.logging.level=info',
+    // Force exit after tests
+    '-Dorg.gradle.daemon=false',
+    // Prevent build cache issues
+    '--no-build-cache'
+  ];
+  
   (testPatterns || []).forEach((p) => {
     baseArgs.push('--tests');
     baseArgs.push(p);
   });
+  
   Object.entries(javaProps || {}).forEach(([key, value]) => {
     baseArgs.push(`-D${key}=${value}`);
   });
+  
   baseArgs.push(...(extraArgs || []));
 
   if (process.platform === 'win32') {
-    // Use `call` to safely invoke a .bat from within cmd without leaving a lingering batch job
-    // and to avoid the "Terminate batch job (Y/N)?" prompt in nested invocations.
-    const args = ['/d', '/s', '/c', 'call', gradleCmd, ...baseArgs];
+    // Windows: Use explicit exit strategy
+    const args = ['/d', '/s', '/c', 'call', gradleCmd, ...baseArgs, '&&', 'exit', '/b', '%ERRORLEVEL%'];
     return runCommand('cmd.exe', args, { cwd: projectRoot });
   }
+  
   return runCommand(gradleCmd, baseArgs, { cwd: projectRoot });
 }
 
@@ -51,12 +115,28 @@ function runNpmScript(frontendDirRelative, scriptName, scriptArgs = []) {
   return runCommand('npm', args, { cwd });
 }
 
+// Force cleanup function
+function forceCleanup() {
+  try {
+    if (process.platform === 'win32') {
+      // Kill all gradle and java processes
+      require('child_process').execSync('taskkill /F /IM java.exe /T', { stdio: 'ignore' });
+      require('child_process').execSync('taskkill /F /IM gradle.exe /T', { stdio: 'ignore' });
+      require('child_process').execSync('taskkill /F /IM gradlew.bat /T', { stdio: 'ignore' });
+    } else {
+      require('child_process').execSync('pkill -f gradle', { stdio: 'ignore' });
+      require('child_process').execSync('pkill -f java', { stdio: 'ignore' });
+    }
+  } catch (e) {
+    // Ignore cleanup errors
+  }
+}
+
 module.exports = {
   projectRoot,
   runCommand,
   runGradleTests,
   runNpmScript,
-  getGradleCommand
+  getGradleCommand,
+  forceCleanup
 };
-
-

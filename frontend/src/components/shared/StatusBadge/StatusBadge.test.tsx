@@ -8,54 +8,55 @@ describe('StatusBadge', () => {
     {
       status: 'DRAFT',
       expectedLabel: 'Draft',
-      expectedClassSubstring: 'bg-secondary',
+      expectedVariant: 'outline',
     },
     {
       status: 'PENDING_TUTOR_CONFIRMATION',
       expectedLabel: 'Pending Tutor Review',
-      expectedClassSubstring: 'bg-amber-500',
+      expectedVariant: 'info',
     },
     {
       status: 'TUTOR_CONFIRMED',
-      expectedLabel: 'Approved by Tutor',
-      expectedClassSubstring: 'bg-emerald-500',
+      expectedLabel: 'Tutor Confirmed',
+      expectedVariant: 'warning',
     },
     {
       status: 'LECTURER_CONFIRMED',
-      expectedLabel: 'Approved by Lecturer',
-      expectedClassSubstring: 'bg-blue-500',
+      expectedLabel: 'Lecturer Confirmed',
+      expectedVariant: 'warning',
     },
     {
       status: 'FINAL_CONFIRMED',
       expectedLabel: 'Final Approved',
-      expectedClassSubstring: 'bg-primary',
+      expectedVariant: 'success',
     },
     {
       status: 'REJECTED',
       expectedLabel: 'Rejected',
-      expectedClassSubstring: 'bg-destructive',
+      expectedVariant: 'destructive',
     },
     {
       status: 'MODIFICATION_REQUESTED',
       expectedLabel: 'Modification Requested',
-      expectedClassSubstring: 'bg-amber-500',
+      expectedVariant: 'destructive',
     },
   ] satisfies Array<{
     status: TimesheetStatus;
     expectedLabel: string;
-    expectedClassSubstring: string;
+    expectedVariant: string;
   }>;
 
   it.each(statusCases)(
     'renders the correct label and variant for %s',
-    ({ status, expectedLabel, expectedClassSubstring }) => {
+    ({ status, expectedLabel, expectedVariant }) => {
       const testId = `status-badge-${status.toLowerCase()}-test`;
       render(<StatusBadge status={status} dataTestId={testId} />);
 
       const badge = screen.getByTestId(testId);
 
       expect(badge).toHaveTextContent(expectedLabel);
-      expect(badge.className).toContain(expectedClassSubstring);
+      // New StatusBadge uses data-variant attribute from Badge component
+      expect(badge).toHaveAttribute('data-variant', expectedVariant);
       expect(badge).toHaveAttribute(
         'aria-label',
         expect.stringContaining(expectedLabel),

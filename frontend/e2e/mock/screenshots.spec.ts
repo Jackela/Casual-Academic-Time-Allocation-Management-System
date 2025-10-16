@@ -1,8 +1,10 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/base';
 import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { E2E_CONFIG } from '../config/e2e.config';
+import { DashboardPage } from '../shared/pages/DashboardPage';
+import { TutorDashboardPage } from '../shared/pages/TutorDashboardPage';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,13 +44,21 @@ test.beforeEach(async ({ page }) => {
 test('Figure A1: Tutor dashboard overview', async ({ page }) => {
   const { email, password } = E2E_CONFIG.USERS.tutor;
   await login(page, email, password);
-  await page.getByTestId('tutor-dashboard').waitFor({ state: 'visible' });
+  const dashboard = new DashboardPage(page);
+  await dashboard.waitForDashboardReady();
+  await dashboard.expectToBeLoaded('TUTOR');
+  await dashboard.expectResponsiveColumns({ expectTutorColumn: false });
+  const tutorDashboard = new TutorDashboardPage(page);
+  await tutorDashboard.waitForDashboardReady();
   await capture(page, 'fig-a1-tutor-dashboard.png');
 });
 
 test('Figure A2: Tutor create timesheet form', async ({ page }) => {
   const { email, password } = E2E_CONFIG.USERS.tutor;
   await login(page, email, password);
+  const tutorDashboard = new TutorDashboardPage(page);
+  await tutorDashboard.waitForDashboardReady();
+  await new DashboardPage(page).expectResponsiveColumns({ expectTutorColumn: false });
   await page.getByRole('button', { name: /Create New/i }).first().click();
   await page.getByRole('heading', { name: 'New Timesheet Form' }).waitFor({ state: 'visible' });
   await page.selectOption('#course', '1');
@@ -61,6 +71,9 @@ test('Figure A2: Tutor create timesheet form', async ({ page }) => {
 test('Figure A3: Tutor validation feedback', async ({ page }) => {
   const { email, password } = E2E_CONFIG.USERS.tutor;
   await login(page, email, password);
+  const tutorDashboard = new TutorDashboardPage(page);
+  await tutorDashboard.waitForDashboardReady();
+  await new DashboardPage(page).expectResponsiveColumns({ expectTutorColumn: false });
   await page.getByRole('button', { name: /Create New/i }).first().click();
   await page.getByRole('heading', { name: 'New Timesheet Form' }).waitFor({ state: 'visible' });
   await page.selectOption('#course', '1');
@@ -74,7 +87,10 @@ test('Figure A3: Tutor validation feedback', async ({ page }) => {
 test('Figure A4: Lecturer approval queue', async ({ page }) => {
   const { email, password } = E2E_CONFIG.USERS.lecturer;
   await login(page, email, password);
-  await page.getByTestId('lecturer-dashboard').waitFor({ state: 'visible' });
+  const dashboard = new DashboardPage(page);
+  await dashboard.waitForDashboardReady();
+  await dashboard.expectToBeLoaded('LECTURER');
+  await dashboard.expectResponsiveColumns();
   await page.getByRole('region', { name: 'Pending Approvals' }).waitFor({ state: 'visible' });
   await capture(page, 'fig-a4-lecturer-approvals.png');
 });
@@ -82,7 +98,10 @@ test('Figure A4: Lecturer approval queue', async ({ page }) => {
 test('Figure A5: Lecturer approval selection', async ({ page }) => {
   const { email, password } = E2E_CONFIG.USERS.lecturer;
   await login(page, email, password);
-  await page.getByTestId('lecturer-dashboard').waitFor({ state: 'visible' });
+  const dashboard = new DashboardPage(page);
+  await dashboard.waitForDashboardReady();
+  await dashboard.expectToBeLoaded('LECTURER');
+  await dashboard.expectResponsiveColumns();
   const firstCheckbox = page.getByRole('checkbox', { name: /Select timesheet/ }).first();
   await expect(firstCheckbox).toBeEnabled({ timeout: 10000 });
   await firstCheckbox.check();

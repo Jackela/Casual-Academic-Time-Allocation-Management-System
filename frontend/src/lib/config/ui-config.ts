@@ -7,6 +7,7 @@ import {
   type TimesheetConstraintOverrides,
 } from './server-config';
 import { formatCurrency } from '../../utils/formatting';
+import type { TimesheetStatus } from './statusMap';
 
 type ConstraintSource =
   | TimesheetUiConstraints
@@ -233,6 +234,52 @@ export const useCurrencyFormatter = () => {
     },
     [CURRENCY, baseOptions],
   );
+};
+
+/**
+ * UI Configuration - Presentation Layer SSOT
+ *
+ * CRITICAL: This file contains ONLY UI/presentation metadata.
+ * Domain logic (status transitions, permissions) stays in statusMap.ts
+ */
+export interface StatusUIMetadata {
+  chipMinWidth: number;
+  showTimestampInTooltip: boolean;
+}
+
+export const STATUS_UI_METADATA: Record<TimesheetStatus, StatusUIMetadata> = {
+  DRAFT: {
+    chipMinWidth: 120,
+    showTimestampInTooltip: true,
+  },
+  PENDING_TUTOR_CONFIRMATION: {
+    chipMinWidth: 160,
+    showTimestampInTooltip: true,
+  },
+  TUTOR_CONFIRMED: {
+    chipMinWidth: 140,
+    showTimestampInTooltip: true,
+  },
+  LECTURER_CONFIRMED: {
+    chipMinWidth: 160,
+    showTimestampInTooltip: true,
+  },
+  FINAL_CONFIRMED: {
+    chipMinWidth: 140,
+    showTimestampInTooltip: true,
+  },
+  REJECTED: {
+    chipMinWidth: 100,
+    showTimestampInTooltip: true,
+  },
+  MODIFICATION_REQUESTED: {
+    chipMinWidth: 180,
+    showTimestampInTooltip: true,
+  },
+} as const;
+
+export const getStatusUIMetadata = (status: TimesheetStatus): StatusUIMetadata => {
+  return STATUS_UI_METADATA[status];
 };
 
 export const getUiConstraintsSnapshot = (): TimesheetUiConstraints =>

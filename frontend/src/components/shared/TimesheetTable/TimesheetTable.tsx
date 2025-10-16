@@ -14,6 +14,8 @@ import RelativeTime from '../RelativeTime';
 import TimesheetActions from './TimesheetActions';
 import './TimesheetTable.css';
 import { useUiConstraints } from '../../../lib/config/ui-config';
+import { isFeatureEnabled } from '../../../lib/config/feature-flags';
+import { BREAKPOINT_TOKENS, resolveCssVarNumber } from '../../../lib/config/table-config';
 
 type UiConstraintSnapshot = ReturnType<typeof useUiConstraints>;
 
@@ -77,6 +79,14 @@ const createColumn = <K extends TimesheetColumnKey>(
   column: { key: K } & Omit<Column, 'key'>
 ): Column => column;
 
+const parseBreakpointFallback = (fallback?: string): number => {
+  if (!fallback) {
+    return 0;
+  }
+  const numeric = Number.parseFloat(fallback);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
 const defaultColumnLayoutClass = 'min-w-[8rem] !whitespace-nowrap !break-normal';
 const columnLayoutClasses: Partial<Record<TimesheetColumnKey, string>> = {
   tutor: 'min-w-[14rem] !whitespace-nowrap !break-normal',
@@ -86,6 +96,7 @@ const columnLayoutClasses: Partial<Record<TimesheetColumnKey, string>> = {
   hourlyRate: 'min-w-[6.5rem] !whitespace-nowrap !break-normal !text-right',
   totalPay: 'min-w-[7.5rem] !whitespace-nowrap !break-normal !text-right',
   status: 'min-w-[9rem] !whitespace-nowrap !break-normal',
+  lastUpdated: 'min-w-[9rem] !whitespace-nowrap !break-normal',
   description: 'min-w-[18rem] !whitespace-normal !break-words',
   timeline: 'min-w-[12rem] !whitespace-nowrap !break-normal',
   actions: 'min-w-[12rem] !whitespace-nowrap !break-normal',
@@ -303,12 +314,14 @@ const TimesheetRow = memo<TimesheetRowProps>(({
         {visibleColumns.map(column => {
           const priorityClass = `priority-${column.priority ?? 'high'}`;
           const layoutClass = columnLayoutClasses[column.key] ?? defaultColumnLayoutClass;
+          const actionsClass = column.key === 'actions' ? 'actions-cell' : '';
           const cellClassName = [
             'cell',
             `${column.key}-cell`,
             priorityClass,
             baseCellPaddingClass,
             layoutClass,
+            actionsClass,
             numericColumnSet.has(column.key) ? 'numeric-cell' : '',
           ].filter(Boolean).join(' ');
           return (
@@ -317,6 +330,7 @@ const TimesheetRow = memo<TimesheetRowProps>(({
               className={cellClassName}
               style={{ width: column.width }}
               data-priority={column.priority ?? 'high'}
+              data-column={column.key}
             >
               {getCellContent(column)}
             </td>
@@ -471,15 +485,34 @@ function renderDefaultCell(
       return formatters.currency(timesheet.hourlyRate);
 
     case 'totalPay':
-      return <strong>{formatters.currency(totalPay)}</strong>;
+      return (
+        <strong
+          className="total-pay-value"
+          data-testid={`total-pay-${timesheet.id}`}
+        >
+          {formatters.currency(totalPay)}
+        </strong>
+      );
 
     case 'status':
       return (
         <StatusBadge
           status={timesheet.status}
           dataTestId={`status-badge-${timesheet.id}`}
+          lastModified={timesheet.updatedAt}
+          submittedAt={timesheet.createdAt}
+          showTimestampTooltip
         />
       );
+
+    case 'lastUpdated': {
+      const referenceTimestamp = timesheet.updatedAt ?? timesheet.createdAt;
+      return (
+        <span className="last-updated-cell" data-testid={`last-updated-${timesheet.id}`}>
+          {referenceTimestamp ? formatters.dateTime(referenceTimestamp) : '—'}
+        </span>
+      );
+    }
 
     case 'description':
       return (
@@ -673,6 +706,7 @@ const TableHeader = memo<TableHeaderProps>(({
               scope="col"
               className={headerClassName}
               data-priority={column.priority ?? 'high'}
+              data-column={column.key}
               style={{ width: column.width }}
               aria-sort={ariaSort}
             >
@@ -725,6 +759,36 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   actionsDisabledReason,
   pagination,
 }) => {
+  const [viewportWidth, setViewportWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : Number.MAX_SAFE_INTEGER));
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleResize = () => {
+      setViewportWidth(window.innerWidth);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  const tabletBreakpoint = useMemo(
+    () => resolveCssVarNumber(BREAKPOINT_TOKENS.tablet) ?? parseBreakpointFallback(BREAKPOINT_TOKENS.tablet.fallback),
+    [],
+  );
+  const tabletLandscapeBreakpoint = useMemo(
+    () =>
+      resolveCssVarNumber(BREAKPOINT_TOKENS.tabletLandscape) ??
+      parseBreakpointFallback(BREAKPOINT_TOKENS.tabletLandscape.fallback),
+    [],
+  );
+
+  const activityColumnEnabled = isFeatureEnabled('ENABLE_ACTIVITY_COLUMN');
   const columns = useMemo<Column[]>(() => {
     const dynamicColumns: Column[] = [];
 
@@ -792,6 +856,14 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         priority: 'high',
       }),
       createColumn({
+        key: 'lastUpdated',
+        label: 'Last Updated',
+        width: 160,
+        sortable: true,
+        visible: true,
+        priority: 'medium',
+      }),
+      createColumn({
         key: 'description',
         label: 'Description',
         width: 220,
@@ -799,15 +871,20 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         visible: true,
         priority: 'low',
       }),
-      createColumn({
-        key: 'timeline',
-        label: 'Activity',
-        width: 180,
-        sortable: true,
-        visible: true,
-        priority: 'medium',
-      }),
     );
+
+    if (activityColumnEnabled) {
+      dynamicColumns.push(
+        createColumn({
+          key: 'timeline',
+          label: 'Activity',
+          width: 180,
+          sortable: true,
+          visible: true,
+          priority: 'medium',
+        }),
+      );
+    }
 
     if (showActions) {
       dynamicColumns.push(createColumn({
@@ -829,8 +906,28 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
       priority: 'high',
     }));
 
-    return dynamicColumns;
-  }, [showTutorInfo, showCourseInfo, showActions]);
+    const responsiveColumns = dynamicColumns.filter((column) => {
+      if (column.key === 'hourlyRate') {
+        return viewportWidth > tabletLandscapeBreakpoint;
+      }
+
+      if (column.key === 'hours') {
+        return viewportWidth > tabletBreakpoint;
+      }
+
+      if (column.key === 'description') {
+        return viewportWidth > tabletBreakpoint;
+      }
+
+      if (column.key === 'lastUpdated') {
+        return viewportWidth > tabletLandscapeBreakpoint;
+      }
+
+      return true;
+    });
+
+    return responsiveColumns;
+  }, [activityColumnEnabled, showActions, showCourseInfo, showTutorInfo, tabletBreakpoint, tabletLandscapeBreakpoint, viewportWidth]);
 
   const virtualizationEnabled = timesheets.length >= virtualizeThreshold;
   const containerBaseClass = ['timesheet-table-container', 'overflow-x-auto', className].filter(Boolean).join(' ');

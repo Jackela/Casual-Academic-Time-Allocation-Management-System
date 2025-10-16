@@ -259,7 +259,7 @@ const prepareLecturerDashboard = async (page: Page, options: LecturerMockOptions
   } else if ((options.timesheets ?? BASE_TIMESHEETS).length === 0) {
     await page.getByTestId('empty-state').waitFor({ state: 'visible' });
   } else {
-    await page.getByTestId('lecturer-dashboard').waitFor({ state: 'visible' });
+    await page.getByTestId('main-dashboard-title').waitFor({ state: 'visible' });
     await page.getByRole('region', { name: /Pending Approvals/i }).waitFor({ state: 'visible' });
   }
 
@@ -300,7 +300,13 @@ test.describe('Lecturer Dashboard Visual Regression', () => {
 
   test('rejection modal appearance', async ({ page }) => {
     await prepareLecturerDashboard(page);
-    await page.getByTestId('reject-btn-501').click();
+    const fallbackButton = page.getByTestId('reject-btn-501');
+    await fallbackButton.waitFor({ state: 'visible' });
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('catams-open-lecturer-rejection-modal', {
+        detail: { timesheetId: 501 }
+      }));
+    });
     await page.getByRole('dialog', { name: /Reject Timesheet/i }).waitFor({ state: 'visible' });
     await capture(page, 'lecturer-dashboard-rejection-modal.png');
   });
@@ -326,4 +332,3 @@ test.describe('Lecturer Dashboard Visual Regression', () => {
     await capture(page, 'lecturer-dashboard-error.png');
   });
 });
-

@@ -1,5 +1,17 @@
 import { Page, expect, Locator } from '@playwright/test';
 import { NavigationPage } from './NavigationPage';
+import { TimesheetPage } from './TimesheetPage';
+import { NotificationBannerPage } from './NotificationBannerPage';
+import {
+  getTimesheetActionSelector,
+  getTimesheetRowSelector,
+  getTimesheetStatusBadgeSelector,
+  getTimesheetHoursBadgeSelector,
+  getTimesheetTotalPaySelector,
+  TABLE_LAYOUT_SELECTORS,
+  TIMESHEET_TEST_IDS,
+  TIMESHEET_ACTION_KEYS,
+} from '../../../src/lib/config/table-config';
 
 export class TutorDashboardPage {
   readonly page: Page;
@@ -14,12 +26,14 @@ export class TutorDashboardPage {
   readonly editModal: Locator;
   readonly deleteModal: Locator;
   readonly navigationPage: NavigationPage;
+  readonly timesheetPage: TimesheetPage;
+  readonly notificationBanner: NotificationBannerPage;
 
   constructor(page: Page) {
     this.page = page;
-    this.dashboardTitle = page.getByTestId('main-dashboard-title');
-    this.welcomeMessage = page.getByTestId('main-welcome-message');
-    this.timesheetsTable = page.getByTestId('timesheets-table');
+    this.dashboardTitle = page.locator('[data-testid="main-dashboard-title"], [data-testid="dashboard-title"], .dashboard-header__subtitle, .admin-header__subtitle, .tutor-header__subtitle');
+    this.welcomeMessage = page.locator('[data-testid="main-welcome-message"], [data-testid="welcome-message"], .dashboard-header__title, .admin-header__title, .tutor-header__title');
+    this.timesheetsTable = page.locator(TABLE_LAYOUT_SELECTORS.tableContainer);
     this.countBadge = page.getByTestId('count-badge');
     this.loadingState = page.locator('[data-testid="loading-state"], [data-testid="page-loading-indicator"], [data-testid="loading-spinner"]');
     this.errorMessage = page.locator('[data-testid="error-message"], [data-testid="global-error-banner"]');
@@ -28,6 +42,8 @@ export class TutorDashboardPage {
     this.editModal = page.locator('.timesheet-form-modal');
     this.deleteModal = page.getByTestId('delete-modal');
     this.navigationPage = new NavigationPage(page);
+    this.timesheetPage = new TimesheetPage(page);
+    this.notificationBanner = new NotificationBannerPage(page);
   }
 
   async navigateTo() {
@@ -35,57 +51,68 @@ export class TutorDashboardPage {
     await this.page.waitForLoadState('networkidle');
   }
 
-  /**
-   * Enhanced data loading wait mechanism with cross-browser compatibility
-   * Addresses race conditions and provides multiple fallback strategies
-   */
-  async waitForMyTimesheetData() {
-    console.log('[TutorDashboardPage] Waiting for timesheet data...');
-    
-    try {
-      // Multi-strategy wait approach for maximum reliability
-      const waitStrategies = [
-        // Strategy 1: Wait for API response
-        this.page.waitForResponse(response => {
-          const url = response.url();
-          return url.includes('/api/timesheets') && !/\/api\/timesheets\/\d+/.test(url);
-        }, { timeout: 12000 }).catch(() => null),
-        
-        // Strategy 2: Wait for UI elements to appear
-        Promise.race([
-          this.timesheetsTable.waitFor({ state: 'visible', timeout: 10000 }).catch(() => null),
-          this.emptyState.waitFor({ state: 'visible', timeout: 10000 }).catch(() => null),
-          this.errorMessage.waitFor({ state: 'visible', timeout: 10000 }).catch(() => null)
-        ]),
-        
-        // Strategy 3: Network idle fallback
-        this.page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => null)
-      ];
-
-      // Wait for any strategy to succeed
-      await Promise.race([
-        Promise.all(waitStrategies.filter(s => s !== null)),
-        new Promise(resolve => setTimeout(resolve, 15000)) // Ultimate timeout
-      ]);
-
-      // Ensure loading spinner is gone (best effort)
-      const loadingSpinner = this.loadingState.or(
-        this.page.locator('[data-testid="loading-spinner"], .loading-spinner, .spinner')
-      );
-      
-      await loadingSpinner.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {
-        console.log('[TutorDashboardPage] Loading spinner still visible or not found');
-      });
-
-      console.log('[TutorDashboardPage] Timesheet data loading completed');
-      
-    } catch (error) {
-      console.warn('[TutorDashboardPage] Data loading wait encountered issues:', error);
-      // Continue anyway - UI might still be functional
+  private async getViewportWidth(): Promise<number> {
+    const viewport = this.page.viewportSize();
+    if (viewport?.width) {
+      return viewport.width;
     }
+    return this.page.evaluate(() => window.innerWidth || document.documentElement.clientWidth || 1280);
+  }
+
+  /**
+   * Backwards-compatible wrapper for older tests.
+   */
+  async waitForMyTimesheetData(options: { timeout?: number } = {}) {
+    await this.waitForDashboardReady(options);
+  }
+
+  async expectResponsiveColumns() {
+    const width = await this.getViewportWidth();
+    const rawHeaderTexts = await this.timesheetsTable
+      .locator('thead th')
+      .allInnerTexts();
+    const normalizedHeaders = rawHeaderTexts
+      .map(text =>
+        text
+          .replace(/[⇅↑↓]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase()
+      )
+      .filter(Boolean);
+    const hasHeader = (label: string) => normalizedHeaders.includes(label);
+
+    expect(hasHeader('course')).toBeTruthy();
+    expect(hasHeader('status')).toBeTruthy();
+    expect(hasHeader('actions')).toBeTruthy();
+
+    if (width >= 1440) {
+      expect(hasHeader('rate')).toBeTruthy();
+      expect(hasHeader('hours')).toBeTruthy();
+    } else if (width >= 1280) {
+      expect(hasHeader('rate')).toBeFalsy();
+      expect(hasHeader('hours')).toBeTruthy();
+    } else if (width >= 1024) {
+      expect(hasHeader('rate')).toBeFalsy();
+      expect(hasHeader('hours')).toBeFalsy();
+    } else {
+      expect(hasHeader('rate')).toBeFalsy();
+      expect(hasHeader('hours')).toBeFalsy();
+      expect(hasHeader('description')).toBeFalsy();
+    }
+
+    const tabletLandscapeBreakpoint = await this.page.evaluate(() => {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue('--breakpoint-tablet-landscape');
+      const match = raw.match(/-?\d+(\.\d+)?/);
+      return match ? Number(match[0]) : 1280;
+    });
+
+    const shouldShowLastUpdated = width >= tabletLandscapeBreakpoint;
+    expect(hasHeader('last updated')).toBe(shouldShowLastUpdated);
   }
 
   async expectToBeLoaded() {
+    await this.waitForDashboardReady();
     // Ensure we are on dashboard URL to avoid race with auth/navigation
     await expect(this.page).toHaveURL(/\/dashboard$/, { timeout: 15000 });
     // Rely on header readiness as page loaded signal (mobile layouts may vary)
@@ -93,12 +120,12 @@ export class TutorDashboardPage {
   }
 
   async expectTutorDashboardTitle() {
-    await expect(this.dashboardTitle).toContainText('Tutor Dashboard', { timeout: 10000 });
+    await expect(this.dashboardTitle.first()).toContainText(/Tutor Dashboard/i, { timeout: 10000 });
   }
 
   async expectWelcomeMessage(userName: string) {
     const firstName = userName.split(' ')[0] ?? userName;
-    await expect(this.welcomeMessage).toContainText(`Welcome back, ${firstName}`, { timeout: 10000 });
+    await expect(this.welcomeMessage.first()).toContainText(`Welcome back, ${firstName}`, { timeout: 10000 });
   }
 
   async expectTimesheetsTable() {
@@ -156,20 +183,24 @@ export class TutorDashboardPage {
     courseCode: string;
     status: string;
     hours: number;
-    hourlyRate: number;
+    totalPay: number;
+    description?: string;
   }) {
-    const row = this.page.getByTestId(`timesheet-row-${timesheetId}`);
-    
+    const row = this.page.locator(getTimesheetRowSelector(timesheetId));
+
     await expect(row.getByTestId(`course-code-${timesheetId}`)).toContainText(expectedData.courseCode);
-    await expect(row.getByTestId(`status-badge-${timesheetId}`)).toContainText(expectedData.status);
-    await expect(row.getByTestId(`hours-badge-${timesheetId}`)).toContainText(`${expectedData.hours}h`);
-    
-    // Check hourly rate is displayed (formatted as currency)
-    const hourlyRateText = new Intl.NumberFormat('en-AU', {
+    await expect(this.page.locator(getTimesheetStatusBadgeSelector(timesheetId))).toContainText(expectedData.status);
+    await expect(this.page.locator(getTimesheetHoursBadgeSelector(timesheetId))).toContainText(`${expectedData.hours}h`);
+
+    const totalPayText = new Intl.NumberFormat('en-AU', {
       style: 'currency',
-      currency: 'AUD'
-    }).format(expectedData.hourlyRate);
-    await expect(row).toContainText(hourlyRateText);
+      currency: 'AUD',
+    }).format(expectedData.totalPay);
+    await expect(this.page.locator(getTimesheetTotalPaySelector(timesheetId))).toContainText(totalPayText);
+
+    if (expectedData.description) {
+      await expect(this.page.locator(`[data-testid="description-cell-${timesheetId}"]`)).toContainText(expectedData.description);
+    }
   }
 
   // Action button visibility checks
@@ -196,13 +227,13 @@ export class TutorDashboardPage {
   }
 
   async expectSubmitButtonVisible(timesheetId: number) {
-    const submitButton = this.page.getByTestId(`submit-btn-${timesheetId}`);
+    const submitButton = this.page.locator(getTimesheetActionSelector('submit', timesheetId));
     await expect(submitButton).toBeVisible();
     await expect(submitButton).toBeEnabled();
   }
 
   async expectSubmitButtonNotVisible(timesheetId: number) {
-    const submitButton = this.page.getByTestId(`submit-btn-${timesheetId}`);
+    const submitButton = this.page.locator(getTimesheetActionSelector('submit', timesheetId));
     await expect(submitButton).not.toBeVisible();
   }
 
@@ -339,7 +370,7 @@ export class TutorDashboardPage {
 
   // Submit interactions
   async clickSubmitButton(timesheetId: number) {
-    const submitButton = this.page.getByTestId(`submit-btn-${timesheetId}`);
+    const submitButton = this.page.locator(getTimesheetActionSelector('submit', timesheetId));
     await submitButton.click();
   }
 
@@ -394,12 +425,12 @@ export class TutorDashboardPage {
 
   // Mobile/responsive design checks
   async expectMobileLayout() {
+    await this.waitForDashboardReady();
     // Ensure header is ready to avoid race conditions on mobile
     await this.navigationPage.expectHeaderElements();
 
     // Check that the dashboard adapts to mobile viewport
-    const title = this.page.getByTestId('main-dashboard-title').or(this.page.getByTestId('dashboard-title'));
-    await expect(title).toBeVisible({ timeout: 15000 });
+    await expect(this.dashboardTitle.first()).toBeVisible({ timeout: 15000 });
     
     // Verify mobile-specific layout elements
     const viewport = this.page.viewportSize();
@@ -439,7 +470,12 @@ export class TutorDashboardPage {
     }
 
     // Best-effort: if action area exists, ensure at least first action container is present
-    const actionButtons = this.page.locator('[data-testid="action-buttons"], .action-buttons, [data-testid^="edit-btn-"], [data-testid^="submit-btn-"]');
+    const actionSelectors = [
+      `[data-testid="${TIMESHEET_TEST_IDS.actionsContainer}"]`,
+      `[data-testid="${TIMESHEET_TEST_IDS.noActionsPlaceholder}"]`,
+      ...TIMESHEET_ACTION_KEYS.map((key) => `[data-testid^="${key}-btn-"]`),
+    ].join(', ');
+    const actionButtons = this.page.locator(actionSelectors);
     if (await actionButtons.count() > 0) {
       await expect(actionButtons.first()).toBeVisible();
     }
@@ -553,7 +589,7 @@ export class TutorDashboardPage {
   }
 
   async submitDraft(timesheetId: number) {
-    const submitButton = this.page.getByTestId(`submit-btn-${timesheetId}`);
+    const submitButton = this.page.locator(getTimesheetActionSelector('submit', timesheetId));
     await expect(submitButton).toBeVisible();
     const [response] = await Promise.all([
       this.page.waitForResponse((response) =>
@@ -566,13 +602,13 @@ export class TutorDashboardPage {
   }
 
   async expectConfirmButtonVisible(timesheetId: number) {
-    const confirmButton = this.page.getByTestId(`confirm-btn-${timesheetId}`);
+    const confirmButton = this.page.locator(getTimesheetActionSelector('confirm', timesheetId));
     await expect(confirmButton).toBeVisible();
     await expect(confirmButton).toBeEnabled();
   }
 
   async confirmTimesheet(timesheetId: number) {
-    const confirmButton = this.page.getByTestId(`confirm-btn-${timesheetId}`);
+    const confirmButton = this.page.locator(getTimesheetActionSelector('confirm', timesheetId));
     await expect(confirmButton).toBeVisible();
     const [response] = await Promise.all([
       this.page.waitForResponse((response) =>
@@ -594,5 +630,144 @@ export class TutorDashboardPage {
     const submitSelected = this.page.getByRole('button', { name: /Submit Selected/i });
     await expect(submitSelected).toBeEnabled();
     await submitSelected.click();
+  }
+
+  // =============================================================================
+  // Enhanced Notification Banner Integration Methods
+  // =============================================================================
+
+  /**
+   * Wait for notification banner to appear with specific variant
+   */
+  async waitForNotificationBanner(variant?: 'warning' | 'error' | 'info', timeout = 5000): Promise<void> {
+    await this.notificationBanner.waitForVisible(timeout);
+    if (variant === 'warning') await this.notificationBanner.expectWarningVariant();
+    if (variant === 'error') await this.notificationBanner.expectErrorVariant();
+    if (variant === 'info') await this.notificationBanner.expectInfoVariant();
+  }
+
+  /**
+   * Assert that draft notification is displayed with correct count
+   */
+  async expectDraftNotification(draftCount: number): Promise<void> {
+    await this.notificationBanner.expectSubmitDraftsAction(draftCount);
+  }
+
+  /**
+   * Assert that rejection notification is displayed with correct count
+   */
+  async expectRejectionNotification(rejectedCount: number): Promise<void> {
+    await this.notificationBanner.expectRejectionNotification(rejectedCount);
+  }
+
+  /**
+   * Submit all drafts via the notification banner CTA (replaces old QuickAction)
+   */
+  async submitAllDraftsViaBanner(): Promise<void> {
+    await this.notificationBanner.submitAllDraftsViaBanner();
+    
+    // Wait for submission API call to complete
+    await this.page.waitForResponse((response) =>
+      response.url().includes('/api/approvals') && response.request().method() === 'POST'
+    );
+    
+    // Wait for dashboard data to refresh after submission
+    await this.waitForMyTimesheetData();
+  }
+
+  /**
+   * Enhanced dashboard ready detection with notification banner support
+   */
+  async waitForDashboardReady(options: { timeout?: number } = {}): Promise<void> {
+    const timeout = options.timeout ?? 15000;
+
+    await this.page
+      .waitForLoadState('domcontentloaded', { timeout: Math.min(timeout, 5000) })
+      .catch(() => undefined);
+
+    let firstRenderState: string | undefined;
+    try {
+      firstRenderState = await this.timesheetPage.waitForFirstRender({ timeout });
+    } catch {
+      firstRenderState = undefined;
+    }
+
+    await Promise.race([
+      this.loadingState.waitFor({ state: 'hidden', timeout }).catch(() => undefined),
+      this.timesheetsTable.waitFor({ state: 'visible', timeout }).catch(() => undefined),
+      this.emptyState.waitFor({ state: 'visible', timeout }).catch(() => undefined),
+    ]);
+
+    if (firstRenderState === 'banner') {
+      await this.notificationBanner.waitForVisible(2000).catch(async () => {
+        await this.page
+          .getByTestId('page-banner')
+          .waitFor({ state: 'visible', timeout: 2000 })
+          .catch(() => undefined);
+      });
+    } else {
+      await this.notificationBanner.waitForVisible(1000).catch(() => undefined);
+    }
+
+    await this.page.waitForLoadState('networkidle', { timeout }).catch(() => undefined);
+  }
+
+  /**
+   * Check if notification banner is currently visible (non-assertive)
+   */
+  async hasNotificationBanner(): Promise<boolean> {
+    return await this.notificationBanner.isVisible();
+  }
+
+  /**
+   * Assert no notification banner is displayed
+   */
+  async expectNoNotificationBanner(): Promise<void> {
+    await this.notificationBanner.expectHidden();
+  }
+
+  /**
+   * Get debug information about current notification banner state
+   */
+  async getNotificationBannerDebugInfo(): Promise<Record<string, any>> {
+    return await this.notificationBanner.getDebugInfo();
+  }
+
+  // =============================================================================
+  // Legacy Support Methods (Backwards Compatibility)
+  // =============================================================================
+
+  /**
+   * @deprecated Use notificationBanner.expectVisible() instead
+   * Legacy method for page banner expectations during transition period
+   */
+  async expectPageBanner(): Promise<void> {
+    console.warn('expectPageBanner() is deprecated. Use notificationBanner.expectVisible() instead');
+    await this.notificationBanner.expectVisible();
+  }
+
+  /**
+   * @deprecated Use submitAllDraftsViaBanner() instead
+   * Legacy method for Submit All Drafts functionality
+   */
+  async clickSubmitAllDrafts(): Promise<void> {
+    console.warn('clickSubmitAllDrafts() is deprecated. Use submitAllDraftsViaBanner() instead');
+    
+    // Try new banner approach first
+    if (await this.hasNotificationBanner()) {
+      await this.submitAllDraftsViaBanner();
+      return;
+    }
+    
+    // Fallback to old QuickAction approach if banner not present
+    const submitAllButton = this.page.getByRole('button', { name: /Submit All Drafts/i });
+    await expect(submitAllButton).toBeVisible();
+    await expect(submitAllButton).toBeEnabled();
+    await submitAllButton.click();
+    
+    await this.page.waitForResponse((response) =>
+      response.url().includes('/api/approvals') && response.request().method() === 'POST'
+    );
+    await this.waitForMyTimesheetData();
   }
 }

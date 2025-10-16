@@ -103,19 +103,8 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
           : statusRejectReason;
 
 
-  const handleApproveSelected = async () => {
-    if (!onApproveSelected || batchApproveDisabled) {
-      return;
-    }
-    await onApproveSelected();
-  };
-
-  const handleRejectSelected = async () => {
-    if (!onRejectSelected || batchRejectDisabled) {
-      return;
-    }
-    await onRejectSelected();
-  };
+  // Batch action handlers are called directly from BatchActions component
+  // These functions are kept for future extensibility
 
   return (
     <Fragment>

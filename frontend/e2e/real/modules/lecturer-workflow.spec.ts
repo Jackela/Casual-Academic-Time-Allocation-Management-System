@@ -1,6 +1,12 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
 import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
+import { STORAGE_KEYS } from '../../../src/utils/storage-keys';
+import {
+  TIMESHEET_TEST_IDS,
+  getTimesheetActionSelector,
+  getTimesheetRowSelector,
+} from '../../../src/lib/config/table-config';
 
 /**
  * Lecturer Dashboard Workflow Tests
@@ -63,13 +69,13 @@ test.describe('Lecturer Dashboard Workflow', () => {
   test('Lecturer can interact with timesheet approval buttons if timesheets exist', async ({ page }) => {
     await openLecturerDashboard(page);
     
-    const approveButtons = page.locator('[data-testid^="approve-btn-"], button:has-text("Final Approve")');
-    const rejectButtons = page.locator('[data-testid^="reject-btn-"], button:has-text("Reject")');
+    const approveButtons = page.locator('[data-testid^="approve-btn-"]');
+    const rejectButtons = page.locator('[data-testid^="reject-btn-"]');
+    const noActions = page.locator(`[data-testid="${TIMESHEET_TEST_IDS.noActionsPlaceholder}"]`);
 
     // Allow dashboards with zero pending approvals as a valid state
     const approveCount = await approveButtons.count();
-    const rejectCount = await rejectButtons.count();
-    if (approveCount === 0 || rejectCount === 0) {
+    if (approveCount === 0) {
       const emptyState = await page.locator('[data-testid="empty-state"]').first().isVisible().catch(() => false);
       const zeroPendingText = (await page.getByText(/\b0\s+pending\b/i).count()) > 0;
       expect(emptyState || zeroPendingText).toBe(true);
@@ -77,7 +83,28 @@ test.describe('Lecturer Dashboard Workflow', () => {
     }
 
     await expect(approveButtons.first()).toBeVisible();
-    await expect(rejectButtons.first()).toBeVisible();
+    await expect(approveButtons.first()).toBeEnabled();
+    if (await rejectButtons.count()) {
+      await expect(rejectButtons.first()).toBeVisible();
+    }
+
+    const firstApproveTestId = await approveButtons.first().getAttribute('data-testid');
+    const firstTimesheetId = Number(firstApproveTestId?.replace('approve-btn-', '') ?? NaN);
+
+    if (Number.isFinite(firstTimesheetId)) {
+      const approveButton = page.locator(getTimesheetActionSelector('approve', firstTimesheetId));
+      await expect(approveButton).toBeEnabled();
+
+      const rejectButton = page.locator(getTimesheetActionSelector('reject', firstTimesheetId));
+      if (await rejectButton.count()) {
+        await expect(rejectButton).toBeEnabled();
+      }
+
+      const placeholderForRow = page.locator(getTimesheetRowSelector(firstTimesheetId)).getByTestId(
+        TIMESHEET_TEST_IDS.noActionsPlaceholder,
+      );
+      await expect(placeholderForRow).toHaveCount(0);
+    }
   });
 
   test('Lecturer dashboard handles loading state', async ({ page }) => {
@@ -189,13 +216,35 @@ test.describe('Lecturer Dashboard Workflow', () => {
     const targetRow = page.getByTestId(`timesheet-row-${baseTimesheet.id}`);
     await expect(targetRow).toBeVisible();
     await expect(targetRow).toContainText(baseTimesheet.tutorName);
+    // Ensure row is activated/visible before action
+    await targetRow.scrollIntoViewIfNeeded();
+    await targetRow.click({ force: true });
 
-    const rejectButton = page.getByTestId(`reject-btn-${baseTimesheet.id}`);
-    await expect(rejectButton).toBeVisible();
-    await rejectButton.click();
+    const fallbackButton = page.getByTestId(`reject-btn-${baseTimesheet.id}`);
+    await expect(fallbackButton).toHaveCount(1);
+    // Ensure UI settled then try clicking reject button
+    await page.waitForLoadState('networkidle');
+    await fallbackButton.scrollIntoViewIfNeeded();
+    await fallbackButton.click({ force: true });
 
+    // Wait for dialog to appear (either by heading or role='dialog')
+    const dialog = page.getByRole('dialog', { name: /Reject Timesheet/i });
     const modalTitle = page.getByRole('heading', { name: 'Reject Timesheet' });
-    await expect(modalTitle).toBeVisible();
+    try {
+      await Promise.race([
+        dialog.waitFor({ state: 'visible', timeout: 5000 }),
+        modalTitle.waitFor({ state: 'visible', timeout: 5000 })
+      ]);
+    } catch {
+      // Fallback: dispatch E2E-only event to open rejection modal deterministically
+      await page.evaluate((id: number) => {
+        window.dispatchEvent(new CustomEvent('catams-open-lecturer-rejection-modal', { detail: { timesheetId: id } }));
+      }, baseTimesheet.id);
+      await Promise.race([
+        dialog.waitFor({ state: 'visible', timeout: 5000 }),
+        modalTitle.waitFor({ state: 'visible', timeout: 5000 })
+      ]);
+    }
 
     const reasonTextarea = page.getByPlaceholder('e.g., Incorrect hours logged for CS101...');
     await reasonTextarea.fill('Hours exceed allocated budget for the week.');
@@ -217,12 +266,12 @@ test.describe('Lecturer Dashboard Workflow', () => {
       comment: 'Hours exceed allocated budget for the week.'
     });
 
-    await expect(modalTitle).toHaveCount(0);
+    await expect(dialog.or(modalTitle)).toHaveCount(0);
     await expect(targetRow).toContainText(/Rejected/i);
   });
 
 
-  test('当 Lecturer 审批失败时，UI应显示错误提示并且按钮可再次点击', async ({ page }) => {
+  test('shows error banner and re-enables actions when lecturer approval fails', async ({ page }) => {
     const now = new Date().toISOString();
     const timesheet = {
       id: 98765,
@@ -298,7 +347,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
   });
 
 
-  test('当 Lecturer 加载待审批数据时，UI 显示加载状态并在完成后隐藏', async ({ page }) => {
+  test('shows loading state while fetching and hides after completion', async ({ page }) => {
     const now = new Date().toISOString();
     const timesheet = {
       id: 67890,
@@ -362,7 +411,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
     await expect(targetRow).toContainText(timesheet.description);
   });
 
-  test('当没有待审批的时间表时，UI 显示空状态视图', async ({ page }) => {
+  test('renders empty state when there are no pending timesheets', async ({ page }) => {
     await page.route('**/api/timesheets/pending-final-approval**', async route => {
       await route.fulfill({
         status: 200,

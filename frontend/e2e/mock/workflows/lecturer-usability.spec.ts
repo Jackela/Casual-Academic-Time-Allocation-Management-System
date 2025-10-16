@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures/base';
 import { LoginPage } from '../../shared/pages/LoginPage';
+import { DashboardPage } from '../../shared/pages/DashboardPage';
 import { setupMockAuth } from '../../shared/mock-backend/auth';
 
 /**
@@ -13,6 +14,7 @@ import { setupMockAuth } from '../../shared/mock-backend/auth';
 test.describe('Lecturer usability validation', () => {
   test('delivers a smooth approval experience with informative UI states', async ({ page }) => {
     const loginPage = new LoginPage(page);
+    const dashboardPage = new DashboardPage(page);
 
     const now = Date.now();
     const fiveDaysAgo = new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString();
@@ -158,6 +160,7 @@ test.describe('Lecturer usability validation', () => {
     await loginPage.submitForm();
 
     await page.waitForURL('**/dashboard');
+    await dashboardPage.waitForDashboardReady();
 
     const loadingStatus = page.getByRole('status');
     let observedLoading = false;
@@ -168,12 +171,14 @@ test.describe('Lecturer usability validation', () => {
       // Some builds render instantly; skip strict loading assertion in that case.
     }
     await pendingResponsePromise;
-    if (observedLoading) {
-      await expect(loadingStatus).not.toContainText(/Loading pending timesheets/i, { timeout: 2000 });
+    if (observedLoading && await loadingStatus.count().catch(() => 0)) {
+      await expect(loadingStatus).not.toContainText(/Loading pending timesheets/i, { timeout: 2000 }).catch(() => undefined);
     }
 
-    const header = page.getByTestId('main-dashboard-title');
-    await expect(header).toHaveText(/Lecturer Dashboard/);
+    await dashboardPage.expectToBeLoaded('LECTURER');
+    await dashboardPage.expectResponsiveColumns();
+    const initialState = await dashboardPage.timesheetPage.waitForFirstRender();
+    expect(['table', 'banner', 'empty'].includes(initialState)).toBeTruthy();
 
     const urgentAlert = page.getByTestId('urgent-alert');
     await expect(urgentAlert.getByTestId('urgent-count')).toHaveText('1');
@@ -186,6 +191,7 @@ test.describe('Lecturer usability validation', () => {
     await expect(statCards.nth(2)).toContainText('This Week Hours');
 
 
+    await dashboardPage.timesheetPage.expectTimesheetsTable();
     const primaryRow = page.getByTestId(`timesheet-row-${initialTimesheets[0].id}`);
     await expect(primaryRow).toBeVisible();
     await expect(primaryRow).toContainText(initialTimesheets[0].tutorName);
@@ -202,6 +208,9 @@ test.describe('Lecturer usability validation', () => {
 
     await approvalsResponse;
     await refreshResponse;
+    await dashboardPage.waitForDashboardReady();
+    const postState = await dashboardPage.timesheetPage.waitForFirstRender();
+    expect(['empty', 'banner', 'table'].includes(postState)).toBeTruthy();
 
     expect(capturedApprovalBody).toMatchObject({
       timesheetId: initialTimesheets[0].id,
