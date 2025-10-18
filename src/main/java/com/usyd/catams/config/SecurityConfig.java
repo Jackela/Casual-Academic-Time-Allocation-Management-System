@@ -61,8 +61,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
-                .requestMatchers(HttpMethod.POST, "/actuator/shutdown").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/test-data/reset").permitAll()
+                .requestMatchers(HttpMethod.POST, "/actuator/shutdown").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex

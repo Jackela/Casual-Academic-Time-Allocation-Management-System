@@ -156,7 +156,7 @@ public class TimesheetController {
         TimesheetTaskType taskType = request.getTaskType() != null ? request.getTaskType() : existing.getTaskType();
         TutorQualification qualification = request.getQualification() != null ? request.getQualification() : existing.getQualification();
         BigDecimal deliveryHours = request.getDeliveryHours() != null ? request.getDeliveryHours() : existing.getDeliveryHours();
-        LocalDate sessionDate = request.getSessionDate() != null ? request.getSessionDate() : existing.getWeekStartDate();
+        LocalDate sessionDate = request.getSessionDate() != null ? request.getSessionDate() : existing.getSessionDate();
 
         Schedule1CalculationResult calculation = calculateSchedule1(
                 taskType,

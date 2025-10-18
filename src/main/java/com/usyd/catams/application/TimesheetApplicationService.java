@@ -169,6 +169,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         timesheet.setHourlyRate(calculation.getHourlyRate());
         timesheet.setDeliveryHours(calculation.getDeliveryHours());
         timesheet.setAssociatedHours(calculation.getAssociatedHours());
+        timesheet.setSessionDate(calculation.getSessionDate());
         timesheet.setCalculatedAmount(calculation.getAmount());
         timesheet.setRateCode(calculation.getRateCode());
         timesheet.setCalculationFormula(calculation.getFormula());
@@ -589,7 +590,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
             case LECTURER:
                 return timesheetRepository.findApprovedByTutorByCourses(requester.getId(), pageable);
             case ADMIN:
-                return timesheetRepository.findByStatus(ApprovalStatus.TUTOR_CONFIRMED, pageable);
+                return timesheetRepository.findByStatus(ApprovalStatus.LECTURER_CONFIRMED, pageable);
             default:
                 throw new com.usyd.catams.exception.AuthorizationException("Unknown user role: " + requester.getRole());
         }

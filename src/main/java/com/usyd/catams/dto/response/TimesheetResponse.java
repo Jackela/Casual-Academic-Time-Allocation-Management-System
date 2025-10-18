@@ -40,6 +40,10 @@ public class TimesheetResponse {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate weekStartDate;
 
+    @JsonProperty("sessionDate")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate sessionDate;
+
     @JsonProperty("hours")
     private BigDecimal hours;
 
@@ -113,6 +117,7 @@ public class TimesheetResponse {
         this.courseId = courseId;
         this.courseName = courseName;
         this.weekStartDate = weekStartDate;
+        this.sessionDate = weekStartDate;
         this.hours = hours;
         this.hourlyRate = hourlyRate;
         this.description = description;
@@ -185,6 +190,14 @@ public class TimesheetResponse {
 
     public void setWeekStartDate(LocalDate weekStartDate) {
         this.weekStartDate = weekStartDate;
+    }
+
+    public LocalDate getSessionDate() {
+        return sessionDate;
+    }
+
+    public void setSessionDate(LocalDate sessionDate) {
+        this.sessionDate = sessionDate;
     }
 
     public BigDecimal getHours() {
@@ -373,6 +386,7 @@ public class TimesheetResponse {
                 ", courseId=" + courseId +
                 ", courseName='" + courseName + '\'' +
                 ", weekStartDate=" + weekStartDate +
+                ", sessionDate=" + sessionDate +
                 ", hours=" + hours +
                 ", hourlyRate=" + hourlyRate +
                 ", deliveryHours=" + deliveryHours +

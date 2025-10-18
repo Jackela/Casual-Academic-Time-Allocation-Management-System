@@ -88,6 +88,7 @@ public class TimesheetMapper {
         response.setRateCode(timesheet.getRateCode());
         response.setCalculationFormula(timesheet.getCalculationFormula());
         response.setClauseReference(timesheet.getClauseReference());
+        response.setSessionDate(timesheet.getSessionDate());
         return response;
     }
 
@@ -172,6 +173,7 @@ public class TimesheetMapper {
             
         response.setTutorName(tutorName);
         response.setCourseName(courseName);
+        response.setSessionDate(weekStartDate);
         
         // Calculate total pay
         if (hours != null && hourlyRate != null && response.getTotalPay() == null) {

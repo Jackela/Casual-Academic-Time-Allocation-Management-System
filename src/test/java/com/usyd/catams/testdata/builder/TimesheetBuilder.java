@@ -42,6 +42,7 @@ public class TimesheetBuilder {
     private Long tutorId = 2L;
     private Long courseId = 100L;
     private LocalDate weekStartDate = LocalDate.now().minusWeeks(1).with(java.time.DayOfWeek.MONDAY);
+    private LocalDate sessionDate = weekStartDate;
     private BigDecimal hours = new BigDecimal("10.0");
     private BigDecimal hourlyRate = new BigDecimal("45.00");
     private String description = "Test timesheet description";
@@ -74,7 +75,16 @@ public class TimesheetBuilder {
     }
 
     public TimesheetBuilder withWeekStartDate(LocalDate weekStartDate) {
+        LocalDate previousWeekStart = this.weekStartDate;
         this.weekStartDate = weekStartDate;
+        if (this.sessionDate == null || this.sessionDate.equals(previousWeekStart)) {
+            this.sessionDate = weekStartDate;
+        }
+        return this;
+    }
+
+    public TimesheetBuilder withSessionDate(LocalDate sessionDate) {
+        this.sessionDate = sessionDate;
         return this;
     }
 
@@ -137,6 +147,7 @@ public class TimesheetBuilder {
         timesheet.setStatus(status);
         timesheet.setCreatedAt(createdAt);
         timesheet.setUpdatedAt(updatedAt);
+        timesheet.setSessionDate(sessionDate != null ? sessionDate : weekStartDate);
         return timesheet;
     }
 }
