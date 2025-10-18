@@ -8,4 +8,4 @@ export { default as CompletionProgress } from './CompletionProgress';
 export { default as UpcomingDeadlines } from './UpcomingDeadlines';
 export { default as EarningsBreakdown } from './EarningsBreakdown';
 export { default as TimesheetForm } from './TimesheetForm';
-export type { TimesheetFormData } from './TimesheetForm';
+export type { TimesheetFormState, TimesheetFormSubmitData } from './TimesheetForm';

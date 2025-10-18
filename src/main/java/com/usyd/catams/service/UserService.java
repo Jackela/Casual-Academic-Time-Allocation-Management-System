@@ -39,4 +39,11 @@ public interface UserService {
      * @throws com.usyd.catams.exception.BusinessException when email already exists
      */
     UserResponse createUser(UserCreateRequest request);
+
+    /**
+     * Retrieve all users in the system.
+     *
+     * @return list of user response DTOs
+     */
+    java.util.List<UserResponse> getUsers();
 }

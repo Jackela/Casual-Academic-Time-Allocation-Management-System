@@ -26,24 +26,19 @@ import {
   EarningsBreakdown,
   TimesheetForm
 } from './components';
-import NotificationBanner from '../../shared/NotificationBanner/NotificationBanner';
-import { getBannerNotificationConfig, shouldShowBannerNotification } from '../../../lib/routing/notificationRouter';
-import type { TimesheetFormData } from './components';
+import { dispatchNotification } from '../../../lib/routing/notificationRouter';
+import type { TimesheetFormSubmitData } from './components';
 import '../../../styles/dashboard-shell.css';
-import { ENV_CONFIG } from '../../../utils/environment';
-
-type ToastTone = 'success' | 'info' | 'error';
-
-interface ToastState {
-  id: number;
-  message: string;
-  tone: ToastTone;
-}
 
 const BULK_SUBMISSION_ACTION_ID = -101;
+const ACTION_LOCK_MESSAGE = 'Please wait for the current timesheet action to finish before starting another.';
 
-const describeDraftCount = (count: number): string => {
-  return `${count} draft timesheet${count === 1 ? '' : 's'}`;
+const routeNotification = (event: Parameters<typeof dispatchNotification>[0]) => {
+  const payload = dispatchNotification(event);
+  if (payload) {
+    secureLogger.info('Notification routed', payload);
+  }
+  return payload;
 };
 
 // =============================================================================
@@ -74,8 +69,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     selectedTimesheets,
     setSelectedTimesheets,
     visibleDeadlines,
-    visibleDraftCount,
-    visibleRejectedCount,
 
     timesheetsQuery,
     dashboardQuery,
@@ -89,101 +82,8 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<ToastState[]>([]);
   const paySummaryRef = useRef<HTMLDivElement | null>(null);
   const actionLockRef = useRef(false);
-  const toastIdRef = useRef(0);
-const toastTimersRef = useRef<Map<number, number>>(new Map());
-const seededDraftToastRef = useRef(false);
-const isE2EEnvironment = ENV_CONFIG.isE2E();
-const ACTION_LOCK_MESSAGE = 'Please wait for the current timesheet action to finish before starting another.';
-const TOAST_DEFAULT_DURATION = 5000;
-
-  const syncToastGlobals = useCallback((nextToasts: ToastState[]) => {
-    if (typeof window !== 'undefined') {
-      (window as any).__DASHBOARD_TOASTS__ = nextToasts;
-      (window as any).__DASHBOARD_TOAST_COUNT__ = nextToasts.length;
-    }
-  }, []);
-
-  const clearToastTimer = useCallback((toastId: number) => {
-    if (typeof window === 'undefined') return;
-    const existingTimer = toastTimersRef.current.get(toastId);
-    if (existingTimer !== undefined) {
-      window.clearTimeout(existingTimer);
-      toastTimersRef.current.delete(toastId);
-    }
-  }, []);
-
-  const scheduleToastRemoval = useCallback((toastId: number, duration = TOAST_DEFAULT_DURATION) => {
-    if (typeof window === 'undefined') return;
-    clearToastTimer(toastId);
-    const timer = window.setTimeout(() => {
-      setToasts(prev => {
-        const next = prev.filter(toast => toast.id !== toastId);
-        syncToastGlobals(next);
-        return next;
-      });
-      toastTimersRef.current.delete(toastId);
-    }, duration);
-    toastTimersRef.current.set(toastId, timer);
-  }, [clearToastTimer, syncToastGlobals]);
-
-  const dismissToast = useCallback((toastId: number) => {
-    setToasts(prev => {
-      const next = prev.filter(toast => toast.id !== toastId);
-      syncToastGlobals(next);
-      return next;
-    });
-    if (typeof window !== 'undefined') {
-      clearToastTimer(toastId);
-    }
-  }, [clearToastTimer, syncToastGlobals]);
-
-  const showToast = useCallback((message: string, tone: ToastTone = 'info', options?: { duration?: number }): number => {
-    toastIdRef.current += 1;
-    const nextId = toastIdRef.current;
-    setToasts(prev => {
-      const next = [...prev, { id: nextId, message, tone }];
-      syncToastGlobals(next);
-      return next;
-    });
-    scheduleToastRemoval(nextId, options?.duration ?? TOAST_DEFAULT_DURATION);
-    return nextId;
-  }, [scheduleToastRemoval, syncToastGlobals]);
-
-  const updateToast = useCallback((toastId: number, updates: Partial<Omit<ToastState, 'id'>>, options?: { duration?: number }) => {
-    setToasts(prev => {
-      const next = prev.map(toast => (toast.id === toastId ? { ...toast, ...updates } : toast));
-      syncToastGlobals(next);
-      return next;
-    });
-    if (options?.duration !== undefined) {
-      scheduleToastRemoval(toastId, options.duration);
-    }
-  }, [scheduleToastRemoval, syncToastGlobals]);
-
-  useEffect(() => () => {
-    if (typeof window === 'undefined') return;
-    toastTimersRef.current.forEach(timerId => {
-      window.clearTimeout(timerId);
-    });
-    toastTimersRef.current.clear();
-    syncToastGlobals([]);
-  }, [syncToastGlobals]);
-
-  useEffect(() => {
-    if (visibleDraftCount > 0 && !seededDraftToastRef.current) {
-      seededDraftToastRef.current = true;
-      const draftLabel = describeDraftCount(visibleDraftCount);
-      const seededToastId = showToast(
-        `${draftLabel} pending submission`,
-        'info',
-        { duration: isE2EEnvironment ? 12000 : TOAST_DEFAULT_DURATION },
-      );
-      updateToast(seededToastId, { tone: 'info' });
-    }
-  }, [TOAST_DEFAULT_DURATION, isE2EEnvironment, showToast, updateToast, visibleDraftCount]);
 
 
   const {
@@ -227,24 +127,54 @@ const TOAST_DEFAULT_DURATION = 5000;
     setShowForm(true);
   }, []);
 
-  const handleFormSubmit = useCallback(async (data: TimesheetFormData) => {
+  const handleFormSubmit = useCallback(async (data: TimesheetFormSubmitData) => {
     if (createLoading || updateLoading) {
       return;
     }
+
+    const tutorId = user?.id || 0;
+    const quote = data.quote;
+    const basePayload = {
+      tutorId,
+      courseId: data.courseId,
+      weekStartDate: data.weekStartDate,
+      sessionDate: quote.sessionDate ?? data.weekStartDate,
+      deliveryHours: data.deliveryHours,
+      description: data.description,
+      taskType: data.taskType,
+      qualification: data.qualification,
+      repeat: data.isRepeat,
+      hours: quote.payableHours,
+      hourlyRate: quote.hourlyRate,
+    } as const;
 
     try {
       secureLogger.debug('createTimesheet fn', Boolean(createTimesheet));
       if (editingTimesheet) {
         await updateTimesheet(editingTimesheet.id, {
-          ...data,
-          tutorId: user?.id || 0,
-          hourlyRate: editingTimesheet.hourlyRate
+          weekStartDate: basePayload.weekStartDate,
+          sessionDate: basePayload.sessionDate,
+          deliveryHours: basePayload.deliveryHours,
+          description: basePayload.description,
+          taskType: basePayload.taskType,
+          qualification: basePayload.qualification,
+          repeat: basePayload.repeat,
+          hours: basePayload.hours,
+          hourlyRate: basePayload.hourlyRate,
         });
       } else {
         await createTimesheet({
-          ...data,
-          tutorId: user?.id || 0,
-          hourlyRate: 35.5 // Default rate - would come from course data
+          tutorId: basePayload.tutorId,
+          courseId: basePayload.courseId,
+          weekStartDate: basePayload.weekStartDate,
+          sessionDate: basePayload.sessionDate,
+          deliveryHours: basePayload.deliveryHours,
+          description: basePayload.description,
+          taskType: basePayload.taskType,
+          qualification: basePayload.qualification,
+          repeat: basePayload.repeat,
+          hours: basePayload.hours,
+          hourlyRate: basePayload.hourlyRate,
         });
       }
 
@@ -252,7 +182,9 @@ const TOAST_DEFAULT_DURATION = 5000;
       setShowForm(false);
       setEditingTimesheet(null);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save timesheet';
       secureLogger.error('Failed to save timesheet', error);
+      routeNotification({ type: 'API_ERROR', message });
     }
   }, [createLoading, createTimesheet, editingTimesheet, refetchDashboard, refetchTimesheets, updateLoading, updateTimesheet, user?.id]);
 
@@ -261,7 +193,7 @@ const TOAST_DEFAULT_DURATION = 5000;
     setActionNotice(null);
   }, [setActionError, setActionNotice]);
 
-  const submitDraftTimesheets = useCallback(async (timesheetIds: number[], toastIdOverride?: number) => {
+  const submitDraftTimesheets = useCallback(async (timesheetIds: number[]) => {
     if (timesheetIds.length === 0) {
       return false;
     }
@@ -276,10 +208,6 @@ const TOAST_DEFAULT_DURATION = 5000;
     clearActionFeedback();
 
     const draftCount = timesheetIds.length;
-    const draftLabel = describeDraftCount(draftCount);
-    const optimisticToastId = toastIdOverride ?? showToast(`Submitting ${draftLabel}...`, 'info', {
-      duration: isE2EEnvironment ? 8000 : TOAST_DEFAULT_DURATION,
-    });
 
     try {
       await TimesheetService.batchApproveTimesheets(
@@ -289,25 +217,19 @@ const TOAST_DEFAULT_DURATION = 5000;
         })),
       );
       await Promise.all([refetchTimesheets(), refetchDashboard()]);
-      updateToast(optimisticToastId, {
-        message: `Submitted ${draftLabel}`,
-        tone: 'success',
-      }, { duration: 4000 });
+      routeNotification({ type: 'TIMESHEET_SUBMIT_SUCCESS', count: draftCount });
       return true;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to submit drafts';
       setActionError(message);
-      updateToast(optimisticToastId, {
-        message,
-        tone: 'error',
-      }, { duration: 6000 });
+      routeNotification({ type: 'API_ERROR', message });
       return false;
     } finally {
       actionLockRef.current = false;
       setActionLoadingId(null);
     }
-  }, [ACTION_LOCK_MESSAGE, TOAST_DEFAULT_DURATION, actionLoadingId, clearActionFeedback, isE2EEnvironment, refetchDashboard, refetchTimesheets, setActionNotice, showToast, updateToast]);
+  }, [ACTION_LOCK_MESSAGE, actionLoadingId, clearActionFeedback, refetchDashboard, refetchTimesheets, setActionError, setActionNotice]);
 
   const handleSubmitTimesheet = useCallback(async (timesheetId: number) => {
     if (actionLockRef.current || actionLoadingId !== null) {
@@ -321,20 +243,22 @@ const TOAST_DEFAULT_DURATION = 5000;
     actionLockRef.current = true;
     setActionLoadingId(timesheetId);
     clearActionFeedback();
-    try {
+  try {
       await TimesheetService.approveTimesheet({
         timesheetId,
         action: 'SUBMIT_DRAFT'
       });
       await Promise.all([refetchTimesheets(), refetchDashboard()]);
+      routeNotification({ type: 'TIMESHEET_SUBMIT_SUCCESS', count: 1 });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to submit timesheet';
       setActionError(message);
+      routeNotification({ type: 'API_ERROR', message });
     } finally {
       actionLockRef.current = false;
       setActionLoadingId(null);
     }
-  }, [ACTION_LOCK_MESSAGE, actionLoadingId, clearActionFeedback, refetchDashboard, refetchTimesheets, setActionNotice]);
+  }, [ACTION_LOCK_MESSAGE, actionLoadingId, clearActionFeedback, refetchDashboard, refetchTimesheets, setActionError, setActionNotice]);
 
   const handleConfirmTimesheet = useCallback(async (timesheetId: number) => {
     if (actionLockRef.current || actionLoadingId !== null) {
@@ -348,20 +272,22 @@ const TOAST_DEFAULT_DURATION = 5000;
     actionLockRef.current = true;
     setActionLoadingId(timesheetId);
     clearActionFeedback();
-    try {
+  try {
       await TimesheetService.approveTimesheet({
         timesheetId,
         action: 'TUTOR_CONFIRM'
       });
       await Promise.all([refetchTimesheets(), refetchDashboard()]);
+      routeNotification({ type: 'TIMESHEET_SUBMIT_SUCCESS', count: 1 });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to confirm timesheet';
       setActionError(message);
+      routeNotification({ type: 'API_ERROR', message });
     } finally {
       actionLockRef.current = false;
       setActionLoadingId(null);
     }
-  }, [ACTION_LOCK_MESSAGE, actionLoadingId, clearActionFeedback, refetchDashboard, refetchTimesheets, setActionNotice]);
+  }, [ACTION_LOCK_MESSAGE, actionLoadingId, clearActionFeedback, refetchDashboard, refetchTimesheets, setActionError, setActionNotice]);
 
   const handleSubmitSelectedTimesheets = useCallback(async () => {
     if (actionLockRef.current || actionLoadingId !== null) {
@@ -375,36 +301,29 @@ const TOAST_DEFAULT_DURATION = 5000;
     }
   }, [actionLoadingId, selectedTimesheets, setActionNotice, setSelectedTimesheets, submitDraftTimesheets]);
 
-const handleSubmitAllDrafts = useCallback(async () => {
-  if (actionLockRef.current || actionLoadingId !== null) {
-    setActionNotice(ACTION_LOCK_MESSAGE);
-    return;
-  }
+  const handleSubmitAllDrafts = useCallback(async () => {
+    if (actionLockRef.current || actionLoadingId !== null) {
+      setActionNotice(ACTION_LOCK_MESSAGE);
+      return;
+    }
 
-  const modalWasOpen = showForm;
-  const draftIds = allTimesheets
-    .filter(t => t.status === 'DRAFT')
-    .map(t => t.id);
+    const modalWasOpen = showForm;
+    const draftIds = allTimesheets
+      .filter(t => t.status === 'DRAFT')
+      .map(t => t.id);
 
-  if (modalWasOpen) {
-    setShowForm(true);
-  }
+    if (modalWasOpen) {
+      setShowForm(true);
+    }
 
-  const draftLabel = describeDraftCount(draftIds.length);
-  const overridingToastId = draftIds.length > 0
-    ? showToast(`Submitting ${draftLabel}...`, 'info', {
-        duration: isE2EEnvironment ? 8000 : TOAST_DEFAULT_DURATION,
-      })
-    : undefined;
-
-  const success = await submitDraftTimesheets(draftIds, overridingToastId);
-  if (modalWasOpen) {
-    setShowForm(true);
-  }
-  if (success) {
-    setSelectedTimesheets([]);
-  }
-}, [TOAST_DEFAULT_DURATION, actionLoadingId, allTimesheets, isE2EEnvironment, setActionNotice, setShowForm, setSelectedTimesheets, showForm, showToast, submitDraftTimesheets]);
+    const success = await submitDraftTimesheets(draftIds);
+    if (modalWasOpen) {
+      setShowForm(true);
+    }
+    if (success) {
+      setSelectedTimesheets([]);
+    }
+  }, [ACTION_LOCK_MESSAGE, actionLoadingId, allTimesheets, setActionNotice, setShowForm, setSelectedTimesheets, showForm, submitDraftTimesheets]);
 
   const handleQuickAction = useCallback((action: string) => {
     clearActionFeedback();
@@ -448,15 +367,52 @@ const handleSubmitAllDrafts = useCallback(async () => {
     }
   }, [ACTION_LOCK_MESSAGE, clearActionFeedback, handleCreateTimesheet, handleSubmitAllDrafts, isTimesheetActionInFlight, refetchDashboard, refetchTimesheets, setActionNotice]);
 
+  const handlePendingNotifications = useCallback(() => {
+    const draftCount = allTimesheets.filter(
+      (timesheet) => timesheet.status === 'DRAFT',
+    ).length;
+    if (draftCount > 0 && !isTimesheetActionInFlight) {
+      routeNotification({
+        type: 'DRAFTS_PENDING',
+        count: draftCount,
+        onSubmitDrafts: () => {
+          void handleSubmitAllDrafts();
+        },
+      });
+      return;
+    }
+
+    const needsRevisionCount = allTimesheets.filter((timesheet) =>
+      ['MODIFICATION_REQUESTED', 'REJECTED'].includes(timesheet.status),
+    ).length;
+
+    if (needsRevisionCount > 0) {
+      routeNotification({
+        type: 'REJECTIONS_PENDING',
+        count: needsRevisionCount,
+      });
+      return;
+    }
+
+    routeNotification({ type: 'CLEAR_CHANNEL', channel: 'banner' });
+  }, [allTimesheets, handleSubmitAllDrafts, isTimesheetActionInFlight]);
+
+  useEffect(() => {
+    if (timesheetsLoading || dashboardLoading) {
+      return;
+    }
+    handlePendingNotifications();
+  }, [dashboardLoading, handlePendingNotifications, timesheetsLoading]);
+
   // Loading state
   if (timesheetsLoading || dashboardLoading) {
     return (
       <div className="unified-container">
-        <div className={`macro-grid ${className}`} data-testid="loading-state">
-          <div className="macro-grid-hero" data-testid="loading-state-container">
+        <div className={`dashboard-grid ${className}`} data-testid="loading-state">
+          <section className="dashboard-grid__hero" data-testid="loading-state-container">
             <LoadingSpinner size="large" data-testid="spinner" />
             <p data-testid="loading-text">Loading your timesheets...</p>
-          </div>
+          </section>
         </div>
       </div>
     );
@@ -500,26 +456,10 @@ const handleSubmitAllDrafts = useCallback(async () => {
       )}
     </div>
   ) : null;
-  // Notification state for banner
-  const notificationState = {
-    visibleDraftCount,
-    visibleRejectedCount,
-    visibleDeadlines,
-    dismissedNotifications: new Set<string>()
-  };
-  
-  const shouldShowBanner = shouldShowBannerNotification(notificationState);
-  const bannerConfig = getBannerNotificationConfig(notificationState);
-
   return (
     <div className="unified-container">
-      <div
-        className={`macro-grid ${className}`}
-        data-testid="tutor-dashboard"
-        role="main"
-        aria-label="Tutor Dashboard"
-      >
-        <header className="macro-grid-hero">
+      <div className={`dashboard-grid ${className}`} data-testid="tutor-dashboard">
+        <header className="dashboard-grid__hero">
           <TutorHeader
             welcomeMessage={welcomeMessage}
             title="Tutor Dashboard"
@@ -528,222 +468,205 @@ const handleSubmitAllDrafts = useCallback(async () => {
           {feedbackStack}
         </header>
 
-        <main className="macro-grid-content has-sidebar">
-          <section
-            className="macro-grid-main"
-            role="region"
-            aria-label="Tutor dashboard content"
-          >
-          {shouldShowBanner && bannerConfig && (
-            <NotificationBanner
-              variant={bannerConfig.variant}
-              title={bannerConfig.title}
-              message={bannerConfig.message}
-              icon={bannerConfig.icon}
-              showAction={bannerConfig.showSubmitAction}
-              actionText="Submit drafts"
-              onAction={handleSubmitAllDrafts}
-              actionLoading={actionLoadingId === BULK_SUBMISSION_ACTION_ID}
-              actionDisabled={!canSubmitAllDrafts || isTimesheetActionInFlight}
-              actionDisabledReason={!canSubmitAllDrafts ? 'No draft timesheets to submit.' : (isTimesheetActionInFlight ? 'Please wait for the current action to finish.' : undefined)}
-              testId="notification-banner"
+        <div className="dashboard-grid__content">
+          <section className="dashboard-grid__main" role="region" aria-label="Tutor dashboard content">
+            <section className="mb-8" role="region" aria-label="Quick Actions">
+              <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="quick-actions">
+                <QuickAction
+                  label="Create New Timesheet"
+                  description="Start a new timesheet entry"
+                  icon="📝"
+                  onClick={() => handleQuickAction('create')}
+                  shortcut="Ctrl+N"
+                />
+
+                <QuickAction
+                  label="Refresh Data"
+                  description="Reload the latest timesheets"
+                  icon="🔄"
+                  onClick={() => handleQuickAction('refresh')}
+                  disabled={isTimesheetActionInFlight}
+                  disabledReason={actionInFlightMessage}
+                />
+
+                <QuickAction
+                  label="View Pay Summary"
+                  description="Check earnings and payments"
+                  icon="💰"
+                  onClick={() => handleQuickAction('viewPay')}
+                />
+
+                <QuickAction
+                  label="Export My Data"
+                  description="Download timesheet records (coming soon)"
+                  icon="📊"
+                  onClick={() => handleQuickAction('export')}
+                />
+              </div>
+            </section>
+
+            <QuickStats
+              heading="Your Statistics"
+              ariaLabel="Your Statistics"
+              stats={quickStats}
             />
-          )}
 
-          <section className="mb-8" role="region" aria-label="Quick Actions">
-            <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="quick-actions">
-              <QuickAction
-                label="Create New Timesheet"
-                description="Start a new timesheet entry"
-                icon="📝"
-                onClick={() => handleQuickAction('create')}
-                shortcut="Ctrl+N"
-              />
+            <CompletionProgress completionRate={completionRate} />
 
-              <QuickAction
-                label="Refresh Data"
-                description="Reload the latest timesheets"
-                icon="🔄"
-                onClick={() => handleQuickAction('refresh')}
-                disabled={isTimesheetActionInFlight}
-                disabledReason={actionInFlightMessage}
-              />
+            <EarningsBreakdown timesheets={allTimesheets} />
 
-              <QuickAction
-                label="View Pay Summary"
-                description="Check earnings and payments"
-                icon="💰"
-                onClick={() => handleQuickAction('viewPay')}
-              />
-
-              <QuickAction
-                label="Export My Data"
-                description="Download timesheet records (coming soon)"
-                icon="📊"
-                onClick={() => handleQuickAction('export')}
-              />
-            </div>
-          </section>
-
-          <QuickStats
-            heading="Your Statistics"
-            ariaLabel="Your Statistics"
-            stats={quickStats}
-          />
-
-          <section aria-label="My Timesheets">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <CardTitle data-testid="timesheets-section-title">My Timesheets</CardTitle>
-                      <span
-                        className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"
-                        data-testid="count-badge"
-                      >
-                        {allTimesheets.length} total
-                      </span>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Manage all your work logs here.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleCreateTimesheet}
-                    disabled={isFormSubmitting}
-                    title={isFormSubmitting ? 'Please wait while we finish saving your timesheet.' : undefined}
-                  >
-                    Create New
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4 border-b">
-                  <nav className="-mb-px flex space-x-4" aria-label="Tabs">
-                    {tabs.map(tab => (
-                      <button
-                        key={tab.id}
-                        className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium ${
-                          currentTab === tab.id
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-                        }`}
-                        onClick={() => handleTabChange(tab.id)}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </nav>
-                </div>
-
-                {currentTab === 'drafts' && (
-                  <div className="bulk-actions">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={filteredTimesheets.length > 0 && selectedTimesheets.length === filteredTimesheets.length}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedTimesheets(filteredTimesheets.map(t => t.id));
-                          } else {
-                            setSelectedTimesheets([]);
-                          }
-                        }}
-                        aria-label="Select all drafts"
-                      />
-                      Select All Drafts
-                    </label>
-                    <Button
-                      className="submit-selected-btn"
-                      onClick={handleSubmitSelectedTimesheets}
-                      disabled={selectedTimesheets.length === 0 || isTimesheetActionInFlight}
-                      title={selectedTimesheets.length === 0
-                        ? 'Select at least one draft to submit.'
-                        : (isTimesheetActionInFlight ? actionInFlightMessage : undefined)}
-                    >
-                      {actionLoadingId === BULK_SUBMISSION_ACTION_ID
-                        ? 'Submitting drafts...'
-                        : `Submit Selected (${selectedTimesheets.length})`}
-                    </Button>
-                    {selectedTimesheets.length > 0 && (
-                      <div className="submission-preview">
-                        <strong>Confirm Submission</strong>
-                        <p>{selectedTimesheets.length} timesheets will be submitted</p>
+            <section aria-label="My Timesheets">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <CardTitle data-testid="timesheets-section-title">My Timesheets</CardTitle>
+                        <span
+                          className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"
+                          data-testid="count-badge"
+                        >
+                          {allTimesheets.length} total
+                        </span>
                       </div>
-                    )}
-                  </div>
-                )}
-
-                {noTimesheets ? (
-                  <div className="py-12 text-center" data-testid="empty-state">
-                    <div className="mx-auto max-w-xs">
-                      <h3 className="text-lg font-semibold" data-testid="empty-state-title">
-                        No Timesheets Found
-                      </h3>
-                      <p className="mt-2 text-sm text-muted-foreground" data-testid="empty-state-description">
-                        Create your first timesheet to get started.
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Manage all your work logs here.
                       </p>
-                      <Button
-                        className="mt-4"
-                        onClick={handleCreateTimesheet}
-                        disabled={isFormSubmitting}
-                        title={isFormSubmitting ? 'Please wait while we finish saving your timesheet.' : undefined}
-                      >
-                        Create First Timesheet
-                      </Button>
                     </div>
+                    <Button
+                      onClick={handleCreateTimesheet}
+                      disabled={isFormSubmitting}
+                      title={isFormSubmitting ? 'Please wait while we finish saving your timesheet.' : undefined}
+                    >
+                      Create New
+                    </Button>
                   </div>
-                ) : (
-                  <TimesheetTable
-                    timesheets={filteredTimesheets}
-                    loading={timesheetsLoading}
-                    loadingMessage="Loading timesheets to review..."
-                    actionLoading={actionLoadingId}
-                    onApprovalAction={(id, action) => {
-                      const timesheet = filteredTimesheets.find(t => t.id === id);
-                      if (!timesheet) return;
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4 border-b">
+                    <nav className="-mb-px flex space-x-4" aria-label="Tabs">
+                      {tabs.map(tab => (
+                        <button
+                          key={tab.id}
+                          className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium ${
+                            currentTab === tab.id
+                              ? 'border-primary text-primary'
+                              : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+                          }`}
+                          onClick={() => handleTabChange(tab.id)}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </nav>
+                  </div>
 
-                      if (action === 'EDIT') {
-                        handleEditTimesheet(timesheet);
-                        return;
-                      }
+                  {currentTab === 'drafts' && (
+                    <div className="bulk-actions">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={filteredTimesheets.length > 0 && selectedTimesheets.length === filteredTimesheets.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTimesheets(filteredTimesheets.map(t => t.id));
+                            } else {
+                              setSelectedTimesheets([]);
+                            }
+                          }}
+                          aria-label="Select all drafts"
+                        />
+                        Select All Drafts
+                      </label>
+                      <Button
+                        className="submit-selected-btn"
+                        onClick={handleSubmitSelectedTimesheets}
+                        disabled={selectedTimesheets.length === 0 || isTimesheetActionInFlight}
+                        title={selectedTimesheets.length === 0
+                          ? 'Select at least one draft to submit.'
+                          : (isTimesheetActionInFlight ? actionInFlightMessage : undefined)}
+                      >
+                        {actionLoadingId === BULK_SUBMISSION_ACTION_ID
+                          ? 'Submitting drafts...'
+                          : `Submit Selected (${selectedTimesheets.length})`}
+                      </Button>
+                      {selectedTimesheets.length > 0 && (
+                        <div className="submission-preview">
+                          <strong>Confirm Submission</strong>
+                          <p>{selectedTimesheets.length} timesheets will be submitted</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                      if (action === 'SUBMIT_DRAFT') {
-                        handleSubmitTimesheet(id);
-                        return;
-                      }
+                  {noTimesheets ? (
+                    <div className="py-12 text-center" data-testid="empty-state">
+                      <div className="mx-auto max-w-xs">
+                        <h3 className="text-lg font-semibold" data-testid="empty-state-title">
+                          No Timesheets Found
+                        </h3>
+                        <p className="mt-2 text-sm text-muted-foreground" data-testid="empty-state-description">
+                          Create your first timesheet to get started.
+                        </p>
+                        <Button
+                          className="mt-4"
+                          onClick={handleCreateTimesheet}
+                          disabled={isFormSubmitting}
+                          title={isFormSubmitting ? 'Please wait while we finish saving your timesheet.' : undefined}
+                        >
+                          Create First Timesheet
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <TimesheetTable
+                      timesheets={filteredTimesheets}
+                      loading={timesheetsLoading}
+                      loadingMessage="Loading timesheets to review..."
+                      actionLoading={actionLoadingId}
+                      onApprovalAction={(id, action) => {
+                        const timesheet = filteredTimesheets.find(t => t.id === id);
+                        if (!timesheet) return;
 
-                      if (action === 'TUTOR_CONFIRM') {
-                        handleConfirmTimesheet(id);
-                      }
-                    }}
-                    showActions
-                    showTutorInfo={false}
-                    showCourseInfo
-                    showSelection={currentTab === 'drafts'}
-                    selectedIds={selectedTimesheets}
-                    onSelectionChange={setSelectedTimesheets}
-                    className="tutor-timesheet-table"
-                    data-testid="timesheet-table"
-                    actionMode="tutor"
-                    actionsDisabled={isTimesheetActionInFlight}
-                    actionsDisabledReason={actionInFlightMessage}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </section>
+                        if (action === 'EDIT') {
+                          handleEditTimesheet(timesheet);
+                          return;
+                        }
+
+                        if (action === 'SUBMIT_DRAFT') {
+                          handleSubmitTimesheet(id);
+                          return;
+                        }
+
+                        if (action === 'TUTOR_CONFIRM') {
+                          handleConfirmTimesheet(id);
+                        }
+                      }}
+                      showActions
+                      showTutorInfo={false}
+                      showCourseInfo
+                      showSelection={currentTab === 'drafts'}
+                      selectedIds={selectedTimesheets}
+                      onSelectionChange={setSelectedTimesheets}
+                      className="tutor-timesheet-table"
+                      data-testid="timesheet-table"
+                      actionMode="tutor"
+                      actionsDisabled={isTimesheetActionInFlight}
+                      actionsDisabledReason={actionInFlightMessage}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </section>
           </section>
 
           <aside
-            className="macro-grid-sidebar"
+            className="dashboard-grid__aside"
             data-testid="dashboard-sidebar"
-            aria-label="Tutor support summary"
+            aria-label="Tutor essentials"
           >
             <UpcomingDeadlines deadlines={visibleDeadlines} />
-            <CompletionProgress completionRate={completionRate} />
             <div ref={paySummaryRef} tabIndex={-1}>
               <PaySummary
                 totalEarned={tutorStats.totalPay}
@@ -752,10 +675,9 @@ const handleSubmitAllDrafts = useCallback(async () => {
                 paymentStatus={tutorStats.statusCounts || {}}
               />
             </div>
-            <EarningsBreakdown timesheets={allTimesheets} />
             <SupportResources resources={supportResources} />
           </aside>
-        </main>
+        </div>
       </div>
 
       {showForm && (
@@ -769,6 +691,7 @@ const handleSubmitAllDrafts = useCallback(async () => {
             <TimesheetForm
               isEdit={!!editingTimesheet}
               initialData={editingTimesheet || undefined}
+              tutorId={user?.id || 0}
               onSubmit={handleFormSubmit}
               onCancel={() => {
                 setShowForm(false);
@@ -786,34 +709,6 @@ const handleSubmitAllDrafts = useCallback(async () => {
         {updateLoading && 'Updating timesheet...'}
         {timesheetsLoading && 'Loading timesheets...'}
       </div>
-
-      {toasts.length > 0 && (
-        <div
-          className="dashboard-toast-stack elevation-toast"
-          role="region"
-          aria-live="polite"
-          aria-atomic="false"
-        >
-          {toasts.map((toast) => (
-            <div
-              key={toast.id}
-              data-sonner-toast
-              className={`dashboard-toast dashboard-toast--${toast.tone}`}
-              role="status"
-            >
-              <div className="dashboard-toast__content">{toast.message}</div>
-              <button
-                type="button"
-                className="dashboard-toast__dismiss"
-                onClick={() => dismissToast(toast.id)}
-                aria-label="Dismiss notification"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 });

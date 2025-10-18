@@ -2,66 +2,31 @@ POST:
   get:
     tags:
       - Timesheets
-    summary: Get timesheets
-    description: |
-      Retrieve timesheets based on filters and user permissions.
-      
-      **Access rules**:
-      - **LECTURER**: Can view all timesheets for their courses
-      - **TUTOR**: Can view only their own timesheets
-      - **ADMIN**: Can view all timesheets in the system
-      
-      **Filtering**: Results can be filtered by date range, course, tutor, and approval status.
-    operationId: getTimesheets
+    summary: List timesheets
     security:
       - bearerAuth: []
     parameters:
       - name: tutorId
         in: query
-        description: Filter by tutor ID (LECTURER and ADMIN only)
-        required: false
         schema:
           type: integer
           format: int64
       - name: courseId
         in: query
-        description: Filter by course ID
-        required: false
         schema:
           type: integer
           format: int64
-      - name: startDate
-        in: query
-        description: Filter by start date (YYYY-MM-DD)
-        required: false
-        schema:
-          type: string
-          format: date
-      - name: endDate
-        in: query
-        description: Filter by end date (YYYY-MM-DD)
-        required: false
-        schema:
-          type: string
-          format: date
       - name: status
         in: query
-        description: Filter by approval status
-        required: false
         schema:
           $ref: '../schemas/approvals.yaml#/ApprovalStatus'
       - name: page
         in: query
-        description: Page number (0-based)
-        required: false
         schema:
           type: integer
           minimum: 0
-          default: 0
       - name: size
         in: query
-        description: Page size
-        required: false
         schema:
           type: integer
           minimum: 1
@@ -74,72 +39,17 @@ POST:
           application/json:
             schema:
               $ref: '../schemas/timesheets.yaml#/TimesheetPageResponse'
-            examples:
-              timesheet_list:
-                summary: List of timesheets
-                value:
-                  content:
-                    - id: 1
-                      tutorId: 123
-                      tutorName: "Alice Johnson"
-                      courseId: 456
-                      courseName: "COMP1001 - Introduction to Programming"
-                      weekStartDate: "2025-07-28"
-                      hours: 10.5
-                      hourlyRate: 45.00
-                      totalPay: 472.50
-                      description: "Tutorial sessions and assignment marking"
-                      status: "PENDING_LECTURER_APPROVAL"
-                      createdAt: "2025-07-28T09:00:00Z"
-                      updatedAt: "2025-07-28T09:00:00Z"
-                  pageable:
-                    pageNumber: 0
-                    pageSize: 20
-                    sort:
-                      sorted: true
-                      orderBy: "weekStartDate"
-                      direction: "DESC"
-                  totalElements: 45
-                  totalPages: 3
-                  first: true
-                  last: false
-                  numberOfElements: 20
       '401':
         description: Authentication required
         content:
           application/json:
             schema:
               $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '403':
-        description: Insufficient permissions
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '500':
-        description: Internal server error
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-
   post:
     tags:
       - Timesheets
-    summary: Create new timesheet
-    description: |
-      Create a new timesheet entry.
-      
-      **Required role**: LECTURER, ADMIN
-      
-      **Business rules**:
-      - LECTURER can only create timesheets for tutors in their courses
-      - ADMIN can create timesheets for any tutor
-      - Week start date must be a Monday
-      - Hours must be positive and reasonable (≤ 60 hours per week)
-      - Hourly rate must be within configured limits
-      - Duplicate timesheets for same tutor/course/week are not allowed
-    operationId: createTimesheet
+    summary: Create timesheet
+    description: Client submits instructional fields only. Financial values are ignored and recalculated.
     security:
       - bearerAuth: []
     requestBody:
@@ -148,75 +58,55 @@ POST:
         application/json:
           schema:
             $ref: '../schemas/timesheets.yaml#/TimesheetCreateRequest'
-          examples:
-            create_timesheet:
-              summary: Create timesheet example
-              value:
-                tutorId: 123
-                courseId: 456
-                weekStartDate: "2025-07-28"
-                hours: 10.5
-                hourlyRate: 45.00
-                description: "Tutorial sessions and assignment marking"
     responses:
       '201':
-        description: Timesheet created successfully
+        description: Timesheet created
         content:
           application/json:
             schema:
               $ref: '../schemas/timesheets.yaml#/TimesheetResponse'
-            examples:
-              created_timesheet:
-                summary: Successfully created timesheet
-                value:
-                  id: 789
-                  tutorId: 123
-                  tutorName: "Alice Johnson"
-                  courseId: 456
-                  courseName: "COMP1001 - Introduction to Programming"
-                  weekStartDate: "2025-07-28"
-                  hours: 10.5
-                  hourlyRate: 45.00
-                  totalPay: 472.50
-                  description: "Tutorial sessions and assignment marking"
-                  status: "DRAFT"
-                  createdAt: "2025-08-01T14:30:00Z"
-                  updatedAt: "2025-08-01T14:30:00Z"
       '400':
-        description: Invalid request data
+        description: Validation failure
         content:
           application/json:
             schema:
               $ref: '../schemas/errors.yaml#/ErrorResponse'
-            examples:
-              duplicate_timesheet:
-                summary: Duplicate timesheet error
-                value:
-                  timestamp: "2025-08-01T10:15:30.123Z"
-                  status: 400
-                  error: "DUPLICATE_TIMESHEET"
-                  message: "Timesheet already exists for this tutor/course/week"
-                  path: "/api/timesheets"
       '401':
         description: Authentication required
         content:
           application/json:
             schema:
               $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '403':
-        description: Insufficient permissions
+
+POST_QUOTE:
+  post:
+    tags:
+      - Timesheets
+    summary: Quote timesheet
+    description: Returns EA-compliant financial values for a prospective timesheet.
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/timesheets.yaml#/TimesheetQuoteRequest'
+    responses:
+      '200':
+        description: Quote generated
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetQuoteResponse'
+      '400':
+        description: Invalid input or calculator rule violation
         content:
           application/json:
             schema:
               $ref: '../schemas/errors.yaml#/ErrorResponse'
       '404':
-        description: Tutor or course not found
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '500':
-        description: Internal server error
+        description: No policy data available for the supplied inputs
         content:
           application/json:
             schema:
@@ -226,68 +116,25 @@ GET_BY_ID:
   get:
     tags:
       - Timesheets
-    summary: Get specific timesheet
-    description: |
-      Retrieve a specific timesheet by ID.
-      
-      **Access rules**:
-      - **LECTURER**: Can view timesheets for their courses
-      - **TUTOR**: Can view only their own timesheets
-      - **ADMIN**: Can view any timesheet
-    operationId: getTimesheetById
+    summary: Get timesheet by ID
     security:
       - bearerAuth: []
     parameters:
       - name: id
         in: path
-        description: Timesheet ID
         required: true
         schema:
           type: integer
           format: int64
     responses:
       '200':
-        description: Timesheet retrieved successfully
+        description: Timesheet found
         content:
           application/json:
             schema:
-              $ref: '../schemas/timesheets.yaml#/TimesheetDetailResponse'
-            examples:
-              timesheet_detail:
-                summary: Detailed timesheet information
-                value:
-                  id: 789
-                  tutorId: 123
-                  tutorName: "Alice Johnson"
-                  tutorEmail: "alice.johnson@university.edu.au"
-                  courseId: 456
-                  courseName: "COMP1001 - Introduction to Programming"
-                  courseCode: "COMP1001"
-                  lecturerId: 999
-                  lecturerName: "Dr. John Smith"
-                  weekStartDate: "2025-07-28"
-                  hours: 10.5
-                  hourlyRate: 45.00
-                  totalPay: 472.50
-                  description: "Tutorial sessions and assignment marking"
-                  status: "PENDING_LECTURER_APPROVAL"
-                  createdAt: "2025-07-28T09:00:00Z"
-                  updatedAt: "2025-07-28T09:00:00Z"
-                  approvalHistory:
-                    - id: 1
-                      approverId: 999
-                      approverName: "Dr. John Smith"
-                      action: "SUBMIT_FOR_APPROVAL"
-                      comment: "Initial submission"
-                      timestamp: "2025-07-28T09:00:00Z"
+              $ref: '../schemas/timesheets.yaml#/TimesheetResponse'
       '401':
         description: Authentication required
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '403':
-        description: Insufficient permissions
         content:
           application/json:
             schema:
@@ -298,36 +145,16 @@ GET_BY_ID:
           application/json:
             schema:
               $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '500':
-        description: Internal server error
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-
   put:
     tags:
       - Timesheets
     summary: Update timesheet
-    description: |
-      Update an existing timesheet.
-      
-      **Access rules**:
-      - **LECTURER**: Can update timesheets for their courses (if not yet approved)
-      - **ADMIN**: Can update any timesheet (with appropriate workflow constraints)
-      - **TUTOR**: Cannot directly update timesheets (must request modifications)
-      
-      **Business rules**:
-      - Cannot update timesheets that are already approved
-      - Updates reset approval status to DRAFT
-      - All validation rules from creation apply
-    operationId: updateTimesheet
+    description: Client submits instructional fields only. Financial values are recalculated server-side.
     security:
       - bearerAuth: []
     parameters:
       - name: id
         in: path
-        description: Timesheet ID
         required: true
         schema:
           type: integer
@@ -338,143 +165,27 @@ GET_BY_ID:
         application/json:
           schema:
             $ref: '../schemas/timesheets.yaml#/TimesheetUpdateRequest'
-          examples:
-            update_timesheet:
-              summary: Update timesheet example
-              value:
-                hours: 12.0
-                hourlyRate: 45.00
-                description: "Tutorial sessions, assignment marking, and consultation hours"
     responses:
       '200':
-        description: Timesheet updated successfully
+        description: Timesheet updated
         content:
           application/json:
             schema:
               $ref: '../schemas/timesheets.yaml#/TimesheetResponse'
-            examples:
-              updated_timesheet:
-                summary: Successfully updated timesheet
-                value:
-                  id: 789
-                  tutorId: 123
-                  tutorName: "Alice Johnson"
-                  courseId: 456
-                  courseName: "COMP1001 - Introduction to Programming"
-                  weekStartDate: "2025-07-28"
-                  hours: 12.0
-                  hourlyRate: 45.00
-                  totalPay: 540.00
-                  description: "Tutorial sessions, assignment marking, and consultation hours"
-                  status: "DRAFT"
-                  createdAt: "2025-07-28T09:00:00Z"
-                  updatedAt: "2025-08-01T15:45:00Z"
       '400':
-        description: Invalid request data or business rule violation
+        description: Validation failure
         content:
           application/json:
             schema:
               $ref: '../schemas/errors.yaml#/ErrorResponse'
-            examples:
-              already_approved:
-                summary: Cannot update approved timesheet
-                value:
-                  timestamp: "2025-08-01T10:15:30.123Z"
-                  status: 400
-                  error: "INVALID_STATE_TRANSITION"
-                  message: "Cannot update timesheet that has been approved"
-                  path: "/api/timesheets/789"
       '401':
         description: Authentication required
         content:
           application/json:
             schema:
               $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '403':
-        description: Insufficient permissions
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
       '404':
         description: Timesheet not found
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '500':
-        description: Internal server error
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-
-  delete:
-    tags:
-      - Timesheets
-    summary: Delete timesheet
-    description: |
-      Delete an existing timesheet.
-      
-      **Access rules**:
-      - **LECTURER**: Can delete timesheets for their courses (if not yet approved)
-      - **ADMIN**: Can delete any timesheet (with appropriate workflow constraints)
-      - **TUTOR**: Cannot directly delete timesheets
-      
-      **Business rules**:
-      - Cannot delete timesheets that are already approved
-      - Cannot delete timesheets that have been submitted to HR
-      - Deletion creates audit log entry
-      - Related approval history is preserved for audit purposes
-    operationId: deleteTimesheet
-    security:
-      - bearerAuth: []
-    parameters:
-      - name: id
-        in: path
-        description: Timesheet ID
-        required: true
-        schema:
-          type: integer
-          format: int64
-    responses:
-      '204':
-        description: Timesheet deleted successfully
-      '400':
-        description: Cannot delete timesheet due to business rules
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-            examples:
-              cannot_delete_approved:
-                summary: Cannot delete approved timesheet
-                value:
-                  timestamp: "2025-08-01T10:15:30.123Z"
-                  status: 400
-                  error: "INVALID_STATE_TRANSITION"
-                  message: "Cannot delete timesheet that has been approved"
-                  path: "/api/timesheets/789"
-      '401':
-        description: Authentication required
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '403':
-        description: Insufficient permissions
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '404':
-        description: Timesheet not found
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '500':
-        description: Internal server error
         content:
           application/json:
             schema:
@@ -484,206 +195,32 @@ GET_PENDING:
   get:
     tags:
       - Timesheets
-    summary: Get timesheets pending for lecturer review (tutor-side)
-    description: |
-      Returns a paginated list of timesheets with the status `PENDING_LECTURER_APPROVAL` that belong to the courses managed by the currently authenticated LECTURER. ADMINs can also use this endpoint to view all pending timesheets.
-      
-      **Access rules**:
-      - **LECTURER**: Can view timesheets pending approval for their courses only
-      - **ADMIN**: Can view all timesheets pending approval system-wide
-      - **TUTOR**: Cannot access this endpoint (403 Forbidden)
-      
-      **Business rules**:
-      - Only returns timesheets with status `PENDING_LECTURER_APPROVAL`
-      - Results are filtered by lecturer's assigned courses (unless ADMIN)
-      - Supports pagination and sorting
-      - Default sort is by submission date (oldest first for priority)
-    operationId: getPendingApprovalTimesheets
+    summary: Get timesheets pending approval
+    description: Returns timesheets awaiting lecturer or admin action.
     security:
       - bearerAuth: []
     parameters:
       - name: page
         in: query
-        description: Page number (0-based)
-        required: false
         schema:
           type: integer
           minimum: 0
-          default: 0
       - name: size
         in: query
-        description: Page size (max 100)
-        required: false
         schema:
           type: integer
           minimum: 1
           maximum: 100
           default: 20
-      - name: sort
-        in: query
-        description: Sort criteria (e.g., "createdAt,asc" or "weekStartDate,desc")
-        required: false
-        schema:
-          type: string
-          default: "createdAt,asc"
-      - name: courseId
-        in: query
-        description: Filter by specific course ID (ADMIN only, ignored for LECTURER)
-        required: false
-        schema:
-          type: integer
-          format: int64
     responses:
       '200':
-        description: Timesheets pending for tutor review retrieved successfully
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/timesheets.yaml#/TimesheetPageResponse'
-            examples:
-              pending_timesheets:
-                summary: List of timesheets pending lecturer approval
-                value:
-                  content:
-                    - id: 789
-                      tutorId: 123
-                      tutorName: "Alice Johnson"
-                      tutorEmail: "alice.johnson@university.edu.au"
-                      courseId: 456
-                      courseName: "COMP1001 - Introduction to Programming"
-                      courseCode: "COMP1001"
-                      lecturerId: 999
-                      lecturerName: "Dr. John Smith"
-                      weekStartDate: "2025-07-28"
-                      hours: 10.5
-                      hourlyRate: 45.00
-                      totalPay: 472.50
-                      description: "Tutorial sessions and assignment marking"
-                      status: "PENDING_LECTURER_APPROVAL"
-                      createdAt: "2025-07-28T09:00:00Z"
-                      updatedAt: "2025-07-28T09:00:00Z"
-                      submittedAt: "2025-07-28T09:00:00Z"
-                    - id: 790
-                      tutorId: 124
-                      tutorName: "Bob Smith"
-                      tutorEmail: "bob.smith@university.edu.au"
-                      courseId: 456
-                      courseName: "COMP1001 - Introduction to Programming"
-                      courseCode: "COMP1001"
-                      lecturerId: 999
-                      lecturerName: "Dr. John Smith"
-                      weekStartDate: "2025-07-21"
-                      hours: 8.0
-                      hourlyRate: 45.00
-                      totalPay: 360.00
-                      description: "Lab supervision and student assistance"
-                      status: "PENDING_LECTURER_APPROVAL"
-                      createdAt: "2025-07-25T14:30:00Z"
-                      updatedAt: "2025-07-25T14:30:00Z"
-                      submittedAt: "2025-07-25T14:30:00Z"
-                  pageable:
-                    pageNumber: 0
-                    pageSize: 20
-                    sort:
-                      sorted: true
-                      orderBy: "createdAt"
-                      direction: "ASC"
-                  totalElements: 5
-                  totalPages: 1
-                  first: true
-                  last: true
-                  numberOfElements: 2
-      '401':
-        description: Authentication required
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-            examples:
-              unauthorized:
-                summary: Authentication required
-                value:
-                  timestamp: "2025-08-01T10:15:30.123Z"
-                  status: 401
-                  error: "AUTH_FAILED"
-                  message: "Authentication required"
-                  path: "/api/timesheets/pending-approval"
-      '403':
-        description: Insufficient permissions
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-            examples:
-              forbidden_tutor:
-                summary: TUTOR role forbidden
-                value:
-                  timestamp: "2025-08-01T10:15:30.123Z"
-                  status: 403
-                  error: "ACCESS_DENIED"
-                  message: "Only LECTURER and ADMIN roles can view pending approval timesheets"
-                  path: "/api/timesheets/pending-approval"
-      '500':
-        description: Internal server error
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-
-GET_PENDING_FINAL:
-  get:
-    tags:
-      - Timesheets
-    summary: Get timesheets awaiting lecturer final approval
-    description: |
-      Returns timesheets with status `APPROVED_BY_TUTOR`.
-      LECTURER sees only their courses; ADMIN sees all.
-    operationId: getPendingFinalApprovalTimesheets
-    security:
-      - bearerAuth: []
-    parameters:
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-      - name: size
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: sort
-        in: query
-        required: false
-        schema:
-          type: string
-          default: "createdAt,asc"
-    responses:
-      '200':
-        description: Timesheets awaiting lecturer final approval
+        description: Pending timesheets retrieved
         content:
           application/json:
             schema:
               $ref: '../schemas/timesheets.yaml#/TimesheetPageResponse'
       '401':
         description: Authentication required
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '403':
-        description: Insufficient permissions
-        content:
-          application/json:
-            schema:
-              $ref: '../schemas/errors.yaml#/ErrorResponse'
-      '500':
-        description: Internal server error
         content:
           application/json:
             schema:

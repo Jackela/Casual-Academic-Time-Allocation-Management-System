@@ -200,15 +200,79 @@ describe('TimesheetService CRUD Operations', () => {
     });
   });
 
+  describe('quoteTimesheet', () => {
+    const quoteResponse = {
+      taskType: 'TUTORIAL',
+      rateCode: 'TU1',
+      qualification: 'STANDARD',
+      repeat: false,
+      deliveryHours: 1,
+      associatedHours: 2,
+      payableHours: 3,
+      hourlyRate: 70,
+      amount: 210,
+      formula: '1h delivery + 2h associated',
+      clauseReference: 'Schedule 1',
+      sessionDate: '2025-03-03',
+    };
+
+    it('should fetch quote with provided payload', async () => {
+      const quoteRequest = {
+        tutorId: 10,
+        courseId: 20,
+        sessionDate: '2025-03-03',
+        taskType: 'TUTORIAL',
+        qualification: 'STANDARD',
+        repeat: false,
+        deliveryHours: 1.2,
+      } as const;
+
+      mockApiClient.post.mockResolvedValue(createMockApiResponse(quoteResponse));
+
+      const result = await TimesheetService.quoteTimesheet(quoteRequest);
+
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/timesheets/quote', quoteRequest, undefined);
+      expect(result).toEqual(quoteResponse);
+    });
+
+    it('should forward abort signal to API client', async () => {
+      const quoteRequest = {
+        tutorId: 11,
+        courseId: 21,
+        sessionDate: '2025-03-10',
+        taskType: 'TUTORIAL',
+        qualification: 'STANDARD',
+        repeat: false,
+        deliveryHours: 1.0,
+      } as const;
+      const controller = new AbortController();
+
+      mockApiClient.post.mockResolvedValue(createMockApiResponse(quoteResponse));
+
+      await TimesheetService.quoteTimesheet(quoteRequest, controller.signal);
+
+      expect(mockApiClient.post).toHaveBeenCalledWith(
+        '/api/timesheets/quote',
+        quoteRequest,
+        { signal: controller.signal },
+      );
+    });
+  });
+
   describe('createTimesheet', () => {
     it('should create new timesheet', async () => {
       const createRequest: TimesheetCreateRequest = {
         tutorId: 1,
         courseId: 1,
         weekStartDate: '2024-01-01',
-        hours: 10,
-        hourlyRate: 35.50,
-        description: 'New timesheet'
+        sessionDate: '2024-01-01',
+        deliveryHours: 1.5,
+        description: 'New timesheet',
+        taskType: 'TUTORIAL',
+        qualification: 'STANDARD',
+        repeat: false,
+        hours: 3.5,
+        hourlyRate: 70.0,
       };
 
       mockApiClient.post.mockResolvedValue(createMockApiResponse(mockTimesheet));
@@ -223,8 +287,15 @@ describe('TimesheetService CRUD Operations', () => {
   describe('updateTimesheet', () => {
     it('should update existing timesheet', async () => {
       const updateRequest: TimesheetUpdateRequest = {
-        hours: 15,
-        description: 'Updated description'
+        weekStartDate: '2024-01-08',
+        sessionDate: '2024-01-08',
+        deliveryHours: 1.0,
+        hours: 2.5,
+        hourlyRate: 65,
+        description: 'Updated description',
+        taskType: 'TUTORIAL',
+        qualification: 'STANDARD',
+        repeat: false,
       };
 
       mockApiClient.put.mockResolvedValue(createMockApiResponse(mockTimesheet));
@@ -501,152 +572,107 @@ describe('TimesheetService Utility Methods', () => {
 
 describe('TimesheetService Validation', () => {
   describe('validateTimesheet', () => {
-    it('should pass validation for valid timesheet', () => {
-      const validTimesheet = {
-        tutorId: 1,
-        courseId: 1,
-        weekStartDate: '2024-01-01',
-        hours: 10,
-        hourlyRate: 35.50,
-        description: 'Valid timesheet description'
-      };
+    const validTimesheet: TimesheetCreateRequest = {
+      tutorId: 1,
+      courseId: 1,
+      weekStartDate: '2024-01-01',
+      sessionDate: '2024-01-01',
+      deliveryHours: 1.5,
+      hours: 3.5,
+      hourlyRate: 70,
+      description: 'Valid timesheet description',
+      taskType: 'TUTORIAL',
+      qualification: 'STANDARD',
+      repeat: false,
+    };
 
+    it('should pass validation for valid timesheet', () => {
       const errors = TimesheetService.validateTimesheet(validTimesheet);
       expect(errors).toEqual([]);
     });
 
     it('should validate tutorId', () => {
-      const invalidTimesheet = {
-        tutorId: 0,
-        courseId: 1,
-        weekStartDate: '2024-01-01',
-        hours: 10,
-        hourlyRate: 35.50,
-        description: 'Valid description'
-      };
-
-      const errors = TimesheetService.validateTimesheet(invalidTimesheet);
+      const errors = TimesheetService.validateTimesheet({ ...validTimesheet, tutorId: 0 });
       expect(errors).toContain('Valid tutor ID is required');
     });
 
     it('should validate courseId', () => {
-      const invalidTimesheet = {
-        tutorId: 1,
-        courseId: -1,
-        weekStartDate: '2024-01-01',
-        hours: 10,
-        hourlyRate: 35.50,
-        description: 'Valid description'
-      };
-
-      const errors = TimesheetService.validateTimesheet(invalidTimesheet);
+      const errors = TimesheetService.validateTimesheet({ ...validTimesheet, courseId: 0 });
       expect(errors).toContain('Valid course ID is required');
     });
 
     it('should validate weekStartDate', () => {
-      const invalidTimesheet = {
-        tutorId: 1,
-        courseId: 1,
-        weekStartDate: '',
-        hours: 10,
-        hourlyRate: 35.50,
-        description: 'Valid description'
-      };
-
-      const errors = TimesheetService.validateTimesheet(invalidTimesheet);
+      const errors = TimesheetService.validateTimesheet({ ...validTimesheet, weekStartDate: '' });
       expect(errors).toContain('Week start date is required');
     });
 
-    it('should validate hours range', () => {
-      const invalidTimesheet1 = {
-        tutorId: 1,
-        courseId: 1,
-        weekStartDate: '2024-01-01',
-        hours: 0,
-        hourlyRate: 35.50,
-        description: 'Valid description'
-      };
+    it('should validate sessionDate', () => {
+      const errors = TimesheetService.validateTimesheet({ ...validTimesheet, sessionDate: '' });
+      expect(errors).toContain('Session date is required');
+    });
 
-      const invalidTimesheet2 = {
-        tutorId: 1,
-        courseId: 1,
-        weekStartDate: '2024-01-01',
-        hours: 100,
-        hourlyRate: 35.50,
-        description: 'Valid description'
-      };
+    it('should validate delivery hours range', () => {
+      const low = TimesheetService.validateTimesheet({ ...validTimesheet, deliveryHours: 0 });
+      const high = TimesheetService.validateTimesheet({ ...validTimesheet, deliveryHours: 20 });
+      expect(low).toContain('Delivery hours must be between 0.1 and 10');
+      expect(high).toContain('Delivery hours must be between 0.1 and 10');
+    });
 
-      const errors1 = TimesheetService.validateTimesheet(invalidTimesheet1);
-      const errors2 = TimesheetService.validateTimesheet(invalidTimesheet2);
-
-      expect(errors1).toContain('Hours must be between 0.1 and 60');
-      expect(errors2).toContain('Hours must be between 0.1 and 60');
+    it('should validate payable hours range', () => {
+      const low = TimesheetService.validateTimesheet({ ...validTimesheet, hours: 0 });
+      const high = TimesheetService.validateTimesheet({ ...validTimesheet, hours: 80 });
+      expect(low).toContain('Payable hours must be between 0.1 and 60');
+      expect(high).toContain('Payable hours must be between 0.1 and 60');
     });
 
     it('should validate hourlyRate range', () => {
-      const invalidTimesheet1 = {
-        tutorId: 1,
-        courseId: 1,
-        weekStartDate: '2024-01-01',
-        hours: 10,
-        hourlyRate: 0,
-        description: 'Valid description'
-      };
+      const low = TimesheetService.validateTimesheet({ ...validTimesheet, hourlyRate: 0 });
+      const high = TimesheetService.validateTimesheet({ ...validTimesheet, hourlyRate: 250 });
+      expect(low).toContain('Hourly rate must be between 0.01 and 200');
+      expect(high).toContain('Hourly rate must be between 0.01 and 200');
+    });
 
-      const invalidTimesheet2 = {
-        tutorId: 1,
-        courseId: 1,
-        weekStartDate: '2024-01-01',
-        hours: 10,
-        hourlyRate: 300,
-        description: 'Valid description'
-      };
+    it('should validate task type', () => {
+      const errors = TimesheetService.validateTimesheet({ ...validTimesheet, taskType: undefined } as Partial<TimesheetCreateRequest>);
+      expect(errors).toContain('Task type is required');
+    });
 
-      const errors1 = TimesheetService.validateTimesheet(invalidTimesheet1);
-      const errors2 = TimesheetService.validateTimesheet(invalidTimesheet2);
-
-      expect(errors1).toContain('Hourly rate must be between 0.01 and 200');
-      expect(errors2).toContain('Hourly rate must be between 0.01 and 200');
+    it('should validate qualification', () => {
+      const errors = TimesheetService.validateTimesheet({ ...validTimesheet, qualification: undefined } as Partial<TimesheetCreateRequest>);
+      expect(errors).toContain('Qualification is required');
     });
 
     it('should validate description', () => {
-      const invalidTimesheet1 = {
-        tutorId: 1,
-        courseId: 1,
-        weekStartDate: '2024-01-01',
-        hours: 10,
-        hourlyRate: 35.50,
-        description: ''
-      };
-
-      const invalidTimesheet2 = {
-        tutorId: 1,
-        courseId: 1,
-        weekStartDate: '2024-01-01',
-        hours: 10,
-        hourlyRate: 35.50,
-        description: 'a'.repeat(1001)
-      };
-
-      const errors1 = TimesheetService.validateTimesheet(invalidTimesheet1);
-      const errors2 = TimesheetService.validateTimesheet(invalidTimesheet2);
-
-      expect(errors1).toContain('Description is required');
-      expect(errors2).toContain('Description must be less than 1000 characters');
+      const empty = TimesheetService.validateTimesheet({ ...validTimesheet, description: '' });
+      const long = TimesheetService.validateTimesheet({ ...validTimesheet, description: 'a'.repeat(1001) });
+      expect(empty).toContain('Description is required');
+      expect(long).toContain('Description must be less than 1000 characters');
     });
 
     it('should return multiple validation errors', () => {
-      const invalidTimesheet = {
+      const errors = TimesheetService.validateTimesheet({
         tutorId: 0,
         courseId: 0,
         weekStartDate: '',
+        sessionDate: '',
+        deliveryHours: 0,
+        description: '',
+        taskType: undefined,
+        qualification: undefined,
+        repeat: false,
         hours: 0,
         hourlyRate: 0,
-        description: ''
-      };
-
-      const errors = TimesheetService.validateTimesheet(invalidTimesheet);
-      expect(errors).toHaveLength(6);
+      } as Partial<TimesheetCreateRequest>);
+      expect(errors).toContain('Valid tutor ID is required');
+      expect(errors).toContain('Valid course ID is required');
+      expect(errors).toContain('Week start date is required');
+      expect(errors).toContain('Session date is required');
+      expect(errors).toContain('Delivery hours must be between 0.1 and 10');
+      expect(errors).toContain('Payable hours must be between 0.1 and 60');
+      expect(errors).toContain('Hourly rate must be between 0.01 and 200');
+      expect(errors).toContain('Description is required');
+      expect(errors).toContain('Task type is required');
+      expect(errors).toContain('Qualification is required');
     });
   });
 });
@@ -698,9 +724,14 @@ describe('TimesheetService Integration', () => {
       tutorId: 1,
       courseId: 1,
       weekStartDate: '2024-01-01',
-      hours: 10,
-      hourlyRate: 35.50,
-      description: 'Weekly tutoring session'
+      sessionDate: '2024-01-01',
+      deliveryHours: 2,
+      hours: 5,
+      hourlyRate: 65,
+      description: 'Weekly tutoring session',
+      taskType: 'TUTORIAL',
+      qualification: 'STANDARD',
+      repeat: false,
     };
 
     mockApiClient.post.mockResolvedValue(createMockApiResponse(mockTimesheet));
@@ -710,8 +741,15 @@ describe('TimesheetService Integration', () => {
 
     // Update timesheet
     const updateRequest: TimesheetUpdateRequest = {
-      hours: 12,
-      description: 'Updated description'
+      weekStartDate: '2024-01-08',
+      sessionDate: '2024-01-08',
+      deliveryHours: 1.5,
+      hours: 4,
+      hourlyRate: 80,
+      description: 'Updated description',
+      taskType: 'TUTORIAL',
+      qualification: 'STANDARD',
+      repeat: true,
     };
 
     mockApiClient.put.mockResolvedValue(createMockApiResponse({ ...mockTimesheet, ...updateRequest }));

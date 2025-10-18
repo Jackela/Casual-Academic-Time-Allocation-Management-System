@@ -28,6 +28,7 @@ The CATAMS project follows a three-tier testing strategy:
 - **Database**: Mocked
 - **Speed**: Very Fast (< 100ms per test)
 - **Example**: `TimesheetServiceUnitTest.java`
+- **EA Compliance**: `Schedule1PolicyProviderTest.java`, `Schedule1CalculatorTest.java`
 
 **Usage:**
 ```bash
@@ -40,6 +41,7 @@ mvn test -Dtest="*UnitTest"
 - **Database**: Real PostgreSQL container
 - **Speed**: Medium (1-5s per test)
 - **Example**: `TimesheetWorkflowIntegrationTest.java`
+- **EA Compliance**: `TimesheetControllerIntegrationTest.java` validates quote + recalculation behaviours
 
 **Requirements:**
 - Docker must be installed and running

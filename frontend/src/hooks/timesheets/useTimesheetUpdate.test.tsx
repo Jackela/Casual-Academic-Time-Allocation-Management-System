@@ -15,10 +15,17 @@ const mockService = TimesheetService as unknown as {
   updateTimesheet: ReturnType<typeof vi.fn>;
 };
 
-const mockTimesheet = createMockTimesheet({ id: 123, hours: 7 });
+const mockTimesheet = createMockTimesheet({ id: 123, hours: 7, hourlyRate: 55 });
 const updateRequest: TimesheetUpdateRequest = {
+  weekStartDate: "2024-01-01",
+  sessionDate: "2024-01-01",
+  deliveryHours: 1.5,
   hours: 7,
+  hourlyRate: 55,
   description: "Updated hours",
+  taskType: "TUTORIAL",
+  qualification: "STANDARD",
+  repeat: false,
 };
 
 describe("useTimesheetUpdate", () => {

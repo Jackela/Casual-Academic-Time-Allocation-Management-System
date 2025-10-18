@@ -21,9 +21,14 @@ const baseRequest: TimesheetCreateRequest = {
   tutorId: 1,
   courseId: 2,
   weekStartDate: "2024-01-01",
-  hours: 5,
-  hourlyRate: 45,
+  sessionDate: "2024-01-01",
+  deliveryHours: 1.5,
   description: "Tutorial",
+  taskType: "TUTORIAL",
+  qualification: "STANDARD",
+  repeat: false,
+  hours: 3.5,
+  hourlyRate: 70,
 };
 
 const mockTimesheet = createMockTimesheet({ id: 99 });

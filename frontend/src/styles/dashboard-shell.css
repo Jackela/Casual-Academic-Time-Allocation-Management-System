@@ -250,6 +250,23 @@
   line-height: 1.35;
 }
 
+.dashboard-toast__cta {
+  pointer-events: auto;
+  border: none;
+  background: transparent;
+  color: hsl(var(--primary));
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  transition: background 0.2s ease;
+}
+
+.dashboard-toast__cta:hover {
+  background: hsl(var(--muted) / 0.45);
+}
+
 .dashboard-toast__dismiss {
   pointer-events: auto;
   border: none;

@@ -8,7 +8,9 @@ import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.mapper.TimesheetMapper;
+import com.usyd.catams.service.Schedule1CalculationResult;
 import com.usyd.catams.enums.ApprovalStatus;
+import com.usyd.catams.enums.TimesheetTaskType;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.exception.ResourceNotFoundException;
 import com.usyd.catams.policy.TimesheetPermissionPolicy;
@@ -26,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -114,11 +117,18 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
 
     @Override
     @Transactional
-    public Timesheet createTimesheet(Long tutorId, Long courseId, LocalDate weekStartDate,
-                                   BigDecimal hours, BigDecimal hourlyRate, String description,
-                                   Long creatorId) {
+    public Timesheet createTimesheet(Long tutorId,
+                                     Long courseId,
+                                     LocalDate weekStartDate,
+                                     Schedule1CalculationResult calculation,
+                                     TimesheetTaskType taskType,
+                                     String description,
+                                     Long creatorId) {
         
-        validateCreateTimesheetPreconditions(tutorId, courseId, weekStartDate, hours, hourlyRate, description, creatorId);
+        Objects.requireNonNull(calculation, "calculation");
+        BigDecimal payableHours = calculation.getPayableHours();
+        BigDecimal hourlyRate = calculation.getHourlyRate();
+        validateCreateTimesheetPreconditions(tutorId, courseId, weekStartDate, payableHours, hourlyRate, description, creatorId);
         
         User creator = findUserByIdOrThrow(creatorId, "Creator user not found");
         User tutor = findUserByIdOrThrow(tutorId, "Tutor user not found");  
@@ -134,17 +144,35 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         validateTimesheetUniqueness(tutorId, courseId, weekStartDate);
 
         // SSOT validation: thresholds via TimesheetValidationService
-        timesheetValidationService.validateInputs(hours, hourlyRate);
+        timesheetValidationService.validateInputs(payableHours, hourlyRate);
 
         String sanitizedDescription = timesheetDomainService.validateTimesheetCreation(
-            creator, tutor, course, weekStartDate, hours, hourlyRate, description);
+            creator, tutor, course, weekStartDate, payableHours, hourlyRate, description);
         
-        Timesheet timesheet = new Timesheet(tutorId, courseId, weekStartDate, hours, hourlyRate, sanitizedDescription, creatorId);
+        Timesheet timesheet = new Timesheet(tutorId, courseId, weekStartDate, payableHours, hourlyRate, sanitizedDescription, creatorId);
+        applySchedule1Calculation(timesheet, calculation, taskType);
         Timesheet savedTimesheet = timesheetRepository.save(timesheet);
         
         validateCreateTimesheetPostconditions(savedTimesheet, tutorId, courseId, creatorId, weekStartDate);
         
         return savedTimesheet;
+    }
+
+    private void applySchedule1Calculation(Timesheet timesheet,
+                                           Schedule1CalculationResult calculation,
+                                           TimesheetTaskType taskType) {
+        TimesheetTaskType resolvedTaskType = taskType != null ? taskType : TimesheetTaskType.OTHER;
+        timesheet.setTaskType(resolvedTaskType);
+        timesheet.setRepeat(calculation.isRepeat());
+        timesheet.setQualification(calculation.getQualification());
+        timesheet.setHours(calculation.getPayableHours());
+        timesheet.setHourlyRate(calculation.getHourlyRate());
+        timesheet.setDeliveryHours(calculation.getDeliveryHours());
+        timesheet.setAssociatedHours(calculation.getAssociatedHours());
+        timesheet.setCalculatedAmount(calculation.getAmount());
+        timesheet.setRateCode(calculation.getRateCode());
+        timesheet.setCalculationFormula(calculation.getFormula());
+        timesheet.setClauseReference(calculation.getClauseReference());
     }
 
     @Override
@@ -309,9 +337,15 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
 
     @Override
     @Transactional
-    public Timesheet updateTimesheet(Long timesheetId, BigDecimal hours, BigDecimal hourlyRate, 
-                                   String description, Long requesterId) {
-        
+    public Timesheet updateTimesheet(Long timesheetId,
+                                     Schedule1CalculationResult calculation,
+                                     TimesheetTaskType taskType,
+                                     String description,
+                                     Long requesterId) {
+        Objects.requireNonNull(calculation, "calculation");
+        BigDecimal hours = calculation.getPayableHours();
+        BigDecimal hourlyRate = calculation.getHourlyRate();
+
         Timesheet timesheet = timesheetRepository.findById(timesheetId)
             .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
 
@@ -341,9 +375,8 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
 
         timesheetDomainService.validateUpdateData(hours, hourlyRate, description);
 
-        timesheet.setHours(hours);
-        timesheet.setHourlyRate(hourlyRate);
         timesheet.setDescription(description);
+        applySchedule1Calculation(timesheet, calculation, taskType);
         
         ApprovalStatus newStatus = timesheetDomainService.getStatusAfterTutorUpdate(timesheet.getStatus());
         timesheet.setStatus(newStatus);
@@ -482,11 +515,15 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         return canUserEditTimesheet(timesheetId, requesterId);
     }
 
-    public TimesheetResponse createTimesheetAndReturnDto(Long tutorId, Long courseId, LocalDate weekStartDate,
-                                                        BigDecimal hours, BigDecimal hourlyRate, String description,
+    public TimesheetResponse createTimesheetAndReturnDto(Long tutorId,
+                                                        Long courseId,
+                                                        LocalDate weekStartDate,
+                                                        Schedule1CalculationResult calculation,
+                                                        TimesheetTaskType taskType,
+                                                        String description,
                                                         Long creatorId) {
         
-        Timesheet createdTimesheet = createTimesheet(tutorId, courseId, weekStartDate, hours, hourlyRate, description, creatorId);
+        Timesheet createdTimesheet = createTimesheet(tutorId, courseId, weekStartDate, calculation, taskType, description, creatorId);
         
         return timesheetMapper.toResponse(createdTimesheet);
     }
@@ -509,10 +546,13 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     }
 
     @PreAuthorize("@timesheetApplicationService.canUserEditTimesheetAuth(#timesheetId, authentication)")
-    public TimesheetResponse updateTimesheetAndReturnDto(Long timesheetId, BigDecimal hours, BigDecimal hourlyRate, 
-                                                        String description, Long requesterId) {
+    public TimesheetResponse updateTimesheetAndReturnDto(Long timesheetId,
+                                                        Schedule1CalculationResult calculation,
+                                                        TimesheetTaskType taskType,
+                                                        String description,
+                                                        Long requesterId) {
         
-        Timesheet updatedTimesheet = updateTimesheet(timesheetId, hours, hourlyRate, description, requesterId);
+        Timesheet updatedTimesheet = updateTimesheet(timesheetId, calculation, taskType, description, requesterId);
         
         return timesheetMapper.toResponse(updatedTimesheet);
     }

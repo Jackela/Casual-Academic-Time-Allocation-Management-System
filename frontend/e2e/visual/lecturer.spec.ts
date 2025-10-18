@@ -300,15 +300,17 @@ test.describe('Lecturer Dashboard Visual Regression', () => {
 
   test('rejection modal appearance', async ({ page }) => {
     await prepareLecturerDashboard(page);
-    const fallbackButton = page.getByTestId('reject-btn-501');
-    await fallbackButton.waitFor({ state: 'visible' });
-    await page.evaluate(() => {
-      window.dispatchEvent(new CustomEvent('catams-open-lecturer-rejection-modal', {
-        detail: { timesheetId: 501 }
-      }));
+    const rejectButton = page.getByTestId('reject-btn-501');
+    await rejectButton.waitFor({ state: 'visible' });
+    await rejectButton.click();
+    const dialog = page.getByRole('dialog', { name: /Reject Timesheet/i });
+    await dialog.waitFor({ state: 'visible' });
+    await page.waitForTimeout(200);
+    await expect(dialog).toHaveScreenshot('lecturer-dashboard-rejection-modal.png', {
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
     });
-    await page.getByRole('dialog', { name: /Reject Timesheet/i }).waitFor({ state: 'visible' });
-    await capture(page, 'lecturer-dashboard-rejection-modal.png');
   });
 
   test('empty state call-to-action', async ({ page }) => {

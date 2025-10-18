@@ -307,13 +307,23 @@ export class AITestGenerator {
   }
 
   private buildTimesheetData(): TimesheetCreateRequest {
+    const weekStart = this.generateWeekStart();
+    const deliveryHours = Number(this.randomBetween(1, 4).toFixed(1));
+    const payableHours = Math.min(Number((deliveryHours * 3).toFixed(1)), 40);
+    const hourlyRate = Number(this.randomBetween(40, 120).toFixed(2));
+
     return {
       tutorId: 3,
       courseId: 1,
-      weekStartDate: this.generateWeekStart(),
-      hours: this.randomBetween(1, 38),
-      hourlyRate: this.randomBetween(10, 200),
+      weekStartDate: weekStart,
+      sessionDate: weekStart,
+      deliveryHours,
+      hours: payableHours,
+      hourlyRate,
       description: this.generateDescription(),
+      taskType: 'TUTORIAL',
+      qualification: 'STANDARD',
+      repeat: false,
     };
   }
 
@@ -324,10 +334,11 @@ export class AITestGenerator {
     if (entity === 'timesheet') {
       const variations: TimesheetCreateRequest[] = [];
       for (let index = 0; index < 5; index += 1) {
+        const variant = this.buildTimesheetData();
         variations.push({
-          ...this.buildTimesheetData(),
-          hours: this.randomBetween(1, 38),
-          hourlyRate: this.randomBetween(10, 200),
+          ...variant,
+          hours: Math.min(Number((variant.deliveryHours * 3.2).toFixed(1)), 40),
+          hourlyRate: Number(this.randomBetween(35, 150).toFixed(2)),
           description: `Variation ${index}: ${this.generateDescription()}`,
         });
       }

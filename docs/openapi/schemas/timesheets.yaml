@@ -1,304 +1,219 @@
-TimesheetCreateRequest:
+TimesheetQuoteRequest:
   type: object
   required:
     - tutorId
     - courseId
-    - weekStartDate
-    - hours
-    - hourlyRate
-    - description
+    - taskType
+    - qualification
+    - repeat
+    - deliveryHours
+    - sessionDate
   properties:
     tutorId:
       type: integer
       format: int64
-      description: ID of the tutor this timesheet is for
-      example: 123
     courseId:
       type: integer
       format: int64
-      description: ID of the course this work relates to
-      example: 456
-    weekStartDate:
+    taskType:
+      type: string
+      enum:
+        - LECTURE
+        - TUTORIAL
+        - ORAA
+        - DEMO
+        - MARKING
+    qualification:
+      type: string
+      enum:
+        - STANDARD
+        - COORDINATOR
+        - PHD
+    repeat:
+      type: boolean
+    deliveryHours:
+      type: number
+      format: float
+      minimum: 0.1
+      maximum: 40.0
+    sessionDate:
       type: string
       format: date
-      description: Start date of the work week (must be a Monday)
-      example: "2025-07-28"
-    hours:
-      type: number
-      format: decimal
-      minimum: 0.1
-      maximum: 60.0
-      description: Number of hours worked
-      example: 10.5
-    hourlyRate:
-      type: number
-      format: decimal
-      minimum: 0.01
-      maximum: 200.00
-      description: Hourly rate in AUD
-      example: 45.00
     description:
       type: string
-      description: Description of work performed
-      example: "Tutorial sessions and assignment marking"
       maxLength: 1000
+      description: Optional user note included in persistence payloads.
+
+TimesheetQuoteResponse:
+  type: object
+  required:
+    - taskType
+    - rateCode
+    - rateVersion
+    - qualification
+    - repeat
+    - deliveryHours
+    - associatedHours
+    - payableHours
+    - hourlyRate
+    - amount
+    - formula
+    - clauseReference
+    - sessionDate
+  properties:
+    taskType:
+      type: string
+    rateCode:
+      type: string
+      example: TU1
+    rateVersion:
+      type: string
+      example: EA-2023-2026-Schedule1:v1.0.0
+    qualification:
+      type: string
+    repeat:
+      type: boolean
+    deliveryHours:
+      type: number
+      format: float
+    associatedHours:
+      type: number
+      format: float
+    payableHours:
+      type: number
+      format: float
+    hourlyRate:
+      type: number
+      format: float
+    amount:
+      type: number
+      format: float
+    formula:
+      type: string
+      example: 1h delivery + 2h associated
+    clauseReference:
+      type: string
+      example: Schedule 1 Item 1
+    sessionDate:
+      type: string
+      format: date
+
+TimesheetCreateRequest:
+  allOf:
+    - $ref: '#/TimesheetQuoteRequest'
+  description: Client submits instructional fields only; financial values are recalculated server-side.
 
 TimesheetUpdateRequest:
-  type: object
-  properties:
-    hours:
-      type: number
-      format: decimal
-      minimum: 0.1
-      maximum: 60.0
-      description: Number of hours worked
-      example: 12.0
-    hourlyRate:
-      type: number
-      format: decimal
-      minimum: 0.01
-      maximum: 200.00
-      description: Hourly rate in AUD
-      example: 45.00
-    description:
-      type: string
-      description: Description of work performed
-      example: "Tutorial sessions, assignment marking, and consultation hours"
-      maxLength: 1000
+  allOf:
+    - $ref: '#/TimesheetQuoteRequest'
+  description: Same shape as create request; ignored fields will be recalculated.
 
 TimesheetResponse:
   type: object
   required:
     - id
     - tutorId
-    - tutorName
     - courseId
-    - courseName
-    - weekStartDate
-    - hours
+    - taskType
+    - qualification
+    - repeat
+    - sessionDate
+    - deliveryHours
+    - associatedHours
+    - payableHours
     - hourlyRate
-    - totalPay
-    - description
+    - amount
+    - rateCode
+    - rateVersion
+    - formula
+    - clauseReference
     - status
-    - createdAt
-    - updatedAt
-    - isEditable
-    - canBeApproved
   properties:
     id:
       type: integer
       format: int64
-      description: Unique timesheet identifier
-      example: 789
     tutorId:
       type: integer
       format: int64
-      description: ID of the tutor
-      example: 123
-    tutorName:
-      type: string
-      description: Full name of the tutor
-      example: "Alice Johnson"
     courseId:
       type: integer
       format: int64
-      description: ID of the course
-      example: 456
-    courseName:
+    taskType:
       type: string
-      description: Full name of the course
-      example: "COMP1001 - Introduction to Programming"
-    weekStartDate:
+    qualification:
+      type: string
+    repeat:
+      type: boolean
+    sessionDate:
       type: string
       format: date
-      description: Start date of the work week
-      example: "2025-07-28"
-    hours:
+    deliveryHours:
       type: number
-      format: decimal
-      description: Number of hours worked
-      example: 10.5
+      format: float
+    associatedHours:
+      type: number
+      format: float
+    payableHours:
+      type: number
+      format: float
     hourlyRate:
       type: number
-      format: decimal
-      description: Hourly rate in AUD
-      example: 45.00
-    totalPay:
+      format: float
+    amount:
       type: number
-      format: decimal
-      description: Calculated total pay (hours × hourlyRate)
-      example: 472.50
+      format: float
+    rateCode:
+      type: string
+    rateVersion:
+      type: string
+    formula:
+      type: string
+    clauseReference:
+      type: string
     description:
       type: string
-      description: Description of work performed
-      example: "Tutorial sessions and assignment marking"
+      nullable: true
     status:
-      $ref: './approvals.yaml#/ApprovalStatus'
+      $ref: '../schemas/approvals.yaml#/ApprovalStatus'
     createdAt:
       type: string
       format: date-time
-      description: When the timesheet was created
-      example: "2025-07-28T09:00:00Z"
     updatedAt:
       type: string
       format: date-time
-      description: When the timesheet was last updated
-      example: "2025-07-28T09:00:00Z"
-    isEditable:
-      type: boolean
-      description: Whether the timesheet can be edited by the current user
-      example: false
-    canBeApproved:
-      type: boolean
-      description: Whether the timesheet can be approved by the current user
-      example: true
-
-TimesheetDetailResponse:
-  allOf:
-    - $ref: '#/TimesheetResponse'
-    - type: object
-      additionalProperties: true
-      properties:
-        tutorEmail:
-          type: string
-          format: email
-          description: Email of the tutor
-          example: "alice.johnson@university.edu.au"
-        courseCode:
-          type: string
-          description: Course code
-          example: "COMP1001"
-        lecturerId:
-          type: integer
-          format: int64
-          description: ID of the course lecturer
-          example: 999
-        lecturerName:
-          type: string
-          description: Name of the course lecturer
-          example: "Dr. John Smith"
-        approvalHistory:
-          type: array
-          description: History of approval actions on this timesheet
-          items:
-            $ref: './approvals.yaml#/ApprovalHistoryEntry'
 
 TimesheetPageResponse:
   type: object
   required:
-    - success
-    - timesheets
-    - pageInfo
+    - items
+    - page
   properties:
-    success:
-      type: boolean
-      description: Whether the request was successful
-      example: true
-    timesheets:
+    items:
       type: array
-      description: List of timesheets on this page
-      items:
-        $ref: '#/TimesheetResponse'
-    pageInfo:
-      $ref: '#/PageInfo'
-    # Legacy fields for backward compatibility
-    content:
-      type: array
-      description: List of timesheets on this page (deprecated - use timesheets)
-      deprecated: true
-      items:
-        $ref: '#/TimesheetResponse'
-    data:
-      type: array
-      description: List of timesheets on this page (deprecated - use timesheets)
-      deprecated: true
       items:
         $ref: '#/TimesheetResponse'
     page:
-      $ref: '#/PageInfo'
-      description: Page information (deprecated - use pageInfo)
-      deprecated: true
-
-PageInfo:
+      $ref: '#/PagedMetadata'
+PagedMetadata:
   type: object
   required:
-    - currentPage
-    - pageSize
+    - page
+    - size
     - totalElements
     - totalPages
-    - first
-    - last
-    - numberOfElements
-    - empty
   properties:
-    currentPage:
+    page:
       type: integer
-      description: Current page number (0-based)
-      example: 0
-    pageSize:
+      minimum: 0
+    size:
       type: integer
-      description: Size of each page
-      example: 20
+      minimum: 1
     totalElements:
       type: integer
       format: int64
-      description: Total number of elements across all pages
-      example: 45
     totalPages:
       type: integer
-      description: Total number of pages
-      example: 3
-    first:
+    hasNext:
       type: boolean
-      description: Whether this is the first page
-      example: true
-    last:
+    hasPrevious:
       type: boolean
-      description: Whether this is the last page
-      example: false
-    numberOfElements:
-      type: integer
-      description: Number of elements on this page
-      example: 20
-    empty:
-      type: boolean
-      description: Whether the page is empty
-      example: false
-
-Pageable:
-  type: object
-  required:
-    - pageNumber
-    - pageSize
-  properties:
-    pageNumber:
-      type: integer
-      description: Current page number (0-based)
-      example: 0
-    pageSize:
-      type: integer
-      description: Page size
-      example: 20
-    sort:
-      $ref: '#/Sort'
-
-Sort:
-  type: object
-  required:
-    - sorted
-  properties:
-    sorted:
-      type: boolean
-      description: Whether the results are sorted
-      example: true
-    orderBy:
-      type: string
-      description: Field used for sorting
-      example: "weekStartDate"
-    direction:
-      type: string
-      enum:
-        - ASC
-        - DESC
-      description: Sort direction
-      example: "DESC"

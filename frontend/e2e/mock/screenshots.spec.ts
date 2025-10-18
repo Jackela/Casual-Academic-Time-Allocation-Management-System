@@ -63,7 +63,7 @@ test('Figure A2: Tutor create timesheet form', async ({ page }) => {
   await page.getByRole('heading', { name: 'New Timesheet Form' }).waitFor({ state: 'visible' });
   await page.selectOption('#course', '1');
   await page.fill('#week-start', '2025-01-27');
-  await page.fill('#hours', '6');
+  await page.fill('#delivery-hours', '6');
   await page.fill('#description', 'Led tutorial recap and office hours support.');
   await capture(page, 'fig-a2-create-timesheet-form.png');
 });
@@ -77,10 +77,10 @@ test('Figure A3: Tutor validation feedback', async ({ page }) => {
   await page.getByRole('button', { name: /Create New/i }).first().click();
   await page.getByRole('heading', { name: 'New Timesheet Form' }).waitFor({ state: 'visible' });
   await page.selectOption('#course', '1');
-  const hoursField = page.locator('#hours');
+  const hoursField = page.locator('#delivery-hours');
   await hoursField.fill('70');
   await hoursField.blur();
-  await page.getByText(/Hours must be between/i).waitFor({ state: 'visible' });
+  await page.getByText(/Delivery hours must be between/i).waitFor({ state: 'visible' });
   await capture(page, 'fig-a3-validation-error.png');
 });
 

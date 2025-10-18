@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 
+import static org.hamcrest.Matchers.closeTo;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -107,7 +108,8 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .withTutorId(testTutor.getId())
             .withCourseId(testCourse.getId())
             .withWeekStartDate(nextMonday)
-            .withHours(new BigDecimal("15.5"))
+            .withHours(new BigDecimal("3.0"))
+            .withDeliveryHours(new BigDecimal("1.0"))
             .withHourlyRate(new BigDecimal("45.00"))
             .withDescription("Full integration test timesheet - database persistence verified")
             .build();
@@ -119,8 +121,8 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .andExpect(jsonPath("$.id").exists())
             .andExpect(jsonPath("$.tutorId").value(testTutor.getId()))
             .andExpect(jsonPath("$.courseId").value(testCourse.getId()))
-            .andExpect(jsonPath("$.hours").value(15.5))
-            .andExpect(jsonPath("$.hourlyRate").value(45.00))
+            .andExpect(jsonPath("$.hours").value(closeTo(3.0, 0.0001)))
+            .andExpect(jsonPath("$.hourlyRate").value(closeTo(58.65, 0.01)))
             .andExpect(jsonPath("$.description").value("Full integration test timesheet - database persistence verified"))
             .andExpect(jsonPath("$.status").value(com.usyd.catams.enums.ApprovalStatus.DRAFT.name()))
             .andExpect(jsonPath("$.weekStartDate").value(nextMonday.toString()));
@@ -131,8 +133,8 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         var savedTimesheet = savedTimesheets.get(0);
         assert savedTimesheet.getTutorId().equals(testTutor.getId());
         assert savedTimesheet.getCourseId().equals(testCourse.getId());
-        assert savedTimesheet.getHours().compareTo(new BigDecimal("15.5")) == 0;
-        assert savedTimesheet.getHourlyRate().compareTo(new BigDecimal("45.00")) == 0;
+        assert savedTimesheet.getHours().compareTo(new BigDecimal("3.0")) == 0;
+        assert savedTimesheet.getHourlyRate().compareTo(new BigDecimal("58.65")) == 0;
     }
 
     @Test

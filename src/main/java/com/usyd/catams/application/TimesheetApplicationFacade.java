@@ -3,10 +3,11 @@ package com.usyd.catams.application;
 import com.usyd.catams.dto.response.PagedTimesheetResponse;
 import com.usyd.catams.dto.response.TimesheetResponse;
 import com.usyd.catams.enums.ApprovalStatus;
+import com.usyd.catams.enums.TimesheetTaskType;
+import com.usyd.catams.service.Schedule1CalculationResult;
 import com.usyd.catams.service.TimesheetService;
 import org.springframework.data.domain.Pageable;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
 
@@ -22,8 +23,8 @@ public interface TimesheetApplicationFacade extends TimesheetService {
     TimesheetResponse createTimesheetAndReturnDto(Long tutorId,
                                                   Long courseId,
                                                   LocalDate weekStartDate,
-                                                  BigDecimal hours,
-                                                  BigDecimal hourlyRate,
+                                                  Schedule1CalculationResult calculation,
+                                                  TimesheetTaskType taskType,
                                                   String description,
                                                   Long creatorId);
 
@@ -36,8 +37,8 @@ public interface TimesheetApplicationFacade extends TimesheetService {
     Optional<TimesheetResponse> getTimesheetByIdAsDto(Long id, Long requesterId);
 
     TimesheetResponse updateTimesheetAndReturnDto(Long timesheetId,
-                                                  BigDecimal hours,
-                                                  BigDecimal hourlyRate,
+                                                  Schedule1CalculationResult calculation,
+                                                  TimesheetTaskType taskType,
                                                   String description,
                                                   Long requesterId);
 

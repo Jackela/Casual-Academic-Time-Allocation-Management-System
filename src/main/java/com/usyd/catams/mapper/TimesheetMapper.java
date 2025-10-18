@@ -5,6 +5,7 @@ import com.usyd.catams.dto.response.TimesheetResponse;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.entity.Course;
+import com.usyd.catams.entity.Approval;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.repository.CourseRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,7 +53,17 @@ public class TimesheetMapper {
             .map(Course::getName)
             .orElse("Unknown Course");
 
-        return new TimesheetResponse(
+        // Get rejection reason from approval history if applicable
+        String rejectionReason = null;
+        if (timesheet.getStatus() == com.usyd.catams.enums.ApprovalStatus.REJECTED) {
+            rejectionReason = timesheet.getApprovalsByAction(com.usyd.catams.enums.ApprovalAction.REJECT)
+                .stream()
+                .reduce((first, second) -> second) // Get the most recent rejection
+                .map(approval -> approval.getComment())
+                .orElse(null);
+        }
+
+        TimesheetResponse response = new TimesheetResponse(
             timesheet.getId(),
             timesheet.getTutorId(),
             tutorName,
@@ -65,8 +76,19 @@ public class TimesheetMapper {
             timesheet.getStatus(),
             timesheet.getCreatedAt(),
             timesheet.getUpdatedAt(),
-            timesheet.getCreatedBy()
+            timesheet.getCreatedBy(),
+            rejectionReason
         );
+        response.setTaskType(timesheet.getTaskType());
+        response.setRepeat(timesheet.isRepeat());
+        response.setQualification(timesheet.getQualification());
+        response.setDeliveryHours(timesheet.getDeliveryHours());
+        response.setAssociatedHours(timesheet.getAssociatedHours());
+        response.setTotalPay(timesheet.getCalculatedAmount());
+        response.setRateCode(timesheet.getRateCode());
+        response.setCalculationFormula(timesheet.getCalculationFormula());
+        response.setClauseReference(timesheet.getClauseReference());
+        return response;
     }
 
     /**
@@ -136,6 +158,9 @@ public class TimesheetMapper {
         response.setHourlyRate(hourlyRate);
         response.setStatus(status);
         
+        // Note: Minimal response cannot populate rejection reason without full Timesheet entity
+        response.setRejectionReason(null);
+        
         // Fetch tutor and course names
         String tutorName = userRepository.findById(tutorId)
             .map(User::getName)
@@ -149,7 +174,7 @@ public class TimesheetMapper {
         response.setCourseName(courseName);
         
         // Calculate total pay
-        if (hours != null && hourlyRate != null) {
+        if (hours != null && hourlyRate != null && response.getTotalPay() == null) {
             response.setTotalPay(hours.multiply(hourlyRate));
         }
         
@@ -175,7 +200,7 @@ public class TimesheetMapper {
         }
 
         // Recalculate computed fields
-        if (response.getHours() != null && response.getHourlyRate() != null) {
+        if (response.getTotalPay() == null && response.getHours() != null && response.getHourlyRate() != null) {
             response.setTotalPay(response.getHours().multiply(response.getHourlyRate()));
         }
 

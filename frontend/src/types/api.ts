@@ -42,15 +42,35 @@ export type LoginResponse = AuthSession;
 // Timesheet Types
 // =============================================================================
 
+export type TimesheetTaskType =
+  | 'LECTURE'
+  | 'TUTORIAL'
+  | 'ORAA'
+  | 'DEMO'
+  | 'MARKING'
+  | 'OTHER';
+
+export type TutorQualification = 'PHD' | 'COORDINATOR' | 'STANDARD';
+
 export interface Timesheet {
   id: number;
   tutorId: number;
   courseId: number;
   weekStartDate: string;
+  sessionDate?: string;
   hours: number;
   hourlyRate: number;
+  deliveryHours?: number;
+  associatedHours?: number;
+  totalPay?: number;
   description: string;
   status: TimesheetStatus;
+  taskType?: TimesheetTaskType;
+  isRepeat?: boolean;
+  qualification?: TutorQualification;
+  rateCode?: string;
+  calculationFormula?: string;
+  clauseReference?: string;
   createdAt: string;
   updatedAt: string;
   // Extended fields from backend joins
@@ -59,6 +79,7 @@ export interface Timesheet {
   courseCode?: string;
   submitterName?: string;
   lecturerName?: string;
+  rejectionReason?: string;
 }
 
 export type TimesheetStatus =
@@ -70,16 +91,46 @@ export type TimesheetStatus =
   | 'REJECTED'
   | 'MODIFICATION_REQUESTED';
 
+export interface TimesheetQuoteRequest {
+  tutorId: number;
+  courseId: number;
+  sessionDate: string;
+  taskType: TimesheetTaskType;
+  qualification: TutorQualification;
+  repeat: boolean;
+  deliveryHours: number;
+}
+
+export interface TimesheetQuoteResponse {
+  taskType: TimesheetTaskType;
+  rateCode: string;
+  qualification: TutorQualification;
+  repeat: boolean;
+  deliveryHours: number;
+  associatedHours: number;
+  payableHours: number;
+  hourlyRate: number;
+  amount: number;
+  formula: string;
+  clauseReference: string | null;
+  sessionDate: string;
+}
+
 export interface TimesheetCreateRequest {
   tutorId: number;
   courseId: number;
   weekStartDate: string;
+  sessionDate: string;
+  deliveryHours: number;
+  description: string;
+  taskType: TimesheetTaskType;
+  qualification: TutorQualification;
+  repeat: boolean;
   hours: number;
   hourlyRate: number;
-  description: string;
 }
 
-export interface TimesheetUpdateRequest extends Partial<TimesheetCreateRequest> {
+export interface TimesheetUpdateRequest extends Partial<Omit<TimesheetCreateRequest, 'tutorId' | 'courseId'>> {
   status?: TimesheetStatus;
 }
 
@@ -293,7 +344,7 @@ export interface CreateUserRequest {
   email: string;
   name: string;
   role: User['role'];
-  password?: string;
+  password: string;
 }
 
 export interface UpdateUserRequest extends Partial<CreateUserRequest> {

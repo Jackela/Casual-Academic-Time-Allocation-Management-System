@@ -10,7 +10,10 @@ import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
+import com.usyd.catams.enums.TimesheetTaskType;
+import com.usyd.catams.enums.TutorQualification;
 import com.usyd.catams.enums.UserRole;
+import static org.hamcrest.Matchers.closeTo;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
@@ -180,6 +183,11 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         updateRequest.setHours(new BigDecimal("8.0"));
         updateRequest.setHourlyRate(new BigDecimal("25.00"));
         updateRequest.setDescription("Updated work description after rejection feedback");
+        updateRequest.setTaskType(TimesheetTaskType.TUTORIAL);
+        updateRequest.setQualification(TutorQualification.STANDARD);
+        updateRequest.setRepeat(Boolean.FALSE);
+        updateRequest.setDeliveryHours(new BigDecimal("8.0"));
+        updateRequest.setSessionDate(mondayDate);
 
         mockMvc.perform(put("/api/timesheets/" + rejectedTimesheet.getId())
                 .header("Authorization", "Bearer " + localTutorToken)
@@ -187,13 +195,13 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
                 .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(com.usyd.catams.enums.ApprovalStatus.DRAFT.name()))
-                .andExpect(jsonPath("$.hours").value(8.0))
+                .andExpect(jsonPath("$.hours").value(closeTo(3.0, 0.0001)))
                 .andExpect(jsonPath("$.description").value("Updated work description after rejection feedback"));
 
         // Then: Status has been reset to DRAFT in database
         Timesheet updatedTimesheet = timesheetRepository.findById(rejectedTimesheet.getId()).orElseThrow();
         assertThat(updatedTimesheet.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
-        assertThat(updatedTimesheet.getHours()).isEqualTo(new BigDecimal("8.0"));
+        assertThat(updatedTimesheet.getHours()).isEqualTo(new BigDecimal("3.0"));
         assertThat(updatedTimesheet.getDescription()).isEqualTo("Updated work description after rejection feedback");
     }
 
@@ -210,6 +218,11 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         updateRequest.setHours(new BigDecimal("8.0"));
         updateRequest.setHourlyRate(new BigDecimal("25.00"));
         updateRequest.setDescription("Tutor updates draft before confirmation");
+        updateRequest.setTaskType(TimesheetTaskType.TUTORIAL);
+        updateRequest.setQualification(TutorQualification.STANDARD);
+        updateRequest.setRepeat(Boolean.FALSE);
+        updateRequest.setDeliveryHours(new BigDecimal("8.0"));
+        updateRequest.setSessionDate(mondayDate);
 
         mockMvc.perform(put("/api/timesheets/" + draftTimesheet.getId())
                 .header("Authorization", "Bearer " + localTutorToken)
@@ -222,7 +235,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         // Then: Changes are persisted for the tutor-owned draft
         Timesheet updatedTimesheet = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
         assertThat(updatedTimesheet.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
-        assertThat(updatedTimesheet.getHours()).isEqualTo(new BigDecimal("8.0"));
+        assertThat(updatedTimesheet.getHours()).isEqualTo(new BigDecimal("3.0"));
         assertThat(updatedTimesheet.getDescription()).isEqualTo("Tutor updates draft before confirmation");
     }
     /**
@@ -271,6 +284,11 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         updateRequest.setHours(new BigDecimal("8.0"));
         updateRequest.setHourlyRate(new BigDecimal("25.00"));
         updateRequest.setDescription("Updated after feedback");
+        updateRequest.setTaskType(TimesheetTaskType.TUTORIAL);
+        updateRequest.setQualification(TutorQualification.STANDARD);
+        updateRequest.setRepeat(Boolean.FALSE);
+        updateRequest.setDeliveryHours(new BigDecimal("8.0"));
+        updateRequest.setSessionDate(mondayDate);
 
         mockMvc.perform(put("/api/timesheets/" + rejectedTimesheet.getId())
                 .header("Authorization", "Bearer " + localTutorToken)
@@ -309,6 +327,11 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         createRequest.setHours(new BigDecimal("10.0"));
         createRequest.setHourlyRate(new BigDecimal("20.00"));
         createRequest.setDescription("Initial timesheet");
+        createRequest.setTaskType(com.usyd.catams.enums.TimesheetTaskType.TUTORIAL);
+        createRequest.setQualification(com.usyd.catams.enums.TutorQualification.STANDARD);
+        createRequest.setRepeat(Boolean.FALSE);
+        createRequest.setDeliveryHours(new BigDecimal("10.0"));
+        createRequest.setSessionDate(mondayDate);
 
         MvcResult createResult = mockMvc.perform(post("/api/timesheets")
                 .header("Authorization", "Bearer " + localLecturerToken)
@@ -360,13 +383,19 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         updateRequest.setHours(new BigDecimal("15.0"));
         updateRequest.setHourlyRate(new BigDecimal("20.00"));
         updateRequest.setDescription("Updated timesheet with more detail and increased hours as requested");
+        updateRequest.setTaskType(TimesheetTaskType.TUTORIAL);
+        updateRequest.setQualification(TutorQualification.STANDARD);
+        updateRequest.setRepeat(Boolean.FALSE);
+        updateRequest.setDeliveryHours(BigDecimal.ONE);
+        updateRequest.setSessionDate(mondayDate);
 
         mockMvc.perform(put("/api/timesheets/" + createdTimesheet.getId())
                 .header("Authorization", "Bearer " + localTutorToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(com.usyd.catams.enums.ApprovalStatus.DRAFT.name()));
+                .andExpect(jsonPath("$.status").value(com.usyd.catams.enums.ApprovalStatus.DRAFT.name()))
+                .andExpect(jsonPath("$.hours").value(closeTo(3.0, 0.0001)));
 
         // Step 6: TUTOR resubmits
         ApprovalActionRequest resubmitRequest = new ApprovalActionRequest();
@@ -384,7 +413,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         // Verify final state
         Timesheet finalTimesheet = timesheetRepository.findById(createdTimesheet.getId()).orElseThrow();
         assertThat(finalTimesheet.getStatus()).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
-        assertThat(finalTimesheet.getHours()).isEqualTo(new BigDecimal("15.0"));
+        assertThat(finalTimesheet.getHours()).isEqualTo(new BigDecimal("3.0"));
         assertThat(finalTimesheet.getDescription()).contains("increased hours");
     }
 

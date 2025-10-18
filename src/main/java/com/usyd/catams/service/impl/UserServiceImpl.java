@@ -11,6 +11,10 @@ import com.usyd.catams.exception.ErrorCodes;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.security.JwtTokenProvider;
 import com.usyd.catams.service.UserService;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
@@ -139,5 +143,18 @@ public class UserServiceImpl implements UserService {
             savedUser.getName(),
             savedUser.getRole().name()
         );
+    }
+
+    @Override
+    public List<UserResponse> getUsers() {
+        return userRepository.findAll().stream()
+            .sorted(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER))
+            .map(user -> new UserResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getName(),
+                user.getRole().name()
+            ))
+            .collect(Collectors.toList());
     }
 }

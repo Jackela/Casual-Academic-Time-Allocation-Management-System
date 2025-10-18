@@ -1,0 +1,94 @@
+Title: Error (404)
+
+URL Source: https://www.sydney.edu.au/content/dam/corporate/documents/about-us/working-at-sydney/enterprise-agreements/University-of-Sydney-Enterprise-Agreement-2023-2026.pdf
+
+Warning: Target URL returned error 404: Not Found
+
+Markdown Content:
+Error (404) - The University of Sydney
+
+===============
+
+![Image 2: header-logo](https://global.ketchcdn.com/web/v2/assetsv1/orgs/usyd/1747262815211/test/Main_logo_USYD.svg)
+
+### Your privacy choices
+
+We use online tracking and other technologies to provide a personalised experience, improve our offerings, monitor and record your engagement with us, and share limited personal information with third-party advertisers. You can update your consent choices at any time. To learn more about our privacy practices, please review our [Privacy Statement](https://www.sydney.edu.au/privacy-statement.html "https://www.sydney.edu.au/privacy-statement.html").
+
+Customise settings Accept all
+
+[Home](https://www.sydney.edu.au/home.html) / [Error (404)](https://www.sydney.edu.au/errors/404.html)
+
+Page not found
+==============
+
+The page may have moved, be temporarily unavailable, or the address may not be correct.
+
+![Image 3](https://www.sydney.edu.au/content/dam/corporate/images/error-pages/no-book-was-harmed-for-this-pic.jpg/_jcr_content/renditions/cq5dam.web.1440.861.2x.jpeg)
+
+**What to do next**
+
+*   If you typed in the web address, check that you have typed it correctly (including the end of the address, which may end in **/** or**.html**).
+*   Use the [search](https://www.sydney.edu.au/s/search.html?collection=Usyd) on the top right of this page to look for a keyword related to what you are looking for. This will help if the page has moved.
+*   Check if there is a service outage on our [Service Status page.](https://sydneyuni.service-now.com/sm?id=services_status)
+
+If these options don't help, you can contact our helpdesk by calling +61 (2) 9351 6000 or emailing [support@sydney.edu.au](mailto:support@sydney.edu.au).
+
+_Error 404_
+
+![Image 4: University of Sydney](https://www.sydney.edu.au/etc.clientlibs/corporate-commons/clientlibs/foundation/resources/corporate-frontend/assets/img/USydLogoBlack.svg)
+
+Leadership for good starts here
+
+Media
+-----
+
+*   [News](https://www.sydney.edu.au/news-opinion/latest-news.html)
+*   [Find an expert](https://www.sydney.edu.au/news-opinion/find-an-expert.html)
+*   [Media Contacts](https://www.sydney.edu.au/news-opinion/media-contacts.html)
+
+Student links
+-------------
+
+*   [How to log in to University systems](https://www.sydney.edu.au/students/log-in-to-university-systems.html)
+*   [Key Dates](https://www.sydney.edu.au/students/key-dates.html)
+*   [Class timetables](https://www.sydney.edu.au/students/timetables.html)
+*   [Policies](https://www.sydney.edu.au/policies/)
+
+About us
+--------
+
+*   [Our world university rankings](https://www.sydney.edu.au/about-us/our-world-rankings.html)
+*   [Faculties and schools](https://www.sydney.edu.au/about-us/faculties-and-schools.html)
+*   [Research Centres](https://www.sydney.edu.au/research/our-research/centres.html)
+*   [Campus locations](https://www.sydney.edu.au/about-us/campuses/campus-locations.html)
+
+Connect
+-------
+
+*   [Contact us](https://www.sydney.edu.au/contact-us.html)
+*   [Find a staff member](https://www.sydney.edu.au/about-us/governance-and-structure/staff-directory.html)
+*   [Careers at Sydney](https://www.sydney.edu.au/about-us/careers-at-sydney.html)
+*   [Find an event](https://whatson.sydney.edu.au/)
+*   [Emergencies and personal safety](https://www.sydney.edu.au/about-us/campuses/emergencies-and-personal-safety.html)
+
+Member of
+
+[![Image 5: Group Of Eight](https://www.sydney.edu.au/etc.clientlibs/corporate-commons/clientlibs/foundation/resources/corporate-frontend/assets/img/groupOfEight.png)](https://go8.edu.au/)[![Image 6: APRU](https://www.sydney.edu.au/etc.clientlibs/corporate-commons/clientlibs/foundation/resources/corporate-frontend/assets/img/APRU.png)](https://apru.org/)[![Image 7: Athena Swan member](https://www.sydney.edu.au/etc.clientlibs/corporate-commons/clientlibs/foundation/resources/corporate-frontend/assets/img/athenaSwan.png)](https://www.sydney.edu.au/about-us/vision-and-values/diversity/gender-equity.html#sage)
+
+[University of Sydney Instagram](https://instagram.com/sydney_uni/ "University of Sydney Instagram")[University of Sydney Youtube](https://www.youtube.com/user/uniofsydney "University of Sydney Youtube ")[University of Sydney Wechat ![Image 8: Wechat QR code](https://www.sydney.edu.au/content/dam/corporate/assets/social/wechat/wechat-qr-258x258.png)](javascript:void() "University of Sydney Wechat")
+
+Follow us_
+
+*   [Disclaimer and copyright](https://www.sydney.edu.au/disclaimer.html)
+*   [Privacy statement](https://www.sydney.edu.au/privacy-statement.html)
+*   [Accessibility](https://www.sydney.edu.au/accessibility.html)
+*   [Feedback](https://www.sydney.edu.au/website-feedback.html)
+*   [](https://www.sydney.edu.au/content/dam/corporate/documents/about-us/working-at-sydney/enterprise-agreements/University-of-Sydney-Enterprise-Agreement-2023-2026.pdf)
+*   [Your privacy settings](javascript:void(0))
+
+ ABN: 15 211 513 464 
+
+ CRICOS Number: 00026A 
+
+ TEQSA: PRV12057

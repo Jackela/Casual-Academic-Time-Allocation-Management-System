@@ -1,10 +1,13 @@
 package com.usyd.catams.dto.response;
 
 import com.usyd.catams.enums.ApprovalStatus;
+import com.usyd.catams.enums.TimesheetTaskType;
+import com.usyd.catams.enums.TutorQualification;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -43,9 +46,32 @@ public class TimesheetResponse {
     @JsonProperty("hourlyRate")
     private BigDecimal hourlyRate;
 
+    @JsonProperty("deliveryHours")
+    private BigDecimal deliveryHours;
+
+    @JsonProperty("associatedHours")
+    private BigDecimal associatedHours;
+
     @JsonProperty("totalPay")
     private BigDecimal totalPay;
 
+    @JsonProperty("taskType")
+    private TimesheetTaskType taskType;
+
+    @JsonProperty("isRepeat")
+    private Boolean repeat;
+
+    @JsonProperty("qualification")
+    private TutorQualification qualification;
+
+    @JsonProperty("rateCode")
+    private String rateCode;
+
+    @JsonProperty("calculationFormula")
+    private String calculationFormula;
+
+    @JsonProperty("clauseReference")
+    private String clauseReference;
     @JsonProperty("description")
     private String description;
 
@@ -69,6 +95,9 @@ public class TimesheetResponse {
     @JsonProperty("createdBy")
     private Long createdBy;
 
+    @JsonProperty("rejectionReason")
+    private String rejectionReason;
+
     // Default constructor
     public TimesheetResponse() {
     }
@@ -76,7 +105,8 @@ public class TimesheetResponse {
     // Full constructor
     public TimesheetResponse(Long id, Long tutorId, String tutorName, Long courseId, String courseName,
                            LocalDate weekStartDate, BigDecimal hours, BigDecimal hourlyRate, String description,
-                           ApprovalStatus status, LocalDateTime createdAt, LocalDateTime updatedAt, Long createdBy) {
+                           ApprovalStatus status, LocalDateTime createdAt, LocalDateTime updatedAt, Long createdBy,
+                           String rejectionReason) {
         this.id = id;
         this.tutorId = tutorId;
         this.tutorName = tutorName;
@@ -90,6 +120,16 @@ public class TimesheetResponse {
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.createdBy = createdBy;
+        this.rejectionReason = rejectionReason;
+
+        this.taskType = TimesheetTaskType.OTHER;
+        this.repeat = Boolean.FALSE;
+        this.qualification = TutorQualification.STANDARD;
+        this.deliveryHours = null;
+        this.associatedHours = null;
+        this.rateCode = null;
+        this.calculationFormula = null;
+        this.clauseReference = null;
         
         // Calculate computed fields
         this.totalPay = calculateTotalPay();
@@ -153,7 +193,6 @@ public class TimesheetResponse {
 
     public void setHours(BigDecimal hours) {
         this.hours = hours;
-        this.totalPay = calculateTotalPay(); // Recalculate when hours change
     }
 
     public BigDecimal getHourlyRate() {
@@ -162,7 +201,22 @@ public class TimesheetResponse {
 
     public void setHourlyRate(BigDecimal hourlyRate) {
         this.hourlyRate = hourlyRate;
-        this.totalPay = calculateTotalPay(); // Recalculate when rate changes
+    }
+
+    public BigDecimal getDeliveryHours() {
+        return deliveryHours;
+    }
+
+    public void setDeliveryHours(BigDecimal deliveryHours) {
+        this.deliveryHours = deliveryHours;
+    }
+
+    public BigDecimal getAssociatedHours() {
+        return associatedHours;
+    }
+
+    public void setAssociatedHours(BigDecimal associatedHours) {
+        this.associatedHours = associatedHours;
     }
 
     public BigDecimal getTotalPay() {
@@ -170,7 +224,7 @@ public class TimesheetResponse {
     }
 
     public void setTotalPay(BigDecimal totalPay) {
-        this.totalPay = totalPay;
+        this.totalPay = totalPay != null ? totalPay.setScale(2, RoundingMode.HALF_UP) : null;
     }
 
     public String getDescription() {
@@ -229,12 +283,71 @@ public class TimesheetResponse {
         this.createdBy = createdBy;
     }
 
+    public TimesheetTaskType getTaskType() {
+        return taskType;
+    }
+
+    public void setTaskType(TimesheetTaskType taskType) {
+        this.taskType = taskType;
+    }
+
+    public Boolean getRepeat() {
+        return repeat;
+    }
+
+    public void setRepeat(Boolean repeat) {
+        this.repeat = repeat;
+    }
+
+    public TutorQualification getQualification() {
+        return qualification;
+    }
+
+    public void setQualification(TutorQualification qualification) {
+        this.qualification = qualification;
+    }
+
+    public String getRateCode() {
+        return rateCode;
+    }
+
+    public void setRateCode(String rateCode) {
+        this.rateCode = rateCode;
+    }
+
+    public String getCalculationFormula() {
+        return calculationFormula;
+    }
+
+    public void setCalculationFormula(String calculationFormula) {
+        this.calculationFormula = calculationFormula;
+    }
+
+    public String getClauseReference() {
+        return clauseReference;
+    }
+
+    public void setClauseReference(String clauseReference) {
+        this.clauseReference = clauseReference;
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
+    }
+
     // Business logic methods
     private BigDecimal calculateTotalPay() {
+        if (totalPay != null) {
+            return totalPay;
+        }
         if (hours == null || hourlyRate == null) {
             return BigDecimal.ZERO;
         }
-        return hours.multiply(hourlyRate);
+        return hours.multiply(hourlyRate).setScale(2, RoundingMode.HALF_UP);
     }
 
     private Boolean calculateIsEditable() {
@@ -262,14 +375,23 @@ public class TimesheetResponse {
                 ", weekStartDate=" + weekStartDate +
                 ", hours=" + hours +
                 ", hourlyRate=" + hourlyRate +
+                ", deliveryHours=" + deliveryHours +
+                ", associatedHours=" + associatedHours +
                 ", totalPay=" + totalPay +
                 ", description='" + description + '\'' +
                 ", status=" + status +
+                ", taskType=" + taskType +
+                ", repeat=" + repeat +
+                ", qualification=" + qualification +
+                ", rateCode='" + rateCode + '\'' +
+                ", calculationFormula='" + calculationFormula + '\'' +
+                ", clauseReference='" + clauseReference + '\'' +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
                 ", isEditable=" + isEditable +
                 ", canBeApproved=" + canBeApproved +
                 ", createdBy=" + createdBy +
+                ", rejectionReason='" + rejectionReason + '\'' +
                 '}';
     }
 }

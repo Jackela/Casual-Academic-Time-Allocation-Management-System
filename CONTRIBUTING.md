@@ -45,7 +45,7 @@ If you cannot execute a command (e.g., missing Docker), note it clearly in the P
 
 ## 5. Documentation
 
-- Keep `docs/DOCUMENTATION_INDEX.md` up to date whenever adding or renaming files.
+- Keep `docs/index.md` up to date whenever adding or renaming files.
 - Log architecture or tooling decisions as ADRs in `docs/adr/` using the naming pattern `NNNN-title.md`.
 - Update [`docs/tasks.md`](docs/tasks.md) if you introduce new automation commands.
 

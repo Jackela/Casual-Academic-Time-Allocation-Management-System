@@ -1,6 +1,9 @@
 package com.usyd.catams.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.usyd.catams.enums.TimesheetTaskType;
+import com.usyd.catams.enums.TutorQualification;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -46,6 +49,23 @@ public class TimesheetCreateRequest {
     @Size(min = 1, max = 1000, message = "Description must be between 1 and 1000 characters")
     private String description;
 
+    @NotNull(message = "Task type is required")
+    private TimesheetTaskType taskType = TimesheetTaskType.TUTORIAL;
+
+    private Boolean isRepeat = Boolean.FALSE;
+
+    @NotNull(message = "Qualification is required")
+    private TutorQualification qualification = TutorQualification.STANDARD;
+
+    @NotNull(message = "Delivery hours is required")
+    @DecimalMin(value = "0.1", message = "Delivery hours must be at least 0.1")
+    @DecimalMax(value = "10.0", message = "Delivery hours cannot exceed 10.0")
+    @Digits(integer = 2, fraction = 1, message = "Delivery hours must have at most 1 decimal place")
+    private BigDecimal deliveryHours;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate sessionDate;
+
     // Default constructor
     public TimesheetCreateRequest() {
     }
@@ -59,6 +79,7 @@ public class TimesheetCreateRequest {
         this.hours = hours;
         this.hourlyRate = hourlyRate;
         this.description = description;
+        this.deliveryHours = hours;
     }
 
     // Getters and Setters
@@ -91,7 +112,11 @@ public class TimesheetCreateRequest {
     }
 
     public void setHours(BigDecimal hours) {
+        BigDecimal previousHours = this.hours;
         this.hours = hours;
+        if (deliveryHours == null || (previousHours != null && previousHours.compareTo(deliveryHours) == 0)) {
+            this.deliveryHours = hours;
+        }
     }
 
     public BigDecimal getHourlyRate() {
@@ -110,6 +135,46 @@ public class TimesheetCreateRequest {
         this.description = description;
     }
 
+    public TimesheetTaskType getTaskType() {
+        return taskType;
+    }
+
+    public void setTaskType(TimesheetTaskType taskType) {
+        this.taskType = taskType;
+    }
+
+    public boolean isRepeat() {
+        return Boolean.TRUE.equals(isRepeat);
+    }
+
+    public void setRepeat(Boolean repeat) {
+        this.isRepeat = repeat;
+    }
+
+    public TutorQualification getQualification() {
+        return qualification;
+    }
+
+    public void setQualification(TutorQualification qualification) {
+        this.qualification = qualification;
+    }
+
+    public BigDecimal getDeliveryHours() {
+        return deliveryHours != null ? deliveryHours : hours;
+    }
+
+    public void setDeliveryHours(BigDecimal deliveryHours) {
+        this.deliveryHours = deliveryHours;
+    }
+
+    public LocalDate getSessionDate() {
+        return sessionDate;
+    }
+
+    public void setSessionDate(LocalDate sessionDate) {
+        this.sessionDate = sessionDate;
+    }
+
     /**
      * Validate that weekStartDate is a Monday.
      * This method can be called for additional business validation.
@@ -122,6 +187,11 @@ public class TimesheetCreateRequest {
             return false;
         }
         return weekStartDate.getDayOfWeek().getValue() == 1; // Monday = 1
+    }
+
+    @JsonIgnore
+    public LocalDate resolveSessionDate() {
+        return sessionDate != null ? sessionDate : weekStartDate;
     }
 
     /**

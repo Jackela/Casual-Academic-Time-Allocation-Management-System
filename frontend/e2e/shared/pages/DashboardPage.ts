@@ -44,8 +44,22 @@ export class DashboardPage {
    * Enhanced data loading wait mechanism with cross-browser compatibility
    * Addresses race conditions and provides multiple fallback strategies
    */
-  async waitForTimesheetData() {
-    await this.waitForDashboardReady();
+  async waitForTimesheetData(options: { timeout?: number; preferPendingTab?: boolean } = {}) {
+    const { timeout, preferPendingTab = true } = options;
+
+    if (preferPendingTab) {
+      const pendingTab = this.page.getByRole('button', { name: /Pending Review/i });
+      try {
+        const tabCount = await pendingTab.count();
+        if (tabCount > 0 && !(await pendingTab.isDisabled().catch(() => true))) {
+          await pendingTab.click();
+        }
+      } catch {
+        // Tabs not available in current dashboard; continue with default wait strategy.
+      }
+    }
+
+    await this.waitForDashboardReady({ timeout });
   }
 
   async expectToBeLoaded(role: 'LECTURER' | 'ADMIN' | 'TUTOR' = 'LECTURER') {

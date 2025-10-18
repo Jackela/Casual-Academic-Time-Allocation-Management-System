@@ -21,7 +21,7 @@ spring:
   # Security configuration
   security:
     jwt:
-      secret: ${JWT_SECRET:catams-demo-secret-key-for-development-only-not-for-production}
+      secret: ${JWT_SECRET:PDUWUYQxl+aNU04furgt8QkbtSYun0wJSP3/5bMSo6I=}
       expiration: ${JWT_EXPIRATION:86400000}
 
 logging:

@@ -5,9 +5,17 @@ import com.usyd.catams.entity.User;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.enums.ApprovalStatus;
-import com.usyd.catams.repository.CourseRepository;
+import com.usyd.catams.entity.PolicyVersion;
+import com.usyd.catams.entity.RateAmount;
+import com.usyd.catams.entity.RateCode;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.CourseRepository;
+import com.usyd.catams.repository.PolicyVersionRepository;
+import com.usyd.catams.repository.RateAmountRepository;
+import com.usyd.catams.repository.RateCodeRepository;
+import com.usyd.catams.enums.TimesheetTaskType;
+import com.usyd.catams.enums.TutorQualification;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.springframework.boot.CommandLineRunner;
@@ -42,7 +50,10 @@ public class E2EDataInitializer {
             CourseRepository courseRepository,
             TimesheetRepository timesheetRepository,
             PasswordEncoder passwordEncoder,
-            ObjectProvider<Flyway> flywayProvider) {
+            ObjectProvider<Flyway> flywayProvider,
+            RateCodeRepository rateCodeRepository,
+            PolicyVersionRepository policyVersionRepository,
+            RateAmountRepository rateAmountRepository) {
         return args -> {
             flywayProvider.ifAvailable(flyway -> {
                 try {
@@ -104,7 +115,7 @@ public class E2EDataInitializer {
             LocalDate today = LocalDate.now();
             LocalDate lastMonday = today.minusDays((today.getDayOfWeek().getValue() + 6) % 7);
             LocalDate twoWeeksAgoMonday = lastMonday.minusDays(7);
-            
+
             java.util.function.Function<Timesheet, Timesheet> upsert = (ts) -> {
                 return timesheetRepository
                     .findByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(ts.getTutorId(), ts.getCourseId(), ts.getWeekStartDate())
@@ -226,10 +237,151 @@ public class E2EDataInitializer {
             modificationRequestedTimesheet.setStatus(ApprovalStatus.MODIFICATION_REQUESTED);
             upsert.apply(modificationRequestedTimesheet);
 
+            seedSchedule1Rates(rateCodeRepository, policyVersionRepository, rateAmountRepository);
 
             
             System.out.println("✅ E2E test data initialized");
         };
+    }
+
+    private void seedSchedule1Rates(RateCodeRepository rateCodeRepository,
+                                    PolicyVersionRepository policyVersionRepository,
+                                    RateAmountRepository rateAmountRepository) {
+        PolicyVersion policy = policyVersionRepository.findAll().stream()
+            .filter(p -> "EA-2023-2026-Schedule-1".equals(p.getEaReference()))
+            .findFirst()
+            .orElseGet(() -> {
+                PolicyVersion version = new PolicyVersion();
+                version.setEaReference("EA-2023-2026-Schedule-1");
+                version.setMajorVersion(2023);
+                version.setMinorVersion(0);
+                version.setEffectiveFrom(LocalDate.of(2022, 7, 1));
+                version.setEffectiveTo(null);
+                version.setSourceDocumentUrl("University-of-Sydney-Enterprise-Agreement-2023-2026.pdf");
+                version.setNotes("Seeded for e2e-local profile to exercise Schedule 1 calculator");
+                return policyVersionRepository.save(version);
+            });
+
+        RateCode tu1 = ensureRateCode(rateCodeRepository,
+            "TU1",
+            TimesheetTaskType.TUTORIAL,
+            "Tutorial rate – PhD holder or unit coordinator (1h delivery + up to 2h associated)",
+            new BigDecimal("2.00"),
+            new BigDecimal("1.00"),
+            true,
+            false,
+            "Schedule 1 – Tutoring");
+
+        RateCode tu2 = ensureRateCode(rateCodeRepository,
+            "TU2",
+            TimesheetTaskType.TUTORIAL,
+            "Tutorial rate – standard eligibility (1h delivery + up to 2h associated)",
+            new BigDecimal("2.00"),
+            new BigDecimal("1.00"),
+            false,
+            false,
+            "Schedule 1 – Tutoring");
+
+        RateCode ao1 = ensureRateCode(rateCodeRepository,
+            "AO1_DE1",
+            TimesheetTaskType.ORAA,
+            "Other required academic activity – PhD holder or unit coordinator (hourly)",
+            BigDecimal.ZERO,
+            BigDecimal.ONE,
+            true,
+            false,
+            "Schedule 1 Clause 3.1(a) – ORAA");
+
+        RateCode ao2 = ensureRateCode(rateCodeRepository,
+            "AO2_DE2",
+            TimesheetTaskType.ORAA,
+            "Other required academic activity – standard eligibility (hourly)",
+            BigDecimal.ZERO,
+            BigDecimal.ONE,
+            false,
+            false,
+            "Schedule 1 Clause 3.1(a) – ORAA");
+
+        LocalDate effectiveFrom = LocalDate.of(2025, 7, 1);
+        LocalDate effectiveTo = LocalDate.of(2026, 5, 31);
+
+        ensureRateAmount(rateAmountRepository, policy, tu1, TutorQualification.PHD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("218.07"),
+            new BigDecimal("2.00"), new BigDecimal("3.00"),
+            "Schedule 1 – Tutoring (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, tu1, TutorQualification.COORDINATOR,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("218.07"),
+            new BigDecimal("2.00"), new BigDecimal("3.00"),
+            "Schedule 1 – Tutoring (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, tu2, TutorQualification.STANDARD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("182.54"),
+            new BigDecimal("2.00"), new BigDecimal("3.00"),
+            "Schedule 1 – Tutoring (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, ao1, TutorQualification.PHD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("72.33"),
+            BigDecimal.ZERO, BigDecimal.ONE,
+            "Schedule 1 – ORAA (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, ao1, TutorQualification.COORDINATOR,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("72.33"),
+            BigDecimal.ZERO, BigDecimal.ONE,
+            "Schedule 1 – ORAA (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, ao2, TutorQualification.STANDARD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("60.51"),
+            BigDecimal.ZERO, BigDecimal.ONE,
+            "Schedule 1 – ORAA (1 July 2025)");
+    }
+
+    private RateCode ensureRateCode(RateCodeRepository rateCodeRepository,
+                                    String code,
+                                    TimesheetTaskType taskType,
+                                    String description,
+                                    BigDecimal defaultAssociated,
+                                    BigDecimal defaultDelivery,
+                                    boolean requiresPhd,
+                                    boolean repeatable,
+                                    String clauseReference) {
+        return rateCodeRepository.findByCode(code).orElseGet(() -> {
+            RateCode rateCode = new RateCode();
+            rateCode.setCode(code);
+            rateCode.setTaskType(taskType);
+            rateCode.setDescription(description);
+            rateCode.setDefaultAssociatedHours(defaultAssociated);
+            rateCode.setDefaultDeliveryHours(defaultDelivery);
+            rateCode.setRequiresPhd(requiresPhd);
+            rateCode.setRepeatable(repeatable);
+            rateCode.setEaClauseReference(clauseReference);
+            return rateCodeRepository.save(rateCode);
+        });
+    }
+
+    private void ensureRateAmount(RateAmountRepository rateAmountRepository,
+                                  PolicyVersion policyVersion,
+                                  RateCode rateCode,
+                                  TutorQualification qualification,
+                                  String yearLabel,
+                                  LocalDate effectiveFrom,
+                                  LocalDate effectiveTo,
+                                  BigDecimal hourlyRate,
+                                  BigDecimal maxAssociatedHours,
+                                  BigDecimal maxPayableHours,
+                                  String notes) {
+        RateAmount rateAmount = new RateAmount();
+        rateAmount.setRateCode(rateCode);
+        rateAmount.setPolicyVersion(policyVersion);
+        rateAmount.setYearLabel(yearLabel);
+        rateAmount.setEffectiveFrom(effectiveFrom);
+        rateAmount.setEffectiveTo(effectiveTo);
+        rateAmount.setHourlyAmountAud(hourlyRate);
+        rateAmount.setMaxAssociatedHours(maxAssociatedHours);
+        rateAmount.setMaxPayableHours(maxPayableHours);
+        rateAmount.setQualification(qualification);
+        rateAmount.setNotes(notes);
+        rateAmountRepository.save(rateAmount);
     }
 }
 

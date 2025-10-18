@@ -8,7 +8,7 @@
 import React from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import TutorDashboard from "./TutorDashboard";
 import { messages } from "../../../i18n/messages";
 import {
@@ -36,6 +36,11 @@ const accessControlHooksMock = vi.hoisted(() => ({
 
 import { getStatusConfig } from "../../shared/StatusBadge/status-badge-utils";
 import type { Timesheet, TimesheetStatus } from "../../../types/api";
+import {
+  getVisibleColumns,
+  TIMESHEET_COLUMNS,
+} from "../../../lib/config/table-config";
+import type { TimesheetColumnKey } from "../../../lib/config/table-config";
 
 // =============================================================================
 // Mock Setup
@@ -123,6 +128,65 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
     {children}
   </MockAuthProvider>
 );
+
+// =============================================================================
+// Responsive Helpers
+// =============================================================================
+
+const ORIGINAL_VIEWPORT_WIDTH = globalThis.innerWidth || 1024;
+const ORIGINAL_OUTER_WIDTH = globalThis.outerWidth || ORIGINAL_VIEWPORT_WIDTH;
+
+const setViewportWidth = (width: number) => {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    writable: true,
+    value: width,
+  });
+  Object.defineProperty(window, "outerWidth", {
+    configurable: true,
+    writable: true,
+    value: width,
+  });
+  window.dispatchEvent(new Event("resize"));
+};
+
+const TUTOR_TABLE_COLUMN_KEYS: TimesheetColumnKey[] = [
+  "course",
+  "weekStartDate",
+  "hours",
+  "hourlyRate",
+  "totalPay",
+  "status",
+  "lastUpdated",
+  "description",
+  "actions",
+];
+
+const getTutorTableColumnExpectation = (viewportWidth: number) => {
+  const relevantColumns = TUTOR_TABLE_COLUMN_KEYS.map((key) =>
+    TIMESHEET_COLUMNS.find((column) => column.key === key),
+  ).filter((column): column is NonNullable<typeof column> => Boolean(column));
+
+  const visibleColumns = getVisibleColumns(relevantColumns, viewportWidth);
+  const visibleKeys = visibleColumns.map((column) => column.key);
+  const hiddenKeys = relevantColumns
+    .map((column) => column.key)
+    .filter((key) => !visibleKeys.includes(key));
+
+  return {
+    visibleKeys,
+    hiddenKeys,
+  };
+};
+
+afterEach(() => {
+  setViewportWidth(ORIGINAL_VIEWPORT_WIDTH);
+  Object.defineProperty(window, "outerWidth", {
+    configurable: true,
+    writable: true,
+    value: ORIGINAL_OUTER_WIDTH,
+  });
+});
 
 // =============================================================================
 // TutorDashboard Component Tests
@@ -303,27 +367,66 @@ describe("TutorDashboard Component", () => {
     });
 
     it("should show timesheets in table with tutor-specific columns", async () => {
+      setViewportWidth(1024);
       render(<TutorDashboard />, { wrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId("timesheets-table")).toBeInTheDocument();
       });
 
-      // Should show tutor-relevant columns
+      const table = screen.getByTestId("timesheets-table");
+      const { visibleKeys, hiddenKeys } = getTutorTableColumnExpectation(
+        window.innerWidth,
+      );
+
+      const headerCells = within(table).getAllByRole("columnheader");
+      const headerKeys = headerCells
+        .map((cell) => cell.getAttribute("data-column"))
+        .filter(
+          (key): key is TimesheetColumnKey =>
+            Boolean(key) && key !== "selection",
+        );
+
+      expect(headerKeys).toEqual(visibleKeys);
+
+      hiddenKeys.forEach((key) => {
+        expect(table.querySelector(`[data-column="${key}"]`)).toBeNull();
+      });
+    });
+
+    it("should reveal additional columns on wider viewports", async () => {
+      setViewportWidth(1440);
+      render(<TutorDashboard />, { wrapper });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("timesheets-table")).toBeInTheDocument();
+      });
+
+      const table = screen.getByTestId("timesheets-table");
+      const { visibleKeys } = getTutorTableColumnExpectation(window.innerWidth);
+      const headerCells = within(table).getAllByRole("columnheader");
+      const headerKeys = headerCells
+        .map((cell) => cell.getAttribute("data-column"))
+        .filter(
+          (key): key is TimesheetColumnKey =>
+            Boolean(key) && key !== "selection",
+        );
+
+      expect(headerKeys).toEqual(visibleKeys);
+      expect(visibleKeys).toEqual(
+        expect.arrayContaining([
+          "hours",
+          "hourlyRate",
+          "lastUpdated",
+          "description",
+        ]),
+      );
+
       expect(
-        screen.getByRole("columnheader", { name: /course/i }),
+        within(table).getByRole("columnheader", { name: /hours/i }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("columnheader", { name: /week/i }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("columnheader", { name: /hours/i }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("columnheader", { name: /status/i }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("columnheader", { name: /actions/i }),
+        within(table).getByRole("columnheader", { name: /rate/i }),
       ).toBeInTheDocument();
     });
 
@@ -435,53 +538,6 @@ describe("TutorDashboard Component", () => {
     // These sidebar components are now separate and can be tested independently.
     // it('should display payment status and history', async () => { ... });
     // it('should provide tax document preparation info', async () => { ... });
-  });
-
-  describe("Notifications Panel", () => {
-    it("should show important notifications", async () => {
-      render(<TutorDashboard />, { wrapper });
-      expect(
-        screen.getByText(/2 timesheets need your attention/i),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Deadline approaching for CS101/i),
-      ).toBeInTheDocument();
-    });
-
-    it("should display action-required items prominently", async () => {
-      render(<TutorDashboard />, { wrapper });
-
-      expect(screen.getByTestId("action-required")).toBeInTheDocument();
-      expect(screen.getByText(/Action Required/i)).toBeInTheDocument();
-      expect(screen.getByText(/2 rejected timesheets/i)).toBeInTheDocument();
-    });
-
-    it("should show submission reminders", async () => {
-      render(<TutorDashboard />, { wrapper });
-
-      expect(screen.getByText(/Don't forget to submit/i)).toBeInTheDocument();
-      expect(screen.getByText(/5 draft timesheets/i)).toBeInTheDocument();
-    });
-
-    it("should allow dismissing notifications", async () => {
-      const user = userEvent.setup();
-      render(<TutorDashboard />, { wrapper });
-      const panelScope = within(screen.getByTestId("notifications-panel"));
-      const deadlineNotification = panelScope
-        .getByText(/Deadline approaching for CS101/i)
-        .closest(".notification");
-      expect(deadlineNotification).not.toBeNull();
-      const dismissButton = within(
-        deadlineNotification as HTMLElement,
-      ).getByRole("button", { name: /Dismiss/i });
-      await user.click(dismissButton);
-
-      await waitFor(() => {
-        expect(
-          panelScope.queryByText(/Deadline approaching for CS101/i),
-        ).not.toBeInTheDocument();
-      });
-    });
   });
 
   describe("Course and Schedule Integration", () => {
@@ -674,7 +730,7 @@ describe("TutorDashboard Component", () => {
         await screen.findByLabelText(/Course/i),
       ).toHaveAccessibleDescription();
       expect(
-        await screen.findByLabelText(/Hours Worked/i),
+        await screen.findByLabelText(/Delivery Hours/i),
       ).toHaveAccessibleDescription();
       expect(
         await screen.findByLabelText(/Description/i),

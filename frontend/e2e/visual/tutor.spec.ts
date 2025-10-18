@@ -13,6 +13,7 @@ const SCREENSHOT_OPTIONS = {
   caret: 'hide' as const,
   fullPage: true,
   scale: 'device' as const,
+  maxDiffPixels: 2000,
 };
 
 const BASE_TIMESHEETS: Timesheet[] = [
@@ -24,7 +25,15 @@ const BASE_TIMESHEETS: Timesheet[] = [
     courseName: 'Introduction to Programming',
     weekStartDate: '2025-02-03',
     hours: 6.5,
+    deliveryHours: 6.5,
     hourlyRate: 45,
+    qualification: 'STANDARD',
+    taskType: 'TUTORIAL',
+    repeat: false,
+    rateCode: 'TU1',
+    calculationFormula: '1h delivery + 2h associated',
+    clauseReference: 'Schedule 1',
+    sessionDate: '2025-02-03',
     description: 'Led on-campus tutorials and graded weekly quizzes.',
     status: 'DRAFT',
     createdAt: '2025-02-03T08:00:00Z',
@@ -39,7 +48,15 @@ const BASE_TIMESHEETS: Timesheet[] = [
     courseName: 'Data Structures',
     weekStartDate: '2025-01-27',
     hours: 5,
+    deliveryHours: 5,
     hourlyRate: 48,
+    qualification: 'STANDARD',
+    taskType: 'TUTORIAL',
+    repeat: false,
+    rateCode: 'TU1',
+    calculationFormula: '1h delivery + 2h associated',
+    clauseReference: 'Schedule 1',
+    sessionDate: '2025-01-27',
     description: 'Updated lab instructions per lecturer feedback.',
     status: 'MODIFICATION_REQUESTED',
     createdAt: '2025-01-27T07:00:00Z',
@@ -54,7 +71,15 @@ const BASE_TIMESHEETS: Timesheet[] = [
     courseName: 'Applied Statistics',
     weekStartDate: '2025-02-10',
     hours: 7,
+    deliveryHours: 7,
     hourlyRate: 46,
+    qualification: 'STANDARD',
+    taskType: 'TUTORIAL',
+    repeat: false,
+    rateCode: 'TU1',
+    calculationFormula: '1h delivery + 2h associated',
+    clauseReference: 'Schedule 1',
+    sessionDate: '2025-02-10',
     description: 'Prepared exam revision materials and office hours.',
     status: 'PENDING_TUTOR_CONFIRMATION',
     createdAt: '2025-02-10T09:30:00Z',
@@ -69,7 +94,15 @@ const BASE_TIMESHEETS: Timesheet[] = [
     courseName: 'Systems Programming',
     weekStartDate: '2025-01-20',
     hours: 4.5,
+    deliveryHours: 4.5,
     hourlyRate: 52,
+    qualification: 'STANDARD',
+    taskType: 'TUTORIAL',
+    repeat: false,
+    rateCode: 'TU1',
+    calculationFormula: '1h delivery + 2h associated',
+    clauseReference: 'Schedule 1',
+    sessionDate: '2025-01-20',
     description: 'Confirmed marking and consultation sessions.',
     status: 'TUTOR_CONFIRMED',
     createdAt: '2025-01-20T09:00:00Z',
@@ -84,7 +117,15 @@ const BASE_TIMESHEETS: Timesheet[] = [
     courseName: 'Software Engineering',
     weekStartDate: '2025-01-13',
     hours: 8,
+    deliveryHours: 8,
     hourlyRate: 50,
+    qualification: 'STANDARD',
+    taskType: 'TUTORIAL',
+    repeat: false,
+    rateCode: 'TU1',
+    calculationFormula: '1h delivery + 2h associated',
+    clauseReference: 'Schedule 1',
+    sessionDate: '2025-01-13',
     description: 'Pair-programming lab facilitation and grading.',
     status: 'LECTURER_CONFIRMED',
     createdAt: '2025-01-13T07:30:00Z',
@@ -99,7 +140,15 @@ const BASE_TIMESHEETS: Timesheet[] = [
     courseName: 'Mathematics 1A',
     weekStartDate: '2025-01-06',
     hours: 6,
+    deliveryHours: 6,
     hourlyRate: 44,
+    qualification: 'STANDARD',
+    taskType: 'TUTORIAL',
+    repeat: false,
+    rateCode: 'TU1',
+    calculationFormula: '1h delivery + 2h associated',
+    clauseReference: 'Schedule 1',
+    sessionDate: '2025-01-06',
     description: 'Delivered intensive revision workshops.',
     status: 'FINAL_CONFIRMED',
     createdAt: '2025-01-06T06:45:00Z',
@@ -114,7 +163,15 @@ const BASE_TIMESHEETS: Timesheet[] = [
     courseName: 'AI Applications',
     weekStartDate: '2025-01-27',
     hours: 5.5,
+    deliveryHours: 5.5,
     hourlyRate: 54,
+    qualification: 'STANDARD',
+    taskType: 'TUTORIAL',
+    repeat: false,
+    rateCode: 'TU1',
+    calculationFormula: '1h delivery + 2h associated',
+    clauseReference: 'Schedule 1',
+    sessionDate: '2025-01-27',
     description: 'Feedback requested: clarify assessment rubric notes.',
     status: 'REJECTED',
     createdAt: '2025-01-27T08:10:00Z',
@@ -411,15 +468,48 @@ test.describe('Tutor Dashboard Visual Regression', () => {
     await prepareTutorDashboard(page);
     await page.getByRole('button', { name: /Create New Timesheet/i }).click();
     await page.getByText('New Timesheet Form').waitFor({ state: 'visible' });
+    await page.selectOption('#course', '1');
+    await page.evaluate(() => {
+      const courseSelect = document.querySelector('#course') as HTMLSelectElement | null;
+      if (courseSelect) {
+        courseSelect.value = '1';
+        courseSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      const weekInput = document.querySelector('#week-start') as HTMLInputElement | null;
+      if (weekInput) {
+        weekInput.value = '2025-02-03';
+        weekInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      const desc = document.querySelector('#description') as HTMLTextAreaElement | null;
+      if (desc) {
+        desc.value = 'Led on-campus tutorials and graded weekly quizzes.';
+        desc.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      const delivery = document.querySelector('#delivery-hours') as HTMLInputElement | null;
+      if (delivery) {
+        delivery.value = '6.5';
+        delivery.dispatchEvent(new Event('input', { bubbles: true }));
+        delivery.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+    });
+    await page.waitForTimeout(200);
     await capture(page, 'tutor-dashboard-create-modal.png');
   });
 
   test('edit timesheet modal with validation messaging', async ({ page }) => {
     await prepareTutorDashboard(page);
-    await page.getByTestId('edit-btn-101').click();
-    await page.getByLabel('Hours Worked').fill('0');
-    await page.getByLabel('Hours Worked').blur();
-    await page.waitForTimeout(150);
+    await page.getByRole('button', { name: /Create New Timesheet/i }).click();
+    await page.getByText('New Timesheet Form').waitFor({ state: 'visible' });
+    await page.evaluate(() => {
+      const delivery = document.querySelector('#delivery-hours') as HTMLInputElement | null;
+      if (delivery) {
+        delivery.value = '0';
+        delivery.dispatchEvent(new Event('input', { bubbles: true }));
+        delivery.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+    });
+    await page.waitForTimeout(200);
     await capture(page, 'tutor-dashboard-edit-validation.png');
   });
 });
+

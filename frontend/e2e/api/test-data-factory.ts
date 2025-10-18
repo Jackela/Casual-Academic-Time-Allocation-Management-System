@@ -38,15 +38,47 @@ export class TestDataFactory {
     const timesheet = await createTimesheetWithStatus(this.request, this.tokens, options);
 
     this.cleanupSteps.push(async () => {
-      await finalizeTimesheet(this.request, this.tokens, timesheet.id).catch(() => undefined);
-      await this.request
-        .delete(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheet.id}`, {
+      let deleted = false;
+      try {
+        const response = await this.request.delete(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheet.id}`, {
           headers: { Authorization: `Bearer ${this.tokens.admin.token}` },
-        })
-        .catch(() => undefined);
+        });
+        deleted = response.status() === 204;
+      } catch {
+        deleted = false;
+      }
+
+      if (!deleted) {
+        await finalizeTimesheet(this.request, this.tokens, timesheet.id).catch(() => undefined);
+        await this.request
+          .delete(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheet.id}`, {
+            headers: { Authorization: `Bearer ${this.tokens.admin.token}` },
+          })
+          .catch(() => undefined);
+      }
     });
 
     return timesheet;
+  }
+
+  async createTutorialTimesheet(options: TimesheetSeedOptions & {
+    weekStartDate: string;
+    qualification?: 'STANDARD' | 'PHD' | 'COORDINATOR';
+    repeat?: boolean;
+    sessionDate?: string;
+    deliveryHours?: number;
+  }): Promise<SeededTimesheet> {
+    const hours = options.hours ?? (options.deliveryHours ?? 1);
+    return this.createTimesheetForTest({
+      ...options,
+      hours,
+      deliveryHours: options.deliveryHours ?? hours,
+      taskType: 'TUTORIAL',
+      qualification: options.qualification ?? 'STANDARD',
+      repeat: options.repeat ?? false,
+      sessionDate: options.sessionDate ?? options.weekStartDate,
+      targetStatus: options.targetStatus ?? 'DRAFT',
+    });
   }
 
   async transitionTimesheet(

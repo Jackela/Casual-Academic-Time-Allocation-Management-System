@@ -13,6 +13,8 @@ import type {
   TimesheetQuery,
   TimesheetCreateRequest,
   TimesheetUpdateRequest,
+  TimesheetQuoteRequest,
+  TimesheetQuoteResponse,
   ApprovalRequest,
   ApprovalResponse,
   DashboardSummary,
@@ -128,6 +130,18 @@ export class TimesheetService {
    */
   static async getTimesheet(id: number): Promise<Timesheet> {
     const response = await secureApiClient.get<Timesheet>(`/api/timesheets/${id}`);
+    return response.data;
+  }
+
+  /**
+   * Retrieve an EA-compliant quote for a proposed timesheet entry.
+   */
+  static async quoteTimesheet(request: TimesheetQuoteRequest, signal?: AbortSignal): Promise<TimesheetQuoteResponse> {
+    const response = await secureApiClient.post<TimesheetQuoteResponse, TimesheetQuoteRequest>(
+      '/api/timesheets/quote',
+      request,
+      signal ? { signal } : undefined,
+    );
     return response.data;
   }
 
@@ -296,7 +310,7 @@ export class TimesheetService {
   /**
    * Validate timesheet data before submission
    */
-  static validateTimesheet(timesheet: Partial<Timesheet>): string[] {
+  static validateTimesheet(timesheet: Partial<TimesheetCreateRequest>): string[] {
     const errors: string[] = [];
 
     if (!timesheet.tutorId || timesheet.tutorId <= 0) {
@@ -311,12 +325,28 @@ export class TimesheetService {
       errors.push('Week start date is required');
     }
 
-    if (!timesheet.hours || timesheet.hours <= 0 || timesheet.hours > 60) {
-      errors.push('Hours must be between 0.1 and 60');
+    if (!timesheet.sessionDate) {
+      errors.push('Session date is required');
     }
 
-    if (!timesheet.hourlyRate || timesheet.hourlyRate <= 0 || timesheet.hourlyRate > 200) {
+    if (typeof timesheet.deliveryHours !== 'number' || timesheet.deliveryHours <= 0 || timesheet.deliveryHours > 10) {
+      errors.push('Delivery hours must be between 0.1 and 10');
+    }
+
+    if (typeof timesheet.hours !== 'number' || timesheet.hours <= 0 || timesheet.hours > 60) {
+      errors.push('Payable hours must be between 0.1 and 60');
+    }
+
+    if (typeof timesheet.hourlyRate !== 'number' || timesheet.hourlyRate <= 0 || timesheet.hourlyRate > 200) {
       errors.push('Hourly rate must be between 0.01 and 200');
+    }
+
+    if (!timesheet.taskType) {
+      errors.push('Task type is required');
+    }
+
+    if (!timesheet.qualification) {
+      errors.push('Qualification is required');
     }
 
     if (!timesheet.description || timesheet.description.trim().length === 0) {
@@ -340,6 +370,7 @@ export const {
   getPendingTimesheets,
   getTimesheetsByTutor,
   getTimesheet,
+  quoteTimesheet,
   createTimesheet,
   updateTimesheet,
   deleteTimesheet,
@@ -354,6 +385,3 @@ export const {
   getActionableTimesheets,
   validateTimesheet
 } = TimesheetService;
-
-
-

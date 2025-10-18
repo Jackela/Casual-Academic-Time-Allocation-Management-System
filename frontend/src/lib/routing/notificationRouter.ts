@@ -1,139 +1,96 @@
-/**
- * Notification Router
- * 
- * Centralized notification state management and routing logic for the dual-track
- * notification system. Handles notification visibility, priority, and action dispatch.
- */
+import { clearNotifications, publishNotification } from '../notifications/notificationBus';
 
-import type { DashboardDeadline } from '../../types/api';
+export type NotificationChannel = 'banner' | 'toast';
 
-export interface NotificationState {
-  visibleDraftCount: number;
-  visibleRejectedCount: number;
-  visibleDeadlines: DashboardDeadline[];
-  dismissedNotifications: Set<string>;
+export interface NotificationPayload {
+  channel: NotificationChannel;
+  message: string;
+  title?: string;
+  icon?: string;
+  cta?: { label: string; action: () => void };
+  dismissible?: boolean;
+  durationMs?: number;
+  severity: 'info' | 'success' | 'warning' | 'error';
 }
 
-export interface NotificationAction {
-  type: 'DISMISS' | 'RESET' | 'UPDATE_COUNTS' | 'UPDATE_DEADLINES';
-  payload?: any;
-}
+export type AppEvent =
+  | { type: 'TIMESHEET_SUBMIT_SUCCESS'; count: number }
+  | { type: 'API_ERROR'; message: string; retry?: () => void }
+  | { type: 'DRAFTS_PENDING'; count: number; onSubmitDrafts?: () => void }
+  | { type: 'REJECTIONS_PENDING'; count: number }
+  | { type: 'CLEAR_CHANNEL'; channel?: NotificationChannel };
 
-export type NotificationDispatch = (action: NotificationAction) => void;
-
-export interface NotificationContext {
-  state: NotificationState;
-  dispatch: NotificationDispatch;
-}
-
-/**
- * Determines the priority level of notifications based on current state
- */
-export const getNotificationPriority = (state: NotificationState): 'critical' | 'high' | 'medium' | 'none' => {
-  if (state.visibleRejectedCount > 0) return 'critical';
-  if (state.visibleDraftCount > 0) return 'high';
-  if (state.visibleDeadlines.length > 0) return 'medium';
-  return 'none';
-};
-
-/**
- * Determines if the banner notification should be shown
- */
-export const shouldShowBannerNotification = (state: NotificationState): boolean => {
-  return state.visibleDraftCount > 0 || state.visibleRejectedCount > 0;
-};
-
-/**
- * Generates the notification configuration for the banner
- */
-export const getBannerNotificationConfig = (state: NotificationState) => {
-  const priority = getNotificationPriority(state);
-  
-  if (state.visibleRejectedCount > 0) {
-    return {
-      variant: 'page-banner--error' as const,
-      title: 'Action required',
-      message: `${state.visibleRejectedCount} timesheet${state.visibleRejectedCount === 1 ? '' : 's'} require revision before approval.`,
-      icon: '⛔',
-      priority: 'critical' as const,
-      showSubmitAction: false
-    };
-  }
-  
-  if (state.visibleDraftCount > 0) {
-    return {
-      variant: 'page-banner--warning' as const,
-      title: 'Draft timesheets pending',
-      message: `${state.visibleDraftCount} draft timesheet${state.visibleDraftCount === 1 ? ' needs' : 's need'} submission.`,
-      icon: '⚠️',
-      priority: 'high' as const,
-      showSubmitAction: true
-    };
-  }
-  
-  return null;
-};
-
-/**
- * Notification router reducer function
- */
-export const notificationReducer = (state: NotificationState, action: NotificationAction): NotificationState => {
-  switch (action.type) {
-    case 'DISMISS':
+export function notificationRouter(event: AppEvent): NotificationPayload | null {
+  switch (event.type) {
+    case 'TIMESHEET_SUBMIT_SUCCESS':
       return {
-        ...state,
-        dismissedNotifications: new Set([...state.dismissedNotifications, action.payload])
+        channel: 'toast',
+        message: `${event.count} timesheet(s) submitted successfully.`,
+        title: 'Submission complete',
+        icon: '✅',
+        severity: 'success',
+        durationMs: 4500,
       };
-      
-    case 'RESET':
+    case 'API_ERROR':
       return {
-        ...state,
-        dismissedNotifications: new Set()
+        channel: 'banner',
+        message: `An error occurred: ${event.message}`,
+        title: 'Action required',
+        icon: '🚫',
+        severity: 'error',
+        cta: {
+          label: 'Retry',
+          action: event.retry ?? (() => window.location.reload()),
+        },
+        dismissible: true,
       };
-      
-    case 'UPDATE_COUNTS':
+    case 'DRAFTS_PENDING': {
+      const timesheetSuffix = event.count === 1 ? '' : 's';
+      const needsSuffix = event.count === 1 ? 'needs' : 'need';
       return {
-        ...state,
-        visibleDraftCount: action.payload.draftCount || 0,
-        visibleRejectedCount: action.payload.rejectedCount || 0
+        channel: 'banner',
+        title: 'Draft timesheets pending',
+        message: `${event.count} draft timesheet${timesheetSuffix} ${needsSuffix} submission`,
+        severity: 'warning',
+        icon: '📝',
+        cta: event.onSubmitDrafts
+          ? {
+              label: 'Submit drafts',
+              action: event.onSubmitDrafts,
+            }
+          : undefined,
+        dismissible: true,
       };
-      
-    case 'UPDATE_DEADLINES':
+    }
+    case 'REJECTIONS_PENDING': {
+      const timesheetSuffix = event.count === 1 ? '' : 's';
       return {
-        ...state,
-        visibleDeadlines: action.payload || []
+        channel: 'banner',
+        title: 'Action required',
+        message: `${event.count} timesheet${timesheetSuffix} require revision before approval`,
+        severity: 'error',
+        icon: '⚠️',
+        dismissible: true,
       };
-      
+    }
     default:
-      return state;
+      return null;
   }
-};
+}
 
 /**
- * Initial notification state
+ * Convenience helper that routes an application event and publishes
+ * the resulting notification to the shared notification bus.
  */
-export const initialNotificationState: NotificationState = {
-  visibleDraftCount: 0,
-  visibleRejectedCount: 0,
-  visibleDeadlines: [],
-  dismissedNotifications: new Set()
-};
+export function dispatchNotification(event: AppEvent): NotificationPayload | null {
+  if (event.type === 'CLEAR_CHANNEL') {
+    clearNotifications(event.channel);
+    return null;
+  }
 
-/**
- * Utility to create notification dismissal handler
- */
-export const createNotificationDismissHandler = (dispatch: NotificationDispatch) => {
-  return (notificationId: string) => {
-    dispatch({
-      type: 'DISMISS',
-      payload: notificationId
-    });
-  };
-};
-
-/**
- * Utility to determine if a notification should be visible based on dismissal state
- */
-export const isNotificationVisible = (notificationId: string, dismissedNotifications: Set<string>): boolean => {
-  return !dismissedNotifications.has(notificationId);
-};
+  const payload = notificationRouter(event);
+  if (payload) {
+    publishNotification(payload);
+  }
+  return payload;
+}

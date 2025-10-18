@@ -5,6 +5,8 @@ import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalStatus;
+import com.usyd.catams.enums.TimesheetTaskType;
+import com.usyd.catams.enums.TutorQualification;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.exception.BusinessException;
 import com.usyd.catams.repository.CourseRepository;
@@ -12,6 +14,7 @@ import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.domain.service.TimesheetDomainService;
 import com.usyd.catams.mapper.TimesheetMapper;
+import com.usyd.catams.service.Schedule1CalculationResult;
 import com.usyd.catams.policy.TimesheetPermissionPolicy;
 import com.usyd.catams.testdata.TestDataBuilder;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.usyd.catams.test.config.TestConfigurationLoader;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -124,6 +128,8 @@ class TimesheetServiceUnitTest {
             
         // No need to mock budget validation - it will be computed within the service
             
+        Schedule1CalculationResult calculation = standardTutorialCalculation();
+
         // Mock save operation - following DbC: repository should return what was saved
         when(timesheetRepository.save(any(Timesheet.class))).thenAnswer(invocation -> {
             Timesheet savedTimesheet = invocation.getArgument(0);
@@ -133,13 +139,13 @@ class TimesheetServiceUnitTest {
         });
 
         // Mock validation service (SSOT validation)
-        // validateInputs should not throw exception for valid inputs
-        doNothing().when(timesheetValidationService).validateInputs(any(BigDecimal.class), any(BigDecimal.class));
+        doNothing().when(timesheetValidationService)
+                .validateInputs(eq(calculation.getPayableHours()), eq(calculation.getHourlyRate()));
 
         // Mock domain service validation (following DDD: domain logic in domain service)
         when(timesheetDomainService.validateTimesheetCreation(
             any(User.class), any(User.class), any(Course.class), 
-            any(), any(BigDecimal.class), any(BigDecimal.class), 
+            any(), eq(calculation.getPayableHours()), eq(calculation.getHourlyRate()), 
             any(String.class)))
             .thenReturn(timesheet.getDescription()); // Return sanitized description
         // Act
@@ -147,8 +153,8 @@ class TimesheetServiceUnitTest {
             tutor.getId(),
             course.getId(),
             timesheet.getWeekStartDate(),
-            timesheet.getHours(),
-            timesheet.getHourlyRate(),
+            calculation,
+            TimesheetTaskType.TUTORIAL,
             timesheet.getDescription(),
             lecturer.getId()  // This is the creator ID
         );
@@ -160,13 +166,14 @@ class TimesheetServiceUnitTest {
         assertThat(result.getCreatedBy()).isEqualTo(lecturer.getId()); // DbC postcondition
         assertThat(result.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
         assertThat(result.getWeekStartDate()).isEqualTo(timesheet.getWeekStartDate());
-        assertThat(result.getHours()).isEqualByComparingTo(timesheet.getHours());
-        assertThat(result.getHourlyRate()).isEqualByComparingTo(timesheet.getHourlyRate());
+        assertThat(result.getHours()).isEqualByComparingTo(calculation.getPayableHours());
+        assertThat(result.getHourlyRate()).isEqualByComparingTo(calculation.getHourlyRate());
+        assertThat(result.getCalculatedAmount()).isEqualByComparingTo(calculation.getAmount());
 
         // Verify proper delegation to domain service (DDD principle)
         verify(timesheetDomainService).validateTimesheetCreation(
             any(User.class), any(User.class), any(Course.class),
-            any(), any(BigDecimal.class), any(BigDecimal.class),
+            any(), eq(calculation.getPayableHours()), eq(calculation.getHourlyRate()),
             any(String.class)
         );
         
@@ -195,13 +202,14 @@ class TimesheetServiceUnitTest {
         // Mock policy authorization - lecturer cannot create timesheet for other course
         when(permissionPolicy.canCreateTimesheetFor(lecturer, tutor, otherCourse)).thenReturn(false);
         // Act & Assert
+        Schedule1CalculationResult calculation = standardTutorialCalculation();
         assertThatThrownBy(() -> 
             timesheetService.createTimesheet(
                 tutor.getId(),
                 otherCourse.getId(),
                 timesheet.getWeekStartDate(),
-                timesheet.getHours(),
-                timesheet.getHourlyRate(),
+                calculation,
+                TimesheetTaskType.TUTORIAL,
                 timesheet.getDescription(),
                 lecturer.getId()
             )
@@ -233,13 +241,16 @@ class TimesheetServiceUnitTest {
             return savedTimesheet;
         });
 
+        Schedule1CalculationResult calculation = standardTutorialCalculation();
+
         // Mock validation service (SSOT validation)
-        doNothing().when(timesheetValidationService).validateInputs(any(BigDecimal.class), any(BigDecimal.class));
+        doNothing().when(timesheetValidationService)
+                .validateInputs(eq(calculation.getPayableHours()), eq(calculation.getHourlyRate()));
 
         // Mock domain service validation
         when(timesheetDomainService.validateTimesheetCreation(
             any(User.class), any(User.class), any(Course.class), 
-            any(), any(BigDecimal.class), any(BigDecimal.class), 
+            any(), eq(calculation.getPayableHours()), eq(calculation.getHourlyRate()), 
             any(String.class)))
             .thenReturn(timesheet.getDescription());
             
@@ -248,8 +259,8 @@ class TimesheetServiceUnitTest {
             tutor.getId(),
             course.getId(),
             timesheet.getWeekStartDate(),
-            timesheet.getHours(),
-            timesheet.getHourlyRate(),
+            calculation,
+            TimesheetTaskType.TUTORIAL,
             timesheet.getDescription(),
             admin.getId()
         );
@@ -260,6 +271,7 @@ class TimesheetServiceUnitTest {
         assertThat(result.getCourseId()).isEqualTo(course.getId());
         assertThat(result.getCreatedBy()).isEqualTo(admin.getId());
         assertThat(result.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
+        assertThat(result.getCalculatedAmount()).isEqualByComparingTo(calculation.getAmount());
         
         verify(timesheetRepository).save(any(Timesheet.class));
     }
@@ -276,14 +288,15 @@ class TimesheetServiceUnitTest {
         // Mock policy authorization - tutor cannot create timesheets
         when(permissionPolicy.canCreateTimesheetFor(tutor, tutor, course)).thenReturn(false);
         
+        Schedule1CalculationResult calculation = standardTutorialCalculation();
         // Act & Assert
         assertThatThrownBy(() -> 
             timesheetService.createTimesheet(
                 tutor.getId(),
                 course.getId(),
                 timesheet.getWeekStartDate(),
-                timesheet.getHours(),
-                timesheet.getHourlyRate(),
+                calculation,
+                TimesheetTaskType.TUTORIAL,
                 timesheet.getDescription(),
                 tutor.getId()
             )
@@ -365,4 +378,20 @@ class TimesheetServiceUnitTest {
         // Assert
         assertThat(result).isTrue();
         verify(userRepository).findById(admin.getId());    }
+
+    private Schedule1CalculationResult standardTutorialCalculation() {
+        return new Schedule1CalculationResult(
+                LocalDate.of(2024, 7, 8),
+                "TU2",
+                TutorQualification.STANDARD,
+                false,
+                new BigDecimal("1.0"),
+                new BigDecimal("2.0"),
+                new BigDecimal("3.0"),
+                new BigDecimal("58.65"),
+                new BigDecimal("175.94"),
+                "1h delivery + 2h associated",
+                "Schedule 1 – Tutoring"
+        );
+    }
 }

@@ -7,10 +7,13 @@ import com.usyd.catams.domain.service.TimesheetValidationService;
 import com.usyd.catams.mapper.TimesheetMapper;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.User;
+import com.usyd.catams.enums.TimesheetTaskType;
+import com.usyd.catams.enums.TutorQualification;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.service.Schedule1CalculationResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,9 +69,24 @@ public class TimesheetValidationSSOTTest {
         assertEquals(new BigDecimal("38.0"), props.getHours().getMax());
 
         // Attempt hours beyond configured max should fail consistently via SSOT
+        Schedule1CalculationResult calculation = new Schedule1CalculationResult(
+            LocalDate.now().with(java.time.DayOfWeek.MONDAY),
+            "TU2",
+            TutorQualification.STANDARD,
+            false,
+            new BigDecimal("39.0"),
+            BigDecimal.ZERO,
+            new BigDecimal("39.0"),
+            new BigDecimal("10.00"),
+            new BigDecimal("390.00"),
+            "validation test",
+            "Schedule 1"
+        );
         assertThrows(IllegalArgumentException.class, () -> appService.createTimesheet(
             tutor.getId(), course.getId(), LocalDate.now().with(java.time.DayOfWeek.MONDAY),
-            new BigDecimal("39.0"), new BigDecimal("10.00"), "desc", lecturer.getId()
+            calculation,
+            TimesheetTaskType.TUTORIAL,
+            "desc", lecturer.getId()
         ));
     }
 }

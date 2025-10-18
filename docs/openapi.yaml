@@ -22,7 +22,7 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:8080/api
+  - url: http://localhost:8084/api
     description: Development server
   - url: https://api.catams.edu.au
     description: Production server
@@ -43,9 +43,11 @@ paths:
   /auth/login:
     $ref: './openapi/paths/auth.yaml'
   /users:
-    $ref: './openapi/paths/users.yaml'
+    $ref: './openapi/paths/users.yaml#/USERS'
   /timesheets:
     $ref: './openapi/paths/timesheets.yaml#/POST'
+  /timesheets/quote:
+    $ref: './openapi/paths/timesheets.yaml#/POST_QUOTE'
   /timesheets/{id}:
     $ref: './openapi/paths/timesheets.yaml#/GET_BY_ID'
   /timesheets/pending-approval:
@@ -78,18 +80,16 @@ components:
       $ref: './openapi/schemas/timesheets.yaml#/TimesheetCreateRequest'
     TimesheetUpdateRequest:
       $ref: './openapi/schemas/timesheets.yaml#/TimesheetUpdateRequest'
+    TimesheetQuoteRequest:
+      $ref: './openapi/schemas/timesheets.yaml#/TimesheetQuoteRequest'
+    TimesheetQuoteResponse:
+      $ref: './openapi/schemas/timesheets.yaml#/TimesheetQuoteResponse'
     TimesheetResponse:
       $ref: './openapi/schemas/timesheets.yaml#/TimesheetResponse'
-    TimesheetDetailResponse:
-      $ref: './openapi/schemas/timesheets.yaml#/TimesheetDetailResponse'
     TimesheetPageResponse:
       $ref: './openapi/schemas/timesheets.yaml#/TimesheetPageResponse'
-    PageInfo:
-      $ref: './openapi/schemas/timesheets.yaml#/PageInfo'
-    Pageable:
-      $ref: './openapi/schemas/timesheets.yaml#/Pageable'
-    Sort:
-      $ref: './openapi/schemas/timesheets.yaml#/Sort'
+    PagedMetadata:
+      $ref: './openapi/schemas/timesheets.yaml#/PagedMetadata'
     ApprovalStatus:
       $ref: './openapi/schemas/approvals.yaml#/ApprovalStatus'
     ApprovalActionRequest:

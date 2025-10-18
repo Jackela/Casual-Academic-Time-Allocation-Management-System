@@ -864,13 +864,35 @@ function parseJson(data: unknown): Record<string, unknown> {
 
 function parseCreateRequest(data: unknown): TimesheetCreateRequest {
   const payload = parseJson(data);
+  const weekStartDate =
+    typeof payload.weekStartDate === 'string' && payload.weekStartDate
+      ? payload.weekStartDate
+      : new Date().toISOString().split('T')[0];
+  const deliveryHours =
+    typeof payload.deliveryHours === 'number'
+      ? payload.deliveryHours
+      : Number(payload.deliveryHours) || 1;
+  const payableHours =
+    typeof payload.hours === 'number'
+      ? payload.hours
+      : Number(payload.hours) || Math.min(deliveryHours * 3, 40);
+  const hourlyRate =
+    typeof payload.hourlyRate === 'number'
+      ? payload.hourlyRate
+      : Number(payload.hourlyRate) || 40;
+
   return {
     tutorId: Number(payload.tutorId) || 201,
     courseId: Number(payload.courseId) || 42,
-    weekStartDate: typeof payload.weekStartDate === 'string' ? payload.weekStartDate : new Date().toISOString().split('T')[0],
-    hours: Number(payload.hours) || 1,
-    hourlyRate: Number(payload.hourlyRate) || 40,
+    weekStartDate,
+    sessionDate: typeof payload.sessionDate === 'string' && payload.sessionDate ? payload.sessionDate : weekStartDate,
+    deliveryHours,
+    hours: payableHours,
+    hourlyRate,
     description: typeof payload.description === 'string' ? payload.description : 'Generated timesheet entry',
+    taskType: (typeof payload.taskType === 'string' ? payload.taskType : 'TUTORIAL') as TimesheetCreateRequest['taskType'],
+    qualification: (typeof payload.qualification === 'string' ? payload.qualification : 'STANDARD') as TimesheetCreateRequest['qualification'],
+    repeat: Boolean(payload.repeat),
   };
 }
 

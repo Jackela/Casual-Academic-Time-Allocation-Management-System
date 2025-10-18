@@ -3,6 +3,10 @@ import { E2E_CONFIG } from '../../../config/e2e.config';
 import { DashboardPage } from '../../../shared/pages/DashboardPage';
 import { TutorDashboardPage } from '../../../shared/pages/TutorDashboardPage';
 import { setupMockAuth } from '../../../shared/mock-backend/auth';
+import {
+  getTimesheetActionSelector,
+  getTimesheetStatusBadgeSelector,
+} from '../../../../src/lib/config/table-config';
 
 const test = base;
 
@@ -91,18 +95,19 @@ test.describe('Action Button Hardening', () => {
     await tutorDashboardPage.expectResponsiveColumns();
     await tutorDashboardPage.expectTimesheetsTable();
 
-    const submitButton = page.getByTestId(`submit-btn-${draftTimesheet.id}`);
+    const submitSelector = getTimesheetActionSelector('submit', draftTimesheet.id);
+    const submitButton = page.locator(submitSelector);
     await expect(submitButton).toBeVisible();
     await expect(submitButton).toBeEnabled();
 
-    await page.evaluate(testId => {
-      const button = document.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`);
+    await page.evaluate(selector => {
+      const button = document.querySelector<HTMLButtonElement>(selector);
       if (!button) {
-        throw new Error(`Unable to find button with test id ${testId}`);
+        throw new Error(`Unable to find button with selector ${selector}`);
       }
       button.click();
       button.click();
-    }, `submit-btn-${draftTimesheet.id}`);
+    }, submitSelector);
 
     await page.waitForResponse(response =>
       response.url().includes(E2E_CONFIG.BACKEND.ENDPOINTS.APPROVALS) &&
@@ -118,8 +123,12 @@ test.describe('Action Button Hardening', () => {
     });
     expect(approvalRequests[0].action).toBe('SUBMIT_FOR_APPROVAL');
 
-    await expect(submitButton).toBeDisabled();
-    const statusBadge = page.getByTestId(`status-badge-${draftTimesheet.id}`);
+    await expect(submitButton).toHaveCount(0);
+    const confirmSelector = getTimesheetActionSelector('confirm', draftTimesheet.id);
+    const confirmButton = page.locator(confirmSelector);
+    await expect(confirmButton).toBeVisible();
+
+    const statusBadge = page.locator(getTimesheetStatusBadgeSelector(draftTimesheet.id));
     await expect(statusBadge).toBeVisible();
   });
 });

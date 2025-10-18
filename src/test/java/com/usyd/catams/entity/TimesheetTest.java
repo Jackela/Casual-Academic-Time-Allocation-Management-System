@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -583,5 +584,55 @@ public class TimesheetTest {
         assertThat(timesheet.canBeConfirmed()).isFalse();
 
         assertThat(timesheet.getApprovals()).hasSize(2);
+    }
+
+    @Test
+    void shouldExposeEAComplianceFields_forSchedule1Alignment() {
+        Class<Timesheet> clazz = Timesheet.class;
+
+        assertThat(hasField(clazz, "taskType"))
+            .as("Timesheet should declare taskType field per EA compliance plan")
+            .isTrue();
+        assertThat(hasMethod(clazz, "getTaskType"))
+            .as("Timesheet should expose getter for taskType")
+            .isTrue();
+
+        assertThat(hasField(clazz, "isRepeat"))
+            .as("Timesheet should declare isRepeat flag for repeat-session detection")
+            .isTrue();
+        assertThat(hasMethod(clazz, "isRepeat"))
+            .as("Timesheet should expose boolean accessor for isRepeat flag")
+            .isTrue();
+
+        assertThat(hasField(clazz, "qualification"))
+            .as("Timesheet should declare qualification field to map EA PhD/Coordinator logic")
+            .isTrue();
+        assertThat(hasMethod(clazz, "getQualification"))
+            .as("Timesheet should expose getter for qualification")
+            .isTrue();
+
+        assertThat(hasField(clazz, "deliveryHours"))
+            .as("Timesheet should declare deliveryHours distinct from total hours per EA Schedule 1")
+            .isTrue();
+        assertThat(hasMethod(clazz, "getDeliveryHours"))
+            .as("Timesheet should expose getter for deliveryHours")
+            .isTrue();
+
+        assertThat(hasField(clazz, "associatedHours"))
+            .as("Timesheet should declare associatedHours for EA associated work entitlements")
+            .isTrue();
+        assertThat(hasMethod(clazz, "getAssociatedHours"))
+            .as("Timesheet should expose getter for associatedHours")
+            .isTrue();
+    }
+
+    private boolean hasField(Class<?> clazz, String fieldName) {
+        return Arrays.stream(clazz.getDeclaredFields())
+                .anyMatch(field -> field.getName().equals(fieldName));
+    }
+
+    private boolean hasMethod(Class<?> clazz, String methodName) {
+        return Arrays.stream(clazz.getDeclaredMethods())
+                .anyMatch(method -> method.getName().equals(methodName));
     }
 }

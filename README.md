@@ -1,235 +1,42 @@
-# CATAMS - Casual Academic Time Allocation Management System (Baseline v1)
+# CATAMS - EA-Compliant Timesheet Platform
 
-CATAMS manages timesheets and approval workflows for Tutors, Lecturers, and Admins. Baseline v1 documents the current monolithic backend (Spring Boot + DDD) and React frontend. This README stays human-oriented and concise. Deep-dive documentation lives under `docs/` (see [`DOCUMENTATION_INDEX.md`](docs/DOCUMENTATION_INDEX.md)).
+CATAMS manages casual academic timesheets for tutors, lecturers, and faculty admins. The backend is the single source of truth for Schedule 1 calculations from the University of Sydney Enterprise Agreement 2023-2026.
 
-## Workspace Map
+## Quick Start
+1. **Backend:** `./gradlew bootRun`
+2. **Frontend:** `cd frontend && npm ci && npm run dev`
+3. **Quote Smoke Test:**
+   ```bash
+   curl -X POST http://localhost:8084/api/timesheets/quote \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer <token>" \
+     -d '{
+       "tutorId": 2,
+       "courseId": 101,
+       "taskType": "TUTORIAL",
+       "qualification": "STANDARD",
+       "repeat": false,
+       "deliveryHours": 1.0,
+       "sessionDate": "2025-08-11"
+     }'
+   ```
 
-| Path | Purpose |
-| --- | --- |
-| `src/main/java/com/usyd/catams` | Spring Boot monolith (DDD layers) |
-| `src/test/java/com/usyd/catams` | Unit + integration test suites |
-| `frontend/` | React + Vite application, Vitest, Playwright |
-| `schema/` | Canonical JSON Schemas for contract-first flow |
-| `docs/` | Architecture, ADRs, governance, testing references |
-| `tools/scripts/` | Authoritative automation entry points |
-| `infra/` | Deployment, IaC, and platform runbooks |
-| `.devtools/` | AI/assistant configuration (kept out of runtime paths) |
+## Key Commands
+| Purpose | Command |
+|---------|---------|
+| Backend unit + integration tests | `./gradlew test`
+| Backend integration slice | `./gradlew integrationTest`
+| Frontend unit tests | `cd frontend && npm run test:ci`
+| Playwright E2E (mock) | `cd frontend && npm run test:e2e:mock`
+| Playwright E2E (real backend) | `cd frontend && npm run test:e2e:real`
 
-## Quick Commands
+## Documentation
+Start at `docs/index.md` for architecture, policy, frontend, ops, and product guides.
 
-Everyday workflows live in [`docs/tasks.md`](docs/tasks.md). Highlights:
+## Testing Matrix
+High-level strategy lives in `docs/testing/strategy.md` with links to unit, integration, and Playwright suites covering the Schedule 1 calculator and quote workflow.
 
-- Full backend verification: `./gradlew clean test`
-- Backend integration slice: `./gradlew integrationTest`
-- Frontend verification: `cd frontend && npm ci && npm run test:ci`
-- Mock E2E sweep: `cd frontend && npm run test:e2e:mock`
-- Real E2E sweep (requires backend on :8084): `cd frontend && npm run test:e2e:real`
-- Contract pipeline: `./gradlew generateContracts && ./gradlew verifyContracts`
-
-## Features
-
-- Timesheet lifecycle: create, update, submit, review, approve, reject
-- Role-based access with JWT (Tutor, Lecturer, Admin)
-- Validation with Single Source of Truth (SSOT) for thresholds (hours, rates)
-- Dashboards and summaries per role
-- End-to-end automated testing (unit, integration, E2E)
-
-## Service Architecture Overview
-
-```mermaid
-graph TD
-  U["Users (Tutor / Lecturer / Admin)"] --> FE["Frontend (React + TypeScript)"]
-  FE --> API["Backend API (Spring Boot Monolith)"]
-  API --> SEC["Security (JWT, Spring Security)"]
-  API --> CTRL["Controllers (/api/*)"]
-  CTRL --> APP["Application Services"]
-  APP --> MAP["Mappers (DTO <-> Entity)"]
-  APP --> DOM["Domain Layer\n- Entities (Timesheet, User)\n- Value Objects (Money)\n- ApprovalStateMachine"]
-  DOM --> REPO["Repositories (Spring Data JPA)"]
-  REPO --> DB["PostgreSQL (Testcontainers for IT)"]
-  API --> EX["GlobalExceptionHandler (error mapping)"]
-```
-
-### Timesheet Approval Sequence (Happy Path)
-
-```mermaid
-sequenceDiagram
-  participant T as Tutor
-  participant FE as Frontend
-  participant API as Backend API
-  participant SVC as Application Service
-  participant DOM as Domain (ApprovalStateMachine)
-  participant DB as PostgreSQL
-
-  T->>FE: Fill timesheet and submit
-  FE->>API: POST /api/timesheets
-  API->>SVC: validate & map
-  SVC->>DOM: apply business rules
-  DOM-->>SVC: status = PENDING_TUTOR_REVIEW
-  SVC->>DB: persist timesheet
-  API-->>FE: 201 Created (status=PENDING_TUTOR_REVIEW)
-
-  FE->>API: POST /api/approvals/{id}/approve (lecturer)
-  API->>SVC: execute transition
-  SVC->>DOM: next status
-  DOM-->>SVC: status = APPROVED_BY_LECTURER_AND_TUTOR or FINAL_APPROVED
-  SVC->>DB: update status
-  API-->>FE: 200 OK (status=FINAL_APPROVED)
-```
-
-### Domain Model (Core)
-
-```mermaid
-classDiagram
-  class Timesheet {
-    Long id
-    Long tutorId
-    Long courseId
-    WeekPeriod weekPeriod
-    BigDecimal hours
-    BigDecimal hourlyRate
-    String description
-    ApprovalStatus status
-    LocalDateTime createdAt
-    LocalDateTime updatedAt
-  }
-  class WeekPeriod { LocalDate startDate }
-  class Money { BigDecimal amount, String currency }
-
-  Timesheet --> WeekPeriod
-```
-
-## Project Structure
-
-```mermaid
-graph TD
-  A[Root]
-  A --> B[src/main/java/com/usyd/catams]
-  B --> B1[controller]
-  B --> B2[service]
-  B --> B3[repository]
-  B --> B4[entity]
-  B --> B5[dto/response]
-  B --> B6[enums]
-  B --> B7[config/security]
-  A --> C[src/test/java/com/usyd/catams]
-  C --> C1[unit]
-  C --> C2[integration]
-  C --> C3[repository]
-  A --> D[frontend]
-  D --> D1[src]
-  D --> D2[e2e]
-  D --> D3[playwright.config.ts]
-  D --> D4[vitest.config.ts]
-  A --> S[scripts]
-  S --> S1[test-backend-unit.js]
-  S --> S2[test-backend-integration.js]
-  S --> S3[test-backend-unit-select.js]
-  S --> S4[test-backend-integration-select.js]
-  S --> S5[test-frontend-unit.js]
-  S --> S6[test-frontend-contract.js]
-  S --> S7[test-frontend-e2e.js]
-  S --> S8[run-e2e.js]
-```
-
-## Technology Stack
-
-- Backend: Java 21, Spring Boot 3, Spring Security (JWT), Spring Data JPA, PostgreSQL
-- Domain: DDD-aligned aggregates and state machines (ApprovalStateMachine), value objects (Money)
-- Frontend: React 18, TypeScript, Vite, Axios, Playwright, Vitest
-- Testing: JUnit 5, Testcontainers; Node-based orchestration
-
-## Getting Started
-
-### Prerequisites
-
-- Java 21+, Node.js 18+, Docker (for integration tests)
-
-### Run Backend (dev)
-
-```bash
-./gradlew bootRun
-```
-
-### Run Frontend (dev)
-
-```bash
-cd frontend && npm install && npm run dev
-```
-
-## Testing
-
-### Full Test Suites
-
-```bash
-# Backend
-node scripts/test-backend-unit.js
-node tools/scripts/test-backend-integration-select.js
-
-# Frontend
-cd frontend && npm run test:unit
-cd frontend && npm run test:contract
-
-# End-to-End
-cd frontend && npm run test:e2e
-```
-
-#### Cross-Platform Cleanup
-
-Use cleanup utilities to terminate lingering processes and free ports:
-
-```bash
-# Port cleanup only
-node scripts/cleanup-ports.js --ports=8084,5174
-
-# Comprehensive cleanup (ports + processes + temp files)
-node tools/scripts/cleanup.js [gentle|normal|full|emergency]
-```
-
-### Selective Tests (Faster Iteration)
-
-```bash
-# Backend selective tests
-node tools/scripts/test-backend-unit-select.js --tests="*TimesheetServiceUnitTest*"
-node tools/scripts/test-backend-integration-select.js --tests="*TimesheetIntegrationTest*"
-
-# Frontend selective tests  
-cd frontend && npm run test:unit -- src/components/specific-component.test.ts
-cd frontend && npm run test:e2e:smoke  # Smoke tests only
-```
-
-### Reports
-
-- Backend JUnit XML: `build/test-results/test/`
-- Backend JSON summaries: `results/ut-summary.json`, `results/it-summary.json`
-- Frontend Vitest JSON: `frontend/coverage/test-results.json`
-- Playwright JSON: `frontend/playwright-report/results.json`
-
-## Configuration & Profiles
-
-- Profiles: `application.yml`, `application-integration-test.yml`
-- Validation thresholds via `TimesheetValidationProperties` (hours/rates)
-- DB: PostgreSQL (Testcontainers for IT), H2 fallback when configured
-
-## API Overview
-
-- OpenAPI specs: `docs/openapi/`
-- Status enum baseline: `DRAFT`, `PENDING_TUTOR_REVIEW`, `APPROVED_BY_TUTOR`, `APPROVED_BY_LECTURER_AND_TUTOR`, `FINAL_APPROVED`, `REJECTED`, `MODIFICATION_REQUESTED`
-
-## Orchestration Notes
-
-- All one-shot Node scripts emit `[TASK_DONE]` and exit non-interactively.
-- Windows: Gradle is invoked via `cmd /d /s /c call gradlew.bat ...` (handled by scripts).
-
-## Contributing & Governance
-
-- Follow the guidelines in [`CONTRIBUTING.md`](CONTRIBUTING.md).
-- Ownership map lives in [`.github/CODEOWNERS`](.github/CODEOWNERS).
-- Language and glossary rules: [`docs/governance/translation-charter.md`](docs/governance/translation-charter.md).
-- Structural decisions and migrations are tracked in [`docs/adr/`](docs/adr).
-
-## Baseline
-
-- Version: v1
-- Date: 2025-08-11
-- Scope: This README reflects the current monolith implementation. Future or experimental docs under `docs/` are reference-only unless explicitly adopted.
+## Support & Contribution
+- Governance and contribution rules: `CONTRIBUTING.md`
+- EA compliance references: `docs/policy/`
+- Raise issues in the repository tracker with the `docs` or `backend`/`frontend` labels as appropriate.

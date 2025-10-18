@@ -1,6 +1,7 @@
 package com.usyd.catams.exception;
 
 import com.usyd.catams.dto.response.ErrorResponse;
+import com.usyd.catams.service.Schedule1PolicyProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -258,6 +259,26 @@ public class GlobalExceptionHandler {
             .build();
             
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+    
+    /**
+     * Handle Schedule 1 policy resolution failures to surface actionable feedback.
+     */
+    @ExceptionHandler(Schedule1PolicyProvider.RatePolicyNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleRatePolicyMissing(
+            Schedule1PolicyProvider.RatePolicyNotFoundException e,
+            HttpServletRequest request) {
+        logger.error("Schedule 1 policy lookup failed: {}", e.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+            .timestamp(Instant.now().toString())
+            .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+            .error(ErrorCodes.INTERNAL_ERROR)
+            .message(e.getMessage())
+            .path(request.getRequestURI())
+            .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
     
     /**

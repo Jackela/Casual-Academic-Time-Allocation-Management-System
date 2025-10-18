@@ -107,7 +107,7 @@ export class TutorDashboardPage {
       return match ? Number(match[0]) : 1280;
     });
 
-    const shouldShowLastUpdated = width >= tabletLandscapeBreakpoint;
+    const shouldShowLastUpdated = width > tabletLandscapeBreakpoint;
     expect(hasHeader('last updated')).toBe(shouldShowLastUpdated);
   }
 
@@ -274,7 +274,7 @@ export class TutorDashboardPage {
       await expect(weekStartInput).toHaveValue(expectedValues.weekStartDate);
     }
     if (expectedValues.hours !== undefined) {
-      const hoursInput = this.page.getByLabel('Hours Worked', { exact: false });
+      const hoursInput = this.page.getByLabel('Delivery Hours', { exact: false });
       await expect(hoursInput).toHaveValue(expectedValues.hours.toString());
     }
     if (expectedValues.description !== undefined) {
@@ -298,7 +298,7 @@ export class TutorDashboardPage {
       await weekStartInput.fill(updates.weekStartDate);
     }
     if (typeof updates.hours === 'number') {
-      const hoursInput = this.page.getByLabel('Hours Worked', { exact: false });
+      const hoursInput = this.page.getByLabel('Delivery Hours', { exact: false });
       await hoursInput.fill(updates.hours.toString());
       await hoursInput.blur();
     }
@@ -312,13 +312,15 @@ export class TutorDashboardPage {
     const saveButton = this.page.getByRole('button', { name: /Update Timesheet|Create Timesheet/i });
     await expect(saveButton).toBeVisible();
     await expect(saveButton).toBeEnabled({ timeout: 5000 });
-    await saveButton.click();
+    await saveButton.focus();
+    await this.page.keyboard.press('Enter');
   }
 
   async cancelEdit() {
     const cancelButton = this.page.getByRole('button', { name: /^Cancel$/i });
     await expect(cancelButton).toBeVisible();
-    await cancelButton.click();
+    await cancelButton.focus();
+    await this.page.keyboard.press('Enter');
   }
 
   async expectFormValidationError(field: 'courseId' | 'weekStartDate' | 'hours') {
@@ -326,7 +328,7 @@ export class TutorDashboardPage {
     const errorSelectors: Record<'courseId' | 'weekStartDate' | 'hours', string> = {
       courseId: '#course-error',
       weekStartDate: '#week-start-error',
-      hours: '#hours-error',
+      hours: '#delivery-hours-error',
     };
     const selector = errorSelectors[field];
     const errorLocator = this.page.locator(selector);
@@ -335,7 +337,7 @@ export class TutorDashboardPage {
   }
 
   async expectNoFormValidationErrors() {
-    const selectors = ['#course-error', '#week-start-error', '#hours-error'];
+    const selectors = ['#course-error', '#week-start-error', '#delivery-hours-error'];
     for (const selector of selectors) {
       const errorLocator = this.page.locator(selector);
       await expect(errorLocator).toHaveCount(0);
@@ -561,7 +563,7 @@ export class TutorDashboardPage {
       await this.page.getByLabel('Week Starting').fill(fields.weekStartDate);
     }
     if (typeof fields.hours === 'number') {
-      await this.page.getByLabel('Hours Worked').fill(fields.hours.toString());
+      await this.page.getByLabel('Delivery Hours').fill(fields.hours.toString());
     }
     if (typeof fields.description === 'string') {
       await this.page.getByLabel('Description').fill(fields.description);

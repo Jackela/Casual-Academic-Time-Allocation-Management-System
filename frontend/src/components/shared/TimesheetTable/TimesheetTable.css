@@ -34,8 +34,8 @@
   background: hsl(var(--muted));
   border-bottom: 1px solid hsl(var(--border));
   position: sticky;
-  top: 0;
-  z-index: var(--z-elevated);
+  top: var(--safe-top);
+  z-index: var(--z-header);
 }
 
 .timesheet-table__body {
@@ -559,7 +559,7 @@
     position: sticky;
     left: 0;
     background: hsl(var(--card));
-    z-index: calc(var(--z-sticky) + 1);
+    z-index: var(--z-banner);
     box-shadow: 4px 0 12px rgba(15, 23, 42, 0.08);
   }
 
@@ -568,7 +568,7 @@
     position: sticky;
     right: 0;
     background: hsl(var(--card));
-    z-index: calc(var(--z-sticky) + 1);
+    z-index: var(--z-banner);
     box-shadow: -4px 0 12px rgba(15, 23, 42, 0.08);
   }
 }

@@ -12,6 +12,7 @@ import { ErrorLogger, setupGlobalErrorHandling } from './utils/error-logger';
 import { initializeConfiguration } from './config';
 import { secureLogger } from './utils/secure-logger';
 import PageLoadingIndicator from './components/shared/feedback/PageLoadingIndicator';
+import { AdminUsersPage } from './features/admin-users';
 import './App.css';
 
 // Initialize configuration system
@@ -27,10 +28,14 @@ setupGlobalErrorHandling(errorLogger);
 secureLogger.info('CATAMS Application starting up');
 
 // Helper to wrap protected dashboard routes
-function createDashboardElement(content: ReactNode) {
+type DashboardElementOptions = {
+  requiredRole?: string;
+};
+
+function createDashboardElement(content: ReactNode, options?: DashboardElementOptions) {
   return (
     <ErrorBoundary level="page">
-      <ProtectedRoute>
+      <ProtectedRoute requiredRole={options?.requiredRole}>
         <DashboardLayout>
           <ErrorBoundary level="component">{content}</ErrorBoundary>
         </DashboardLayout>
@@ -159,6 +164,7 @@ function App() {
               <Route path="/approvals" element={createDashboardElement(<ApprovalsPage />)} />
               <Route path="/approvals/history" element={createDashboardElement(<ApprovalsHistoryPage />)} />
               <Route path="/users" element={createDashboardElement(<UsersPage />)} />
+              <Route path="/admin/users" element={createDashboardElement(<AdminUsersPage />, { requiredRole: 'ADMIN' })} />
               <Route path="/reports" element={createDashboardElement(<ReportsPage />)} />              
               {/* Redirect root to dashboard */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />

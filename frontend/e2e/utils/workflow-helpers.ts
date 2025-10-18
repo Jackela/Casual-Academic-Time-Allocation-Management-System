@@ -23,6 +23,11 @@ export interface TimesheetSeedOptions {
   courseId?: number;
   weekStartDate?: string;
   targetStatus?: TimesheetStatus;
+  taskType?: 'TUTORIAL' | 'LECTURE' | 'ORAA' | 'DEMO' | 'MARKING' | 'OTHER';
+  qualification?: 'STANDARD' | 'PHD' | 'COORDINATOR';
+  repeat?: boolean;
+  sessionDate?: string;
+  deliveryHours?: number;
 }
 
 export interface SeededTimesheet {
@@ -340,7 +345,12 @@ export async function createTimesheetWithStatus(
       weekStartDate: selectedWeek,
       hours: options.hours ?? 6,
       hourlyRate: options.hourlyRate ?? 42,
-      description
+      description,
+      taskType: options.taskType ?? 'TUTORIAL',
+      qualification: options.qualification ?? 'STANDARD',
+      repeat: options.repeat ?? false,
+      deliveryHours: options.deliveryHours ?? options.hours ?? 1,
+      sessionDate: options.sessionDate ?? selectedWeek
     };
 
     try {

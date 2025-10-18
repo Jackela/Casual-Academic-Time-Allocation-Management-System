@@ -4,6 +4,7 @@ import { useUserProfile } from '../auth/UserProfileProvider';
 import { useAccessControl } from '../auth/access-control';
 import { useNavigate, NavLink } from 'react-router-dom';
 import { Badge } from './ui/badge';
+import NotificationPresenter from './shared/NotificationPresenter';
 
 // import './DashboardLayout.css'; - REMOVED
 
@@ -76,8 +77,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* Header */}
       <header
-        className="sticky top-0 bg-gradient-to-r from-brand-primary to-brand-secondary text-white shadow-md elevation-sticky"
+        className="sticky bg-gradient-to-r from-brand-primary to-brand-secondary text-white shadow-md elevation-sticky"
         data-testid="layout-dashboard-header"
+        style={{ top: 'calc(var(--safe-top) - var(--header-h) - var(--banner-h) - 16px)' }}
       >
         <div
           className="container mx-auto flex items-center justify-between p-4"
@@ -187,7 +189,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             {access.isAdmin && (
               <>
                 <NavLink
-                  to="/users"
+                  to="/admin/users"
                   className={({ isActive }) => navLinkClassName({ isActive })}
                   data-testid="nav-users"
                 >
@@ -215,6 +217,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       {/* Main Content */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8" data-testid="dashboard-main">
         <div className="container mx-auto" data-testid="main-content">
+          <NotificationPresenter />
           {children}
         </div>
       </main>

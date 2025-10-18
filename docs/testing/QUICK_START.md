@@ -11,6 +11,9 @@ mvn test
 
 # Run specific test
 mvn test -Dtest="TimesheetServiceUnitTest"
+
+# Run EA Schedule 1 calculator + policy tests
+./gradlew test --tests "*Schedule1*Test"
 ```
 
 ## Cleanup between runs (recommended)
@@ -38,6 +41,7 @@ src/test/java/com/usyd/catams/
 | Test Type | Command | Requirements | Speed |
 |-----------|---------|--------------|-------|
 | Unit | `mvn test -Dtest="*UnitTest"` | None | Fast (seconds) |
+| EA Calculator | `./gradlew test --tests "*Schedule1*Test"` | None | Fast (seconds) |
 | Integration | `mvn test -Dtest="*IntegrationTest"` | Docker | Medium (minutes) |
 | Contract | `mvn test -Dtest="*ContractTest"` | None | Medium |
 | Performance | `mvn test -Dtest="*PerformanceTest"` | Docker | Slow (minutes) |

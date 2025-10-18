@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { setupMockAuth } from '../shared/mock-backend/auth';
 import type {
   DashboardSummary,
@@ -366,6 +366,23 @@ const blocksOverlap = (a: DOMRect, b: DOMRect): boolean => {
   );
 };
 
+async function triggerDraftSubmissionToast(
+  page: Page,
+  clickOptions?: Parameters<Locator['click']>[0],
+): Promise<Locator> {
+  const banner = page.getByTestId('notification-banner');
+  await expect(banner).toBeVisible({ timeout: 5000 });
+
+  const submitAction = page.getByTestId('notification-banner-action');
+  await expect(submitAction).toBeVisible({ timeout: 5000 });
+
+  await submitAction.click(clickOptions);
+
+  const toast = page.locator(TABLE_LAYOUT_SELECTORS.toast).first();
+  await expect(toast).toBeVisible({ timeout: 5000 });
+  return toast;
+}
+
 test.describe('Layout Compliance - Quality Gates', () => {
   test.beforeEach(async ({ page }) => {
     await prepareTutorDashboard(page);
@@ -447,18 +464,14 @@ test.describe('Layout Compliance - Quality Gates', () => {
   });
 
   test('Toast has correct z-index and positioning', async ({ page }) => {
-    const submitDrafts = page.getByRole('button', { name: /Submit All Drafts/i });
-    if (await submitDrafts.isVisible()) {
-      await submitDrafts.click({ force: true });
-    }
+    const toast = await triggerDraftSubmissionToast(page);
+    const toastStack = page.getByTestId('toast-stack');
+    await expect(toastStack).toBeVisible({ timeout: 5000 });
 
-    const toast = page.locator(TABLE_LAYOUT_SELECTORS.toast).first();
-    await expect(toast).toBeVisible({ timeout: 5000 });
-
-    const position = await toast.evaluate((element) => window.getComputedStyle(element).position);
+    const position = await toastStack.evaluate((element) => window.getComputedStyle(element).position);
     expect(position).toBe('fixed');
 
-    const zIndex = await toast.evaluate((element) =>
+    const zIndex = await toastStack.evaluate((element) =>
       parseInt(window.getComputedStyle(element).zIndex || '0', 10),
     );
     expect(zIndex).toBeGreaterThan(TOAST_MIN_Z_INDEX);
@@ -466,6 +479,8 @@ test.describe('Layout Compliance - Quality Gates', () => {
   });
 
   test('Toast Safe Zone: does not obstruct modal interactive areas', async ({ page }) => {
+    const toast = await triggerDraftSubmissionToast(page);
+
     const createButton = page
       .getByRole('region', { name: /My Timesheets/i })
       .getByRole('button', { name: /^Create New$/ });
@@ -474,13 +489,6 @@ test.describe('Layout Compliance - Quality Gates', () => {
 
     const modal = page.locator(TABLE_LAYOUT_SELECTORS.modalContent).first();
     await expect(modal).toBeVisible();
-
-  const submitDrafts = page.getByRole('button', { name: /Submit All Drafts/i });
-  if (await submitDrafts.isVisible()) {
-    await submitDrafts.click({ force: true });
-  }
-
-  const toast = page.locator(TABLE_LAYOUT_SELECTORS.toast).first();
     await expect(toast).toBeVisible({ timeout: 5000 });
 
     const [toastBox, modalBox] = await Promise.all([

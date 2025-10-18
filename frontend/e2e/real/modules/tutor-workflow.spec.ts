@@ -13,12 +13,21 @@ type TimesheetRecord = {
   courseName: string;
   weekStartDate: string;
   hours: number;
+  deliveryHours: number;
   hourlyRate: number;
+  qualification: string;
+  taskType: string;
+  repeat: boolean;
+  rateCode?: string | null;
+  calculationFormula?: string | null;
+  clauseReference?: string | null;
+  sessionDate?: string | null;
   description: string;
   status: TimesheetStatus;
   createdAt: string;
   updatedAt: string;
   tutorName: string;
+  rejectionReason?: string;
 };
 
 type TimesheetPagePayload = {
@@ -68,7 +77,15 @@ const mockTimesheets: { default: TimesheetPagePayload; empty: TimesheetPagePaylo
         courseName: 'Introduction to Programming',
         weekStartDate: '2025-01-27',
         hours: 10,
+        deliveryHours: 10,
         hourlyRate: 45,
+        qualification: 'STANDARD',
+        taskType: 'TUTORIAL',
+        repeat: false,
+        rateCode: 'TU1',
+        calculationFormula: '1h delivery + 2h associated',
+        clauseReference: 'Schedule 1',
+        sessionDate: '2025-01-27',
         description: 'Tutorial sessions for COMP1001',
         status: 'REJECTED',
         createdAt: '2025-01-20T10:00:00Z',
@@ -83,7 +100,15 @@ const mockTimesheets: { default: TimesheetPagePayload; empty: TimesheetPagePaylo
         courseName: 'Data Structures',
         weekStartDate: '2025-02-03',
         hours: 8,
+        deliveryHours: 8,
         hourlyRate: 50,
+        qualification: 'STANDARD',
+        taskType: 'TUTORIAL',
+        repeat: false,
+        rateCode: 'TU1',
+        calculationFormula: '1h delivery + 2h associated',
+        clauseReference: 'Schedule 1',
+        sessionDate: '2025-02-03',
         description: 'Lab sessions for DATA2001',
         status: 'DRAFT',
         createdAt: '2025-01-28T09:00:00Z',
@@ -98,7 +123,15 @@ const mockTimesheets: { default: TimesheetPagePayload; empty: TimesheetPagePaylo
         courseName: 'Calculus I',
         weekStartDate: '2025-02-10',
         hours: 6,
+        deliveryHours: 6,
         hourlyRate: 42,
+        qualification: 'STANDARD',
+        taskType: 'TUTORIAL',
+        repeat: false,
+        rateCode: 'TU1',
+        calculationFormula: '1h delivery + 2h associated',
+        clauseReference: 'Schedule 1',
+        sessionDate: '2025-02-10',
         description: 'Assignment marking for MATH1001',
         status: 'PENDING_TUTOR_CONFIRMATION',
         createdAt: '2025-02-08T08:00:00Z',
@@ -113,7 +146,15 @@ const mockTimesheets: { default: TimesheetPagePayload; empty: TimesheetPagePaylo
         courseName: 'Physics I',
         weekStartDate: '2025-01-20',
         hours: 12,
+        deliveryHours: 12,
         hourlyRate: 48,
+        qualification: 'STANDARD',
+        taskType: 'TUTORIAL',
+        repeat: false,
+        rateCode: 'TU1',
+        calculationFormula: '1h delivery + 2h associated',
+        clauseReference: 'Schedule 1',
+        sessionDate: '2025-01-20',
         description: 'Tutorial prep and delivery for PHYS1001',
         status: 'TUTOR_CONFIRMED',
         createdAt: '2025-01-18T14:00:00Z',
@@ -258,17 +299,32 @@ test.describe('Tutor dashboard workflow', () => {
       if (typeof payload.hours === 'number') {
         normalizedChanges.hours = payload.hours;
       }
+      if (typeof payload.deliveryHours === 'number') {
+        normalizedChanges.deliveryHours = payload.deliveryHours;
+      }
       if (typeof payload.description === 'string') {
         normalizedChanges.description = payload.description;
       }
       if (typeof payload.weekStartDate === 'string') {
         normalizedChanges.weekStartDate = payload.weekStartDate;
       }
+      if (typeof payload.sessionDate === 'string') {
+        normalizedChanges.sessionDate = payload.sessionDate;
+      }
       if (typeof payload.courseId === 'number') {
         normalizedChanges.courseId = payload.courseId;
       }
       if (typeof payload.hourlyRate === 'number') {
         normalizedChanges.hourlyRate = payload.hourlyRate;
+      }
+      if (typeof payload.qualification === 'string') {
+        normalizedChanges.qualification = payload.qualification;
+      }
+      if (typeof payload.taskType === 'string') {
+        normalizedChanges.taskType = payload.taskType;
+      }
+      if (typeof payload.repeat === 'boolean') {
+        normalizedChanges.repeat = payload.repeat;
       }
 
       updateTimesheetInState(timesheetId, normalizedChanges);
@@ -278,6 +334,60 @@ test.describe('Tutor dashboard workflow', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(updatedTimesheet),
+      });
+    });
+
+    await page.route('**/api/timesheets/quote', async route => {
+      const request = route.request();
+      if (request.method() !== 'POST') {
+        await route.continue();
+        return;
+      }
+
+      let payload: {
+        tutorId?: number;
+        courseId?: number;
+        deliveryHours?: number;
+        qualification?: string;
+        taskType?: string;
+        repeat?: boolean;
+        sessionDate?: string;
+      } = {};
+
+      try {
+        payload = JSON.parse(request.postData() ?? '{}');
+      } catch {
+        payload = {};
+      }
+
+      const baseTimesheet =
+        currentTimesheetPage.timesheets.find(sheet => sheet.courseId === payload.courseId) ??
+        currentTimesheetPage.timesheets[0];
+
+      const deliveryHours = typeof payload.deliveryHours === 'number' ? payload.deliveryHours : baseTimesheet?.deliveryHours ?? 1;
+      const associatedHours = Math.min(Math.max(deliveryHours * 2, 0), 10);
+      const payableHours = deliveryHours + associatedHours;
+      const hourlyRate = baseTimesheet?.hourlyRate ?? 45;
+
+      const quoteResponse = {
+        taskType: payload.taskType ?? baseTimesheet?.taskType ?? 'TUTORIAL',
+        rateCode: baseTimesheet?.rateCode ?? 'TU1',
+        qualification: payload.qualification ?? baseTimesheet?.qualification ?? 'STANDARD',
+        repeat: Boolean(payload.repeat ?? baseTimesheet?.repeat ?? false),
+        deliveryHours,
+        associatedHours,
+        payableHours,
+        hourlyRate,
+        amount: Number((payableHours * hourlyRate).toFixed(2)),
+        formula: `${deliveryHours}h delivery + ${associatedHours}h associated`,
+        clauseReference: baseTimesheet?.clauseReference ?? 'Schedule 1',
+        sessionDate: payload.sessionDate ?? baseTimesheet?.sessionDate ?? baseTimesheet?.weekStartDate ?? '2025-01-01',
+      };
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(quoteResponse),
       });
     });
 
@@ -416,16 +526,24 @@ test.describe('Tutor dashboard workflow', () => {
 
     expect(lastUpdateRequest).not.toBeNull();
     expect(lastUpdateRequest?.timesheetId).toBe(1);
+    const expectedPayableHours = 11 + Math.min(11 * 2, 10);
     expect(lastUpdateRequest?.payload).toMatchObject({
-      hours: 11,
+      hours: expectedPayableHours,
+      deliveryHours: 11,
       description: 'Adjusted tutorial sessions for COMP1001',
+      qualification: 'STANDARD',
+      taskType: 'TUTORIAL',
+      repeat: false,
+      weekStartDate: '2025-01-27',
+      sessionDate: '2025-01-27',
     });
 
+    const expectedPayablePostUpdate = expectedPayableHours;
     await tutorDashboard.expectTimesheetData(1, {
       courseCode: 'COMP1001',
       status: 'Rejected',
-      hours: 11,
-      totalPay: 495,
+      hours: expectedPayablePostUpdate,
+      totalPay: expectedPayablePostUpdate * 45,
     });
   });
 
@@ -460,7 +578,15 @@ test.describe('Tutor dashboard workflow', () => {
         courseName: 'Data Pipelines',
         weekStartDate: '2025-03-10',
         hours: 6,
+        deliveryHours: 6,
         hourlyRate: 46,
+        qualification: 'STANDARD',
+        taskType: 'TUTORIAL',
+        repeat: false,
+        rateCode: 'TU1',
+        calculationFormula: '1h delivery + 2h associated',
+        clauseReference: 'Schedule 1',
+        sessionDate: '2025-03-10',
         description: 'Draft: Lab supervision for COMP2101',
         status: 'DRAFT',
         createdAt: now,
@@ -475,7 +601,15 @@ test.describe('Tutor dashboard workflow', () => {
         courseName: 'Information Design',
         weekStartDate: '2025-03-10',
         hours: 7.5,
+        deliveryHours: 7.5,
         hourlyRate: 47,
+        qualification: 'STANDARD',
+        taskType: 'TUTORIAL',
+        repeat: false,
+        rateCode: 'TU1',
+        calculationFormula: '1h delivery + 2h associated',
+        clauseReference: 'Schedule 1',
+        sessionDate: '2025-03-10',
         description: 'Draft: Workshop prep for INFO2300',
         status: 'DRAFT',
         createdAt: now,
@@ -490,7 +624,15 @@ test.describe('Tutor dashboard workflow', () => {
         courseName: 'Discrete Mathematics',
         weekStartDate: '2025-03-10',
         hours: 5.5,
+        deliveryHours: 5.5,
         hourlyRate: 44,
+        qualification: 'STANDARD',
+        taskType: 'TUTORIAL',
+        repeat: false,
+        rateCode: 'TU1',
+        calculationFormula: '1h delivery + 2h associated',
+        clauseReference: 'Schedule 1',
+        sessionDate: '2025-03-10',
         description: 'Draft: Tutorial coverage for MATH2501',
         status: 'DRAFT',
         createdAt: now,
@@ -614,6 +756,72 @@ test.describe('Tutor dashboard workflow', () => {
 
     await tutorDashboard.updateEditForm({ hours: 10 });
     await tutorDashboard.expectNoFormValidationErrors();
+
+    await tutorDashboard.cancelEdit();
+  });
+
+  test('displays lecturer rejection feedback when editing rejected timesheet', async ({ page }) => {
+    // Create a timesheet with rejection feedback
+    const rejectedTimesheetWithFeedback: TimesheetRecord = {
+      id: 999,
+      tutorId: 2,
+      courseId: 1,
+      courseCode: 'COMP1001',
+      courseName: 'Introduction to Programming',
+      weekStartDate: '2025-01-27',
+      hours: 10,
+      deliveryHours: 10,
+      hourlyRate: 45,
+      qualification: 'STANDARD',
+      taskType: 'TUTORIAL',
+      repeat: false,
+      rateCode: 'TU1',
+      calculationFormula: '1h delivery + 2h associated',
+      clauseReference: 'Schedule 1',
+      sessionDate: '2025-01-27',
+      description: 'Tutorial sessions for COMP1001',
+      status: 'REJECTED',
+      createdAt: '2025-01-20T10:00:00Z',
+      updatedAt: '2025-01-25T14:30:00Z',
+      tutorName: 'John Doe',
+      rejectionReason: 'Correction required: Please update the project code and provide more detailed description of tasks completed.'
+    };
+
+    // Update the timesheet data to include rejection feedback
+    const updatedTimesheets = [...currentTimesheetPage.timesheets];
+    updatedTimesheets[0] = rejectedTimesheetWithFeedback;
+    replaceTimesheets(updatedTimesheets);
+
+    // Navigate to dashboard and wait for data
+    await page.reload();
+    await tutorDashboard.expectToBeLoaded();
+    await tutorDashboard.waitForMyTimesheetData();
+
+    // Click edit on the rejected timesheet (ID 999 from our updated data)
+    await tutorDashboard.clickEditButton(999);
+    await tutorDashboard.expectEditModalVisible();
+
+    const tableRows = page.locator('[data-testid^="timesheet-row-"]');
+    const tableRow = page.locator('[data-testid="timesheet-row-999"]');
+    await expect(tableRows.first()).toHaveAttribute('data-testid', 'timesheet-row-999');
+    await expect(tableRow).toBeVisible();
+    
+    // Verify that the rejection feedback is clearly visible in the edit form
+    const rejectionFeedbackSection = page.locator('[data-testid="rejection-feedback-section"]');
+    await expect(rejectionFeedbackSection).toBeVisible();
+    
+    const feedbackTitle = page.locator('[data-testid="rejection-feedback-title"]');
+    await expect(feedbackTitle).toContainText('Lecturer Feedback');
+    
+    const feedbackContent = page.locator('[data-testid="rejection-feedback-content"]');
+    await expect(feedbackContent).toContainText('Correction required: Please update the project code and provide more detailed description of tasks completed.');
+
+    // Verify the feedback section is positioned directly before the edit form
+    const feedbackPrecedesForm = await rejectionFeedbackSection.evaluate(section => {
+      const nextElement = section.nextElementSibling;
+      return nextElement?.getAttribute('data-testid') === 'edit-timesheet-form';
+    });
+    expect(feedbackPrecedesForm).toBe(true);
 
     await tutorDashboard.cancelEdit();
   });

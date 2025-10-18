@@ -5,6 +5,10 @@ import { NavigationPage } from '../../shared/pages/NavigationPage';
 import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
 import { setupMockAuth } from '../../shared/mock-backend/auth';
 import { statusLabel } from '../../utils/status-labels';
+import {
+  getTimesheetActionSelector,
+  getTimesheetStatusBadgeSelector,
+} from '../../../src/lib/config/table-config';
 
 test.describe('P1 Tutor Confirmation (mock-only)', () => {
   test('Tutor confirms a pending timesheet (UI only)', async ({ page }) => {
@@ -48,6 +52,42 @@ test.describe('P1 Tutor Confirmation (mock-only)', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(responseBody) });
     });
 
+    await page.route('**/api/dashboard/summary**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+
+      const totalPay = pendingTimesheet.hours * pendingTimesheet.hourlyRate;
+      const summary = {
+        totalTimesheets: 1,
+        pendingConfirmations: currentStatus === 'PENDING_TUTOR_CONFIRMATION' ? 1 : 0,
+        pendingApprovals: currentStatus === 'TUTOR_CONFIRMED' ? 1 : 0,
+        rejectedTimesheets: 0,
+        totalHours: pendingTimesheet.hours,
+        totalPay,
+        totalPayroll: totalPay,
+        thisWeekHours: currentStatus === 'PENDING_TUTOR_CONFIRMATION' ? pendingTimesheet.hours : 0,
+        thisWeekPay: currentStatus === 'PENDING_TUTOR_CONFIRMATION' ? totalPay : 0,
+        statusBreakdown: {
+          PENDING_TUTOR_CONFIRMATION: currentStatus === 'PENDING_TUTOR_CONFIRMATION' ? 1 : 0,
+          TUTOR_CONFIRMED: currentStatus === 'TUTOR_CONFIRMED' ? 1 : 0,
+        },
+        recentActivity: [],
+        upcomingDeadlines: [],
+        tutorCount: 1,
+        lecturerCount: 0,
+        courseCount: 1,
+        systemHealth: 'HEALTHY',
+      };
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(summary),
+      });
+    });
+
     await page.route(`**${E2E_CONFIG.BACKEND.ENDPOINTS.APPROVALS}`, async route => {
       const request = route.request();
       if (request.method() === 'POST') {
@@ -71,10 +111,10 @@ test.describe('P1 Tutor Confirmation (mock-only)', () => {
     await tutorDashboardPage.waitForDashboardReady();
     await tutorDashboardPage.expectResponsiveColumns();
 
-    const statusBadge = page.getByTestId(`status-badge-${pendingTimesheet.id}`);
+    const statusBadge = page.locator(getTimesheetStatusBadgeSelector(pendingTimesheet.id));
     await expect(statusBadge).toContainText(statusLabel('PENDING_TUTOR_CONFIRMATION'));
 
-    const confirmButton = page.getByTestId(`confirm-btn-${pendingTimesheet.id}`);
+    const confirmButton = page.locator(getTimesheetActionSelector('confirm', pendingTimesheet.id));
     await expect(confirmButton).toBeVisible();
     await Promise.all([
       page.waitForResponse('**/api/approvals'),

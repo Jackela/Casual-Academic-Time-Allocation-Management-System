@@ -4,9 +4,12 @@ import com.usyd.catams.common.domain.model.Money;
 import com.usyd.catams.common.domain.model.WeekPeriod;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
+import com.usyd.catams.enums.TimesheetTaskType;
+import com.usyd.catams.enums.TutorQualification;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -32,7 +35,7 @@ import com.usyd.catams.common.validation.TimesheetValidationProperties;
     }
 )
 public class Timesheet {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -67,8 +70,43 @@ public class Timesheet {
     
     @NotBlank
     @Size(max = 1000)
-    @Column(nullable = false, length = 1000)
+   @Column(nullable = false, length = 1000)
     private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "task_type", nullable = false, length = 20)
+    private TimesheetTaskType taskType = TimesheetTaskType.OTHER;
+
+    @Column(name = "is_repeat", nullable = false)
+    private boolean isRepeat = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "qualification", nullable = false, length = 20)
+    private TutorQualification qualification = TutorQualification.STANDARD;
+
+    @NotNull
+    @Digits(integer = 2, fraction = 1)
+    @Column(name = "delivery_hours", nullable = false, precision = 3, scale = 1)
+    private BigDecimal deliveryHours = BigDecimal.ZERO;
+
+    @NotNull
+    @Digits(integer = 2, fraction = 1)
+    @Column(name = "associated_hours", nullable = false, precision = 3, scale = 1)
+    private BigDecimal associatedHours = BigDecimal.ZERO;
+
+    @NotNull
+    @Digits(integer = 7, fraction = 2)
+    @Column(name = "calculated_amount", nullable = false, precision = 9, scale = 2)
+    private BigDecimal calculatedAmount = BigDecimal.ZERO;
+
+    @Column(name = "rate_code", length = 20)
+    private String rateCode;
+
+    @Column(name = "calculation_formula", length = 255)
+    private String calculationFormula;
+
+    @Column(name = "clause_reference", length = 64)
+    private String clauseReference;
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
@@ -111,6 +149,14 @@ public class Timesheet {
         this.description = description;
         this.createdBy = createdBy;
         this.status = ApprovalStatus.DRAFT;
+        this.taskType = TimesheetTaskType.OTHER;
+        this.qualification = TutorQualification.STANDARD;
+        this.deliveryHours = hours != null ? hours : BigDecimal.ZERO;
+        this.associatedHours = BigDecimal.ZERO;
+        BigDecimal effectiveRate = hourlyRate != null ? hourlyRate.getAmount() : null;
+        this.calculatedAmount = (hours != null && effectiveRate != null)
+                ? hours.multiply(effectiveRate).setScale(2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
     }
     
     // Constructor with primitives for backwards compatibility
@@ -244,6 +290,80 @@ public class Timesheet {
     
     public void setCreatedBy(Long createdBy) {
         this.createdBy = createdBy;
+    }
+
+    public TimesheetTaskType getTaskType() {
+        return taskType;
+    }
+
+    public void setTaskType(TimesheetTaskType taskType) {
+        this.taskType = taskType != null ? taskType : TimesheetTaskType.OTHER;
+    }
+
+    public boolean isRepeat() {
+        return isRepeat;
+    }
+
+    public void setRepeat(boolean repeat) {
+        this.isRepeat = repeat;
+    }
+
+    public TutorQualification getQualification() {
+        return qualification;
+    }
+
+    public void setQualification(TutorQualification qualification) {
+        this.qualification = qualification != null ? qualification : TutorQualification.STANDARD;
+    }
+
+    public BigDecimal getDeliveryHours() {
+        return deliveryHours;
+    }
+
+    public void setDeliveryHours(BigDecimal deliveryHours) {
+        this.deliveryHours = deliveryHours != null ? deliveryHours : BigDecimal.ZERO;
+    }
+
+    public BigDecimal getAssociatedHours() {
+        return associatedHours;
+    }
+
+    public void setAssociatedHours(BigDecimal associatedHours) {
+        this.associatedHours = associatedHours != null ? associatedHours : BigDecimal.ZERO;
+    }
+
+    public BigDecimal getCalculatedAmount() {
+        return calculatedAmount;
+    }
+
+    public void setCalculatedAmount(BigDecimal calculatedAmount) {
+        this.calculatedAmount = calculatedAmount != null
+                ? calculatedAmount.setScale(2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public String getRateCode() {
+        return rateCode;
+    }
+
+    public void setRateCode(String rateCode) {
+        this.rateCode = (rateCode != null && !rateCode.isBlank()) ? rateCode : null;
+    }
+
+    public String getCalculationFormula() {
+        return calculationFormula;
+    }
+
+    public void setCalculationFormula(String calculationFormula) {
+        this.calculationFormula = calculationFormula;
+    }
+
+    public String getClauseReference() {
+        return clauseReference;
+    }
+
+    public void setClauseReference(String clauseReference) {
+        this.clauseReference = clauseReference;
     }
     
     // Business methods

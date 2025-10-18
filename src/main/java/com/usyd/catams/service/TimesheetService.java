@@ -42,17 +42,21 @@ public interface TimesheetService {
      * @param tutorId ID of the tutor for whom the timesheet is created
      * @param courseId ID of the course for which work was performed
      * @param weekStartDate Start date of the work week (must be Monday)
-     * @param hours Number of hours worked (0.1 - 38.0)
-     * @param hourlyRate Hourly rate for the work (10.00 - 200.00)
+     * @param calculation EA-compliant calculation outcome providing payable hours, rates, and metadata
+     * @param taskType Task classification (e.g. TUTORIAL, LECTURE)
      * @param description Description of work performed (1-1000 characters)
      * @param creatorId ID of the user creating the timesheet (must be LECTURER)
      * @return the created timesheet with generated ID
      * @throws IllegalArgumentException if business rules are violated
      * @throws SecurityException if creator lacks permission to create timesheet
      */
-    Timesheet createTimesheet(Long tutorId, Long courseId, LocalDate weekStartDate,
-                            BigDecimal hours, BigDecimal hourlyRate, String description,
-                            Long creatorId);
+    Timesheet createTimesheet(Long tutorId,
+                              Long courseId,
+                              LocalDate weekStartDate,
+                              Schedule1CalculationResult calculation,
+                              com.usyd.catams.enums.TimesheetTaskType taskType,
+                              String description,
+                              Long creatorId);
 
     /**
      * Get timesheets with filtering and pagination.
@@ -198,16 +202,19 @@ public interface TimesheetService {
      * - All validation rules from creation apply
      * 
      * @param timesheetId the timesheet ID to update
-     * @param hours new number of hours worked (0.1 - 38.0)
-     * @param hourlyRate new hourly rate (10.00 - 200.00)
+     * @param calculation EA-compliant calculation outcome with payable hours, rate, and metadata
+     * @param taskType Task classification (e.g. TUTORIAL, LECTURE)
      * @param description new description of work performed (1-1000 characters)
      * @param requesterId ID of the user making the update request
      * @return the updated timesheet
      * @throws IllegalArgumentException if business rules are violated
      * @throws SecurityException if user lacks permission to update timesheet
      */
-    Timesheet updateTimesheet(Long timesheetId, BigDecimal hours, BigDecimal hourlyRate, 
-                            String description, Long requesterId);
+    Timesheet updateTimesheet(Long timesheetId,
+                              Schedule1CalculationResult calculation,
+                              com.usyd.catams.enums.TimesheetTaskType taskType,
+                              String description,
+                              Long requesterId);
 
     /**
      * Delete an existing timesheet.
