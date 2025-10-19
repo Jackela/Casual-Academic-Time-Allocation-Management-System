@@ -7,7 +7,7 @@ export interface UpcomingDeadlinesProps {
 }
 
 const UpcomingDeadlines = memo<UpcomingDeadlinesProps>(({ deadlines }) => (
-  <div className="rounded-lg border bg-card p-4">
+  <div className="w-full max-w-full rounded-lg border bg-card p-4">
     <h3 className="mb-2 font-semibold">Upcoming Deadlines</h3>
     {deadlines.length === 0 ? (
       <p className="text-sm text-muted-foreground">No upcoming deadlines</p>

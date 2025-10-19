@@ -27,7 +27,7 @@ const PaySummary = memo<PaySummaryProps>(({ totalEarned, thisWeekPay, averagePer
   const cardClassName = ['p-4', className].filter(Boolean).join(' ');
 
   return (
-    <Card className={cardClassName}>
+    <Card className={`w-full max-w-full ${cardClassName}`}>
       <CardTitle className="mb-2 text-lg font-semibold">Pay Summary</CardTitle>
       <CardContent className="space-y-2 p-0">
         <div className="flex justify-between text-sm">

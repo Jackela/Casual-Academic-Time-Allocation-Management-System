@@ -408,11 +408,11 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   if (timesheetsLoading || dashboardLoading) {
     return (
       <div className="unified-container">
-        <div className={`dashboard-grid ${className}`} data-testid="loading-state">
-          <section className="dashboard-grid__hero" data-testid="loading-state-container">
+        <div className={`macro-grid ${className}`} data-testid="loading-state">
+          <div className="macro-grid-hero" data-testid="loading-state-container">
             <LoadingSpinner size="large" data-testid="spinner" />
             <p data-testid="loading-text">Loading your timesheets...</p>
-          </section>
+          </div>
         </div>
       </div>
     );
@@ -458,8 +458,8 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   ) : null;
   return (
     <div className="unified-container">
-      <div className={`dashboard-grid ${className}`} data-testid="tutor-dashboard">
-        <header className="dashboard-grid__hero">
+      <div className={`macro-grid ${className}`} data-testid="tutor-dashboard">
+        <header className="macro-grid-hero">
           <TutorHeader
             welcomeMessage={welcomeMessage}
             title="Tutor Dashboard"
@@ -468,8 +468,8 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           {feedbackStack}
         </header>
 
-        <div className="dashboard-grid__content">
-          <section className="dashboard-grid__main" role="region" aria-label="Tutor dashboard content">
+        <main className="macro-grid-content has-sidebar">
+          <section className="macro-grid-main" role="region" aria-label="Tutor dashboard content">
             <section className="mb-8" role="region" aria-label="Quick Actions">
               <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="quick-actions">
@@ -662,7 +662,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           </section>
 
           <aside
-            className="dashboard-grid__aside"
+            className="macro-grid-sidebar"
             data-testid="dashboard-sidebar"
             aria-label="Tutor essentials"
           >
@@ -677,7 +677,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             </div>
             <SupportResources resources={supportResources} />
           </aside>
-        </div>
+        </main>
       </div>
 
       {showForm && (

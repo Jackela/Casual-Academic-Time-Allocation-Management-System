@@ -109,7 +109,7 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
 
   const hasPageErrors = pageErrors.length > 0;
 
-  const shouldShowSidebar = currentTab !== 'overview';
+  const shouldShowSidebar = false; // No sidebar - each tab shows its own content
 
   console.info('[AdminDashboardShell] render body ready', {
     currentTab,
@@ -178,14 +178,14 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
                 role="region"
                 aria-label={currentTab === 'pending' ? 'Pending approvals' : 'Overview metrics'}
               >
-                <div style={{ display: currentTab === 'overview' ? undefined : 'none' }}>
+                <div style={{ display: currentTab === 'overview' ? undefined : 'none' }} className="max-w-full">
                   <AdminMetricsPanel
                     metrics={metrics}
                     isLoading={loading.dashboard}
                   />
                 </div>
 
-                <div style={{ display: currentTab === 'pending' ? undefined : 'none' }}>
+                <div style={{ display: currentTab === 'pending' ? undefined : 'none' }} className="max-w-full">
                   <ErrorBoundary level="component">
                     <AdminPendingReviewPanel
                       timesheets={filteredTimesheets}

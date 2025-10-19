@@ -161,18 +161,21 @@
 
 /* Sidebar Layout Support */
 .macro-grid-content.has-sidebar {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto;
 }
 
 @media (min-width: 1024px) {
   .macro-grid-content.has-sidebar {
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+    grid-template-columns: 1fr 360px;
+    grid-template-rows: auto;
+    gap: 2rem;
   }
 }
 
 @media (min-width: 1440px) {
   .macro-grid-content.has-sidebar {
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+    grid-template-columns: 1fr 400px;
   }
 }
 
@@ -181,11 +184,27 @@
 .macro-grid-sidebar {
   display: grid;
   gap: var(--grid-gap-secondary);
+  min-width: 0; /* Allow grid items to shrink below content size */
+}
+
+.macro-grid-main {
+  max-width: 100%; /* Ensure main column respects grid width */
+  min-width: 0; /* Allow content to shrink */
+}
+
+/* Only constrain direct children and card containers, not table content */
+.macro-grid-main > div,
+.macro-grid-main > section {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .macro-grid-sidebar {
   position: relative;
   z-index: var(--z-content);
+  max-width: 100%;
+  overflow: hidden;
 }
 
 @media (min-width: 1024px) {

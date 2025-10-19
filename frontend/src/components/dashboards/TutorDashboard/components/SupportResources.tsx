@@ -25,7 +25,7 @@ const SupportResources = ({
   const cardClassName = ['p-4', className].filter(Boolean).join(' ');
 
   return (
-    <Card className={cardClassName} data-testid="support-resources">
+    <Card className={`w-full max-w-full ${cardClassName}`} data-testid="support-resources">
       <CardTitle className="mb-2 text-lg font-semibold">{title}</CardTitle>
       <CardContent className="space-y-3 p-0">
         {resources.length === 0 && (
