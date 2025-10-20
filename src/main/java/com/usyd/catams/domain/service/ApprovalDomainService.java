@@ -158,7 +158,9 @@ public class ApprovalDomainService {
             (currentStatus == ApprovalStatus.TUTOR_CONFIRMED && action == ApprovalAction.LECTURER_CONFIRM) ||
             (currentStatus == ApprovalStatus.LECTURER_CONFIRMED && action == ApprovalAction.HR_CONFIRM) ||
             (currentStatus == ApprovalStatus.DRAFT && action == ApprovalAction.SUBMIT_FOR_APPROVAL) ||
-            (currentStatus == ApprovalStatus.MODIFICATION_REQUESTED && action == ApprovalAction.SUBMIT_FOR_APPROVAL)) {
+            (currentStatus == ApprovalStatus.MODIFICATION_REQUESTED && action == ApprovalAction.SUBMIT_FOR_APPROVAL) ||
+            (currentStatus == ApprovalStatus.TUTOR_CONFIRMED && action == ApprovalAction.REQUEST_MODIFICATION) ||
+            (currentStatus == ApprovalStatus.LECTURER_CONFIRMED && action == ApprovalAction.REQUEST_MODIFICATION)) {
             return;
         }
 

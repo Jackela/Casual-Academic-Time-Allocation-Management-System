@@ -63,6 +63,11 @@ export interface Timesheet {
   deliveryHours?: number;
   associatedHours?: number;
   totalPay?: number;
+  /**
+   * Derived on the backend to indicate if the current user can edit the timesheet.
+   * Falls back to client-side capability rules when undefined.
+   */
+  isEditable?: boolean;
   description: string;
   status: TimesheetStatus;
   taskType?: TimesheetTaskType;

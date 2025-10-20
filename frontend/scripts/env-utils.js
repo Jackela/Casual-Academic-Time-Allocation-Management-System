@@ -2,89 +2,80 @@ import path from 'path';
 import http from 'node:http';
 import https from 'node:https';
 
-export const DEFAULT_BACKEND_PORT = 8084;
-export const DEFAULT_FRONTEND_PORT = 5174;
-export const DEFAULT_BACKEND_HOST = '127.0.0.1';
-export const DEFAULT_FRONTEND_HOST = 'localhost';
-
-function coerceNumber(value, fallback) {
-  if (value === undefined || value === null || value === '') {
-    return fallback;
+const requireEnv = (name) => {
+  const value = process.env[name];
+  if (!value || value.trim().length === 0) {
+    throw new Error(`Missing required environment variable "${name}"`);
   }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return value.trim();
+};
+
+const parseUrl = (name) => {
+  try {
+    return new URL(requireEnv(name));
+  } catch (error) {
+    throw new Error(`Invalid URL specified for "${name}": ${error.message}`);
+  }
+};
+
+export function resolveBackendUrl() {
+  return requireEnv('E2E_BACKEND_URL');
 }
 
-function extractFromUrl(value, extractor, fallback) {
-  if (!value) {
-    return fallback;
-  }
-  try {
-    const parsed = new URL(value);
-    return extractor(parsed);
-  } catch {
-    return fallback;
-  }
+export function resolveFrontendUrl() {
+  return requireEnv('E2E_FRONTEND_URL');
 }
 
 export function resolveBackendPort() {
   const explicit = process.env.E2E_BACKEND_PORT ?? process.env.BACKEND_PORT;
   if (explicit) {
-    return coerceNumber(explicit, DEFAULT_BACKEND_PORT);
+    const parsed = Number(explicit);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      throw new Error(`Invalid numeric value for E2E_BACKEND_PORT: ${explicit}`);
+    }
+    return parsed;
   }
-  const url = process.env.E2E_BACKEND_URL ?? process.env.BACKEND_URL;
-  const portFromUrl = extractFromUrl(url, (parsed) => parsed.port ? Number(parsed.port) : (parsed.protocol === 'https:' ? 443 : 80), undefined);
-  return portFromUrl ? coerceNumber(portFromUrl, DEFAULT_BACKEND_PORT) : DEFAULT_BACKEND_PORT;
+
+  const url = parseUrl('E2E_BACKEND_URL');
+  if (!url.port) {
+    throw new Error('E2E_BACKEND_URL must include an explicit port or set E2E_BACKEND_PORT');
+  }
+  return Number(url.port);
 }
 
 export function resolveFrontendPort() {
   const explicit = process.env.E2E_FRONTEND_PORT ?? process.env.FRONTEND_PORT;
   if (explicit) {
-    return coerceNumber(explicit, DEFAULT_FRONTEND_PORT);
+    const parsed = Number(explicit);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      throw new Error(`Invalid numeric value for E2E_FRONTEND_PORT: ${explicit}`);
+    }
+    return parsed;
   }
-  const url = process.env.E2E_FRONTEND_URL ?? process.env.FRONTEND_URL;
-  const portFromUrl = extractFromUrl(url, (parsed) => parsed.port ? Number(parsed.port) : (parsed.protocol === 'https:' ? 443 : 80), undefined);
-  return portFromUrl ? coerceNumber(portFromUrl, DEFAULT_FRONTEND_PORT) : DEFAULT_FRONTEND_PORT;
+
+  const url = parseUrl('E2E_FRONTEND_URL');
+  if (!url.port) {
+    throw new Error('E2E_FRONTEND_URL must include an explicit port or set E2E_FRONTEND_PORT');
+  }
+  return Number(url.port);
 }
 
 export function resolveBackendHost() {
   const explicit = process.env.E2E_BACKEND_HOST ?? process.env.BACKEND_HOST;
-  if (explicit) {
-    return explicit;
+  if (explicit && explicit.trim()) {
+    return explicit.trim();
   }
-  const url = process.env.E2E_BACKEND_URL ?? process.env.BACKEND_URL;
-  return extractFromUrl(url, (parsed) => parsed.hostname, DEFAULT_BACKEND_HOST);
+  const url = parseUrl('E2E_BACKEND_URL');
+  return url.hostname;
 }
 
 export function resolveFrontendHost() {
   const explicit = process.env.E2E_FRONTEND_HOST ?? process.env.FRONTEND_HOST;
-  if (explicit) {
-    return explicit;
+  if (explicit && explicit.trim()) {
+    return explicit.trim();
   }
-  const url = process.env.E2E_FRONTEND_URL ?? process.env.FRONTEND_URL;
-  return extractFromUrl(url, (parsed) => parsed.hostname, DEFAULT_FRONTEND_HOST);
-}
-
-export function resolveBackendUrl() {
-  const explicitUrl = process.env.E2E_BACKEND_URL ?? process.env.BACKEND_URL;
-  if (explicitUrl) {
-    return explicitUrl;
-  }
-  const protocol = process.env.E2E_BACKEND_PROTOCOL ?? 'http';
-  const host = resolveBackendHost();
-  const port = resolveBackendPort();
-  return `${protocol}://${host}:${port}`;
-}
-
-export function resolveFrontendUrl() {
-  const explicitUrl = process.env.E2E_FRONTEND_URL ?? process.env.FRONTEND_URL;
-  if (explicitUrl) {
-    return explicitUrl;
-  }
-  const protocol = process.env.E2E_FRONTEND_PROTOCOL ?? 'http';
-  const host = resolveFrontendHost();
-  const port = resolveFrontendPort();
-  return `${protocol}://${host}:${port}`;
+  const url = parseUrl('E2E_FRONTEND_URL');
+  return url.hostname;
 }
 
 export function sanitizeEnv(overrides = {}) {

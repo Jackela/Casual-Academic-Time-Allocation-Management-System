@@ -80,20 +80,26 @@ export const useTimesheetQuery = (initialQuery: UseTimesheetQueryOptions = {}): 
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    const tutorFilter = user?.role === 'TUTOR' ? { tutorId: user.id } : {};
+    const isTutor = user?.role === 'TUTOR';
+    const tutorId = isTutor ? user?.id ?? 0 : undefined;
 
     const mergedQuery: TimesheetQuery = {
       page: 0,
       size: PAGE_SIZE,
       sortBy: 'createdAt',
       sortDirection: 'desc',
-      ...tutorFilter,
       ...queryRef.current,
       ...nextQuery
     };
+    if (isTutor) {
+      mergedQuery.tutorId = tutorId;
+    }
     setState(prev => ({ ...prev, loading: true, error: null }));
 
-    const cacheKey = JSON.stringify(mergedQuery);
+    const cacheKey = JSON.stringify({
+      ...mergedQuery,
+      __tutorScope__: isTutor ? tutorId : null,
+    });
     const cachedValue = cacheRef.current.get(cacheKey);
 
     if (cachedValue && Date.now() - cachedValue.timestamp < staleTimeMs) {
@@ -111,7 +117,12 @@ export const useTimesheetQuery = (initialQuery: UseTimesheetQueryOptions = {}): 
     }
 
     try {
-      const response = await TimesheetService.getTimesheets(mergedQuery, controller.signal);
+      const response = isTutor
+        ? await TimesheetService.getTimesheetsByTutor(
+            tutorId!,
+            (({ tutorId: _omit, ...rest }) => rest)(mergedQuery),
+          )
+        : await TimesheetService.getTimesheets(mergedQuery, controller.signal);
       cacheRef.current.set(cacheKey, { data: response, timestamp: Date.now() });
       const meta = derivePaginationMeta(response);
       setState({

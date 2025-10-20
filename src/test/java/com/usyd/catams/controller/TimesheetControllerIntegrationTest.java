@@ -382,4 +382,31 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         payload.put("courseId", course.getId());
         return payload;
     }
+
+    @Test
+    @DisplayName("GET /api/timesheets should eagerly fetch approvals to avoid LazyInitializationException")
+    void getTimesheetsShouldEagerlyFetchApprovalsCollection() throws Exception {
+        // Create a timesheet with TUTOR_CONFIRMED status (has approval history)
+        Timesheet timesheet = timesheetRepository.save(new TimesheetBuilder()
+                .withTutorId(tutor.getId())
+                .withCourseId(course.getId())
+                .withWeekStartDate(LocalDate.of(2024, 7, 1))
+                .withCreatedBy(lecturer.getId())
+                .withStatus(ApprovalStatus.TUTOR_CONFIRMED)
+                .build());
+
+        // This test verifies that the approvals collection is eagerly fetched so the mapper
+        // can safely read it without triggering a LazyInitializationException.
+        MvcResult result = performGet("/api/timesheets?page=0&size=10", adminToken)
+                .andExpect(status().isOk())
+                .andReturn();
+
+        PagedTimesheetResponse response = objectMapper.readValue(
+                result.getResponse().getContentAsString(),
+                PagedTimesheetResponse.class);
+
+        // Verify the response includes the timesheet without LazyInitializationException
+        assertThat(response.getTimesheets()).isNotEmpty();
+        assertThat(response.getTimesheets().get(0).getId()).isEqualTo(timesheet.getId());
+    }
 }

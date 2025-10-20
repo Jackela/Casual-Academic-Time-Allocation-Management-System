@@ -3,12 +3,12 @@ info:
   title: CATAMS API
   description: |
     Casual Academic Time Allocation Management System (CATAMS) API specification.
-    
+
     This API provides endpoints for managing academic staff time allocation, including:
     - User authentication and management
     - Timesheet creation and management
     - Approval workflow management
-    
+
     The system supports three main roles:
     - **LECTURER**: Can create and approve timesheets for tutors
     - **TUTOR**: Can view their timesheets and request modifications
@@ -20,13 +20,13 @@ info:
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
-
 servers:
   - url: http://localhost:8084/api
     description: Development server
   - url: https://api.catams.edu.au
     description: Production server
-
+security:
+  - bearerAuth: []
 tags:
   - name: Authentication
     description: User authentication and authorization operations
@@ -38,25 +38,716 @@ tags:
     description: Approval workflow operations
   - name: Dashboard
     description: Dashboard and reporting operations
-
 paths:
   /auth/login:
-    $ref: './openapi/paths/auth.yaml'
-  /users:
-    $ref: './openapi/paths/users.yaml'
-  /timesheets:
-    $ref: './openapi/paths/timesheets.yaml#/POST'
-  /timesheets/quote:
-    $ref: './openapi/paths/timesheets.yaml#/POST_QUOTE'
-  /timesheets/{id}:
-    $ref: './openapi/paths/timesheets.yaml#/GET_BY_ID'
-  /timesheets/pending-approval:
-    $ref: './openapi/paths/timesheets.yaml#/GET_PENDING'
-  /approvals:
-    $ref: './openapi/paths/approvals.yaml'
-  /dashboard/summary:
-    $ref: './openapi/paths/dashboard.yaml'
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: |
+        Authenticate user credentials and return JWT token for subsequent requests.
 
+        **Supported roles**: ALL
+
+        **Business rules**:
+        - Email must be a valid format
+        - Password must meet security requirements
+        - User account must be active
+        - Failed attempts are logged for security
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthenticationRequest'
+            examples:
+              lecturer_login:
+                summary: Lecturer login example
+                value:
+                  email: lecturer@university.edu.au
+                  password: SecurePass123!
+              tutor_login:
+                summary: Tutor login example
+                value:
+                  email: tutor@university.edu.au
+                  password: MyPassword456!
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResult'
+              examples:
+                successful_login:
+                  summary: Successful login response
+                  value:
+                    success: true
+                    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                    user:
+                      id: 1
+                      email: lecturer@university.edu.au
+                      name: Dr. John Smith
+                      role: LECTURER
+                    errorMessage: null
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_error:
+                  summary: Validation error
+                  value:
+                    timestamp: '2025-08-01T10:15:30.123Z'
+                    status: 400
+                    error: VALIDATION_FAILED
+                    message: 'Validation failed: email: Email format is invalid'
+                    path: /api/auth/login
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_credentials:
+                  summary: Invalid credentials
+                  value:
+                    timestamp: '2025-08-01T10:15:30.123Z'
+                    status: 401
+                    error: AUTH_FAILED
+                    message: Authentication failed
+                    path: /api/auth/login
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /users:
+    get:
+      tags:
+        - Users
+      summary: List users
+      description: |
+        Retrieve all users in the system.
+
+        **Required role**: ADMIN
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Users
+      summary: Create new user
+      description: |
+        Create a new user account in the system.
+
+        **Required role**: ADMIN
+
+        **Business rules**:
+        - Email must be unique in the system
+        - Password must meet security requirements (8+ chars, mixed case, numbers, special chars)
+        - Only ADMIN users can create new accounts
+        - Default user status is active
+      operationId: createUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+            examples:
+              create_lecturer:
+                summary: Create lecturer account
+                value:
+                  email: new.lecturer@university.edu.au
+                  name: Dr. Jane Doe
+                  password: SecurePass123!
+                  role: LECTURER
+              create_tutor:
+                summary: Create tutor account
+                value:
+                  email: new.tutor@university.edu.au
+                  name: Alice Johnson
+                  password: MyPassword456!
+                  role: TUTOR
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+              examples:
+                created_user:
+                  summary: Successfully created user
+                  value:
+                    id: 123
+                    email: new.lecturer@university.edu.au
+                    name: Dr. Jane Doe
+                    role: LECTURER
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                email_exists:
+                  summary: Email already exists
+                  value:
+                    timestamp: '2025-08-01T10:15:30.123Z'
+                    status: 400
+                    error: EMAIL_EXISTS
+                    message: Email already exists
+                    path: /api/users
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /timesheets:
+    get:
+      tags:
+        - Timesheets
+      summary: List timesheets
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tutorId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: courseId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ApprovalStatus'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Timesheets retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimesheetPageResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Timesheets
+      summary: Create timesheet
+      description: Client submits instructional fields only. Financial values are ignored and recalculated.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimesheetCreateRequest'
+      responses:
+        '201':
+          description: Timesheet created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimesheetResponse'
+        '400':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /timesheets/quote:
+    post:
+      tags:
+        - Timesheets
+      summary: Quote timesheet
+      description: Returns EA-compliant financial values for a prospective timesheet.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimesheetQuoteRequest'
+      responses:
+        '200':
+          description: Quote generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimesheetQuoteResponse'
+        '400':
+          description: Invalid input or calculator rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No policy data available for the supplied inputs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /timesheets/{id}:
+    get:
+      tags:
+        - Timesheets
+      summary: Get timesheet by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Timesheet found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimesheetResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Timesheet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Timesheets
+      summary: Update timesheet
+      description: Client submits instructional fields only. Financial values are recalculated server-side.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimesheetUpdateRequest'
+      responses:
+        '200':
+          description: Timesheet updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimesheetResponse'
+        '400':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Timesheet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /timesheets/pending-approval:
+    get:
+      tags:
+        - Timesheets
+      summary: Get timesheets pending approval
+      description: Returns timesheets awaiting lecturer or admin action.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Pending timesheets retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimesheetPageResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /approvals:
+    post:
+      tags:
+        - Approvals
+      summary: Perform approval action
+      description: |
+        Perform an approval action on a timesheet (approve, reject, request modification, final approval).
+
+        **Access rules (SSOT aligned)**:
+        - **TUTOR**: Can APPROVE / REJECT / REQUEST_MODIFICATION on `PENDING_TUTOR_REVIEW` (owns the timesheet)
+        - **LECTURER**: Can FINAL_APPROVAL / REJECT on `APPROVED_BY_TUTOR` (their courses)
+        - **HR/ADMIN**: Can HR_APPROVE / HR_REJECT on `APPROVED_BY_LECTURER_AND_TUTOR`; ADMIN may perform any action
+
+        **Workflow states (enhanced path)**:
+        - DRAFT -> PENDING_TUTOR_REVIEW (SUBMIT_FOR_APPROVAL)
+        - PENDING_TUTOR_REVIEW -> APPROVED_BY_TUTOR (APPROVE) | REJECTED (REJECT) | MODIFICATION_REQUESTED (REQUEST_MODIFICATION)
+        - APPROVED_BY_TUTOR -> APPROVED_BY_LECTURER_AND_TUTOR (FINAL_APPROVAL) | REJECTED (REJECT by LECTURER)
+        - APPROVED_BY_LECTURER_AND_TUTOR -> FINAL_APPROVED (HR_APPROVE) | REJECTED (HR_REJECT)
+      operationId: performApprovalAction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalActionRequest'
+            examples:
+              approve_timesheet:
+                summary: Approve timesheet
+                value:
+                  timesheetId: 789
+                  action: APPROVE
+                  comment: Approved - hours and description look correct
+              reject_timesheet:
+                summary: Reject timesheet
+                value:
+                  timesheetId: 789
+                  action: REJECT
+                  comment: Rejected - hours seem excessive for the described work
+              request_modification:
+                summary: Request modification
+                value:
+                  timesheetId: 789
+                  action: REQUEST_MODIFICATION
+                  comment: Please provide more detailed description of the tutorial work
+      responses:
+        '200':
+          description: Approval action completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalActionResponse'
+              examples:
+                approval_success:
+                  summary: Successful approval action
+                  value:
+                    timesheetId: 789
+                    action: FINAL_APPROVAL
+                    newStatus: APPROVED_BY_LECTURER_AND_TUTOR
+                    approverId: 999
+                    approverName: Dr. Jane Smith
+                    comment: Final academic approval
+                    timestamp: '2025-08-01T16:30:00Z'
+                    nextSteps:
+                      - Timesheet is ready for HR final review
+        '400':
+          description: Invalid approval action or business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_transition:
+                  summary: Invalid state transition
+                  value:
+                    timestamp: '2025-08-01T10:15:30.123Z'
+                    status: 400
+                    error: INVALID_STATE_TRANSITION
+                    message: 'Cannot approve timesheet in current state: DRAFT'
+                    path: /api/approvals
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_authorized:
+                  summary: Not authorized for this timesheet
+                  value:
+                    timestamp: '2025-08-01T10:15:30.123Z'
+                    status: 403
+                    error: ACCESS_DENIED
+                    message: You are not authorized to approve this timesheet
+                    path: /api/approvals
+        '404':
+          description: Timesheet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /dashboard/summary:
+    get:
+      tags:
+        - Dashboard
+      summary: Get dashboard summary
+      description: |
+        Retrieve dashboard summary with key metrics and recent activities.
+
+        **Access rules**:
+        - **LECTURER**: See summary for their courses and tutors
+        - **TUTOR**: See summary for their own timesheets
+        - **ADMIN**: See system-wide summary
+
+        **Data includes**:
+        - Total timesheets and pending approvals
+        - Total hours worked and pay amounts
+        - Recent activities and notifications
+        - Budget usage information (for LECTURER/ADMIN)
+        - Workload analysis and trends
+      operationId: getDashboardSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: courseId
+          in: query
+          description: Filter summary by specific course (LECTURER/ADMIN only)
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: semester
+          in: query
+          description: Filter by semester (YYYY-S format, e.g., "2025-1")
+          required: false
+          schema:
+            type: string
+            pattern: ^\d{4}-[12]$
+            example: 2025-1
+        - name: startDate
+          in: query
+          description: Start date for metrics calculation (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: End date for metrics calculation (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Dashboard summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummaryResponse'
+              examples:
+                lecturer_dashboard:
+                  summary: Dashboard summary for lecturer
+                  value:
+                    totalTimesheets: 25
+                    pendingApprovals: 3
+                    totalHours: 145.5
+                    totalPay: 6547.5
+                    budgetUsage:
+                      totalBudget: 10000
+                      usedBudget: 6547.5
+                      remainingBudget: 3452.5
+                      utilizationPercentage: 65.48
+                    recentActivities:
+                      - id: 1
+                        type: TIMESHEET_SUBMITTED
+                        description: Alice Johnson submitted timesheet for COMP1001
+                        timestamp: '2025-08-01T14:30:00Z'
+                        timesheetId: 789
+                        userId: 123
+                        userName: Alice Johnson
+                      - id: 2
+                        type: MODIFICATION_REQUESTED
+                        description: 'Bob Smith requested modification for timesheet #788'
+                        timestamp: '2025-08-01T10:15:00Z'
+                        timesheetId: 788
+                        userId: 124
+                        userName: Bob Smith
+                    pendingItems:
+                      - id: 789
+                        type: TIMESHEET_APPROVAL
+                        title: Review timesheet for Alice Johnson
+                        description: COMP1001 - Week of July 28, 2025
+                        priority: MEDIUM
+                        dueDate: '2025-08-03T23:59:59Z'
+                        timesheetId: 789
+                    workloadAnalysis:
+                      currentWeekHours: 42.5
+                      previousWeekHours: 38
+                      averageWeeklyHours: 40.2
+                      peakWeekHours: 48.5
+                      totalTutors: 5
+                      activeTutors: 4
+                tutor_dashboard:
+                  summary: Dashboard summary for tutor
+                  value:
+                    totalTimesheets: 8
+                    pendingApprovals: 1
+                    totalHours: 64
+                    totalPay: 2880
+                    budgetUsage: null
+                    recentActivities:
+                      - id: 3
+                        type: TIMESHEET_APPROVED
+                        description: Your timesheet for COMP1001 was approved
+                        timestamp: '2025-08-01T16:45:00Z'
+                        timesheetId: 785
+                        userId: 999
+                        userName: Dr. John Smith
+                      - id: 4
+                        type: MODIFICATION_REQUESTED
+                        description: 'Dr. Smith requested changes to timesheet #784'
+                        timestamp: '2025-07-31T11:30:00Z'
+                        timesheetId: 784
+                        userId: 999
+                        userName: Dr. John Smith
+                    pendingItems:
+                      - id: 784
+                        type: MODIFICATION_RESPONSE
+                        title: Address requested changes
+                        description: Dr. Smith requested more details for tutorial work
+                        priority: HIGH
+                        dueDate: '2025-08-02T23:59:59Z'
+                        timesheetId: 784
+                    workloadAnalysis:
+                      currentWeekHours: 8
+                      previousWeekHours: 12
+                      averageWeeklyHours: 8.5
+                      peakWeekHours: 14
+                      totalTutors: null
+                      activeTutors: null
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -64,62 +755,811 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT token obtained from /auth/login endpoint
-
   schemas:
     AuthenticationRequest:
-      $ref: './openapi/schemas/authentication.yaml#/AuthenticationRequest'
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: lecturer@university.edu.au
+          maxLength: 255
+        password:
+          type: string
+          format: password
+          description: User password
+          example: SecurePass123!
+          minLength: 8
+          maxLength: 255
     AuthResult:
-      $ref: './openapi/schemas/authentication.yaml#/AuthResult'
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          description: Whether authentication was successful
+          example: true
+        token:
+          type: string
+          description: JWT token for subsequent requests (only present if success=true)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        errorMessage:
+          type: string
+          description: Error message (only present if success=false)
+          example: null
+          nullable: true
     UserCreateRequest:
-      $ref: './openapi/schemas/users.yaml#/UserCreateRequest'
+      type: object
+      required:
+        - email
+        - name
+        - password
+        - role
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address (must be unique)
+          example: new.lecturer@university.edu.au
+          maxLength: 255
+        name:
+          type: string
+          description: Full name of the user
+          example: Dr. Jane Doe
+          maxLength: 100
+        password:
+          type: string
+          format: password
+          description: Initial password for the user
+          example: SecurePass123!
+          minLength: 8
+          maxLength: 255
+        role:
+          $ref: '#/components/schemas/UserRole'
     UserResponse:
-      $ref: './openapi/schemas/users.yaml#/UserResponse'
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - role
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique user identifier
+          example: 123
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: lecturer@university.edu.au
+        name:
+          type: string
+          description: Full name of the user
+          example: Dr. John Smith
+        role:
+          $ref: '#/components/schemas/UserRole'
     UserRole:
-      $ref: './openapi/schemas/users.yaml#/UserRole'
+      type: string
+      enum:
+        - ADMIN
+        - LECTURER
+        - TUTOR
+      description: |
+        User role in the system:
+        - **ADMIN**: Full system access, HR functions
+        - **LECTURER**: Can manage timesheets for their courses
+        - **TUTOR**: Can view their own timesheets and request modifications
+      example: LECTURER
     TimesheetCreateRequest:
-      $ref: './openapi/schemas/timesheets.yaml#/TimesheetCreateRequest'
+      allOf:
+        - $ref: '#/components/schemas/TimesheetQuoteRequest'
+      description: Client submits instructional fields only; financial values are recalculated server-side.
     TimesheetUpdateRequest:
-      $ref: './openapi/schemas/timesheets.yaml#/TimesheetUpdateRequest'
+      allOf:
+        - $ref: '#/components/schemas/TimesheetQuoteRequest'
+      description: Same shape as create request; ignored fields will be recalculated.
     TimesheetQuoteRequest:
-      $ref: './openapi/schemas/timesheets.yaml#/TimesheetQuoteRequest'
+      type: object
+      required:
+        - tutorId
+        - courseId
+        - taskType
+        - qualification
+        - repeat
+        - deliveryHours
+        - sessionDate
+      properties:
+        tutorId:
+          type: integer
+          format: int64
+        courseId:
+          type: integer
+          format: int64
+        taskType:
+          type: string
+          enum:
+            - LECTURE
+            - TUTORIAL
+            - ORAA
+            - DEMO
+            - MARKING
+            - OTHER
+        qualification:
+          type: string
+          enum:
+            - STANDARD
+            - COORDINATOR
+            - PHD
+        repeat:
+          type: boolean
+        deliveryHours:
+          type: number
+          format: float
+          minimum: 0.1
+          maximum: 10
+        sessionDate:
+          type: string
+          format: date
+        description:
+          type: string
+          maxLength: 1000
+          description: Optional user note included in persistence payloads.
     TimesheetQuoteResponse:
-      $ref: './openapi/schemas/timesheets.yaml#/TimesheetQuoteResponse'
+      type: object
+      required:
+        - taskType
+        - rateCode
+        - qualification
+        - isRepeat
+        - deliveryHours
+        - associatedHours
+        - payableHours
+        - hourlyRate
+        - amount
+        - formula
+        - clauseReference
+        - sessionDate
+      properties:
+        taskType:
+          type: string
+        rateCode:
+          type: string
+          example: TU1
+        qualification:
+          type: string
+        isRepeat:
+          type: boolean
+        deliveryHours:
+          type: number
+          format: float
+        associatedHours:
+          type: number
+          format: float
+        payableHours:
+          type: number
+          format: float
+        hourlyRate:
+          type: number
+          format: float
+        amount:
+          type: number
+          format: float
+        formula:
+          type: string
+          example: 1h delivery + 2h associated
+        clauseReference:
+          type: string
+          example: Schedule 1 Item 1
+        sessionDate:
+          type: string
+          format: date
     TimesheetResponse:
-      $ref: './openapi/schemas/timesheets.yaml#/TimesheetResponse'
+      type: object
+      required:
+        - id
+        - tutorId
+        - tutorName
+        - courseId
+        - courseName
+        - weekStartDate
+        - sessionDate
+        - hours
+        - hourlyRate
+        - deliveryHours
+        - associatedHours
+        - totalPay
+        - taskType
+        - isRepeat
+        - qualification
+        - status
+        - createdAt
+        - updatedAt
+        - isEditable
+        - canBeApproved
+        - createdBy
+        - approvals
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the timesheet.
+        tutorId:
+          type: integer
+          format: int64
+          description: Identifier of the tutor the timesheet belongs to.
+        tutorName:
+          type: string
+          description: Display name of the tutor.
+        courseId:
+          type: integer
+          format: int64
+          description: Identifier of the course associated with the timesheet.
+        courseName:
+          type: string
+          description: Display name of the associated course.
+        weekStartDate:
+          type: string
+          format: date
+          description: ISO week start date represented by the timesheet.
+        sessionDate:
+          type: string
+          format: date
+          description: Actual session date used for EA rate calculations.
+        hours:
+          type: number
+          format: float
+          description: Total payable hours captured for the week.
+        hourlyRate:
+          type: number
+          format: float
+          description: Hourly rate applied when the timesheet was calculated.
+        deliveryHours:
+          type: number
+          format: float
+          description: EA delivery hours component used in Schedule 1.
+        associatedHours:
+          type: number
+          format: float
+          description: EA associated hours component used in Schedule 1.
+        totalPay:
+          type: number
+          format: float
+          description: Total calculated pay for the timesheet based on EA rules.
+        taskType:
+          type: string
+          description: EA task category used to select rate codes.
+          enum:
+            - LECTURE
+            - TUTORIAL
+            - ORAA
+            - DEMO
+            - MARKING
+            - OTHER
+        isRepeat:
+          type: boolean
+          description: Indicates if the session is part of a recurring schedule.
+        qualification:
+          type: string
+          description: Tutor qualification applied when deriving the rate.
+          enum:
+            - STANDARD
+            - COORDINATOR
+            - PHD
+        rateCode:
+          type: string
+          nullable: true
+          description: EA rate code applied during calculation.
+        calculationFormula:
+          type: string
+          nullable: true
+          description: Human-readable formula describing the calculation steps.
+        clauseReference:
+          type: string
+          nullable: true
+          description: EA clause reference used for compliance.
+        description:
+          type: string
+          nullable: true
+          description: Lecturer supplied free-text description of work performed.
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the timesheet was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the timesheet was last updated.
+        isEditable:
+          type: boolean
+          description: Indicates whether the current user may edit the timesheet.
+        canBeApproved:
+          type: boolean
+          description: Indicates whether the timesheet is awaiting approval action.
+        createdBy:
+          type: integer
+          format: int64
+          description: Identifier of the user who originally created the timesheet.
+        rejectionReason:
+          type: string
+          nullable: true
+          description: Most recent rejection comment, present when status is REJECTED.
+        approvals:
+          type: array
+          description: Chronological list of approval actions taken on this timesheet.
+          items:
+            $ref: '#/components/schemas/ApprovalActionResponse'
     TimesheetPageResponse:
-      $ref: './openapi/schemas/timesheets.yaml#/TimesheetPageResponse'
+      type: object
+      required:
+        - success
+        - timesheets
+        - pageInfo
+      properties:
+        success:
+          type: boolean
+          description: Indicates whether the request completed successfully.
+          example: true
+        timesheets:
+          type: array
+          description: Collection of timesheets for the requested page.
+          items:
+            $ref: '#/components/schemas/TimesheetResponse'
+        pageInfo:
+          $ref: '#/components/schemas/PagedMetadata'
     PagedMetadata:
-      $ref: './openapi/schemas/timesheets.yaml#/PagedMetadata'
+      type: object
+      required:
+        - currentPage
+        - pageSize
+        - totalElements
+        - totalPages
+        - first
+        - last
+        - numberOfElements
+        - empty
+      properties:
+        currentPage:
+          type: integer
+          minimum: 0
+          description: Zero-based index of the returned page.
+        pageSize:
+          type: integer
+          minimum: 1
+          description: Size of each page as requested.
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of available elements.
+        totalPages:
+          type: integer
+          minimum: 0
+          description: Total number of pages given current page size.
+        first:
+          type: boolean
+          description: True if this page is the first page.
+        last:
+          type: boolean
+          description: True if this page is the last page.
+        numberOfElements:
+          type: integer
+          minimum: 0
+          description: Number of elements present on this page.
+        empty:
+          type: boolean
+          description: True when the page content array is empty.
     ApprovalStatus:
-      $ref: './openapi/schemas/approvals.yaml#/ApprovalStatus'
+      type: string
+      enum:
+        - DRAFT
+        - PENDING_TUTOR_CONFIRMATION
+        - TUTOR_CONFIRMED
+        - LECTURER_CONFIRMED
+        - FINAL_CONFIRMED
+        - REJECTED
+        - MODIFICATION_REQUESTED
+      description: |
+        Confirmation status of a timesheet:
+        - **DRAFT**: Initial state, being prepared
+        - **PENDING_TUTOR_CONFIRMATION**: Submitted for tutor confirmation
+        - **TUTOR_CONFIRMED**: Confirmed by tutor, awaiting lecturer confirmation
+        - **LECTURER_CONFIRMED**: Confirmed by lecturer, awaiting HR confirmation
+        - **FINAL_CONFIRMED**: Final confirmation by HR, ready for payment
+        - **REJECTED**: Rejected by tutor, lecturer or HR
+        - **MODIFICATION_REQUESTED**: Modifications requested before confirmation
+      example: PENDING_TUTOR_CONFIRMATION
     ApprovalActionRequest:
-      $ref: './openapi/schemas/approvals.yaml#/ApprovalActionRequest'
+      type: object
+      required:
+        - timesheetId
+        - action
+      properties:
+        timesheetId:
+          type: integer
+          format: int64
+          description: ID of the timesheet to act upon
+          example: 789
+        action:
+          $ref: '#/components/schemas/ApprovalAction'
+        comment:
+          type: string
+          description: Optional comment explaining the action
+          example: Confirmed - hours and description look correct
+          maxLength: 500
     ApprovalAction:
-      $ref: './openapi/schemas/approvals.yaml#/ApprovalAction'
+      type: string
+      enum:
+        - SUBMIT_FOR_APPROVAL
+        - TUTOR_CONFIRM
+        - LECTURER_CONFIRM
+        - HR_CONFIRM
+        - REJECT
+        - REQUEST_MODIFICATION
+      description: |
+        Type of confirmation action:
+        - **SUBMIT_FOR_APPROVAL**: Submit draft timesheet for confirmation
+        - **TUTOR_CONFIRM**: Tutor confirms the timesheet accuracy
+        - **LECTURER_CONFIRM**: Lecturer confirms the timesheet
+        - **HR_CONFIRM**: HR provides final confirmation for payroll
+        - **REJECT**: Reject the timesheet
+        - **REQUEST_MODIFICATION**: Request changes to the timesheet
+      example: TUTOR_CONFIRM
     ApprovalActionResponse:
-      $ref: './openapi/schemas/approvals.yaml#/ApprovalActionResponse'
+      type: object
+      required:
+        - timesheetId
+        - action
+        - newStatus
+        - approverId
+        - approverName
+        - timestamp
+      properties:
+        timesheetId:
+          type: integer
+          format: int64
+          description: ID of the timesheet that was acted upon
+          example: 789
+        action:
+          $ref: '#/components/schemas/ApprovalAction'
+        newStatus:
+          $ref: '#/components/schemas/ApprovalStatus'
+        approverId:
+          type: integer
+          format: int64
+          description: ID of the user who performed the action
+          example: 999
+        approverName:
+          type: string
+          description: Name of the user who performed the action
+          example: Dr. John Smith
+        comment:
+          type: string
+          nullable: true
+          description: Comment provided with the action
+          example: Confirmed - hours and description look correct
+        timestamp:
+          type: string
+          format: date-time
+          description: When the action was performed
+          example: '2025-08-01T16:30:00Z'
+        nextSteps:
+          type: array
+          description: Information about what happens next in the workflow
+          items:
+            type: string
+          nullable: true
+          example:
+            - Timesheet automatically moved to lecturer for confirmation
     ApprovalHistoryEntry:
-      $ref: './openapi/schemas/approvals.yaml#/ApprovalHistoryEntry'
+      type: object
+      required:
+        - id
+        - approverId
+        - approverName
+        - action
+        - timestamp
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for this history entry
+          example: 1
+        approverId:
+          type: integer
+          format: int64
+          description: ID of the user who performed the action
+          example: 999
+        approverName:
+          type: string
+          description: Name of the user who performed the action
+          example: Dr. John Smith
+        action:
+          $ref: '#/components/schemas/ApprovalAction'
+        comment:
+          type: string
+          description: Comment provided with the action
+          example: Initial submission
+        timestamp:
+          type: string
+          format: date-time
+          description: When the action was performed
+          example: '2025-07-28T09:00:00Z'
     DashboardSummaryResponse:
-      $ref: './openapi/schemas/dashboard.yaml#/DashboardSummaryResponse'
+      type: object
+      required:
+        - totalTimesheets
+        - pendingApprovals
+        - totalHours
+        - totalPay
+        - recentActivities
+        - pendingItems
+        - workloadAnalysis
+      properties:
+        totalTimesheets:
+          type: integer
+          description: Total number of timesheets for the user's scope
+          example: 25
+        pendingApprovals:
+          type: integer
+          description: Number of timesheets pending approval
+          example: 3
+        totalHours:
+          type: number
+          format: decimal
+          description: Total hours worked in the selected period
+          example: 145.5
+        totalPay:
+          type: number
+          format: decimal
+          description: Total pay amount in AUD
+          example: 6547.5
+        budgetUsage:
+          $ref: '#/components/schemas/BudgetUsage'
+        recentActivities:
+          type: array
+          description: List of recent activities and notifications
+          items:
+            $ref: '#/components/schemas/RecentActivity'
+        pendingItems:
+          type: array
+          description: List of items requiring attention
+          items:
+            $ref: '#/components/schemas/PendingItem'
+        workloadAnalysis:
+          $ref: '#/components/schemas/WorkloadAnalysis'
     BudgetUsage:
-      $ref: './openapi/schemas/dashboard.yaml#/BudgetUsage'
+      type: object
+      required:
+        - totalBudget
+        - usedBudget
+        - remainingBudget
+        - utilizationPercentage
+      properties:
+        totalBudget:
+          type: number
+          format: decimal
+          description: Total allocated budget in AUD
+          example: 10000
+        usedBudget:
+          type: number
+          format: decimal
+          description: Amount of budget used in AUD
+          example: 6547.5
+        remainingBudget:
+          type: number
+          format: decimal
+          description: Remaining budget in AUD
+          example: 3452.5
+        utilizationPercentage:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          description: Budget utilization as a percentage
+          example: 65.48
     RecentActivity:
-      $ref: './openapi/schemas/dashboard.yaml#/RecentActivity'
+      type: object
+      required:
+        - id
+        - type
+        - description
+        - timestamp
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the activity
+          example: 1
+        type:
+          $ref: '#/components/schemas/ActivityType'
+        description:
+          type: string
+          description: Human-readable description of the activity
+          example: Alice Johnson submitted timesheet for COMP1001
+        timestamp:
+          type: string
+          format: date-time
+          description: When the activity occurred
+          example: '2025-08-01T14:30:00Z'
+        timesheetId:
+          type: integer
+          format: int64
+          description: Related timesheet ID (if applicable)
+          example: 789
+        userId:
+          type: integer
+          format: int64
+          description: ID of the user who performed the activity
+          example: 123
+        userName:
+          type: string
+          description: Name of the user who performed the activity
+          example: Alice Johnson
     ActivityType:
-      $ref: './openapi/schemas/dashboard.yaml#/ActivityType'
+      type: string
+      enum:
+        - TIMESHEET_CREATED
+        - TIMESHEET_SUBMITTED
+        - TIMESHEET_APPROVED
+        - TIMESHEET_REJECTED
+        - MODIFICATION_REQUESTED
+        - MODIFICATION_COMPLETED
+        - HR_REVIEW_STARTED
+        - FINAL_APPROVAL
+        - PAYMENT_PROCESSED
+      description: |
+        Type of activity:
+        - **TIMESHEET_CREATED**: New timesheet was created
+        - **TIMESHEET_SUBMITTED**: Timesheet submitted for approval
+        - **TIMESHEET_APPROVED**: Timesheet was approved
+        - **TIMESHEET_REJECTED**: Timesheet was rejected
+        - **MODIFICATION_REQUESTED**: Changes were requested
+        - **MODIFICATION_COMPLETED**: Requested changes were addressed
+        - **HR_REVIEW_STARTED**: HR began final review
+        - **FINAL_APPROVAL**: Final approval by HR
+        - **PAYMENT_PROCESSED**: Payment was processed
+      example: TIMESHEET_SUBMITTED
     PendingItem:
-      $ref: './openapi/schemas/dashboard.yaml#/PendingItem'
+      type: object
+      required:
+        - id
+        - type
+        - title
+        - description
+        - priority
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the pending item
+          example: 789
+        type:
+          $ref: '#/components/schemas/PendingItemType'
+        title:
+          type: string
+          description: Title of the pending item
+          example: Review timesheet for Alice Johnson
+        description:
+          type: string
+          description: Detailed description of what needs to be done
+          example: COMP1001 - Week of July 28, 2025
+        priority:
+          $ref: '#/components/schemas/Priority'
+        dueDate:
+          type: string
+          format: date-time
+          description: When this item is due (optional)
+          example: '2025-08-03T23:59:59Z'
+        timesheetId:
+          type: integer
+          format: int64
+          description: Related timesheet ID (if applicable)
+          example: 789
     PendingItemType:
-      $ref: './openapi/schemas/dashboard.yaml#/PendingItemType'
+      type: string
+      enum:
+        - TIMESHEET_APPROVAL
+        - MODIFICATION_RESPONSE
+        - HR_REVIEW
+        - BUDGET_REVIEW
+        - SYSTEM_NOTIFICATION
+      description: |
+        Type of pending item:
+        - **TIMESHEET_APPROVAL**: Timesheet needs approval
+        - **MODIFICATION_RESPONSE**: Need to respond to modification request
+        - **HR_REVIEW**: HR review required
+        - **BUDGET_REVIEW**: Budget limit reached, review needed
+        - **SYSTEM_NOTIFICATION**: General system notification
+      example: TIMESHEET_APPROVAL
     Priority:
-      $ref: './openapi/schemas/dashboard.yaml#/Priority'
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+        - URGENT
+      description: Priority level of the item
+      example: MEDIUM
     WorkloadAnalysis:
-      $ref: './openapi/schemas/dashboard.yaml#/WorkloadAnalysis'
+      type: object
+      required:
+        - currentWeekHours
+        - averageWeeklyHours
+      properties:
+        currentWeekHours:
+          type: number
+          format: decimal
+          description: Hours worked in the current week
+          example: 42.5
+        previousWeekHours:
+          type: number
+          format: decimal
+          description: Hours worked in the previous week
+          example: 38
+        averageWeeklyHours:
+          type: number
+          format: decimal
+          description: Average weekly hours over the selected period
+          example: 40.2
+        peakWeekHours:
+          type: number
+          format: decimal
+          description: Highest weekly hours in the selected period
+          example: 48.5
+        totalTutors:
+          type: integer
+          description: Total number of tutors (LECTURER/ADMIN view only)
+          example: 5
+        activeTutors:
+          type: integer
+          description: Number of active tutors (LECTURER/ADMIN view only)
+          example: 4
     ErrorResponse:
-      $ref: './openapi/schemas/errors.yaml#/ErrorResponse'
-
-security:
-  - bearerAuth: []
-
-
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+        - success
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+          example: '2025-08-01T10:15:30.123Z'
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: Error code for programmatic handling
+          example: VALIDATION_FAILED
+        message:
+          type: string
+          description: Human-readable error message
+          example: 'Validation failed: email: Email format is invalid'
+        path:
+          type: string
+          description: Request path that caused the error
+          example: /api/auth/login
+        success:
+          type: boolean
+          description: Indicates if the operation was successful (always false for errors)
+          example: false
+        errorMessage:
+          type: string
+          description: Detailed error message (often same as 'message')
+          nullable: true

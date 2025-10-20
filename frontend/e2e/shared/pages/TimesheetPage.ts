@@ -33,21 +33,40 @@ export class TimesheetPage {
     this.pageBanner = page.locator(bannerSelectors);
   }
 
-  async expectTimesheetsTable() {
-    const table = this.timesheetsTable.first();
-    try {
-      await expect(table).toBeVisible({ timeout: 8000 });
-    } catch {
-      await this.expectEmptyState();
+  getTableReadyLocators(): Locator[] {
+    const locators: Locator[] = [];
+    const tableSelector = TABLE_LAYOUT_SELECTORS.tableContainer?.trim();
+    if (tableSelector) {
+      locators.push(this.page.locator(tableSelector));
     }
+    const cardSelector = TABLE_LAYOUT_SELECTORS.tableCardView?.trim();
+    if (cardSelector) {
+      locators.push(this.page.locator(cardSelector));
+    }
+    return locators;
+  }
+
+  async expectTimesheetsTable() {
+    const candidates = this.getTableReadyLocators();
+    for (const candidate of candidates) {
+      try {
+        await expect(candidate).toBeVisible({ timeout: 8000 });
+        return;
+      } catch {
+        // Try next candidate (table or card layout) before falling back to empty state.
+      }
+    }
+    await this.expectEmptyState();
   }
 
   async waitForFirstRender(options: { timeout?: number } = {}): Promise<'table' | 'empty' | 'error' | 'banner'> {
     const timeout = options.timeout ?? 12000;
-    const table = this.timesheetsTable.first();
+    const candidates = this.getTableReadyLocators();
 
     const watchers = [
-      table.waitFor({ state: 'visible', timeout }).then(() => 'table').catch(() => null),
+      ...candidates.map(candidate =>
+        candidate.waitFor({ state: 'visible', timeout }).then(() => 'table').catch(() => null),
+      ),
       this.emptyState.waitFor({ state: 'visible', timeout }).then(() => 'empty').catch(() => null),
       this.errorMessage.waitFor({ state: 'visible', timeout }).then(() => 'error').catch(() => null),
       this.pageBanner.waitFor({ state: 'visible', timeout }).then(() => 'banner').catch(() => null),

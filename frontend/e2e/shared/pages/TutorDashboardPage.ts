@@ -129,7 +129,7 @@ export class TutorDashboardPage {
   }
 
   async expectTimesheetsTable() {
-    await expect(this.timesheetsTable).toBeVisible({ timeout: 10000 });
+    await this.timesheetPage.expectTimesheetsTable();
   }
 
   async expectLoadingState() {
@@ -696,7 +696,21 @@ export class TutorDashboardPage {
 
     await Promise.race([
       this.loadingState.waitFor({ state: 'hidden', timeout }).catch(() => undefined),
-      this.timesheetsTable.waitFor({ state: 'visible', timeout }).catch(() => undefined),
+      (async () => {
+        const candidates = this.timesheetPage.getTableReadyLocators();
+        if (candidates.length === 0) {
+          return undefined;
+        }
+        for (const candidate of candidates) {
+          try {
+            await candidate.waitFor({ state: 'visible', timeout });
+            return undefined;
+          } catch {
+            // Try next candidate; empty and error states are handled separately.
+          }
+        }
+        return undefined;
+      })().catch(() => undefined),
       this.emptyState.waitFor({ state: 'visible', timeout }).catch(() => undefined),
     ]);
 

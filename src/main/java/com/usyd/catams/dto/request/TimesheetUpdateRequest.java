@@ -5,6 +5,7 @@ import com.usyd.catams.enums.TimesheetTaskType;
 import com.usyd.catams.enums.TutorQualification;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 
 /**
@@ -100,7 +101,11 @@ public class TimesheetUpdateRequest {
     }
 
     public void setHourlyRate(BigDecimal hourlyRate) {
-        this.hourlyRate = hourlyRate;
+        if (hourlyRate == null) {
+            this.hourlyRate = null;
+        } else {
+            this.hourlyRate = hourlyRate.setScale(2, RoundingMode.HALF_UP);
+        }
     }
 
     public String getDescription() {

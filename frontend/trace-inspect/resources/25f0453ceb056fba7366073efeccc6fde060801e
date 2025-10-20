@@ -1,0 +1,92 @@
+# Page snapshot
+
+```yaml
+- banner:
+  - heading "CATAMS" [level=1]
+  - text: Time Allocation Management John Doe Tutor
+  - button "Sign Out":
+    - img
+    - text: Sign Out
+- navigation:
+  - link "Dashboard":
+    - /url: /dashboard
+    - img
+    - text: Dashboard
+- main:
+  - region
+  - heading "Welcome back, John!" [level=1]
+  - paragraph: Tutor Dashboard
+  - paragraph: Here's an overview of your timesheets and earnings. Let's get started.
+  - text: "Failed to load timesheets: Failed to fetch timesheets"
+  - button "Retry"
+  - main:
+    - region "Tutor dashboard content":
+      - region "Quick Actions":
+        - heading "Quick Actions" [level=2]
+        - button "📝 Create New Timesheet Start a new timesheet entry Ctrl+N"
+        - button "🔄 Refresh Data Reload the latest timesheets"
+        - button "💰 View Pay Summary Check earnings and payments"
+        - button "📊 Export My Data Download timesheet records (coming soon)"
+      - region "Your Statistics":
+        - heading "Your Statistics" [level=2]
+        - heading "Total Earned" [level=3]
+        - text: 💰 $0.00
+        - paragraph: All time
+        - heading "Total Hours" [level=3]
+        - text: ⏰ 0h
+        - paragraph: Logged this semester
+        - heading "Average per Week" [level=3]
+        - text: 📈 0.0h
+        - paragraph: Based on 16 weeks
+        - heading "Status at a Glance" [level=3]
+        - text: 📋 0 Drafts
+        - paragraph: 0 In Progress
+      - heading "Semester Progress" [level=4]
+      - text: 0%
+      - paragraph: Keep up the great work! You're on track for this semester.
+      - heading "Earnings by Course" [level=3]
+      - region "My Timesheets":
+        - heading "My Timesheets" [level=3]
+        - text: 0 total
+        - paragraph: Manage all your work logs here.
+        - button "Create New"
+        - navigation "Tabs":
+          - button "All Timesheets"
+          - button "Drafts (0)"
+          - button "In Progress (0)"
+          - button "Needs Attention (0)"
+        - heading "No Timesheets Found" [level=3]
+        - paragraph: Create your first timesheet to get started.
+        - button "Create First Timesheet"
+    - complementary "Tutor essentials":
+      - heading "Upcoming Deadlines" [level=3]
+      - paragraph: No upcoming deadlines
+      - heading "Pay Summary" [level=3]
+      - text: "Total Earnings:"
+      - strong: AUD 0.00
+      - text: "This Week:"
+      - strong: AUD 0
+      - text: "Average per Timesheet:"
+      - strong: AUD 0.00
+      - heading "Payment Status" [level=4]
+      - paragraph: 0 Final Confirmed
+      - paragraph: 0 Awaiting Final Approval
+      - paragraph: "Next Payment Date: 31 Jan 2024"
+      - heading "Tax Information" [level=4]
+      - paragraph: "Year-to-Date Earnings: AUD 0.00"
+      - button "Download Tax Summary"
+      - heading "Support Resources" [level=3]
+      - paragraph: Timesheet Knowledge Base
+      - paragraph: Step-by-step guides for submitting and tracking timesheets.
+      - link "View details":
+        - /url: "#"
+      - paragraph: Contact Staffing Team
+      - paragraph: Email the staffing desk for urgent issues or pay corrections.
+      - link "View details":
+        - /url: mailto:staffing@casual-academic.edu
+      - paragraph: Tutor Support Hours
+      - paragraph: Join weekly drop-in sessions for payroll and scheduling questions.
+      - link "View details":
+        - /url: "#"
+  - status "dashboard status"
+```

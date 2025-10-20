@@ -23,6 +23,7 @@ TimesheetQuoteRequest:
         - ORAA
         - DEMO
         - MARKING
+        - OTHER
     qualification:
       type: string
       enum:
@@ -35,7 +36,7 @@ TimesheetQuoteRequest:
       type: number
       format: float
       minimum: 0.1
-      maximum: 40.0
+      maximum: 10.0
     sessionDate:
       type: string
       format: date
@@ -49,9 +50,8 @@ TimesheetQuoteResponse:
   required:
     - taskType
     - rateCode
-    - rateVersion
     - qualification
-    - repeat
+    - isRepeat
     - deliveryHours
     - associatedHours
     - payableHours
@@ -66,12 +66,9 @@ TimesheetQuoteResponse:
     rateCode:
       type: string
       example: TU1
-    rateVersion:
-      type: string
-      example: EA-2023-2026-Schedule1:v1.0.0
     qualification:
       type: string
-    repeat:
+    isRepeat:
       type: boolean
     deliveryHours:
       type: number
@@ -113,107 +110,196 @@ TimesheetResponse:
   required:
     - id
     - tutorId
+    - tutorName
     - courseId
-    - taskType
-    - qualification
-    - repeat
+    - courseName
+    - weekStartDate
     - sessionDate
+    - hours
+    - hourlyRate
     - deliveryHours
     - associatedHours
-    - payableHours
-    - hourlyRate
-    - amount
-    - rateCode
-    - rateVersion
-    - formula
-    - clauseReference
+    - totalPay
+    - taskType
+    - isRepeat
+    - qualification
     - status
+    - createdAt
+    - updatedAt
+    - isEditable
+    - canBeApproved
+    - createdBy
+    - approvals
   properties:
     id:
       type: integer
       format: int64
+      description: Unique identifier for the timesheet.
     tutorId:
       type: integer
       format: int64
+      description: Identifier of the tutor the timesheet belongs to.
+    tutorName:
+      type: string
+      description: Display name of the tutor.
     courseId:
       type: integer
       format: int64
-    taskType:
+      description: Identifier of the course associated with the timesheet.
+    courseName:
       type: string
-    qualification:
+      description: Display name of the associated course.
+    weekStartDate:
       type: string
-    repeat:
-      type: boolean
+      format: date
+      description: ISO week start date represented by the timesheet.
     sessionDate:
       type: string
       format: date
-    deliveryHours:
+      description: Actual session date used for EA rate calculations.
+    hours:
       type: number
       format: float
-    associatedHours:
-      type: number
-      format: float
-    payableHours:
-      type: number
-      format: float
+      description: Total payable hours captured for the week.
     hourlyRate:
       type: number
       format: float
-    amount:
+      description: Hourly rate applied when the timesheet was calculated.
+    deliveryHours:
       type: number
       format: float
+      description: EA delivery hours component used in Schedule 1.
+    associatedHours:
+      type: number
+      format: float
+      description: EA associated hours component used in Schedule 1.
+    totalPay:
+      type: number
+      format: float
+      description: Total calculated pay for the timesheet based on EA rules.
+    taskType:
+      type: string
+      description: EA task category used to select rate codes.
+      enum:
+        - LECTURE
+        - TUTORIAL
+        - ORAA
+        - DEMO
+        - MARKING
+        - OTHER
+    isRepeat:
+      type: boolean
+      description: Indicates if the session is part of a recurring schedule.
+    qualification:
+      type: string
+      description: Tutor qualification applied when deriving the rate.
+      enum:
+        - STANDARD
+        - COORDINATOR
+        - PHD
     rateCode:
       type: string
-    rateVersion:
+      nullable: true
+      description: EA rate code applied during calculation.
+    calculationFormula:
       type: string
-    formula:
-      type: string
+      nullable: true
+      description: Human-readable formula describing the calculation steps.
     clauseReference:
       type: string
+      nullable: true
+      description: EA clause reference used for compliance.
     description:
       type: string
       nullable: true
+      description: Lecturer supplied free-text description of work performed.
     status:
       $ref: '../schemas/approvals.yaml#/ApprovalStatus'
     createdAt:
       type: string
       format: date-time
+      description: Timestamp when the timesheet was created.
     updatedAt:
       type: string
       format: date-time
+      description: Timestamp when the timesheet was last updated.
+    isEditable:
+      type: boolean
+      description: Indicates whether the current user may edit the timesheet.
+    canBeApproved:
+      type: boolean
+      description: Indicates whether the timesheet is awaiting approval action.
+    createdBy:
+      type: integer
+      format: int64
+      description: Identifier of the user who originally created the timesheet.
+    rejectionReason:
+      type: string
+      nullable: true
+      description: Most recent rejection comment, present when status is REJECTED.
+    approvals:
+      type: array
+      description: Chronological list of approval actions taken on this timesheet.
+      items:
+        $ref: '../schemas/approvals.yaml#/ApprovalActionResponse'
 
 TimesheetPageResponse:
   type: object
   required:
-    - items
-    - page
+    - success
+    - timesheets
+    - pageInfo
   properties:
-    items:
+    success:
+      type: boolean
+      description: Indicates whether the request completed successfully.
+      example: true
+    timesheets:
       type: array
+      description: Collection of timesheets for the requested page.
       items:
         $ref: '#/TimesheetResponse'
-    page:
+    pageInfo:
       $ref: '#/PagedMetadata'
+
 PagedMetadata:
   type: object
   required:
-    - page
-    - size
+    - currentPage
+    - pageSize
     - totalElements
     - totalPages
+    - first
+    - last
+    - numberOfElements
+    - empty
   properties:
-    page:
+    currentPage:
       type: integer
       minimum: 0
-    size:
+      description: Zero-based index of the returned page.
+    pageSize:
       type: integer
       minimum: 1
+      description: Size of each page as requested.
     totalElements:
       type: integer
       format: int64
+      description: Total number of available elements.
     totalPages:
       type: integer
-    hasNext:
+      minimum: 0
+      description: Total number of pages given current page size.
+    first:
       type: boolean
-    hasPrevious:
+      description: True if this page is the first page.
+    last:
       type: boolean
+      description: True if this page is the last page.
+    numberOfElements:
+      type: integer
+      minimum: 0
+      description: Number of elements present on this page.
+    empty:
+      type: boolean
+      description: True when the page content array is empty.

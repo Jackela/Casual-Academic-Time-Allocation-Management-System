@@ -35,6 +35,7 @@ export interface SeededTimesheet {
   description: string;
   courseId: number;
   weekStartDate: string;
+  status?: TimesheetStatus;
 }
 
 export type ApprovalTransition =
@@ -445,7 +446,8 @@ export async function createTimesheetWithStatus(
     id: timesheetId,
     description,
     courseId: selectedCourse,
-    weekStartDate: selectedWeek
+    weekStartDate: selectedWeek,
+    status: currentStatus
   };
 }
 

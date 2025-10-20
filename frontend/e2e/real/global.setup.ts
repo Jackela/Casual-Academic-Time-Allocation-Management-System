@@ -12,10 +12,6 @@ const __dirname = path.dirname(__filename);
 const AUTH_DIR = path.resolve(__dirname, '../shared/.auth');
 const STORAGE_STATE_FILE = path.resolve(AUTH_DIR, 'storageState.json');
 
-const truthy = new Set(['1', 'true', 'TRUE', 'yes', 'YES']);
-
-const asBool = (value?: string | null): boolean => (value ? truthy.has(value) : false);
-
 const hasRealProject = (config: FullConfig): boolean =>
   config.projects.some((project) => project.name === 'real');
 
@@ -69,14 +65,8 @@ const performLoginAndPersist = async () => {
 
 export default async function globalSetup(config: FullConfig) {
   const isRealProjectRequested = hasRealProject(config);
-  const shouldSkip =
-    !isRealProjectRequested || asBool(process.env.E2E_SKIP_BACKEND) || asBool(process.env.E2E_SKIP_REAL_LOGIN);
-
-  if (shouldSkip) {
-    const reason = !isRealProjectRequested
-      ? 'real project not selected for this run'
-      : 'skip flag detected (E2E_SKIP_BACKEND / E2E_SKIP_REAL_LOGIN)';
-    console.info(`[real/global.setup] Skipping real authentication setup: ${reason}.`);
+  if (!isRealProjectRequested) {
+    console.info('[real/global.setup] Skipping real authentication setup: real project not selected for this run.');
     return;
   }
 

@@ -18,6 +18,7 @@ import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.service.TimesheetService;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -213,7 +214,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     @Override
     @Transactional(readOnly = true)
     public Page<Timesheet> getTimesheets(Long tutorId, Long courseId, ApprovalStatus status,
-                                       Long requesterId, Pageable pageable) {
+                                        Long requesterId, Pageable pageable) {
         
         User requester = userRepository.findById(requesterId)
             .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
@@ -249,13 +250,14 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         User requester = userRepository.findById(requesterId)
             .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
 
-        Optional<Timesheet> timesheetOpt = timesheetRepository.findById(timesheetId);
+        Optional<Timesheet> timesheetOpt = timesheetRepository.findByIdWithApprovals(timesheetId);
         
         if (timesheetOpt.isEmpty()) {
             return timesheetOpt;
         }
 
         Timesheet timesheet = timesheetOpt.get();
+        org.hibernate.Hibernate.initialize(timesheet.getApprovals());
         Course course = courseRepository.findById(timesheet.getCourseId())
             .orElseThrow(() -> new IllegalArgumentException("Course not found"));
 

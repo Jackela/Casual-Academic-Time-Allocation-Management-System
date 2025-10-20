@@ -190,26 +190,18 @@ export class LoginPage {
     await this.expectFormDisabled();
   }
 
-  private resolveEnv(name: string, fallback: string): string {
-    const value = process.env[name];
-    return value && value.length > 0 ? value : fallback;
-  }
-
   async loginAsTutor(options: LoginOptions = {}) {
-    const email = this.resolveEnv('E2E_TUTOR_EMAIL', 'tutor@example.com');
-    const password = this.resolveEnv('E2E_TUTOR_PASSWORD', 'Tutor123!');
+    const { email, password } = E2E_CONFIG.USERS.tutor;
     return await this.login(email, password, options);
   }
 
   async loginAsLecturer(options: LoginOptions = {}) {
-    const email = this.resolveEnv('E2E_LECTURER_EMAIL', 'lecturer@example.com');
-    const password = this.resolveEnv('E2E_LECTURER_PASSWORD', 'Lecturer123!');
+    const { email, password } = E2E_CONFIG.USERS.lecturer;
     return await this.login(email, password, options);
   }
 
   async loginAsAdmin(options: LoginOptions = {}) {
-    const email = this.resolveEnv('E2E_ADMIN_EMAIL', 'admin@example.com');
-    const password = this.resolveEnv('E2E_ADMIN_PASSWORD', 'Admin123!');
+    const { email, password } = E2E_CONFIG.USERS.admin;
     return await this.login(email, password, options);
   }
 

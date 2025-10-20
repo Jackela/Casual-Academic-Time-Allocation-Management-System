@@ -11,19 +11,26 @@ import { authApi } from './api';
 import { authStorage } from './storage';
 import { authManager } from '../services/auth-manager';
 import { secureLogger } from '../utils/secure-logger';
-import { ENV_CONFIG } from '../utils/environment';
-import type { LoginCredentials, SessionContextValue, SessionState, User, UserRole } from '../types/auth';
+import type { AuthSession } from '../types/api';
+import type { LoginCredentials, SessionContextValue, SessionState } from '../types/auth';
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
-const createInitialState = (): SessionState => {
-  const storedSession = authStorage.getSession();
+const buildSessionState = (): SessionState => {
   const authState = authManager.getAuthState();
-  const token = storedSession.token ?? authState.token ?? null;
+  const storedSession = authStorage.getSession();
+  const token = authState.token ?? storedSession.token ?? null;
+
+  const status: SessionState['status'] =
+    authState.isAuthenticated
+      ? 'authenticated'
+      : token
+        ? 'authenticating'
+        : 'unauthenticated';
 
   return {
-    status: token ? 'authenticated' : 'unauthenticated',
-    isAuthenticated: Boolean(token && authState.user),
+    status,
+    isAuthenticated: authState.isAuthenticated,
     token,
     refreshToken: storedSession.refreshToken ?? null,
     expiresAt: storedSession.expiresAt ?? null,
@@ -36,70 +43,66 @@ interface SessionProviderProps {
 }
 
 export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) => {
-  const [state, setState] = useState<SessionState>(() => createInitialState());
+  const [state, setState] = useState<SessionState>(() => buildSessionState());
 
   const syncFromAuthManager = useCallback(() => {
-    const authState = authManager.getAuthState();
-    setState((previous) => {
-      const next: SessionState = {
-        ...previous,
-        status: authState.isAuthenticated ? 'authenticated' : 'unauthenticated',
-        isAuthenticated: authState.isAuthenticated,
-        token: authState.token,
-        error: null,
-      };
+    const next = buildSessionState();
 
-      if (authState.isAuthenticated && authState.token) {
-        authStorage.setSession({
-          token: authState.token,
-          refreshToken: previous.refreshToken ?? null,
-          expiresAt: previous.expiresAt ?? null,
-        });
-      } else {
-        authStorage.clearSession();
-      }
+    if (next.isAuthenticated && next.token) {
+      authStorage.setSession({
+        token: next.token,
+        refreshToken: next.refreshToken ?? null,
+        expiresAt: next.expiresAt ?? null,
+      });
+    } else if (!next.isAuthenticated) {
+      authStorage.clearSession();
+    }
 
-      return next;
-    });
+    setState(next);
   }, []);
+
+  const applyInjectedSession = useCallback((session: AuthSession) => {
+    authStorage.setSession({
+      token: session.token,
+      refreshToken: session.refreshToken ?? null,
+      expiresAt: session.expiresAt ?? null,
+    });
+
+    authManager.setAuth(session);
+    syncFromAuthManager();
+  }, [syncFromAuthManager]);
 
   useEffect(() => {
     const unsubscribe = authManager.subscribe(() => {
       syncFromAuthManager();
     });
 
-    const handleE2EBypass = () => {
-      try {
-        if (!ENV_CONFIG.e2e.hasAuthBypass()) {
-          return;
-        }
-
-        const currentState = authManager.getAuthState();
-        if (currentState.isAuthenticated) {
-          return;
-        }
-
-        const bypassRole = ENV_CONFIG.e2e.getBypassRole();
-        if (bypassRole && ENV_CONFIG.validation.isValidBypassRole(bypassRole)) {
-          const role = bypassRole as UserRole;
-          const fallbackUser: User = {
-            id: 201,
-            email: `test-${role.toLowerCase()}@test.local`,
-            name: `Test ${role}`,
-            role,
-          };
-          const bypassToken = `bypass-token-${Date.now()}`;
-          authManager.setAuth(bypassToken, fallbackUser);
-        }
-      } catch (error) {
-        secureLogger.error('SessionProvider bypass failure', error);
-      }
-    };
-
-    handleE2EBypass();
     syncFromAuthManager();
     return unsubscribe;
   }, [syncFromAuthManager]);
+
+  useEffect(() => {
+    const global = window as typeof window & {
+      __E2E_SESSION_STATE__?: () => SessionState;
+      __E2E_APPLY_SESSION__?: (session: AuthSession) => void;
+      __E2E_PENDING_SESSION__?: AuthSession | null;
+    };
+
+    global.__E2E_SESSION_STATE__ = () => state;
+    global.__E2E_APPLY_SESSION__ = (session: AuthSession) => {
+      applyInjectedSession(session);
+    };
+
+    if (global.__E2E_PENDING_SESSION__) {
+      applyInjectedSession(global.__E2E_PENDING_SESSION__);
+      global.__E2E_PENDING_SESSION__ = null;
+    }
+
+    return () => {
+      delete global.__E2E_SESSION_STATE__;
+      delete global.__E2E_APPLY_SESSION__;
+    };
+  }, [state, applyInjectedSession, syncFromAuthManager]);
 
   const signIn = useCallback<SessionContextValue['signIn']>(
     async (credentials: LoginCredentials, options) => {
@@ -149,22 +152,25 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
   []);
 
   const signOut = useCallback<SessionContextValue['signOut']>(async () => {
-    try {
-      await authApi.logout();
-    } catch (error) {
+    const logoutTask = authApi.logout().catch((error) => {
       secureLogger.warn('Session sign-out encountered an error', error);
-    } finally {
-      authStorage.clearSession();
-      authManager.clearAuth();
-      setState({
-        status: 'unauthenticated',
-        isAuthenticated: false,
-        token: null,
-        refreshToken: null,
-        expiresAt: null,
-        error: null,
-      });
-    }
+    });
+
+    authStorage.clearSession();
+    authManager.clearAuth();
+    setState({
+      status: 'unauthenticated',
+      isAuthenticated: false,
+      token: null,
+      refreshToken: null,
+      expiresAt: null,
+      error: null,
+    });
+
+    await Promise.race([
+      logoutTask,
+      new Promise((resolve) => setTimeout(resolve, 300)),
+    ]);
   }, []);
 
   const refresh = useCallback<SessionContextValue['refresh']>(async () => {

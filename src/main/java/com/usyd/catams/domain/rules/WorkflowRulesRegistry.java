@@ -79,12 +79,12 @@ public final class WorkflowRulesRegistry {
             ApprovalStatus.REJECTED
         );
         
-        // ===================== STEP 3: LECTURER PROCESSING MODIFICATION REQUESTS =====================
+        // ===================== STEP 3: TUTOR REWORK AFTER MODIFICATION REQUEST =====================
         
-        // LECTURER can resubmit after making requested modifications
-        addRule(ApprovalAction.SUBMIT_FOR_APPROVAL, UserRole.LECTURER, ApprovalStatus.MODIFICATION_REQUESTED,
-            "Step 3: LECTURER resubmits after making requested changes",
-            (user, context) -> user.getId().equals(context.getCourse().getLecturerId()),
+        // TUTOR can resubmit after addressing lecturer feedback
+        addRule(ApprovalAction.SUBMIT_FOR_APPROVAL, UserRole.TUTOR, ApprovalStatus.MODIFICATION_REQUESTED,
+            "Step 3: TUTOR resubmits after applying requested changes",
+            (user, context) -> user.getId().equals(context.getTimesheet().getTutorId()),
             ApprovalStatus.PENDING_TUTOR_CONFIRMATION
         );
         
@@ -95,6 +95,13 @@ public final class WorkflowRulesRegistry {
             "Step 4: LECTURER provides final confirmation after tutor confirmation",
             (user, context) -> user.getId().equals(context.getCourse().getLecturerId()),
             ApprovalStatus.LECTURER_CONFIRMED
+        );
+
+        // LECTURER can request modifications after reviewing tutor-confirmed timesheets
+        addRule(ApprovalAction.REQUEST_MODIFICATION, UserRole.LECTURER, ApprovalStatus.TUTOR_CONFIRMED,
+            "Step 4b: LECTURER requests modifications on tutor-confirmed timesheets",
+            (user, context) -> user.getId().equals(context.getCourse().getLecturerId()),
+            ApprovalStatus.MODIFICATION_REQUESTED
         );
 
         // LECTURER can reject at final confirmation stage (send back to edit)

@@ -28,12 +28,10 @@ vi.mock('../utils/environment', () => ({
       enableDebugMode: vi.fn(() => true)
     },
     validation: {
-      isValidBypassRole: vi.fn(() => true)
+      isConsistentConfig: vi.fn(() => true)
     },
     e2e: {
-      hasAuthBypass: vi.fn(() => false),
-      getBypassRole: vi.fn(() => null),
-      shouldUseMSW: vi.fn(() => false),
+      hasTestFlag: vi.fn(() => false),
       getDebugInfo: vi.fn(() => ({}))
     }
   }

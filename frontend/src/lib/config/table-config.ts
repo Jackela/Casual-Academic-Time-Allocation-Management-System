@@ -288,7 +288,14 @@ export const getColumnSelector = (
 };
 
 export const TABLE_LAYOUT_SELECTORS = {
-  tableContainer: '[data-testid="timesheets-table"]',
+  tableContainer: [
+    '[data-testid="timesheets-table"]',
+    '[data-testid="timesheet-table"]',
+    '[data-testid="timesheets-table-container"] table',
+    '[data-testid="timesheet-table-container"] table',
+    '.timesheet-table',
+    'table[role="table"][aria-label="Timesheets"]',
+  ].join(', '),
   tableCardView: '[data-testid="timesheet-card-view"]',
   pageBanner: '[data-testid="notification-banner"]',
   pageBannerAction: '[data-testid="notification-banner-action"]',

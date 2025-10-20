@@ -17,6 +17,7 @@ import {
   ACTION_PRIORITY,
   getRecommendedVariant,
 } from '../../../lib/config/ui-standards';
+import { getTutorTimesheetCapabilities } from './tutor-capabilities';
 
 interface TimesheetActionsProps {
   timesheet: Timesheet;
@@ -57,11 +58,16 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
 
     if (mode === 'tutor') {
       // Tutor actions
-      const isDraft = ['DRAFT', 'MODIFICATION_REQUESTED', 'REJECTED'].includes(timesheet.status);
-      const canConfirm = timesheet.status === 'PENDING_TUTOR_CONFIRMATION';
+      const tutorCapabilities = getTutorTimesheetCapabilities(timesheet.status);
+      const isEditable =
+        typeof timesheet.isEditable === 'boolean'
+          ? timesheet.isEditable
+          : tutorCapabilities.canEdit;
+      const canSubmitDraft = tutorCapabilities.canSubmit;
+      const canConfirm = tutorCapabilities.canConfirm;
 
       // Primary action: Submit (for drafts) or Confirm (for pending)
-      if (isDraft && onSubmit) {
+      if (canSubmitDraft && onSubmit) {
         actions.push({
           ...STANDARD_ACTIONS.SUBMIT,
           id: 'submit',
@@ -79,7 +85,7 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
       }
 
       // Secondary action: Edit (always available for drafts)
-      if (isDraft && onEdit) {
+      if (isEditable && onEdit) {
         actions.push({
           ...STANDARD_ACTIONS.EDIT,
           id: 'edit',

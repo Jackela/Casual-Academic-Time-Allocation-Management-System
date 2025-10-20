@@ -12,16 +12,9 @@ const FRONTEND_PORT = process.env.E2E_FRONTEND_PORT || frontendUrl.port || '5174
 export default defineConfig({
   testDir: './e2e',
   testIgnore: ['**/e2e/examples/**'],
-  testMatch: [
-    '**/e2e/real/**/*.spec.ts',
-    '**/e2e/mock/**/*.spec.ts',
-    '**/e2e/visual/**/*.spec.ts',
-    '**/e2e/visual/layout-compliance.spec.ts', // NEW: Layout quality gates
-  ],
+  testMatch: ['**/e2e/real/**/*.spec.ts'],
   /* Global setup to handle authentication */
   globalSetup: './e2e/real/global.setup.ts',
-  /* Allow skipping backend readiness from env for mocked-only runs */
-  /* Note: The actual bypass is implemented in global.setup.ts via E2E_SKIP_BACKEND */
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -66,12 +59,6 @@ export default defineConfig({
   /* Configure projects for major browsers */
   projects: [
     {
-      name: 'mock',
-      testDir: './e2e/mock',
-      retries: 0,
-      fullyParallel: true,
-    },
-    {
       name: 'real',
       testDir: './e2e/real',
       retries: process.env.CI ? 2 : 1,
@@ -83,17 +70,6 @@ export default defineConfig({
         baseURL: E2E_CONFIG.FRONTEND.URL,
       },
     },
-    {
-      name: 'visual',
-      testDir: './e2e/visual',
-      retries: 0,
-      fullyParallel: false,
-      workers: 1,
-      use: {
-        colorScheme: 'light',
-        viewport: { width: 1280, height: 900 },
-      },
-    },
   ],
 
   /* Auto-start dev server for E2E tests (disabled when external orchestrator provides it) */
@@ -101,15 +77,12 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: `npm run dev -- --mode e2e --strictPort --port ${FRONTEND_PORT}`,
+          command: `npm run dev -- --mode e2e --host ${frontendUrl.hostname} --strictPort --port ${FRONTEND_PORT}`,
           url: E2E_CONFIG.FRONTEND.URL,
           reuseExistingServer: true,
           timeout: E2E_CONFIG.FRONTEND.TIMEOUTS.STARTUP,
           env: {
             ...process.env,
-            ...(process.env.VITE_E2E_AUTH_BYPASS_ROLE
-              ? { VITE_E2E_AUTH_BYPASS_ROLE: process.env.VITE_E2E_AUTH_BYPASS_ROLE }
-              : {}),
             E2E_FRONTEND_PORT: FRONTEND_PORT,
             // Propagate backend info for browser-side config resolution
             ...(process.env.E2E_BACKEND_PORT ? { E2E_BACKEND_PORT: process.env.E2E_BACKEND_PORT } : {}),

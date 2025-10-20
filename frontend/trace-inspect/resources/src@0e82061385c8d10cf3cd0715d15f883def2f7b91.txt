@@ -1,0 +1,230 @@
+import type { APIRequestContext, Page } from '@playwright/test';
+import { STORAGE_KEYS } from '../../src/utils/storage-keys';
+import type { AuthSession, User } from '../../src/types/api';
+import type { SessionState } from '../../src/types/auth';
+import { E2E_CONFIG } from '../config/e2e.config';
+import type { AuthContext } from '../utils/workflow-helpers';
+
+export type UserRole = keyof typeof E2E_CONFIG.USERS;
+
+export interface RoleAuthSession extends AuthSession {
+  role: UserRole;
+}
+
+export type RoleSessionMap = Record<UserRole, RoleAuthSession>;
+
+const LOGIN_ENDPOINT = `${E2E_CONFIG.BACKEND.URL}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`;
+
+type RawAuthResponse =
+  | AuthSession
+  | {
+      success?: boolean;
+      message?: string;
+      data?: AuthSession | null;
+    }
+  | {
+      token?: string;
+      refreshToken?: string | null;
+      expiresAt?: number | null;
+      user?: Partial<User>;
+      [key: string]: unknown;
+    };
+
+const sanitizeUser = (role: UserRole, input: Partial<User> | undefined): User => {
+  if (!input?.id) {
+    throw new Error(`Authentication response missing user id for role "${role}"`);
+  }
+
+  const fallbackName =
+    [input.firstName, input.lastName].filter(Boolean).join(' ').trim() ||
+    input.email ||
+    role;
+  const resolvedName = input.name ?? fallbackName;
+
+  const normalizedRole = (input.role ??
+    role.toUpperCase()) as User['role'];
+
+  return {
+    id: Number(input.id),
+    email: String(input.email ?? `${role}@example.com`),
+    name: resolvedName,
+    role: normalizedRole,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    displayName: input.displayName ?? resolvedName,
+  };
+};
+
+const extractSession = (payload: RawAuthResponse, role: UserRole): AuthSession => {
+  const source =
+    (typeof payload === 'object' && payload !== null && 'data' in payload
+      ? (payload as { data?: AuthSession | null }).data ?? payload
+      : payload) as Record<string, unknown>;
+
+  const token = source.token ?? source['accessToken'];
+  const refreshToken = source.refreshToken ?? source['refresh_token'] ?? null;
+  const expiresAt = source.expiresAt ?? source['expires_at'] ?? null;
+  const user = sanitizeUser(role, source.user as Partial<User> | undefined);
+
+  if (!token || typeof token !== 'string') {
+    throw new Error(`Authentication response missing token for role "${role}"`);
+  }
+
+  return {
+    token,
+    refreshToken: refreshToken === undefined ? null : (refreshToken as string | null),
+    expiresAt: typeof expiresAt === 'number' ? expiresAt : expiresAt ? Number(expiresAt) : null,
+    user,
+  };
+};
+
+export const roleCredentials = (role: UserRole) => {
+  const credentials = E2E_CONFIG.USERS[role];
+  if (!credentials) {
+    throw new Error(`No credentials configured for role "${role}"`);
+  }
+  return credentials;
+};
+
+export async function loginAsRole(
+  request: APIRequestContext,
+  role: UserRole,
+): Promise<RoleAuthSession> {
+  const { email, password } = roleCredentials(role);
+  const response = await request.post(LOGIN_ENDPOINT, {
+    headers: { 'Content-Type': 'application/json' },
+    data: { email, password },
+  });
+
+  if (!response.ok()) {
+    throw new Error(`Login failed for ${role} (${email}): ${response.status()} ${await response.text()}`);
+  }
+
+  const body = (await response.json()) as RawAuthResponse;
+  const session = extractSession(body, role);
+  return { ...session, role };
+}
+
+export async function loginAllRoles(request: APIRequestContext): Promise<RoleSessionMap> {
+  const [admin, lecturer, tutor] = await Promise.all([
+    loginAsRole(request, 'admin'),
+    loginAsRole(request, 'lecturer'),
+    loginAsRole(request, 'tutor'),
+  ]);
+  return { admin, lecturer, tutor };
+}
+
+export function toAuthContext(sessions: RoleSessionMap): AuthContext {
+  return {
+    admin: { token: sessions.admin.token, userId: sessions.admin.user.id },
+    lecturer: { token: sessions.lecturer.token, userId: sessions.lecturer.user.id },
+    tutor: { token: sessions.tutor.token, userId: sessions.tutor.user.id },
+  };
+}
+
+export async function clearAuthSessionFromPage(page: Page): Promise<void> {
+  if (page.isClosed()) return;
+
+  await page.evaluate(keys => {
+    window.localStorage.removeItem(keys.TOKEN);
+    window.localStorage.removeItem(keys.USER);
+    window.localStorage.removeItem(keys.REFRESH_TOKEN);
+    window.localStorage.removeItem(keys.TOKEN_EXPIRY);
+  }, STORAGE_KEYS).catch(() => undefined);
+}
+
+export async function signInAsRole(page: Page, role: UserRole): Promise<void> {
+  const session = await loginAsRole(page.request, role);
+  const payload = {
+    session,
+    storageKeys: STORAGE_KEYS,
+  };
+
+  await page.goto(E2E_CONFIG.FRONTEND.URL, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(() => {
+    const global = window as typeof window & {
+      __E2E_SET_AUTH__?: (session: unknown) => void;
+      __E2E_GET_AUTH__?: () => unknown;
+      __E2E_SESSION_STATE__?: () => unknown;
+      __E2E_AUTH_MANAGER_STATE__?: () => unknown;
+    };
+    return (
+      typeof global.__E2E_SET_AUTH__ === 'function' &&
+      typeof global.__E2E_GET_AUTH__ === 'function' &&
+      typeof global.__E2E_SESSION_STATE__ === 'function' &&
+      typeof global.__E2E_AUTH_MANAGER_STATE__ === 'function'
+    );
+  }, undefined, { timeout: 15000 });
+
+  const authDebug = await page.evaluate(({ session: sess, storageKeys }) => {
+    try {
+      localStorage.setItem(storageKeys.TOKEN, sess.token);
+      localStorage.setItem(storageKeys.USER, JSON.stringify(sess.user));
+
+      if (sess.refreshToken) {
+        localStorage.setItem(storageKeys.REFRESH_TOKEN, sess.refreshToken);
+      } else {
+        localStorage.removeItem(storageKeys.REFRESH_TOKEN);
+      }
+
+      if (typeof sess.expiresAt === 'number') {
+        localStorage.setItem(storageKeys.TOKEN_EXPIRY, String(sess.expiresAt));
+      } else {
+        localStorage.removeItem(storageKeys.TOKEN_EXPIRY);
+      }
+    } catch {
+      // ignore storage issues in automation environments
+    }
+    const global = window as typeof window & {
+      __E2E_SET_AUTH__?: (session: typeof sess) => void;
+      __E2E_GET_AUTH__?: () => { isAuthenticated: boolean; token: string | null; user: { role?: string } | null };
+      __E2E_SESSION_STATE__?: () => SessionState & { user?: { id?: number; role?: string } };
+      __E2E_AUTH_MANAGER_STATE__?: () => { isAuthenticated: boolean; token: string | null; user: { id?: number; role?: string } | null };
+    };
+    const beforeContext = global.__E2E_SESSION_STATE__?.() ?? null;
+    const before = global.__E2E_GET_AUTH__?.() ?? beforeContext ?? null;
+    global.__E2E_SET_AUTH__?.(sess);
+    const afterContext = global.__E2E_SESSION_STATE__?.() ?? null;
+    const managerState = global.__E2E_AUTH_MANAGER_STATE__?.() ?? null;
+    const state = global.__E2E_GET_AUTH__?.() ?? managerState ?? afterContext ?? null;
+    return {
+      before,
+      after: state,
+      context: afterContext,
+      manager: managerState,
+      isAuthenticated: state?.isAuthenticated ?? false,
+      hasToken: Boolean(state?.token),
+      role: managerState?.user?.role ?? state?.user?.role ?? null,
+    };
+  }, payload);
+
+  // eslint-disable-next-line no-console
+  console.log(`E2E auth state after injection (${role}):`, authDebug);
+
+  if (!authDebug.isAuthenticated) {
+    // eslint-disable-next-line no-console
+    console.error(`E2E auth injection details for role ${role}:`, authDebug);
+    throw new Error(`Failed to inject auth state for role "${role}"`);
+  }
+  await page.waitForFunction(
+    ({ expectedId, expectedRole, expectedToken }) => {
+      const global = window as typeof window & {
+        __E2E_AUTH_MANAGER_STATE__?: () => { isAuthenticated: boolean; user?: { id?: number; role?: string } };
+        __E2E_SESSION_STATE__?: () => SessionState;
+      };
+      const managerState = global.__E2E_AUTH_MANAGER_STATE__?.();
+      const sessionState = global.__E2E_SESSION_STATE__?.();
+      return (
+        Boolean(managerState?.isAuthenticated) &&
+        managerState?.user?.id === expectedId &&
+        managerState?.user?.role === expectedRole &&
+        sessionState?.token === expectedToken
+      );
+    },
+    { expectedId: session.user.id, expectedRole: session.user.role, expectedToken: session.token },
+    { timeout: 10000 },
+  );
+
+  await page.goto(`${E2E_CONFIG.FRONTEND.URL}/dashboard`, { waitUntil: 'domcontentloaded' });
+}

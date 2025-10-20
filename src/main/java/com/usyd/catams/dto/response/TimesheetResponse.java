@@ -10,6 +10,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Response DTO for timesheet data.
@@ -101,6 +103,9 @@ public class TimesheetResponse {
 
     @JsonProperty("rejectionReason")
     private String rejectionReason;
+
+    @JsonProperty("approvals")
+    private List<ApprovalActionResponse> approvals = Collections.emptyList();
 
     // Default constructor
     public TimesheetResponse() {
@@ -352,6 +357,14 @@ public class TimesheetResponse {
         this.rejectionReason = rejectionReason;
     }
 
+    public List<ApprovalActionResponse> getApprovals() {
+        return approvals;
+    }
+
+    public void setApprovals(List<ApprovalActionResponse> approvals) {
+        this.approvals = approvals == null ? Collections.emptyList() : approvals;
+    }
+
     // Business logic methods
     private BigDecimal calculateTotalPay() {
         if (totalPay != null) {
@@ -406,6 +419,7 @@ public class TimesheetResponse {
                 ", canBeApproved=" + canBeApproved +
                 ", createdBy=" + createdBy +
                 ", rejectionReason='" + rejectionReason + '\'' +
+                ", approvals=" + approvals +
                 '}';
     }
 }

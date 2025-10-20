@@ -85,36 +85,6 @@ export const ENV_CONFIG = {
    */
   e2e: {
     /**
-     * Check if E2E authentication bypass is enabled
-     */
-    hasAuthBypass: (): boolean => {
-      return Boolean(ENV_CONFIG.e2e.getBypassRole());
-    },
-
-    /**
-     * Get E2E authentication bypass role if configured
-     */
-    getBypassRole: (): string | undefined => {
-      try {
-        const metaRole = import.meta?.env?.VITE_E2E_AUTH_BYPASS_ROLE as string | undefined;
-        if (metaRole) {
-          return metaRole;
-        }
-      } catch {
-        // Ignore access issues and fall back to process environment
-      }
-
-      const env = getProcessEnv();
-      if (env?.VITE_E2E_AUTH_BYPASS_ROLE) {
-        return env.VITE_E2E_AUTH_BYPASS_ROLE;
-      }
-      if (env?.E2E_AUTH_BYPASS_ROLE) {
-        return env.E2E_AUTH_BYPASS_ROLE;
-      }
-      return undefined;
-    },
-
-    /**
      * Check if E2E test flag is explicitly enabled (legacy support)
      */
     hasTestFlag: (): boolean => {
@@ -126,25 +96,11 @@ export const ENV_CONFIG = {
     },
 
     /**
-     * Check if MSW (Mock Service Worker) should be enabled
-     */
-    shouldUseMSW: (): boolean => {
-      try {
-        return ENV_CONFIG.isE2E() && import.meta?.env?.VITE_E2E_USE_MSW === 'true';
-      } catch {
-        return false;
-      }
-    },
-
-    /**
      * Get E2E environment variables for debugging
      */
     getDebugInfo: (): EnvironmentDebugInfo => ({
       mode: ENV_CONFIG.getMode(),
       isE2E: ENV_CONFIG.isE2E(),
-      bypassRole: ENV_CONFIG.e2e.getBypassRole(),
-      hasAuthBypass: ENV_CONFIG.e2e.hasAuthBypass(),
-      shouldUseMSW: ENV_CONFIG.e2e.shouldUseMSW(),
       testFlag: ENV_CONFIG.e2e.hasTestFlag(),
     }),
   },
@@ -183,15 +139,6 @@ export const ENV_CONFIG = {
    */
   validation: {
     /**
-     * Validate E2E bypass role against allowed roles
-     */
-    isValidBypassRole: (role?: string): boolean => {
-      if (!role) return false;
-      const allowedRoles = ['TUTOR', 'LECTURER', 'ADMIN'];
-      return allowedRoles.includes(role);
-    },
-
-    /**
      * Check if environment configuration is consistent
      */
     isConsistentConfig: (): boolean => {
@@ -221,11 +168,6 @@ export const legacyCompat = {
    * @deprecated Use ENV_CONFIG.isE2E() instead
    */
   isE2EMode: () => ENV_CONFIG.isE2E(),
-
-  /**
-   * @deprecated Use ENV_CONFIG.e2e.hasAuthBypass() instead
-   */
-  hasE2EBypass: () => ENV_CONFIG.e2e.hasAuthBypass(),
 
   /**
    * @deprecated Use ENV_CONFIG.isProduction() instead

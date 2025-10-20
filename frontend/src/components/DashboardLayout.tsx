@@ -5,6 +5,7 @@ import { useAccessControl } from '../auth/access-control';
 import { useNavigate, NavLink } from 'react-router-dom';
 import { Badge } from './ui/badge';
 import NotificationPresenter from './shared/NotificationPresenter';
+import { secureLogger } from '../utils/secure-logger';
 
 // import './DashboardLayout.css'; - REMOVED
 
@@ -19,8 +20,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await session.signOut();
-    navigate('/login');
+    try {
+      await session.signOut();
+    } catch (error) {
+      secureLogger.warn('Logout did not complete cleanly', error);
+    }
+    navigate('/login', { replace: true });
   };
 
   const getRoleDisplayName = (role: string) => {

@@ -2,9 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.modern.css'
 import App from './App.tsx'
-import { worker } from './mocks/browser'
 import { ENV_CONFIG } from './utils/environment'
 import { secureLogger } from './utils/secure-logger'
+import { authManager } from './services/auth-manager'
+import type { AuthSession } from './types/api'
 
 type E2EDebugInfo = ReturnType<typeof ENV_CONFIG.e2e.getDebugInfo>
 
@@ -20,6 +21,8 @@ type E2EEnvironmentSnapshot = E2EDebugInfo & {
 declare global {
   interface Window {
     __E2E_ENV__?: E2EEnvironmentSnapshot
+    __E2E_SET_AUTH__?: (session: AuthSession) => void
+    __E2E_GET_AUTH__?: () => ReturnType<typeof authManager.getAuthState>
   }
 }
 
@@ -61,15 +64,54 @@ if (__E2E_GLOBALS__ && ENV_CONFIG.isE2E()) {
   }
 }
 
-// Start MSW only when explicitly enabled via VITE_E2E_USE_MSW in e2e mode
-if (ENV_CONFIG.e2e.shouldUseMSW()) {
+window.__E2E_SET_AUTH__ = (session: AuthSession) => {
   try {
-    worker.start({ quiet: true });
-    secureLogger.e2e('MSW started for E2E testing');
+    const global = window as typeof window & {
+      __E2E_APPLY_SESSION__?: (session: AuthSession) => void;
+      __E2E_SESSION_STATE__?: () => { user?: unknown; token?: string | null; isAuthenticated?: boolean };
+      __E2E_AUTH_MANAGER_STATE__?: () => ReturnType<typeof authManager.getAuthState>;
+      __E2E_PENDING_SESSION__?: AuthSession | null;
+    };
+    const before =
+      global.__E2E_SESSION_STATE__?.() ??
+      global.__E2E_AUTH_MANAGER_STATE__?.() ??
+      authManager.getAuthState();
+    if (global.__E2E_APPLY_SESSION__) {
+      global.__E2E_APPLY_SESSION__(session);
+    } else {
+      authManager.setAuth(session);
+      global.__E2E_PENDING_SESSION__ = session;
+    }
+    const after =
+      global.__E2E_SESSION_STATE__?.() ??
+      global.__E2E_AUTH_MANAGER_STATE__?.() ??
+      authManager.getAuthState();
+    if (ENV_CONFIG.isE2E()) {
+      secureLogger.e2e('Auth state injected via __E2E_SET_AUTH__', { before, after });
+      if (after && !after.isAuthenticated) {
+        secureLogger.warn('E2E auth injection did not mark session authenticated', after);
+      }
+    }
   } catch (error) {
-    secureLogger.error('Error starting MSW', error);
+    secureLogger.error('Failed to inject E2E auth session', error);
   }
-}
+};
+window.__E2E_GET_AUTH__ = () => {
+  const global = window as typeof window & {
+    __E2E_SESSION_STATE__?: () => { user?: unknown; token?: string | null; isAuthenticated?: boolean };
+    __E2E_AUTH_MANAGER_STATE__?: () => ReturnType<typeof authManager.getAuthState>;
+  };
+  return (
+    global.__E2E_SESSION_STATE__?.() ??
+    global.__E2E_AUTH_MANAGER_STATE__?.() ??
+    authManager.getAuthState()
+  );
+};
+
+const globalForAuth = window as typeof window & {
+  __E2E_AUTH_MANAGER_STATE__?: () => ReturnType<typeof authManager.getAuthState>;
+};
+globalForAuth.__E2E_AUTH_MANAGER_STATE__ = () => authManager.getAuthState();
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {

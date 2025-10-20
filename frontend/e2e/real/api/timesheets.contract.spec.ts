@@ -45,17 +45,17 @@ test.describe('Timesheet API Contract', () => {
   });
 
   test('should return paginated pending timesheets for admin', async () => {
-    const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'TUTOR_CONFIRMED' });
+    const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'LECTURER_CONFIRMED' });
 
     const response = await adminClient.getPendingTimesheets(0, 20);
     expect(response.timesheets.length).toBeGreaterThan(0);
     const match = response.timesheets.find(ts => ts.id === seeded.id);
     expect(match).toBeTruthy();
-    expect(match?.status).toBe('TUTOR_CONFIRMED');
+    expect(match?.status).toBe('LECTURER_CONFIRMED');
   });
 
   test('should support pagination parameters', async () => {
-    await dataFactory.createTimesheetForTest({ targetStatus: 'TUTOR_CONFIRMED' });
+    await dataFactory.createTimesheetForTest({ targetStatus: 'LECTURER_CONFIRMED' });
 
     const pageSize = 1;
     const page = await adminClient.getPendingTimesheets(0, pageSize);

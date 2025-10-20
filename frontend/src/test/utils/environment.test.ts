@@ -43,10 +43,7 @@ describe('ENV_CONFIG', () => {
     });
 
     it('should have E2E configuration methods', () => {
-      expect(typeof ENV_CONFIG.e2e.hasAuthBypass).toBe('function');
-      expect(typeof ENV_CONFIG.e2e.getBypassRole).toBe('function');
       expect(typeof ENV_CONFIG.e2e.hasTestFlag).toBe('function');
-      expect(typeof ENV_CONFIG.e2e.shouldUseMSW).toBe('function');
       expect(typeof ENV_CONFIG.e2e.getDebugInfo).toBe('function');
     });
 
@@ -57,7 +54,6 @@ describe('ENV_CONFIG', () => {
     });
 
     it('should have validation methods', () => {
-      expect(typeof ENV_CONFIG.validation.isValidBypassRole).toBe('function');
       expect(typeof ENV_CONFIG.validation.isConsistentConfig).toBe('function');
     });
 
@@ -81,23 +77,6 @@ describe('ENV_CONFIG', () => {
   });
 
   describe('Validation Utilities', () => {
-    it('should validate bypass roles correctly', () => {
-      // Valid roles
-      expect(ENV_CONFIG.validation.isValidBypassRole('TUTOR')).toBe(true);
-      expect(ENV_CONFIG.validation.isValidBypassRole('LECTURER')).toBe(true);
-      expect(ENV_CONFIG.validation.isValidBypassRole('ADMIN')).toBe(true);
-      
-      // Invalid roles
-      expect(ENV_CONFIG.validation.isValidBypassRole('STUDENT')).toBe(false);
-      expect(ENV_CONFIG.validation.isValidBypassRole('invalid')).toBe(false);
-      expect(ENV_CONFIG.validation.isValidBypassRole('USER')).toBe(false);
-      
-      // Edge cases
-      expect(ENV_CONFIG.validation.isValidBypassRole(undefined)).toBe(false);
-      expect(ENV_CONFIG.validation.isValidBypassRole('')).toBe(false);
-      expect(ENV_CONFIG.validation.isValidBypassRole(null as unknown as string)).toBe(false);
-    });
-
     it('should check configuration consistency', () => {
       // This method should always return a boolean
       const result = ENV_CONFIG.validation.isConsistentConfig();
@@ -109,12 +88,10 @@ describe('ENV_CONFIG', () => {
     it('should provide legacy compatibility functions', () => {
       // Ensure legacy functions exist and return correct types
       expect(typeof legacyCompat.isE2EMode).toBe('function');
-      expect(typeof legacyCompat.hasE2EBypass).toBe('function');
       expect(typeof legacyCompat.isProductionMode).toBe('function');
       
       // Should return boolean values
       expect(typeof legacyCompat.isE2EMode()).toBe('boolean');
-      expect(typeof legacyCompat.hasE2EBypass()).toBe('boolean');
       expect(typeof legacyCompat.isProductionMode()).toBe('boolean');
     });
   });
@@ -149,13 +126,7 @@ describe('ENV_CONFIG', () => {
 
     it('should have E2E namespace with expected methods', () => {
       type E2EMethod = keyof typeof ENV_CONFIG['e2e'];
-      const expectedE2EMethods: E2EMethod[] = [
-        'hasAuthBypass',
-        'getBypassRole',
-        'hasTestFlag',
-        'shouldUseMSW',
-        'getDebugInfo'
-      ];
+      const expectedE2EMethods: E2EMethod[] = ['hasTestFlag', 'getDebugInfo'];
 
       expectedE2EMethods.forEach((method) => {
         expect(ENV_CONFIG.e2e).toHaveProperty(method);
@@ -180,13 +151,9 @@ describe('ENV_CONFIG', () => {
   });
   describe('Type Safety', () => {
     it('should return appropriate types for E2E methods', () => {
-      expect(typeof ENV_CONFIG.e2e.hasAuthBypass()).toBe('boolean');
       expect(typeof ENV_CONFIG.e2e.hasTestFlag()).toBe('boolean');
-      expect(typeof ENV_CONFIG.e2e.shouldUseMSW()).toBe('boolean');
-      
-      // getBypassRole can return string or undefined
-      const bypassRole = ENV_CONFIG.e2e.getBypassRole();
-      expect(bypassRole === undefined || typeof bypassRole === 'string').toBe(true);
+      const info = ENV_CONFIG.e2e.getDebugInfo();
+      expect(info === undefined || typeof info === 'object').toBe(true);
     });
 
     it('should return appropriate types for feature methods', () => {

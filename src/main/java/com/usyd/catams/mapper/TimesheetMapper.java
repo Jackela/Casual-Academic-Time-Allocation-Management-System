@@ -5,13 +5,15 @@ import com.usyd.catams.dto.response.TimesheetResponse;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.entity.Course;
-import com.usyd.catams.entity.Approval;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.repository.CourseRepository;
+import com.usyd.catams.mapper.ApprovalMapper;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,11 +28,15 @@ public class TimesheetMapper {
 
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
+    private final ApprovalMapper approvalMapper;
 
     @Autowired
-    public TimesheetMapper(UserRepository userRepository, CourseRepository courseRepository) {
+    public TimesheetMapper(UserRepository userRepository,
+                           CourseRepository courseRepository,
+                           ApprovalMapper approvalMapper) {
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
+        this.approvalMapper = approvalMapper;
     }
 
     /**
@@ -89,6 +95,17 @@ public class TimesheetMapper {
         response.setCalculationFormula(timesheet.getCalculationFormula());
         response.setClauseReference(timesheet.getClauseReference());
         response.setSessionDate(timesheet.getSessionDate());
+        if (timesheet.getApprovals() != null
+                && Hibernate.isInitialized(timesheet.getApprovals())
+                && !timesheet.getApprovals().isEmpty()) {
+            response.setApprovals(
+                timesheet.getApprovals().stream()
+                    .map(approvalMapper::toResponse)
+                    .collect(Collectors.toList())
+            );
+        } else {
+            response.setApprovals(Collections.emptyList());
+        }
         return response;
     }
 

@@ -104,9 +104,7 @@ async function checkAuthEndpoint(): Promise<HealthCheckResult> {
   const startTime = Date.now();
   
   try {
-    // Prefer seeded E2E credentials to avoid backend WARN logs from invalid attempts
-    const email = process.env.E2E_ADMIN_EMAIL || 'admin@example.com';
-    const password = process.env.E2E_ADMIN_PASSWORD || 'Admin123!';
+    const { email, password } = E2E_CONFIG.USERS.admin;
     const response = await fetch(API_ENDPOINTS.AUTH_LOGIN, {
       method: 'POST',
       headers: { 

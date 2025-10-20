@@ -3,7 +3,6 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useSession } from '../auth/SessionProvider';
 import { useUserProfile } from '../auth/UserProfileProvider';
 import { useAccessControl } from '../auth/access-control';
-import { ENV_CONFIG } from '../utils/environment';
 import './ProtectedRoute.css';
 
 interface ProtectedRouteProps {
@@ -19,9 +18,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { profile } = useUserProfile();
   const access = useAccessControl();
   const location = useLocation();
-  
-  // E2E auth bypass: allow protected content in e2e mode when flag is set
-  const hasE2EBypass = ENV_CONFIG.e2e.hasAuthBypass();
 
   // Show loading spinner while checking authentication
   if (session.status === 'authenticating' || session.status === 'refreshing') {
@@ -36,7 +32,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Redirect to login if not authenticated
-  if (!session.isAuthenticated && !hasE2EBypass) {
+  if (!session.isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

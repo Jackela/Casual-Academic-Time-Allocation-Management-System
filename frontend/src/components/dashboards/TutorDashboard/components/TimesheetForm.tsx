@@ -47,6 +47,233 @@ type QuoteState =
   | { status: 'loaded'; data: TimesheetQuoteResponse; error: null }
   | { status: 'error'; data: TimesheetQuoteResponse | null; error: string };
 
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const padNumber = (input: number) => input.toString().padStart(2, '0');
+
+const formatISODate = (date: Date): string => {
+  return `${date.getFullYear()}-${padNumber(date.getMonth() + 1)}-${padNumber(date.getDate())}`;
+};
+
+const parseISODate = (value: string | undefined): Date | null => {
+  if (!value) return null;
+  const parts = value.split('-').map((part) => Number.parseInt(part, 10));
+  if (parts.length !== 3 || parts.some(Number.isNaN)) {
+    return null;
+  }
+  const [year, month, day] = parts;
+  return new Date(year, month - 1, day);
+};
+
+const normaliseDate = (date: Date): Date => {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const isSameDay = (a: Date | null, b: Date | null): boolean => {
+  if (!a || !b) return false;
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+};
+
+const isMonday = (date: Date): boolean => date.getDay() === 1;
+
+const buildCalendarDays = (year: number, month: number): Date[] => {
+  const firstOfMonth = new Date(year, month, 1);
+  const offset = (firstOfMonth.getDay() + 6) % 7; // convert Sunday=0 to Monday=0
+  const startDate = new Date(year, month, 1 - offset);
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(startDate);
+    day.setDate(startDate.getDate() + index);
+    return day;
+  });
+};
+
+const getNextMonday = (from: Date): Date => {
+  let candidate = new Date(from.getTime() + MILLISECONDS_PER_DAY);
+  while (!isMonday(candidate)) {
+    candidate = new Date(candidate.getTime() + MILLISECONDS_PER_DAY);
+  }
+  return normaliseDate(candidate);
+};
+
+const formatFriendlyDate = (iso: string): string => {
+  const parsed = parseISODate(iso);
+  if (!parsed) return iso;
+  return new Intl.DateTimeFormat('en-AU', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(parsed);
+};
+
+interface WeekStartDatePickerProps {
+  value: string;
+  onChange: (next: string) => void;
+  mondayOnly: boolean;
+  helpTextId: string;
+  errorId: string;
+  errorMessage?: string;
+}
+
+const WeekStartDatePicker = ({
+  value,
+  onChange,
+  mondayOnly,
+  helpTextId,
+  errorId,
+  errorMessage,
+}: WeekStartDatePickerProps) => {
+  const today = normaliseDate(new Date());
+  const selectedDate = parseISODate(value) ?? today;
+  const [displayYear, setDisplayYear] = useState<number>(selectedDate.getFullYear());
+  const [displayMonth, setDisplayMonth] = useState<number>(selectedDate.getMonth());
+
+  useEffect(() => {
+    const parsed = parseISODate(value);
+    if (parsed) {
+      setDisplayYear(parsed.getFullYear());
+      setDisplayMonth(parsed.getMonth());
+    }
+  }, [value]);
+
+  const calendarDays = useMemo(
+    () => buildCalendarDays(displayYear, displayMonth),
+    [displayYear, displayMonth],
+  );
+
+  const monthLabel = useMemo(() => {
+    return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(
+      new Date(displayYear, displayMonth, 1),
+    );
+  }, [displayYear, displayMonth]);
+
+  const handleSelect = useCallback(
+    (date: Date) => {
+      onChange(formatISODate(date));
+    },
+    [onChange],
+  );
+
+  const navigateMonth = useCallback((delta: number) => {
+    const current = new Date(displayYear, displayMonth, 1);
+    current.setMonth(current.getMonth() + delta);
+    setDisplayYear(current.getFullYear());
+    setDisplayMonth(current.getMonth());
+  }, [displayYear, displayMonth]);
+
+  const handleNextMonday = useCallback(() => {
+    const next = getNextMonday(selectedDate);
+    setDisplayYear(next.getFullYear());
+    setDisplayMonth(next.getMonth());
+    onChange(formatISODate(next));
+  }, [onChange, selectedDate]);
+
+  return (
+    <div className="rounded-md border border-border bg-background p-3 shadow-sm" data-testid="week-start-picker">
+      <input
+        id="weekStartDate"
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="sr-only"
+        aria-describedby={[helpTextId, errorMessage ? errorId : null].filter(Boolean).join(' ')}
+        step={mondayOnly ? 7 : undefined}
+      />
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={() => navigateMonth(-1)}
+            aria-label="Show previous month"
+          >
+            ‹
+          </Button>
+          <p className="text-sm font-semibold" data-testid="calendar-month-label">{monthLabel}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={() => navigateMonth(1)}
+            aria-label="Show next month"
+          >
+            ›
+          </Button>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="hidden sm:inline">Selected:</span>
+          <span className="font-medium text-foreground">{formatFriendlyDate(value)}</span>
+          <Button type="button" variant="ghost" size="xs" onClick={handleNextMonday}>
+            Next Monday
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-7 text-center text-xs font-semibold uppercase text-muted-foreground">
+        {DAY_LABELS.map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </div>
+
+      <div className="mt-1 grid grid-cols-7 gap-1 text-sm">
+        {calendarDays.map((date) => {
+          const iso = formatISODate(date);
+          const inCurrentMonth = date.getMonth() === displayMonth;
+          const isSelected = isSameDay(date, selectedDate);
+          const isToday = isSameDay(date, today);
+          const monday = isMonday(date);
+          const disabled = !inCurrentMonth || (mondayOnly && !monday);
+
+          const baseClasses =
+            'h-10 rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+          const stateClasses = [
+            isSelected ? 'border-primary bg-primary text-primary-foreground shadow-sm' : 'border-border',
+            !inCurrentMonth ? 'text-muted-foreground/60' : '',
+            monday ? 'border-dashed border-primary/60 font-semibold' : '',
+            disabled ? 'cursor-not-allowed opacity-40' : 'hover:bg-accent hover:text-accent-foreground',
+            isToday && !isSelected ? 'border-primary/60' : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
+
+          return (
+            <button
+              type="button"
+              key={iso}
+              onClick={() => handleSelect(date)}
+              disabled={disabled}
+              aria-pressed={isSelected}
+              className={`${baseClasses} ${stateClasses}`.trim()}
+              title={monday ? `${iso} (Monday)` : iso}
+            >
+              {date.getDate()}
+            </button>
+          );
+        })}
+      </div>
+
+      <p id={helpTextId} className="mt-2 text-xs text-muted-foreground">
+        {mondayOnly
+          ? 'Select a Monday to start your week. Use “Next Monday” for a quick choice.'
+          : 'Select the date that represents the start of the work week.'}
+      </p>
+      {errorMessage && (
+        <p id={errorId} className="mt-1 text-xs text-destructive">
+          {errorMessage}
+        </p>
+      )}
+    </div>
+  );
+};
+
 const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, tutorId, onSubmit, onCancel, loading = false, error }) => {
   const {
     HOURS_MIN,
@@ -113,17 +340,6 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
     },
     [WEEK_START_DAY, mondayOnly]
   );
-
-  const mondayReferenceDate = useMemo(() => {
-    if (!mondayOnly) {
-      return undefined;
-    }
-
-    const base = new Date(Date.UTC(1970, 0, 4)); // Sunday, 1970-01-04
-    const offset = (WEEK_START_DAY - base.getUTCDay() + 7) % 7;
-    base.setUTCDate(base.getUTCDate() + offset);
-    return base.toISOString().split('T')[0];
-  }, [WEEK_START_DAY, mondayOnly]);
 
   const isFormValid = useMemo(() => {
     const hasCourse = formData.courseId > 0;
@@ -387,29 +603,18 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
           )}
         </div>
 
-        <div className="form-field space-y-1">
-          <label htmlFor="week-start" className="text-sm font-medium">Week Starting</label>
-          <Input
-            id="week-start"
-            type="date"
+        <div className="form-field space-y-2">
+          <label htmlFor="weekStartDate" className="text-sm font-medium">
+            Week Starting
+          </label>
+          <WeekStartDatePicker
             value={formData.weekStartDate}
-            onChange={(e) => handleFieldChange('weekStartDate', e.target.value)}
-            className={validationErrors.weekStartDate ? 'border-destructive ring-destructive/20' : ''}
-            aria-describedby={[ 'week-start-help', validationErrors.weekStartDate ? 'week-start-error' : null ].filter(Boolean).join(' ')}
-            min={mondayReferenceDate}
-            step={mondayOnly ? 7 : undefined}
+            onChange={(next) => handleFieldChange('weekStartDate', next)}
+            mondayOnly={mondayOnly}
+            helpTextId="week-start-help"
+            errorId="week-start-error"
+            errorMessage={validationErrors.weekStartDate}
           />
-          <span id="week-start-help" className="text-xs text-muted-foreground">Choose the Monday that starts this work week</span>
-          {validationErrors.weekStartDate && (
-            <span
-              id="week-start-error"
-              className="text-xs text-destructive"
-              role="alert"
-              aria-live="polite"
-            >
-              {validationErrors.weekStartDate}
-            </span>
-          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">

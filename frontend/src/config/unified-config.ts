@@ -156,10 +156,8 @@ class ConfigurationBuilder {
       return undefined;
     };
 
-    if (ENV_CONFIG.isE2E() || ENV_CONFIG.getMode() === 'test') {
-      const envUrl = tryEnvBackend();
-      if (envUrl) return envUrl;
-    }
+    const envBackendUrl = tryEnvBackend();
+    const isE2EorTest = ENV_CONFIG.isE2E() || ENV_CONFIG.getMode() === 'test';
 
     // Vite env for browser runtime
     try {
@@ -168,9 +166,20 @@ class ConfigurationBuilder {
         if (typeof VITE_API_BASE_URL === 'string' && VITE_API_BASE_URL.length > 0) {
           return VITE_API_BASE_URL;
         }
+        if (isE2EorTest) {
+          return window.location.origin;
+        }
       }
     } catch {
       // ignore
+    }
+
+    if (isE2EorTest && envBackendUrl) {
+      return envBackendUrl;
+    }
+
+    if (envBackendUrl) {
+      return envBackendUrl;
     }
 
     // Production/development defaults

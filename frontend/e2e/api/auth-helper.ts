@@ -1,9 +1,9 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { STORAGE_KEYS } from '../../src/utils/storage-keys';
 import type { AuthSession, User } from '../../src/types/api';
+import type { SessionState } from '../../src/types/auth';
 import { E2E_CONFIG } from '../config/e2e.config';
 import type { AuthContext } from '../utils/workflow-helpers';
-import { LoginPage } from '../shared/pages/LoginPage';
 
 export type UserRole = keyof typeof E2E_CONFIG.USERS;
 
@@ -134,19 +134,98 @@ export async function clearAuthSessionFromPage(page: Page): Promise<void> {
 }
 
 export async function signInAsRole(page: Page, role: UserRole): Promise<void> {
-  const loginPage = new LoginPage(page);
+  const session = await loginAsRole(page.request, role);
+  const payload = {
+    session,
+    storageKeys: STORAGE_KEYS,
+  };
 
-  switch (role) {
-    case 'admin':
-      await loginPage.loginAsAdmin({ waitUntil: 'networkidle' });
-      break;
-    case 'lecturer':
-      await loginPage.loginAsLecturer({ waitUntil: 'networkidle' });
-      break;
-    case 'tutor':
-      await loginPage.loginAsTutor({ waitUntil: 'networkidle' });
-      break;
-    default:
-      throw new Error(`Unsupported role ${role as string}`);
+  await page.goto(E2E_CONFIG.FRONTEND.URL, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(() => {
+    const global = window as typeof window & {
+      __E2E_SET_AUTH__?: (session: unknown) => void;
+      __E2E_GET_AUTH__?: () => unknown;
+      __E2E_SESSION_STATE__?: () => unknown;
+      __E2E_AUTH_MANAGER_STATE__?: () => unknown;
+    };
+    return (
+      typeof global.__E2E_SET_AUTH__ === 'function' &&
+      typeof global.__E2E_GET_AUTH__ === 'function' &&
+      typeof global.__E2E_SESSION_STATE__ === 'function' &&
+      typeof global.__E2E_AUTH_MANAGER_STATE__ === 'function'
+    );
+  }, undefined, { timeout: 15000 });
+
+  const authDebug = await page.evaluate(({ session: sess, storageKeys }) => {
+    try {
+      localStorage.setItem(storageKeys.TOKEN, sess.token);
+      localStorage.setItem(storageKeys.USER, JSON.stringify(sess.user));
+
+      if (sess.refreshToken) {
+        localStorage.setItem(storageKeys.REFRESH_TOKEN, sess.refreshToken);
+      } else {
+        localStorage.removeItem(storageKeys.REFRESH_TOKEN);
+      }
+
+      if (typeof sess.expiresAt === 'number') {
+        localStorage.setItem(storageKeys.TOKEN_EXPIRY, String(sess.expiresAt));
+      } else {
+        localStorage.removeItem(storageKeys.TOKEN_EXPIRY);
+      }
+    } catch {
+      // ignore storage issues in automation environments
+    }
+    const global = window as typeof window & {
+      __E2E_SET_AUTH__?: (session: typeof sess) => void;
+      __E2E_GET_AUTH__?: () => { isAuthenticated: boolean; token: string | null; user: { role?: string } | null };
+      __E2E_SESSION_STATE__?: () => SessionState & { user?: { id?: number; role?: string } };
+      __E2E_AUTH_MANAGER_STATE__?: () => { isAuthenticated: boolean; token: string | null; user: { id?: number; role?: string } | null };
+    };
+    const beforeContext = global.__E2E_SESSION_STATE__?.() ?? null;
+    const before = global.__E2E_GET_AUTH__?.() ?? beforeContext ?? null;
+    global.__E2E_SET_AUTH__?.(sess);
+    const afterContext = global.__E2E_SESSION_STATE__?.() ?? null;
+    const managerState = global.__E2E_AUTH_MANAGER_STATE__?.() ?? null;
+    const state = global.__E2E_GET_AUTH__?.() ?? managerState ?? afterContext ?? null;
+    return {
+      before,
+      after: state,
+      context: afterContext,
+      manager: managerState,
+      isAuthenticated: state?.isAuthenticated ?? false,
+      hasToken: Boolean(state?.token),
+      role: managerState?.user?.role ?? state?.user?.role ?? null,
+    };
+  }, payload);
+
+  // eslint-disable-next-line no-console
+  console.log(`E2E auth state after injection (${role}):`, authDebug);
+
+  const authenticated = authDebug.isAuthenticated || authDebug.manager?.isAuthenticated;
+  if (!authenticated) {
+    // eslint-disable-next-line no-console
+    console.error(`E2E auth injection details for role ${role}:`, authDebug);
+    throw new Error(`Failed to inject auth state for role "${role}"`);
   }
+  await page.waitForFunction(
+    ({ expectedId, expectedRole, expectedToken }) => {
+      const global = window as typeof window & {
+        __E2E_AUTH_MANAGER_STATE__?: () => { isAuthenticated: boolean; user?: { id?: number; role?: string } };
+        __E2E_SESSION_STATE__?: () => SessionState;
+      };
+      const managerState = global.__E2E_AUTH_MANAGER_STATE__?.();
+      const sessionState = global.__E2E_SESSION_STATE__?.();
+      return (
+        Boolean(managerState?.isAuthenticated) &&
+        managerState?.user?.id === expectedId &&
+        managerState?.user?.role === expectedRole &&
+        sessionState?.token === expectedToken
+      );
+    },
+    { expectedId: session.user.id, expectedRole: session.user.role, expectedToken: session.token },
+    { timeout: 10000 },
+  );
+
+  await page.goto(`${E2E_CONFIG.FRONTEND.URL}/dashboard`, { waitUntil: 'domcontentloaded' });
 }

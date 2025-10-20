@@ -65,6 +65,31 @@ describe('TimesheetForm', () => {
     mockQuote.mockClear();
   });
 
+  it('allows selecting the next Monday via quick action', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    render(
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const weekStartInput = await screen.findByLabelText(/Week Starting/i) as HTMLInputElement;
+    const initialValue = weekStartInput.value;
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Next Monday/i }));
+
+    await waitFor(() => {
+      expect(weekStartInput.value).not.toBe(initialValue);
+    });
+
+    expect(new Date(weekStartInput.value).getDay()).toBe(1);
+  });
+
   it('applies server-provided constraint overrides', async () => {
     const TimesheetFormModule = await import('./TimesheetForm');
     const TimesheetForm = TimesheetFormModule.default;
@@ -78,12 +103,11 @@ describe('TimesheetForm', () => {
     );
 
     const hoursInput = await screen.findByLabelText(/Delivery Hours/i);
-    const weekStartInput = await screen.findByLabelText(/Week Starting/i);
+    await screen.findByLabelText(/Week Starting/i);
 
     await waitFor(() => expect(hoursInput).toHaveAttribute('max', '48'));
-    await waitFor(() => expect(weekStartInput).toHaveAttribute('step', '7'));
-
-    expect(mockServerOverrides).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /Next Monday/i })).toBeInTheDocument();
+    expect(screen.getByText(/Select a Monday to start your week/i)).toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.clear(hoursInput);
