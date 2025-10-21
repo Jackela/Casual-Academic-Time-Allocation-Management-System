@@ -50,8 +50,8 @@ paths:
     $ref: './openapi/paths/timesheets.yaml#/POST_QUOTE'
   /timesheets/{id}:
     $ref: './openapi/paths/timesheets.yaml#/GET_BY_ID'
-  /timesheets/pending-approval:
-    $ref: './openapi/paths/timesheets.yaml#/GET_PENDING'
+  /timesheets/pending-final-approval:
+    $ref: './openapi/paths/timesheets.yaml#/GET_PENDING_FINAL'
   /approvals:
     $ref: './openapi/paths/approvals.yaml'
   /dashboard/summary:
@@ -72,6 +72,8 @@ components:
       $ref: './openapi/schemas/authentication.yaml#/AuthResult'
     UserCreateRequest:
       $ref: './openapi/schemas/users.yaml#/UserCreateRequest'
+    UserUpdateRequest:
+      $ref: './openapi/schemas/users.yaml#/UserUpdateRequest'
     UserResponse:
       $ref: './openapi/schemas/users.yaml#/UserResponse'
     UserRole:

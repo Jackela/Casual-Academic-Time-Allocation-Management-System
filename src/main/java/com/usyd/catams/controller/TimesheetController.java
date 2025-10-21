@@ -1,6 +1,6 @@
 package com.usyd.catams.controller;
 
-import com.usyd.catams.application.TimesheetApplicationFacade;
+import com.usyd.catams.service.TimesheetApplicationFacade;
 import com.usyd.catams.dto.request.TimesheetCreateRequest;
 import com.usyd.catams.dto.request.TimesheetQuoteRequest;
 import com.usyd.catams.dto.request.TimesheetUpdateRequest;
@@ -75,7 +75,7 @@ public class TimesheetController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('LECTURER','TUTOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
     public ResponseEntity<TimesheetResponse> createTimesheet(
             @Valid @RequestBody TimesheetCreateRequest request,
             Authentication authentication) {

@@ -72,6 +72,7 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
     private User admin;
     private Course course;
     private String lecturerAuthHeader;
+    private String tutorAuthHeader;
 
     @BeforeEach
     void setUp() {
@@ -93,6 +94,12 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
                 lecturer.getId(),
                 lecturer.getEmailValue(),
                 lecturer.getRole().name()
+        );
+
+        tutorAuthHeader = "Bearer " + jwtTokenProvider.generateToken(
+                tutor.getId(),
+                tutor.getEmailValue(),
+                tutor.getRole().name()
         );
 
         adminToken = "Bearer " + jwtTokenProvider.generateToken(
@@ -135,8 +142,6 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         request.put("isRepeat", false);
         request.put("deliveryHours", 1.0);
         request.put("sessionDate", "2024-07-08");
-        request.put("hours", 0.5);          // intentionally incorrect client value
-        request.put("hourlyRate", 25.00);   // intentionally incorrect client value
         request.put("description", "Tutorial entry requiring EA-compliant backend recalculation");
 
         performPost("/api/timesheets", request, lecturerAuthHeader)
@@ -150,6 +155,24 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         Timesheet persisted = timesheetRepository.findAll().get(0);
         assertThat(persisted.getHours()).isEqualByComparingTo(new BigDecimal("3.0"));
         assertThat(persisted.getCalculatedAmount()).isEqualByComparingTo(new BigDecimal("175.94"));
+    }
+
+    @Test
+    @DisplayName("POST /api/timesheets should return 403 when attempted by a tutor user")
+    void tutorCannotCreateTimesheetThroughApi() throws Exception {
+        Map<String, Object> tutorRequest = new HashMap<>();
+        tutorRequest.put("tutorId", tutor.getId());
+        tutorRequest.put("courseId", course.getId());
+        tutorRequest.put("weekStartDate", "2024-07-08");
+        tutorRequest.put("taskType", "TUTORIAL");
+        tutorRequest.put("qualification", "STANDARD");
+        tutorRequest.put("isRepeat", false);
+        tutorRequest.put("deliveryHours", 1.0);
+        tutorRequest.put("sessionDate", "2024-07-08");
+        tutorRequest.put("description", "Tutor attempting to self-create a timesheet should be blocked");
+
+        performPost("/api/timesheets", tutorRequest, tutorAuthHeader)
+                .andExpect(status().isForbidden());
     }
 
     private void seedTutorialPolicySnapshot() {

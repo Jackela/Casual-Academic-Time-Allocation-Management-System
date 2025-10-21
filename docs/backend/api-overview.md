@@ -4,7 +4,7 @@ The CATAMS backend exposes REST endpoints under `/api`. Key modules:
 
 | Module | Endpoints | Notes |
 |--------|-----------|-------|
-| Timesheets | `/timesheets`, `/timesheets/{id}`, `/timesheets/quote`, `/timesheets/pending-approval` | Quote endpoint provides EA calculations; create/update re-run calculator. |
+| Timesheets | `/timesheets`, `/timesheets/{id}`, `/timesheets/quote`, `/timesheets/pending-final-approval` | Quote endpoint provides EA calculations; create/update re-run calculator. |
 | Approvals | `/approvals` | Handles approval transitions (tutor submit, lecturer approve, admin finalise). |
 | Auth | `/auth/login`, `/auth/refresh` | Issues JWT tokens and refresh flows. |
 | Courses | `/courses` | Retrieves course metadata for tutors and lecturers. |

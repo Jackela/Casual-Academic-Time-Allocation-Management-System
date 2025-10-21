@@ -219,6 +219,7 @@ paths:
                     email: new.lecturer@university.edu.au
                     name: Dr. Jane Doe
                     role: LECTURER
+                    isActive: true
         '400':
           description: Invalid request data
           content:
@@ -242,6 +243,82 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags:
+        - Users
+      summary: Update user
+      description: |
+        Partially update a user's account details (activation status or names).
+
+        **Required role**: ADMIN
+
+        **Business rules**:
+        - Only ADMIN users can modify other accounts
+        - The last active administrator cannot be deactivated
+      operationId: updateUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User identifier to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+            examples:
+              deactivate_user:
+                summary: Deactivate a tutor account
+                value:
+                  isActive: false
+              update_names:
+                summary: Update lecturer display name
+                value:
+                  firstName: Alex
+                  lastName: Nguyen
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
           content:
             application/json:
               schema:
@@ -303,7 +380,7 @@ paths:
       tags:
         - Timesheets
       summary: Create timesheet
-      description: Client submits instructional fields only. Financial values are ignored and recalculated.
+      description: Create a timesheet by submitting instructional data only. Financial values are calculated server-side via EA Schedule 1.
       security:
         - bearerAuth: []
       requestBody:
@@ -442,12 +519,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /timesheets/pending-approval:
+  /timesheets/pending-final-approval:
     get:
       tags:
         - Timesheets
-      summary: Get timesheets pending approval
-      description: Returns timesheets awaiting lecturer or admin action.
+      summary: Get timesheets pending final approval
+      description: Returns timesheets that have been confirmed by lecturers and are awaiting administrator (HR) action.
       security:
         - bearerAuth: []
       parameters:
@@ -482,18 +559,18 @@ paths:
         - Approvals
       summary: Perform approval action
       description: |
-        Perform an approval action on a timesheet (approve, reject, request modification, final approval).
+        Perform an approval workflow action (confirm, request modification, reject, final confirmation).
 
-        **Access rules (SSOT aligned)**:
-        - **TUTOR**: Can APPROVE / REJECT / REQUEST_MODIFICATION on `PENDING_TUTOR_REVIEW` (owns the timesheet)
-        - **LECTURER**: Can FINAL_APPROVAL / REJECT on `APPROVED_BY_TUTOR` (their courses)
-        - **HR/ADMIN**: Can HR_APPROVE / HR_REJECT on `APPROVED_BY_LECTURER_AND_TUTOR`; ADMIN may perform any action
+        **Access rules**:
+        - **TUTOR**: May `SUBMIT_FOR_APPROVAL` drafts they own, `TUTOR_CONFIRM` pending confirmations, or respond with `REJECT` / `REQUEST_MODIFICATION`.
+        - **LECTURER**: May `LECTURER_CONFIRM`, `REJECT`, or `REQUEST_MODIFICATION` for timesheets belonging to the courses they coordinate.
+        - **HR/ADMIN**: May `HR_CONFIRM`, `REJECT`, or `REQUEST_MODIFICATION` once a timesheet is lecturer-confirmed. Administrators may also perform overrides when necessary.
 
-        **Workflow states (enhanced path)**:
-        - DRAFT -> PENDING_TUTOR_REVIEW (SUBMIT_FOR_APPROVAL)
-        - PENDING_TUTOR_REVIEW -> APPROVED_BY_TUTOR (APPROVE) | REJECTED (REJECT) | MODIFICATION_REQUESTED (REQUEST_MODIFICATION)
-        - APPROVED_BY_TUTOR -> APPROVED_BY_LECTURER_AND_TUTOR (FINAL_APPROVAL) | REJECTED (REJECT by LECTURER)
-        - APPROVED_BY_LECTURER_AND_TUTOR -> FINAL_APPROVED (HR_APPROVE) | REJECTED (HR_REJECT)
+        **Workflow states**:
+        - `DRAFT` → `PENDING_TUTOR_CONFIRMATION` (`SUBMIT_FOR_APPROVAL`)
+        - `PENDING_TUTOR_CONFIRMATION` → `TUTOR_CONFIRMED` (`TUTOR_CONFIRM`) | `REJECTED` (`REJECT`) | `MODIFICATION_REQUESTED` (`REQUEST_MODIFICATION`)
+        - `TUTOR_CONFIRMED` → `LECTURER_CONFIRMED` (`LECTURER_CONFIRM`) | `REJECTED` (`REJECT`) | `MODIFICATION_REQUESTED` (`REQUEST_MODIFICATION`)
+        - `LECTURER_CONFIRMED` → `FINAL_CONFIRMED` (`HR_CONFIRM`) | `REJECTED` (`REJECT`) | `MODIFICATION_REQUESTED` (`REQUEST_MODIFICATION`)
       operationId: performApprovalAction
       security:
         - bearerAuth: []
@@ -504,12 +581,12 @@ paths:
             schema:
               $ref: '#/components/schemas/ApprovalActionRequest'
             examples:
-              approve_timesheet:
-                summary: Approve timesheet
+              confirm_timesheet:
+                summary: Lecturer confirms a tutor-approved timesheet
                 value:
                   timesheetId: 789
-                  action: APPROVE
-                  comment: Approved - hours and description look correct
+                  action: LECTURER_CONFIRM
+                  comment: All good from my side.
               reject_timesheet:
                 summary: Reject timesheet
                 value:
@@ -530,18 +607,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApprovalActionResponse'
               examples:
-                approval_success:
-                  summary: Successful approval action
+                lecturer_confirmation:
+                  summary: Successful lecturer confirmation
                   value:
                     timesheetId: 789
-                    action: FINAL_APPROVAL
-                    newStatus: APPROVED_BY_LECTURER_AND_TUTOR
+                    action: LECTURER_CONFIRM
+                    newStatus: LECTURER_CONFIRMED
                     approverId: 999
                     approverName: Dr. Jane Smith
-                    comment: Final academic approval
+                    comment: Approved for HR processing
                     timestamp: '2025-08-01T16:30:00Z'
                     nextSteps:
-                      - Timesheet is ready for HR final review
+                      - Timesheet has moved to HR for final confirmation
         '400':
           description: Invalid approval action or business rule violation
           content:
@@ -830,6 +907,7 @@ components:
         - email
         - name
         - role
+        - isActive
       properties:
         id:
           type: integer
@@ -847,6 +925,28 @@ components:
           example: Dr. John Smith
         role:
           $ref: '#/components/schemas/UserRole'
+        isActive:
+          type: boolean
+          description: Indicates whether the account is active and allowed to sign in
+          example: true
+    UserUpdateRequest:
+      type: object
+      description: Partial update payload for user records. All fields are optional.
+      properties:
+        isActive:
+          type: boolean
+          description: Activate or deactivate the user account
+          example: false
+        firstName:
+          type: string
+          maxLength: 50
+          description: Updated first name (if provided, cannot be blank)
+          example: Updated
+        lastName:
+          type: string
+          maxLength: 50
+          description: Updated last name (if provided, cannot be blank)
+          example: Tutor
     UserRole:
       type: string
       enum:
@@ -859,14 +959,106 @@ components:
         - **LECTURER**: Can manage timesheets for their courses
         - **TUTOR**: Can view their own timesheets and request modifications
       example: LECTURER
+    TimesheetInstructionRequest:
+      type: object
+      required:
+        - tutorId
+        - courseId
+        - weekStartDate
+        - taskType
+        - qualification
+        - repeat
+        - deliveryHours
+        - description
+      properties:
+        tutorId:
+          type: integer
+          format: int64
+          description: Identifier of the tutor the timesheet belongs to.
+        courseId:
+          type: integer
+          format: int64
+          description: Identifier of the course the work relates to.
+        weekStartDate:
+          type: string
+          format: date
+          description: Week the work belongs to. Must be a Monday and ensures uniqueness per tutor/course/week.
+        sessionDate:
+          type: string
+          format: date
+          description: Optional session date; defaults to the week start date when omitted.
+        taskType:
+          type: string
+          enum:
+            - LECTURE
+            - TUTORIAL
+            - ORAA
+            - DEMO
+            - MARKING
+            - OTHER
+        qualification:
+          type: string
+          enum:
+            - STANDARD
+            - COORDINATOR
+            - PHD
+        repeat:
+          type: boolean
+          description: Whether the session is a repeat within seven days.
+        deliveryHours:
+          type: number
+          format: float
+          minimum: 0.1
+          maximum: 10
+          description: In-class delivery hours entered by the lecturer/tutor.
+        description:
+          type: string
+          maxLength: 1000
+          description: Free-form notes describing the work performed.
     TimesheetCreateRequest:
       allOf:
-        - $ref: '#/components/schemas/TimesheetQuoteRequest'
-      description: Client submits instructional fields only; financial values are recalculated server-side.
+        - $ref: '#/components/schemas/TimesheetInstructionRequest'
+      description: Instructional payload used to create a timesheet. Financial values are calculated server-side.
     TimesheetUpdateRequest:
-      allOf:
-        - $ref: '#/components/schemas/TimesheetQuoteRequest'
-      description: Same shape as create request; ignored fields will be recalculated.
+      type: object
+      required:
+        - taskType
+        - qualification
+        - repeat
+        - deliveryHours
+        - description
+      properties:
+        taskType:
+          type: string
+          enum:
+            - LECTURE
+            - TUTORIAL
+            - ORAA
+            - DEMO
+            - MARKING
+            - OTHER
+        qualification:
+          type: string
+          enum:
+            - STANDARD
+            - COORDINATOR
+            - PHD
+        repeat:
+          type: boolean
+        deliveryHours:
+          type: number
+          format: float
+          minimum: 0.1
+          maximum: 10
+        sessionDate:
+          type: string
+          format: date
+          description: Updated session date, if applicable.
+        description:
+          type: string
+          maxLength: 1000
+          description: Updated notes describing the work performed.
+      description: Instructional fields that can be updated on an existing timesheet. Financial values remain server-calculated.
     TimesheetQuoteRequest:
       type: object
       required:

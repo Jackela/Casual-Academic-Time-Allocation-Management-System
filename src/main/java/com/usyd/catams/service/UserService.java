@@ -2,6 +2,7 @@ package com.usyd.catams.service;
 
 import com.usyd.catams.dto.request.AuthenticationRequest;
 import com.usyd.catams.dto.request.UserCreateRequest;
+import com.usyd.catams.dto.request.UserUpdateRequest;
 import com.usyd.catams.dto.response.AuthResult;
 import com.usyd.catams.dto.response.UserResponse;
 
@@ -46,4 +47,13 @@ public interface UserService {
      * @return list of user response DTOs
      */
     java.util.List<UserResponse> getUsers();
+
+    /**
+     * Partially update user details.
+     *
+     * @param userId identifier of the user to update
+     * @param request patch request containing fields to modify
+     * @return updated user response
+     */
+    UserResponse updateUser(Long userId, UserUpdateRequest request);
 }

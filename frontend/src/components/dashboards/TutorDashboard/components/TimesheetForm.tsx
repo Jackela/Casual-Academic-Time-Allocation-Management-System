@@ -383,7 +383,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
     return () => {
       clearTimeout(timeout);
     };
-  }, [autoSaveTimeout, autoSaveDelay, formData.description, isEdit]);
+  }, [autoSaveDelay, formData.description, isEdit]);
 
   const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};

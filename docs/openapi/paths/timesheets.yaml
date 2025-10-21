@@ -49,7 +49,9 @@ POST:
     tags:
       - Timesheets
     summary: Create timesheet
-    description: Client submits instructional fields only. Financial values are ignored and recalculated.
+    description: |
+      Create a timesheet by submitting the instructional data only.  
+      Financial values (payable hours, hourly rate, amount) are computed on the server using the EA Schedule 1 calculator and must **not** be supplied by clients.
     security:
       - bearerAuth: []
     requestBody:
@@ -191,12 +193,12 @@ GET_BY_ID:
             schema:
               $ref: '../schemas/errors.yaml#/ErrorResponse'
 
-GET_PENDING:
+GET_PENDING_FINAL:
   get:
     tags:
       - Timesheets
-    summary: Get timesheets pending approval
-    description: Returns timesheets awaiting lecturer or admin action.
+    summary: Get timesheets pending final approval
+    description: Returns timesheets that have been confirmed by lecturers and are awaiting administrator (HR) action.
     security:
       - bearerAuth: []
     parameters:

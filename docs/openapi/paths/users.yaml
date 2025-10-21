@@ -91,6 +91,7 @@ USERS:
                   email: "new.lecturer@university.edu.au"
                   name: "Dr. Jane Doe"
                   role: "LECTURER"
+                  isActive: true
       '400':
         description: Invalid request data
         content:
@@ -114,6 +115,83 @@ USERS:
               $ref: '../schemas/errors.yaml#/ErrorResponse'
       '403':
         description: Insufficient permissions
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+
+  patch:
+    tags:
+      - Users
+    summary: Update user
+    description: |
+      Partially update a user's account details (activation status or names).
+
+      **Required role**: ADMIN
+
+      **Business rules**:
+      - Only ADMIN users can modify other accounts
+      - The last active administrator cannot be deactivated
+    operationId: updateUser
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+        description: User identifier to update
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/users.yaml#/UserUpdateRequest'
+          examples:
+            deactivate_user:
+              summary: Deactivate a tutor account
+              value:
+                isActive: false
+            update_names:
+              summary: Update lecturer display name
+              value:
+                firstName: "Alex"
+                lastName: "Nguyen"
+    responses:
+      '200':
+        description: User updated successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/users.yaml#/UserResponse'
+      '400':
+        description: Validation failure
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '403':
+        description: Insufficient permissions
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '404':
+        description: User not found
         content:
           application/json:
             schema:

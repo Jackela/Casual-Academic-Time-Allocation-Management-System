@@ -1,6 +1,7 @@
 package com.usyd.catams.controller;
 
 import com.usyd.catams.dto.request.UserCreateRequest;
+import com.usyd.catams.dto.request.UserUpdateRequest;
 import com.usyd.catams.dto.response.UserResponse;
 import com.usyd.catams.service.UserService;
 import jakarta.validation.Valid;
@@ -10,6 +11,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,5 +65,20 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponse>> getUsers() {
         return ResponseEntity.ok(userService.getUsers());
+    }
+
+    /**
+     * Partially update a user's profile.
+     *
+     * @param id user identifier
+     * @param request patch payload containing the fields to update
+     * @return updated user details
+     */
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponse> updateUser(
+            @PathVariable Long id,
+            @Valid @RequestBody UserUpdateRequest request) {
+        return ResponseEntity.ok(userService.updateUser(id, request));
     }
 }

@@ -22,7 +22,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 
 @SpringBootTest
-@ActiveProfiles("e2e")
+@ActiveProfiles("integration-test")
 @WithMockUser(roles = {"LECTURER"})
 public class ApprovalFlowIntegrationTest {
 

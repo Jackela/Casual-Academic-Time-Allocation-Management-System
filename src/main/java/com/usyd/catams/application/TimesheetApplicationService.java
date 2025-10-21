@@ -17,6 +17,7 @@ import com.usyd.catams.policy.TimesheetPermissionPolicy;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.service.TimesheetApplicationFacade;
 import com.usyd.catams.service.TimesheetService;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -358,14 +359,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         Course course = courseRepository.findById(timesheet.getCourseId())
             .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
 
-        // Step 1: Authorization check (403 if fails)
-        if (!permissionPolicy.canModifyTimesheet(requester, timesheet, course)) {
-            throw new com.usyd.catams.exception.AuthorizationException(
-                "User " + requester.getId() + " (" + requester.getRole() + 
-                ") does not have permission to modify timesheet " + timesheetId);
-        }
-        
-        // Step 2: Business rule check - Use AuthorizationException for tutor restrictions (403 if fails)
+        // Step 1: Business rule check - Use AuthorizationException for tutor restrictions (403 if fails)
         if (!timesheetDomainService.canRoleEditTimesheetWithStatus(requester.getRole(), timesheet.getStatus())) {
             if (requester.getRole() == UserRole.TUTOR) {
                 throw new com.usyd.catams.exception.AuthorizationException("TUTOR can only update timesheets with REJECTED status. " +
@@ -374,6 +368,13 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
                 throw new com.usyd.catams.exception.BusinessRuleException("Cannot update timesheet with status: " + timesheet.getStatus() + 
                     ". Only DRAFT timesheets can be updated.");
             }
+        }
+
+        // Step 2: Authorization check (403 if fails)
+        if (!permissionPolicy.canModifyTimesheet(requester, timesheet, course)) {
+            throw new com.usyd.catams.exception.AuthorizationException(
+                "User " + requester.getId() + " (" + requester.getRole() + 
+                ") does not have permission to modify timesheet " + timesheetId);
         }
 
         timesheetDomainService.validateUpdateData(hours, hourlyRate, description);

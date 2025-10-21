@@ -407,9 +407,9 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   // Loading state
   if (timesheetsLoading || dashboardLoading) {
     return (
-      <div className="unified-container">
-        <div className={`macro-grid ${className}`} data-testid="loading-state">
-          <div className="macro-grid-hero" data-testid="loading-state-container">
+      <div className="layout-container">
+        <div className={`layout-grid ${className}`} data-testid="loading-state">
+          <div className="layout-hero" data-testid="loading-state-container">
             <LoadingSpinner size="large" data-testid="spinner" />
             <p data-testid="loading-text">Loading your timesheets...</p>
           </div>
@@ -457,9 +457,9 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     </div>
   ) : null;
   return (
-    <div className="unified-container">
-      <div className={`macro-grid ${className}`} data-testid="tutor-dashboard">
-        <header className="macro-grid-hero">
+    <div className="layout-container">
+      <div className={`layout-grid ${className}`} data-testid="tutor-dashboard">
+        <header className="layout-hero">
           <TutorHeader
             welcomeMessage={welcomeMessage}
             title="Tutor Dashboard"
@@ -468,11 +468,11 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           {feedbackStack}
         </header>
 
-        <main className="macro-grid-content has-sidebar">
-          <section className="macro-grid-main" role="region" aria-label="Tutor dashboard content">
+        <main className="layout-content">
+          <section className="layout-main" role="region" aria-label="Tutor dashboard content">
             <section className="mb-8" role="region" aria-label="Quick Actions">
               <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="quick-actions">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="quick-actions">
                 <QuickAction
                   label="Create New Timesheet"
                   description="Start a new timesheet entry"
@@ -659,13 +659,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                 </CardContent>
               </Card>
             </section>
-          </section>
 
-          <aside
-            className="macro-grid-sidebar"
-            data-testid="dashboard-sidebar"
-            aria-label="Tutor essentials"
-          >
             <UpcomingDeadlines deadlines={visibleDeadlines} />
             <div ref={paySummaryRef} tabIndex={-1}>
               <PaySummary
@@ -676,7 +670,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
               />
             </div>
             <SupportResources resources={supportResources} />
-          </aside>
+          </section>
         </main>
       </div>
 

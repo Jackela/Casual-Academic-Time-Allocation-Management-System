@@ -1068,7 +1068,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
       style={{ overflowX: 'auto' }}
     >
       <table
-        className="timesheet-table w-full min-w-[60rem]"
+        className="timesheet-table w-full"
         data-testid="timesheets-table"
         role="table"
         aria-label="Timesheets"

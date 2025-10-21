@@ -84,13 +84,16 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
         });
       }
 
-      // Secondary action: Edit (always available for drafts)
+      // Secondary action: Edit (or primary if no other action available)
       if (isEditable && onEdit) {
+        const isOnlyAction = !canSubmitDraft && !canConfirm;
         actions.push({
           ...STANDARD_ACTIONS.EDIT,
           id: 'edit',
           onClick: onEdit,
-          visible: true
+          visible: true,
+          priority: isOnlyAction ? ACTION_PRIORITY.PRIMARY : ACTION_PRIORITY.SECONDARY,
+          variant: isOnlyAction ? 'default' : 'outline'
         });
       }
     } else if (mode === 'lecturer' || mode === 'admin') {

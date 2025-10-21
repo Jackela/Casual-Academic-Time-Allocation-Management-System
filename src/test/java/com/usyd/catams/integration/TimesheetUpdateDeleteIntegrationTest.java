@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
@@ -156,16 +155,13 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
         String token = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
         
         TimesheetUpdateRequest updateRequest = buildUpdateRequest(
-            BigDecimal.valueOf(12.0),
-            BigDecimal.valueOf(30.00),
+            BigDecimal.ONE,
             "Updated: Tutorial sessions, grading, and consultation hours",
             draftTimesheet
         );
 
-        mockMvc.perform(put("/api/timesheets/{id}", draftTimesheet.getId())
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(updateRequest)))
+        performPutWithoutFinancialFields("/api/timesheets/" + draftTimesheet.getId(), updateRequest,
+                "Bearer " + token)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(draftTimesheet.getId()))
                 .andExpect(jsonPath("$.hours").value(closeTo(3.0, 0.0001)))
@@ -187,16 +183,13 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
         String token = jwtTokenProvider.generateToken(admin.getId(), admin.getEmail(), admin.getRole().name());
         
         TimesheetUpdateRequest updateRequest = buildUpdateRequest(
-            BigDecimal.valueOf(15.0),
-            BigDecimal.valueOf(35.00),
+            BigDecimal.ONE,
             "Admin updated timesheet",
             draftTimesheet
         );
 
-        mockMvc.perform(put("/api/timesheets/{id}", draftTimesheet.getId())
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(updateRequest)))
+        performPutWithoutFinancialFields("/api/timesheets/" + draftTimesheet.getId(), updateRequest,
+                "Bearer " + token)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hours").value(closeTo(3.0, 0.0001)))
                 .andExpect(jsonPath("$.hourlyRate").value(closeTo(58.65, 0.01)))
@@ -209,19 +202,16 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
         String token = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
         
         TimesheetUpdateRequest updateRequest = buildUpdateRequest(
-            BigDecimal.valueOf(12.0),
-            BigDecimal.valueOf(30.00),
+            BigDecimal.ONE,
             "Attempting to update approved timesheet",
             approvedTimesheet
         );
 
-        mockMvc.perform(put("/api/timesheets/{id}", approvedTimesheet.getId())
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").exists())
-                .andExpect(jsonPath("$.message").value(containsString("Only DRAFT timesheets can be updated")));
+        performPutWithoutFinancialFields("/api/timesheets/" + approvedTimesheet.getId(), updateRequest,
+                "Bearer " + token)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("ACCESS_DENIED"))
+                .andExpect(jsonPath("$.message").value("Access denied"));
     }
 
     @Test
@@ -239,16 +229,13 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
         String token = jwtTokenProvider.generateToken(otherLecturer.getId(), otherLecturer.getEmail(), otherLecturer.getRole().name());
         
         TimesheetUpdateRequest updateRequest = buildUpdateRequest(
-            BigDecimal.valueOf(12.0),
-            BigDecimal.valueOf(30.00),
+            BigDecimal.ONE,
             "Lecturer attempting to update other course timesheet",
             draftTimesheet
         );
 
-        mockMvc.perform(put("/api/timesheets/{id}", draftTimesheet.getId())
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(updateRequest)))
+        performPutWithoutFinancialFields("/api/timesheets/" + draftTimesheet.getId(), updateRequest,
+                "Bearer " + token)
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").exists());
     }
@@ -327,16 +314,13 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
         String token = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
         
         TimesheetUpdateRequest updateRequest = buildUpdateRequest(
-            BigDecimal.valueOf(12.0),
-            BigDecimal.valueOf(30.00),
+            BigDecimal.ONE,
             "Update non-existent timesheet",
             draftTimesheet
         );
 
-        mockMvc.perform(put("/api/timesheets/{id}", 99999L)
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(updateRequest)))
+        performPutWithoutFinancialFields("/api/timesheets/99999", updateRequest,
+                "Bearer " + token)
                 .andExpect(status().isNotFound());
     }
 
@@ -354,15 +338,12 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
     @DisplayName("Update timesheet without authentication returns 401")
     void testUpdateTimesheetWithoutAuth() throws Exception {
         TimesheetUpdateRequest updateRequest = buildUpdateRequest(
-            BigDecimal.valueOf(12.0),
-            BigDecimal.valueOf(30.00),
+            BigDecimal.ONE,
             "Unauthorized update",
             draftTimesheet
         );
 
-        mockMvc.perform(put("/api/timesheets/{id}", draftTimesheet.getId())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(updateRequest)))
+        performPutWithoutFinancialFields("/api/timesheets/" + draftTimesheet.getId(), updateRequest, null)
                 .andExpect(status().isUnauthorized());
     }
 
@@ -382,25 +363,21 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
         BigDecimal maxHours = validationProperties.getHours().getMax();
         TimesheetUpdateRequest invalidRequest = buildUpdateRequest(
             maxHours.add(BigDecimal.ONE),
-            BigDecimal.valueOf(30.00),
             "Invalid hours",
             draftTimesheet
         );
         invalidRequest.setDeliveryHours(maxHours.add(BigDecimal.ONE));
 
-        mockMvc.perform(put("/api/timesheets/{id}", draftTimesheet.getId())
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(invalidRequest)))
+        performPutWithoutFinancialFields("/api/timesheets/" + draftTimesheet.getId(), invalidRequest,
+                "Bearer " + token)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
     }
-    private TimesheetUpdateRequest buildUpdateRequest(BigDecimal hours,
-                                                     BigDecimal hourlyRate,
+    private TimesheetUpdateRequest buildUpdateRequest(BigDecimal deliveryHours,
                                                      String description,
                                                      Timesheet baseTimesheet) {
 
-        TimesheetUpdateRequest request = new TimesheetUpdateRequest(hours, hourlyRate, description);
+        TimesheetUpdateRequest request = new TimesheetUpdateRequest(deliveryHours, description);
 
         request.setTaskType(TimesheetTaskType.TUTORIAL);
 
@@ -408,7 +385,7 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
 
         request.setRepeat(Boolean.FALSE);
 
-        request.setDeliveryHours(BigDecimal.ONE);
+        request.setDeliveryHours(deliveryHours != null ? deliveryHours : BigDecimal.ONE);
 
         request.setSessionDate(baseTimesheet.getWeekStartDate());
 

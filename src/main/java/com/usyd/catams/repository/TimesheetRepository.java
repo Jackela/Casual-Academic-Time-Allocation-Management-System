@@ -137,6 +137,15 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     List<Timesheet> findByCourseIdAndStatus(Long courseId, ApprovalStatus status);
     
     /**
+     * Find timesheets by multiple courses and status.
+     *
+     * @param courseIds list of course IDs
+     * @param status approval status
+     * @return matching timesheets
+     */
+    List<Timesheet> findByCourseIdInAndStatus(List<Long> courseIds, ApprovalStatus status);
+    
+    /**
      * Find timesheets within a date range.
      *
      * @param startDate the start date (inclusive)
@@ -229,8 +238,8 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
 
     /**
      * Get pending timesheets for a specific approver based on role.
-     * For tutors: timesheets in PENDING_TUTOR_REVIEW status for themselves
-     * For HR: timesheets in PENDING_HR_REVIEW status
+     * For tutors: timesheets in PENDING_TUTOR_CONFIRMATION status assigned to them
+     * For HR/final approvers: timesheets in LECTURER_CONFIRMED status
      *
      * @param approverId the approver's ID
      * @param isHR whether the approver is HR

@@ -72,7 +72,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   };
 
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+    `flex items-center gap-2 border-b-2 px-0 py-3 mr-8 text-sm font-medium transition-colors ${
       isActive
         ? 'border-primary text-primary'
         : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
@@ -87,7 +87,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         style={{ top: 'calc(var(--safe-top) - var(--header-h) - var(--banner-h) - 16px)' }}
       >
         <div
-          className="container mx-auto flex items-center justify-between p-4"
+          className="layout-container flex items-center justify-between py-4"
           data-testid="dashboard-title-anchor"
         >
           <div className="flex items-baseline gap-3" data-testid="header-left">
@@ -151,7 +151,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
       {/* Navigation */}
       <nav className="border-b bg-card" data-testid="dashboard-nav">
-        <div className="container mx-auto" data-testid="nav-content">
+        <div className="layout-container" data-testid="nav-content">
           <div className="flex gap-1" data-testid="nav-items">
             <NavLink
               to="/dashboard"
@@ -220,8 +220,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8" data-testid="dashboard-main">
-        <div className="container mx-auto" data-testid="main-content">
+      <main className="flex-1 py-4 sm:py-6 lg:py-8" data-testid="dashboard-main">
+        <div className="layout-container" data-testid="main-content">
           <NotificationPresenter />
           {children}
         </div>

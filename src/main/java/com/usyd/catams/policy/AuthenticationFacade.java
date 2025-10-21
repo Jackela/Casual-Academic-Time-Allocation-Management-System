@@ -14,4 +14,11 @@ public interface AuthenticationFacade {
      * @throws IllegalStateException when no authentication is present
      */
     Long getCurrentUserId();
+
+    /**
+     * Obtain the roles (authorities) of the current authenticated user.
+     * @return collection of role strings (e.g. ROLE_ADMIN)
+     * @throws IllegalStateException when no authentication is present
+     */
+    java.util.Collection<String> getCurrentUserRoles();
 }

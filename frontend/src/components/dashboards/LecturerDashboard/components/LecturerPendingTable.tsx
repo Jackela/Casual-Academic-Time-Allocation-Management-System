@@ -109,7 +109,7 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
   return (
     <Fragment>
       <Card>
-        <CardHeader>
+        <CardHeader className="layout-flush">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Pending Approvals</CardTitle>
@@ -119,7 +119,7 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="layout-flush">
           {hasNoPendingTimesheets ? (
             <div className="py-12 text-center" data-testid="empty-state">
               <div className="mx-auto max-w-xs">

@@ -29,7 +29,7 @@ public interface ApprovalService {
      * Business rules enforced:
      * - Timesheet must be in DRAFT status
      * - User can only submit their own timesheets (except ADMIN)
-     * - Status transitions from DRAFT to PENDING_LECTURER_APPROVAL
+     * - Status transitions from DRAFT to PENDING_TUTOR_CONFIRMATION
      * - Creates audit trail in approvals table
      * 
      * @param timesheetId ID of the timesheet to submit

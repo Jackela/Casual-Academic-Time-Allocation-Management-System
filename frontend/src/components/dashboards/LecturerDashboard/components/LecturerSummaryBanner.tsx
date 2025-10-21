@@ -1,7 +1,9 @@
 import { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
+import { ClipboardList, FileText, Clock, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatters } from '../../../../utils/formatting';
 import type { LecturerDashboardMetrics } from '../../../../types/dashboard/lecturer-dashboard';
+import type { LucideIcon } from 'lucide-react';
 
 interface LecturerSummaryBannerProps {
   welcomeMessage: string;
@@ -14,23 +16,23 @@ interface StatCardProps {
   value: string | number;
   subtitle?: string;
   trend?: 'up' | 'down' | 'stable';
-  icon?: string;
+  icon?: LucideIcon;
 }
 
-const StatCard = memo<StatCardProps>(({ title, value, subtitle, trend = 'stable', icon }) => (
+const StatCard = memo<StatCardProps>(({ title, value, subtitle, trend = 'stable', icon: Icon }) => (
   <Card data-testid="stat-card">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      {icon && <span className="text-2xl text-muted-foreground">{icon}</span>}
+      {Icon && <Icon className="h-5 w-5 text-muted-foreground" />}
     </CardHeader>
     <CardContent>
       <div className="text-2xl font-bold" data-testid="stat-card-value">
         {value}
       </div>
       {subtitle && (
-        <p className="text-xs text-muted-foreground">
-          {trend === 'up' && '↗ '}
-          {trend === 'down' && '↘ '}
+        <p className="text-xs text-muted-foreground flex items-center gap-1">
+          {trend === 'up' && <TrendingUp className="h-3 w-3" />}
+          {trend === 'down' && <TrendingDown className="h-3 w-3" />}
           {subtitle}
         </p>
       )}
@@ -41,7 +43,7 @@ const StatCard = memo<StatCardProps>(({ title, value, subtitle, trend = 'stable'
 StatCard.displayName = 'LecturerStatCard';
 
 const LecturerSummaryBanner = memo<LecturerSummaryBannerProps>(({ welcomeMessage, urgentCount, metrics }) => (
-  <div className="mb-8">
+  <div className="mb-8 layout-flush">
     <div>
       <h1 className="text-3xl font-bold tracking-tight" data-testid="main-welcome-message">
         {welcomeMessage}
@@ -70,26 +72,26 @@ const LecturerSummaryBanner = memo<LecturerSummaryBannerProps>(({ welcomeMessage
           value={metrics.pendingApproval}
           subtitle={urgentCount > 0 ? `${urgentCount} urgent` : 'All current'}
           trend={urgentCount > 0 ? 'up' : 'stable'}
-          icon="📋"
+          icon={ClipboardList}
         />
         <StatCard
           title="Total Timesheets"
           value={metrics.totalTimesheets}
           subtitle="This semester"
-          icon="📊"
+          icon={FileText}
         />
         <StatCard
           title="This Week Hours"
           value={formatters.hours(metrics.thisWeekHours)}
           subtitle={formatters.currency(metrics.thisWeekPay)}
-          icon="⏰"
+          icon={Clock}
         />
         <StatCard
           title="Approved by You"
           value={metrics.statusBreakdown?.LECTURER_CONFIRMED ?? 0}
           subtitle="Lecturer approvals"
           trend="up"
-          icon="✅"
+          icon={CheckCircle2}
         />
       </div>
     </section>

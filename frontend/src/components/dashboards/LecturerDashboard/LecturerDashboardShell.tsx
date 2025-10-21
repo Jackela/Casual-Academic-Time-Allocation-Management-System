@@ -228,9 +228,9 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
 
   if (pageLoading) {
     return (
-      <div className="unified-container">
-        <div className={`macro-grid ${className}`}>
-          <div className="macro-grid-hero">
+      <div className="layout-container">
+        <div className={`layout-grid ${className}`}>
+          <div className="layout-hero">
             <PageLoadingIndicator
               message="Loading pending timesheets…"
               subMessage="Fetching lecturer metrics and approval queue."
@@ -247,14 +247,14 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
   const isRefreshing = loading.pending || loading.dashboard;
 
   return (
-    <div className="unified-container">
+    <div className="layout-container">
       <div
-        className={`macro-grid ${className}`}
+        className={`layout-grid ${className}`}
         data-testid="lecturer-dashboard"
         role="main"
         aria-label={`Lecturer Dashboard (${sessionStatus})`}
       >
-        <header className="macro-grid-hero">
+        <header className="layout-hero">
           <LecturerSummaryBanner
             welcomeMessage={welcomeMessage}
             urgentCount={urgentCount}
@@ -314,12 +314,18 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
           )}
         </header>
 
-        <main className="macro-grid-content has-sidebar">
+        <main className="layout-content">
           <section
-            className="macro-grid-main"
+            className="layout-main"
             role="region"
             aria-label="Pending Approvals"
           >
+            {Object.keys(metrics.statusBreakdown).length > 0 && (
+              <div className="mb-6">
+                <StatusBreakdown statusBreakdown={metrics.statusBreakdown} />
+              </div>
+            )}
+            
             <LecturerPendingTable
               timesheets={displayTimesheets}
               hasNoPendingTimesheets={noPendingTimesheets}
@@ -336,15 +342,6 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
               onClearFilters={handleClearFilters}
             />
           </section>
-
-          <aside
-            className="macro-grid-sidebar"
-            data-testid="dashboard-sidebar"
-          >
-            {Object.keys(metrics.statusBreakdown).length > 0 && (
-              <StatusBreakdown statusBreakdown={metrics.statusBreakdown} />
-            )}
-          </aside>
         </main>
       </div>
 

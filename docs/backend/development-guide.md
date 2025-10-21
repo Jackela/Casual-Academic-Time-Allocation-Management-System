@@ -25,7 +25,7 @@ Scripts under `tools/scripts/` wrap these commands for CI automation; see `docs/
 1. **Quote First** ? implement endpoints or UI changes against `POST /api/timesheets/quote`.
 2. **Calculator Usage** ? invoke `Schedule1Calculator` via application services; never instantiate it directly in controllers.
 3. **Policy Data** ? rely on `Schedule1PolicyProvider` with date-effective queries. Tests should cover new clauses or rates before code changes.
-4. **Persistence** ? always re-run the calculator before saving a timesheet. Integration tests enforce that incoming `amount`, `associatedHours`, and `payableHours` fields are ignored.
+4. **Persistence** ? always re-run the calculator before saving a timesheet. Integration tests enforce that requests never include `amount`, `hourlyRate`, `payableHours`, or related financial fields—the backend recalculates them on every create/update.
 
 ## Testing Strategy
 

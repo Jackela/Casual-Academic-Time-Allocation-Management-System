@@ -1,11 +1,9 @@
-package com.usyd.catams.application;
+package com.usyd.catams.service;
 
 import com.usyd.catams.dto.response.PagedTimesheetResponse;
 import com.usyd.catams.dto.response.TimesheetResponse;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.TimesheetTaskType;
-import com.usyd.catams.service.Schedule1CalculationResult;
-import com.usyd.catams.service.TimesheetService;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
@@ -48,3 +46,4 @@ public interface TimesheetApplicationFacade extends TimesheetService {
 
     PagedTimesheetResponse getLecturerFinalApprovalQueueAsDto(Long requesterId, Pageable pageable);
 }
+

@@ -3,18 +3,18 @@ post:
     - Approvals
   summary: Perform approval action
   description: |
-    Perform an approval action on a timesheet (approve, reject, request modification, final approval).
+    Perform an approval workflow action (confirm, request modification, reject, final confirmation).
     
-    **Access rules (SSOT aligned)**:
-    - **TUTOR**: Can APPROVE / REJECT / REQUEST_MODIFICATION on `PENDING_TUTOR_REVIEW` (owns the timesheet)
-    - **LECTURER**: Can FINAL_APPROVAL / REJECT on `APPROVED_BY_TUTOR` (their courses)
-    - **HR/ADMIN**: Can HR_APPROVE / HR_REJECT on `APPROVED_BY_LECTURER_AND_TUTOR`; ADMIN may perform any action
+    **Access rules**:
+    - **TUTOR**: May `SUBMIT_FOR_APPROVAL` drafts they own, `TUTOR_CONFIRM` pending confirmations, or respond with `REJECT` / `REQUEST_MODIFICATION`.
+    - **LECTURER**: May `LECTURER_CONFIRM`, `REJECT`, or `REQUEST_MODIFICATION` for timesheets belonging to the courses they coordinate.
+    - **HR/ADMIN**: May `HR_CONFIRM`, `REJECT`, or `REQUEST_MODIFICATION` once a timesheet is lecturer-confirmed. Administrators may also perform overrides when necessary.
     
-    **Workflow states (enhanced path)**:
-    - DRAFT -> PENDING_TUTOR_REVIEW (SUBMIT_FOR_APPROVAL)
-    - PENDING_TUTOR_REVIEW -> APPROVED_BY_TUTOR (APPROVE) | REJECTED (REJECT) | MODIFICATION_REQUESTED (REQUEST_MODIFICATION)
-    - APPROVED_BY_TUTOR -> APPROVED_BY_LECTURER_AND_TUTOR (FINAL_APPROVAL) | REJECTED (REJECT by LECTURER)
-    - APPROVED_BY_LECTURER_AND_TUTOR -> FINAL_APPROVED (HR_APPROVE) | REJECTED (HR_REJECT)
+    **Workflow states**:
+    - `DRAFT` → `PENDING_TUTOR_CONFIRMATION` (`SUBMIT_FOR_APPROVAL`)
+    - `PENDING_TUTOR_CONFIRMATION` → `TUTOR_CONFIRMED` (`TUTOR_CONFIRM`) | `REJECTED` (`REJECT`) | `MODIFICATION_REQUESTED` (`REQUEST_MODIFICATION`)
+    - `TUTOR_CONFIRMED` → `LECTURER_CONFIRMED` (`LECTURER_CONFIRM`) | `REJECTED` (`REJECT`) | `MODIFICATION_REQUESTED` (`REQUEST_MODIFICATION`)
+    - `LECTURER_CONFIRMED` → `FINAL_CONFIRMED` (`HR_CONFIRM`) | `REJECTED` (`REJECT`) | `MODIFICATION_REQUESTED` (`REQUEST_MODIFICATION`)
   operationId: performApprovalAction
   security:
     - bearerAuth: []
@@ -25,12 +25,12 @@ post:
         schema:
           $ref: '../schemas/approvals.yaml#/ApprovalActionRequest'
         examples:
-          approve_timesheet:
-            summary: Approve timesheet
+          confirm_timesheet:
+            summary: Lecturer confirms a tutor-approved timesheet
             value:
               timesheetId: 789
-              action: "APPROVE"
-              comment: "Approved - hours and description look correct"
+              action: "LECTURER_CONFIRM"
+              comment: "All good from my side."
           reject_timesheet:
             summary: Reject timesheet
             value:
@@ -51,18 +51,18 @@ post:
           schema:
             $ref: '../schemas/approvals.yaml#/ApprovalActionResponse'
           examples:
-            approval_success:
-              summary: Successful approval action
+            lecturer_confirmation:
+              summary: Successful lecturer confirmation
               value:
                 timesheetId: 789
-                action: "FINAL_APPROVAL"
-                newStatus: "APPROVED_BY_LECTURER_AND_TUTOR"
+                action: "LECTURER_CONFIRM"
+                newStatus: "LECTURER_CONFIRMED"
                 approverId: 999
                 approverName: "Dr. Jane Smith"
-                comment: "Final academic approval"
+                comment: "Approved for HR processing"
                 timestamp: "2025-08-01T16:30:00Z"
                 nextSteps:
-                  - "Timesheet is ready for HR final review"
+                  - "Timesheet has moved to HR for final confirmation"
     '400':
       description: Invalid approval action or business rule violation
       content:
@@ -111,4 +111,3 @@ post:
         application/json:
           schema:
             $ref: '../schemas/errors.yaml#/ErrorResponse'
-

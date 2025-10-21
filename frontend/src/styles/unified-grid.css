@@ -1,237 +1,131 @@
 /**
- * Unified Macro-Grid System
- *
- * Establishes precise co-linearity between Hero/Banner areas and main content
- * across all dashboard types. Prevents layout inconsistencies and ensures
- * perfect visual alignment.
+ * Unified Layout System - Production-Ready Architecture
+ * 
+ * Clean, semantic CSS with no legacy code.
+ * Mobile-first responsive design using design tokens.
+ * 
+ * Architecture:
+ * - .layout-container: Page-level content wrapper with max-width
+ * - .layout-grid: Vertical flexbox for main page sections
+ * - .layout-hero: Header/banner area (transparent, no card styling)
+ * - .layout-content: Main content grid (single-column or with sidebar)
+ * - .layout-main: Primary content column
+ * - .layout-sidebar: Optional sidebar column
  */
 
-/* Unified Container System */
-.unified-container {
+/* ============================================================================
+   Container System - Consistent Max Width
+   ============================================================================ */
+
+.layout-container {
   position: relative;
   width: 100%;
-  max-width: var(--grid-container-max-width);
+  max-width: 100%;
   margin: 0 auto;
-  padding: 0 var(--grid-container-padding);
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: var(--grid-gap-primary);
-  min-height: 100vh;
-}
-
-.dashboard-grid__hero {
-  position: relative;
-  isolation: isolate;
-  display: grid;
-  gap: var(--grid-gap-secondary);
-  padding: var(--grid-hero-padding);
-  border-radius: var(--hero-border-radius);
-  background: hsl(var(--card) / 0.92);
-  border: 1px solid hsl(var(--card-foreground) / 0.08);
-  box-shadow: 0 24px 65px rgba(15, 23, 42, 0.15);
-}
-
-.dashboard-grid__hero::before {
-  content: '';
-  position: absolute;
-  inset: -1.5rem;
-  background: linear-gradient(
-    135deg,
-    hsl(var(--brand-primary, var(--primary))) 0%,
-    hsl(var(--brand-secondary, var(--primary))) 48%,
-    hsl(var(--primary)) 100%
-  );
-  opacity: 0.65;
-  filter: blur(60px);
-  z-index: -1;
-}
-
-.dashboard-grid__content {
-  display: grid;
-  gap: var(--grid-gap-primary);
-}
-
-.dashboard-grid__main {
-  display: grid;
-  gap: var(--grid-gap-secondary);
-}
-
-.dashboard-grid__aside {
-  display: grid;
-  gap: var(--grid-gap-secondary);
+  padding-left: var(--grid-container-padding);
+  padding-right: var(--grid-container-padding);
 }
 
 @media (min-width: 1024px) {
-  .dashboard-grid__content {
-    grid-template-columns: minmax(0, 1fr) minmax(var(--aside-w), 1fr);
-    align-items: start;
-  }
-
-  .dashboard-grid__aside {
-    position: sticky;
-    top: var(--safe-top);
-    align-self: start;
+  .layout-container {
+    max-width: var(--grid-container-max-width);
   }
 }
 
-/* Macro-Grid Foundation */
-.macro-grid {
+/* ============================================================================
+   Main Layout Grid - Vertical Sections
+   ============================================================================ */
+
+.layout-grid {
   position: relative;
-  isolation: isolate;
   min-height: 100vh;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   gap: var(--grid-gap-primary);
   background: hsl(var(--background));
   color: hsl(var(--foreground));
 }
 
-/* Hero/Banner Area - Unified Positioning */
-.macro-grid-hero {
-  position: relative;
-  z-index: var(--z-elevated);
-  display: grid;
-  gap: var(--grid-gap-secondary);
-  padding: var(--grid-hero-padding);
-  margin: 0;
-  border-radius: var(--hero-border-radius);
-  background: hsl(var(--card) / 0.92);
-  border: 1px solid hsl(var(--card-foreground) / 0.08);
-  box-shadow: 0 24px 65px rgba(15, 23, 42, 0.15);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
+/* ============================================================================
+   Hero/Header Section - Transparent Container
+   ============================================================================ */
 
-/* Hero Background - Unified Gradient */
-.macro-grid::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto auto 0;
+.layout-hero {
+  position: relative;
   width: 100%;
-  height: var(--hero-height-base);
-  background: linear-gradient(
-    135deg,
-    hsl(var(--brand-primary, var(--primary))) 0%,
-    hsl(var(--brand-secondary, var(--primary))) 48%,
-    hsl(var(--primary)) 100%
-  );
-  border-bottom-left-radius: clamp(2.5rem, 6vw, 4rem);
-  border-bottom-right-radius: clamp(2.5rem, 6vw, 4rem);
-  box-shadow: 0 32px 70px rgba(15, 23, 42, 0.28);
-  opacity: 0.95;
-  pointer-events: none;
-  z-index: var(--z-background);
+  padding: var(--grid-hero-padding) 0;
 }
 
-/* Hero Glass Effect */
-.macro-grid-hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(
-      circle at top left,
-      rgba(255, 255, 255, 0.35),
-      transparent 60%
-    ),
-    radial-gradient(
-      circle at bottom right,
-      rgba(59, 130, 246, 0.18),
-      transparent 55%
-    );
-  pointer-events: none;
-  z-index: var(--z-background);
-}
+/* ============================================================================
+   Content Area - Responsive Grid
+   ============================================================================ */
 
-/* Main Content Area - Perfect Alignment */
-.macro-grid-content {
+.layout-content {
   position: relative;
-  z-index: var(--z-content);
+  width: 100%;
   display: grid;
+  grid-template-columns: 1fr;
   gap: var(--grid-gap-primary);
-  grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  padding: var(--grid-content-padding);
-  margin-left: var(--hero-content-alignment);
-  margin-right: var(--hero-content-alignment);
 }
 
-/* Sidebar Layout Support */
-.macro-grid-content.has-sidebar {
+/* Sidebar Layout - Two-column grid on desktop */
+.layout-content.has-sidebar {
   grid-template-columns: 1fr;
-  grid-template-rows: auto auto;
 }
 
 @media (min-width: 1024px) {
-  .macro-grid-content.has-sidebar {
-    grid-template-columns: 1fr 360px;
-    grid-template-rows: auto;
-    gap: 2rem;
+  .layout-content.has-sidebar {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
   }
 }
 
 @media (min-width: 1440px) {
-  .macro-grid-content.has-sidebar {
-    grid-template-columns: 1fr 400px;
+  .layout-content.has-sidebar {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
   }
 }
 
-/* Content Areas */
-.macro-grid-main,
-.macro-grid-sidebar {
-  display: grid;
-  gap: var(--grid-gap-secondary);
-  min-width: 0; /* Allow grid items to shrink below content size */
-}
+/* ============================================================================
+   Main and Sidebar Columns
+   ============================================================================ */
 
-.macro-grid-main {
-  max-width: 100%; /* Ensure main column respects grid width */
-  min-width: 0; /* Allow content to shrink */
-}
-
-/* Only constrain direct children and card containers, not table content */
-.macro-grid-main > div,
-.macro-grid-main > section {
-  max-width: 100%;
+.layout-main {
   width: 100%;
-  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--grid-gap-secondary);
 }
 
-.macro-grid-sidebar {
-  position: relative;
-  z-index: var(--z-content);
-  max-width: 100%;
-  overflow: hidden;
+.layout-sidebar {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--grid-gap-secondary);
 }
 
 @media (min-width: 1024px) {
-  .macro-grid-sidebar {
+  .layout-sidebar {
     position: sticky;
-    top: var(--safe-top);
+    top: clamp(1.25rem, 2.75vw, 3rem);
     align-self: start;
   }
 }
 
-/* Footer Area */
-.macro-grid-footer {
-  position: relative;
-  z-index: var(--z-content);
-  display: grid;
-  gap: var(--grid-gap-secondary);
-  margin-top: auto;
+/* ============================================================================
+   Alignment Utilities
+   ============================================================================ */
+
+/* Remove horizontal padding for flush alignment */
+.layout-flush {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
-/* Ensure all grid children have proper z-index */
-.macro-grid > * {
-  position: relative;
-  z-index: var(--z-base);
-}
+/* ============================================================================
+   Numeric Display Consistency
+   ============================================================================ */
 
-/* Numeric Display Consistency */
-.unified-numeric,
 .numeric-display,
 .numeric-cell,
 .numeric-header {
@@ -239,7 +133,6 @@
   font-feature-settings: 'tnum';
 }
 
-.unified-numeric,
 .numeric-display,
 .numeric-cell {
   text-align: right;
@@ -249,13 +142,13 @@
   white-space: nowrap;
 }
 
-/* Utility Classes for Perfect Alignment */
-.align-hero-content {
-  margin-left: var(--hero-content-alignment);
-  margin-right: var(--hero-content-alignment);
-}
+/* ============================================================================
+   Z-Index Utilities
+   ============================================================================ */
 
 .elevation-base { z-index: var(--z-base); }
 .elevation-content { z-index: var(--z-content); }
 .elevation-elevated { z-index: var(--z-elevated); }
+.elevation-sticky { z-index: var(--z-sticky); }
 .elevation-modal { z-index: var(--z-modal); }
+.elevation-toast { z-index: var(--z-toast); }

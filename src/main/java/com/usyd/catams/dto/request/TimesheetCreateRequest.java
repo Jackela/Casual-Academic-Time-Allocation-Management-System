@@ -18,9 +18,10 @@ import java.time.LocalDate;
  * - tutorId: Required, positive integer
  * - courseId: Required, positive integer
  * - weekStartDate: Required, must be a Monday
- * - hours: Required, between 0.1 and 40.0
- * - hourlyRate: Required, between 10.00 and 200.00
+ * - deliveryHours: Required, between 0.1 and 10.0 (1 decimal place)
  * - description: Required, 1-1000 characters
+ * - taskType: Required enumeration value
+ * - qualification: Required enumeration value
  */
 public class TimesheetCreateRequest {
 
@@ -34,16 +35,6 @@ public class TimesheetCreateRequest {
 
     @NotNull(message = "Week start date is required")
     private LocalDate weekStartDate;
-
-    @NotNull(message = "Hours is required")
-    @DecimalMin(value = "0.1", inclusive = true, message = "Hours must be at least 0.1")
-    @DecimalMax(value = "40.0", inclusive = true, message = "Hours cannot exceed 40.0")
-    private BigDecimal hours;
-
-    @NotNull(message = "Hourly rate is required")
-    @DecimalMin(value = "10.00", inclusive = true, message = "Hourly rate must be at least 10.00")
-    @DecimalMax(value = "200.00", inclusive = true, message = "Hourly rate cannot exceed 200.00")
-    private BigDecimal hourlyRate;
 
     @NotBlank(message = "Description is required")
     @Size(min = 1, max = 1000, message = "Description must be between 1 and 1000 characters")
@@ -72,14 +63,13 @@ public class TimesheetCreateRequest {
 
     // Constructor for testing
     public TimesheetCreateRequest(Long tutorId, Long courseId, LocalDate weekStartDate,
-                                BigDecimal hours, BigDecimal hourlyRate, String description) {
+                                BigDecimal deliveryHours, String description) {
         this.tutorId = tutorId;
         this.courseId = courseId;
         this.weekStartDate = weekStartDate;
-        this.hours = hours;
-        this.hourlyRate = hourlyRate;
         this.description = description;
-        this.deliveryHours = hours;
+        this.deliveryHours = deliveryHours;
+        this.sessionDate = weekStartDate;
     }
 
     // Getters and Setters
@@ -105,26 +95,6 @@ public class TimesheetCreateRequest {
 
     public void setWeekStartDate(LocalDate weekStartDate) {
         this.weekStartDate = weekStartDate;
-    }
-
-    public BigDecimal getHours() {
-        return hours;
-    }
-
-    public void setHours(BigDecimal hours) {
-        BigDecimal previousHours = this.hours;
-        this.hours = hours;
-        if (deliveryHours == null || (previousHours != null && previousHours.compareTo(deliveryHours) == 0)) {
-            this.deliveryHours = hours;
-        }
-    }
-
-    public BigDecimal getHourlyRate() {
-        return hourlyRate;
-    }
-
-    public void setHourlyRate(BigDecimal hourlyRate) {
-        this.hourlyRate = hourlyRate;
     }
 
     public String getDescription() {
@@ -160,7 +130,7 @@ public class TimesheetCreateRequest {
     }
 
     public BigDecimal getDeliveryHours() {
-        return deliveryHours != null ? deliveryHours : hours;
+        return deliveryHours;
     }
 
     public void setDeliveryHours(BigDecimal deliveryHours) {
@@ -194,27 +164,13 @@ public class TimesheetCreateRequest {
         return sessionDate != null ? sessionDate : weekStartDate;
     }
 
-    /**
-     * Calculate total pay for this timesheet request.
-     * 
-     * @return total pay amount
-     */
-    @JsonIgnore
-    public BigDecimal calculateTotalPay() {
-        if (hours == null || hourlyRate == null) {
-            return BigDecimal.ZERO;
-        }
-        return hours.multiply(hourlyRate);
-    }
-
     @Override
     public String toString() {
         return "TimesheetCreateRequest{" +
                 "tutorId=" + tutorId +
                 ", courseId=" + courseId +
                 ", weekStartDate=" + weekStartDate +
-                ", hours=" + hours +
-                ", hourlyRate=" + hourlyRate +
+                ", deliveryHours=" + deliveryHours +
                 ", description='" + description + '\'' +
                 '}';
     }

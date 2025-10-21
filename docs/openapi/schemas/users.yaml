@@ -34,6 +34,7 @@ UserResponse:
     - email
     - name
     - role
+    - isActive
   properties:
     id:
       type: integer
@@ -51,6 +52,29 @@ UserResponse:
       example: "Dr. John Smith"
     role:
       $ref: '#/UserRole'
+    isActive:
+      type: boolean
+      description: Indicates whether the account is active and allowed to sign in
+      example: true
+
+UserUpdateRequest:
+  type: object
+  description: Partial update payload for user records. All fields are optional.
+  properties:
+    isActive:
+      type: boolean
+      description: Activate or deactivate the user account
+      example: false
+    firstName:
+      type: string
+      maxLength: 50
+      description: Updated first name (if provided, cannot be blank)
+      example: "Updated"
+    lastName:
+      type: string
+      maxLength: 50
+      description: Updated last name (if provided, cannot be blank)
+      example: "Tutor"
 
 UserRole:
   type: string

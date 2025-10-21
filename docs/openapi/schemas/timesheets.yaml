@@ -95,15 +95,112 @@ TimesheetQuoteResponse:
       type: string
       format: date
 
+TimesheetInstructionRequest:
+  type: object
+  required:
+    - tutorId
+    - courseId
+    - weekStartDate
+    - taskType
+    - qualification
+    - repeat
+    - deliveryHours
+    - description
+  properties:
+    tutorId:
+      type: integer
+      format: int64
+      description: Identifier of the tutor the timesheet belongs to.
+    courseId:
+      type: integer
+      format: int64
+      description: Identifier of the course the work relates to.
+    weekStartDate:
+      type: string
+      format: date
+      description: |
+        Week the work belongs to. Must be a Monday and ensures uniqueness per tutor/course/week.
+    sessionDate:
+      type: string
+      format: date
+      description: Optional session date; defaults to the week start date when omitted.
+    taskType:
+      type: string
+      enum:
+        - LECTURE
+        - TUTORIAL
+        - ORAA
+        - DEMO
+        - MARKING
+        - OTHER
+    qualification:
+      type: string
+      enum:
+        - STANDARD
+        - COORDINATOR
+        - PHD
+    repeat:
+      type: boolean
+      description: Whether the session is a repeat within seven days.
+    deliveryHours:
+      type: number
+      format: float
+      minimum: 0.1
+      maximum: 10.0
+      description: In-class delivery hours entered by the lecturer/tutor.
+    description:
+      type: string
+      maxLength: 1000
+      description: Free-form notes describing the work performed.
+
 TimesheetCreateRequest:
   allOf:
-    - $ref: '#/TimesheetQuoteRequest'
-  description: Client submits instructional fields only; financial values are recalculated server-side.
+    - $ref: '#/TimesheetInstructionRequest'
+  description: |
+    Client submits instructional fields only; financial values are recalculated server-side.
 
 TimesheetUpdateRequest:
-  allOf:
-    - $ref: '#/TimesheetQuoteRequest'
-  description: Same shape as create request; ignored fields will be recalculated.
+  type: object
+  required:
+    - taskType
+    - qualification
+    - repeat
+    - deliveryHours
+    - description
+  properties:
+    taskType:
+      type: string
+      enum:
+        - LECTURE
+        - TUTORIAL
+        - ORAA
+        - DEMO
+        - MARKING
+        - OTHER
+    qualification:
+      type: string
+      enum:
+        - STANDARD
+        - COORDINATOR
+        - PHD
+    repeat:
+      type: boolean
+    deliveryHours:
+      type: number
+      format: float
+      minimum: 0.1
+      maximum: 10.0
+    sessionDate:
+      type: string
+      format: date
+      description: Updated session date, if applicable.
+    description:
+      type: string
+      maxLength: 1000
+      description: Updated notes describing the work performed.
+  description: |
+    Instructional fields that can be updated on an existing timesheet.  
+    Financial values remain server-calculated and must not be supplied.
 
 TimesheetResponse:
   type: object
