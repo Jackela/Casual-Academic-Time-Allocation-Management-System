@@ -6,6 +6,7 @@ import commonSchema from '../../../../schema/common.schema.json';
 import { secureApiClient } from '../../services/api-secure';
 import { secureLogger } from '../../utils/secure-logger';
 import { getConfig } from '../../config/unified-config';
+import { ENV_CONFIG } from '../../utils/environment';
 
 export interface TimesheetConstraintOverrides {
   hours?: {
@@ -60,6 +61,14 @@ const validateServerConstraints: ValidateFunction<TimesheetConstraintPayload> =
   ajv.compile(serverConstraintSchema);
 
 const resolveTimesheetConfigEndpoints = (): string[] => {
+  if (
+    (typeof __E2E_GLOBALS__ !== 'undefined' && __E2E_GLOBALS__) ||
+    ENV_CONFIG.isE2E() ||
+    ENV_CONFIG.getMode() === 'test'
+  ) {
+    return [];
+  }
+
   const endpoints = new Set<string>(['/api/config']);
 
   try {

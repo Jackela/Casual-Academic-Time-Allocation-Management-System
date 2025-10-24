@@ -97,6 +97,12 @@ public class DefaultTimesheetPermissionPolicy implements TimesheetPermissionPoli
     // Creation Permissions
     // =========================
     
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Tutor-initiated creation is explicitly disallowed; only ADMIN and LECTURER
+     * roles may initiate timesheets to enforce delegated creation workflows.</p>
+     */
     @Override
     public boolean canCreateTimesheet(User creator) {
         if (creator == null || creator.getRole() == null) {
@@ -104,7 +110,7 @@ public class DefaultTimesheetPermissionPolicy implements TimesheetPermissionPoli
         }
 
         return switch (creator.getRole()) {
-            case ADMIN, LECTURER, TUTOR -> true;
+            case ADMIN, LECTURER -> true;
             default -> false;
         };
     }
@@ -120,7 +126,7 @@ public class DefaultTimesheetPermissionPolicy implements TimesheetPermissionPoli
      * <li>Validates creator has general creation permission (LECTURER or ADMIN role)</li>
      * <li>ADMIN role: Grants universal creation rights (bypasses further checks)</li>
      * <li>LECTURER role: Validates course authority and tutor role requirements</li>
-     * <li>TUTOR role: Self-service only (creator must equal tutor)</li>
+     * <li>TUTOR role: Creation not permitted (must escalate to lecturer/admin)</li>
      * </ol>
      * 
      * <p><strong>Business Logic Implementation:</strong>
@@ -168,15 +174,7 @@ public class DefaultTimesheetPermissionPolicy implements TimesheetPermissionPoli
             return course.getLecturerId().equals(creator.getId());
         }
         
-        if (creator.getRole() == UserRole.TUTOR) {
-            if (tutor.getRole() != UserRole.TUTOR) {
-                return false;
-            }
-
-            return creator.getId().equals(tutor.getId());
-        }
-
-        // All other cases denied (invalid roles)
+        // TUTOR and all other roles are denied creation privileges
         return false;
     }
     

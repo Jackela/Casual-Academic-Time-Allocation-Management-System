@@ -15,6 +15,7 @@ public class UserResponse {
     private String email;
     private String name;
     private String role;
+    private Boolean isActive;
 
     /**
      * Default constructor
@@ -31,10 +32,15 @@ public class UserResponse {
      * @param role User role as string
      */
     public UserResponse(Long id, String email, String name, String role) {
+        this(id, email, name, role, null);
+    }
+
+    public UserResponse(Long id, String email, String name, String role, Boolean isActive) {
         this.id = id;
         this.email = email;
         this.name = name;
         this.role = role;
+        this.isActive = isActive;
     }
 
     public Long getId() {
@@ -69,6 +75,14 @@ public class UserResponse {
         this.role = role;
     }
 
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+
     @Override
     public String toString() {
         return "UserResponse{" +
@@ -76,6 +90,7 @@ public class UserResponse {
                 ", email='" + email + '\'' +
                 ", name='" + name + '\'' +
                 ", role='" + role + '\'' +
+                ", isActive=" + isActive +
                 '}';
     }
 }

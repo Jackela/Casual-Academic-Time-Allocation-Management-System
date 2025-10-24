@@ -22,7 +22,8 @@
 
 .timesheet-table-container {
   width: 100%;
-  overflow-x: hidden;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .timesheet-table--loading {

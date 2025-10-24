@@ -49,12 +49,13 @@ Notes:
 ## Persistence Endpoints
 
 ### POST `/timesheets`
-Creates a new timesheet entry. Clients submit only the instructional data plus references from the last quote. The backend discards any financial fields that might be present.
+Creates a new timesheet entry. **Only authors with `ADMIN` or `LECTURER` roles are authorised to call this endpoint; tutor-authenticated requests are rejected with HTTP 403.** Clients submit **only the instructional data** (who, what, when). The backend recalculates financial values using the EA Schedule 1 calculator and ignores any monetary fields that might be present.
 
 ```json
 {
   "courseId": 101,
   "tutorId": 2,
+  "weekStartDate": "2025-08-11",
   "taskType": "TUTORIAL",
   "sessionDate": "2025-08-11",
   "deliveryHours": 1.0,
@@ -92,14 +93,14 @@ Updates an existing entry using the same rules as `POST`. The payload excludes c
 
 - `GET /timesheets` supports filtering by tutor, course, date range, and status. Responses include calculator outputs for transparency.
 - `GET /timesheets/{id}` returns a single entry with all SSOT fields.
-- `GET /timesheets/pending-approval` remains unchanged but now exposes `rateCode`, `rateVersion`, and `amount` read-only.
+- `GET /timesheets/pending-final-approval` returns the lecturer-confirmed queue awaiting administrator (HR) action.
 
 ## Error Handling
 
 | Code | Scenario |
 |------|----------|
 | 400  | Validation failure (missing fields, delivery hour limits, tutorial repeat outside window) |
-| 403  | Role lacks permission (e.g., Tutor fetching another tutor's record) |
+| 403  | Role lacks permission (e.g., Tutor attempting to create or update a timesheet, or fetching another tutor's record) |
 | 404  | Timesheet not found or no policy coverage |
 | 409  | Approval workflow conflict |
 

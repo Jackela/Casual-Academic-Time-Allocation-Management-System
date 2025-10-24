@@ -158,7 +158,9 @@ public class ApprovalDomainService {
             (currentStatus == ApprovalStatus.TUTOR_CONFIRMED && action == ApprovalAction.LECTURER_CONFIRM) ||
             (currentStatus == ApprovalStatus.LECTURER_CONFIRMED && action == ApprovalAction.HR_CONFIRM) ||
             (currentStatus == ApprovalStatus.DRAFT && action == ApprovalAction.SUBMIT_FOR_APPROVAL) ||
-            (currentStatus == ApprovalStatus.MODIFICATION_REQUESTED && action == ApprovalAction.SUBMIT_FOR_APPROVAL)) {
+            (currentStatus == ApprovalStatus.MODIFICATION_REQUESTED && action == ApprovalAction.SUBMIT_FOR_APPROVAL) ||
+            (currentStatus == ApprovalStatus.TUTOR_CONFIRMED && action == ApprovalAction.REQUEST_MODIFICATION) ||
+            (currentStatus == ApprovalStatus.LECTURER_CONFIRMED && action == ApprovalAction.REQUEST_MODIFICATION)) {
             return;
         }
 
@@ -224,20 +226,28 @@ public class ApprovalDomainService {
      * Validates comprehensive approval action business rules.
      */
     public void validateApprovalActionBusinessRules(Timesheet timesheet, ApprovalAction action, User requester, Course course) {
-        // 1. Validate current status allows this action (business validity first → 400 on failure)
+        // 1. Enforce domain invariant: Admin approval requires prior Lecturer approval → 409 on violation
+        if (action == ApprovalAction.HR_CONFIRM && timesheet.getStatus() != ApprovalStatus.LECTURER_CONFIRMED) {
+            throw new com.usyd.catams.exception.BusinessConflictException(
+                com.usyd.catams.exception.ErrorCodes.RESOURCE_CONFLICT,
+                "Admin approval requires prior Lecturer approval"
+            );
+        }
+
+        // 2. Validate current status allows this action (business validity first → 400 on failure)
         validateStatusTransition(timesheet.getStatus(), action);
 
-        // 2. Validate user role can perform this type of action (authorization → 403 on failure)
+        // 3. Validate user role can perform this type of action (authorization → 403 on failure)
         if (!canRolePerformAction(requester.getRole(), action)) {
             throw new SecurityException("User role " + requester.getRole() + " cannot perform action " + action);
         }
 
-        // 3. Validate user has permission for this specific timesheet (authorization → 403 on failure)
+        // 4. Validate user has permission for this specific timesheet (authorization → 403 on failure)
         if (!hasPermissionForTimesheet(timesheet, requester, course, action)) {
             throw new SecurityException("User does not have permission to perform " + action + " on this timesheet");
         }
 
-        // 4. Additional business rule validation
+        // 5. Additional business rule validation
         validateBusinessRulesForAction(timesheet, action, requester);
     }
 }

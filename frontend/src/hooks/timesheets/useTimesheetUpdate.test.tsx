@@ -20,8 +20,6 @@ const updateRequest: TimesheetUpdateRequest = {
   weekStartDate: "2024-01-01",
   sessionDate: "2024-01-01",
   deliveryHours: 1.5,
-  hours: 7,
-  hourlyRate: 55,
   description: "Updated hours",
   taskType: "TUTORIAL",
   qualification: "STANDARD",

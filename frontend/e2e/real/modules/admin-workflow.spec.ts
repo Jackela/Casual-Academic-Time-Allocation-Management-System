@@ -98,6 +98,43 @@ test.describe('Admin Backend Workflows', () => {
     expect(status).toBe('REJECTED');
   });
 
+  test('Admin cannot reject the same timesheet twice', async ({ request }) => {
+    const seed = await dataFactory.createTimesheetForTest({
+      description: uniqueDescription('Admin Reject Twice'),
+      targetStatus: 'LECTURER_CONFIRMED',
+    });
+
+    const firstRejectResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+      headers: adminHeaders(tokens),
+      data: {
+        timesheetId: seed.id,
+        action: 'REJECT',
+        comment: 'Rejecting for validation coverage',
+      },
+    });
+    expect(firstRejectResponse.ok()).toBeTruthy();
+
+    const secondRejectResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+      headers: adminHeaders(tokens),
+      data: {
+        timesheetId: seed.id,
+        action: 'REJECT',
+        comment: 'Rejecting for validation coverage',
+      },
+    });
+    expect(secondRejectResponse.ok()).toBeFalsy();
+    expect(secondRejectResponse.status()).toBeGreaterThanOrEqual(400);
+    expect(secondRejectResponse.status()).toBeLessThan(500);
+
+    const detail = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${seed.id}`, {
+      headers: adminHeaders(tokens),
+    });
+    expect(detail.ok()).toBeTruthy();
+    const payload = await detail.json();
+    const status = payload?.status ?? payload?.timesheet?.status;
+    expect(status).toBe('REJECTED');
+  });
+
   test('Admin dashboard summary endpoint returns metrics', async ({ request }) => {
     const summaryResponse = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/dashboard/summary`, {
       headers: adminHeaders(tokens),

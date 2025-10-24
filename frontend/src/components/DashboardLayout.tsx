@@ -5,6 +5,7 @@ import { useAccessControl } from '../auth/access-control';
 import { useNavigate, NavLink } from 'react-router-dom';
 import { Badge } from './ui/badge';
 import NotificationPresenter from './shared/NotificationPresenter';
+import { secureLogger } from '../utils/secure-logger';
 
 // import './DashboardLayout.css'; - REMOVED
 
@@ -19,8 +20,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await session.signOut();
-    navigate('/login');
+    try {
+      await session.signOut();
+    } catch (error) {
+      secureLogger.warn('Logout did not complete cleanly', error);
+    }
+    navigate('/login', { replace: true });
   };
 
   const getRoleDisplayName = (role: string) => {
@@ -67,14 +72,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   };
 
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+    `flex items-center gap-2 border-b-2 px-0 py-3 mr-8 text-sm font-medium transition-colors ${
       isActive
         ? 'border-primary text-primary'
         : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
     }`;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-background text-foreground" data-testid="app-ready">
       {/* Header */}
       <header
         className="sticky bg-gradient-to-r from-brand-primary to-brand-secondary text-white shadow-md elevation-sticky"
@@ -82,7 +87,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         style={{ top: 'calc(var(--safe-top) - var(--header-h) - var(--banner-h) - 16px)' }}
       >
         <div
-          className="container mx-auto flex items-center justify-between p-4"
+          className="layout-container flex items-center justify-between py-4"
           data-testid="dashboard-title-anchor"
         >
           <div className="flex items-baseline gap-3" data-testid="header-left">
@@ -146,7 +151,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
       {/* Navigation */}
       <nav className="border-b bg-card" data-testid="dashboard-nav">
-        <div className="container mx-auto" data-testid="nav-content">
+        <div className="layout-container" data-testid="nav-content">
           <div className="flex gap-1" data-testid="nav-items">
             <NavLink
               to="/dashboard"
@@ -160,32 +165,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               Dashboard
             </NavLink>
 
-            {access.isLecturer && (
-              <>
-                <NavLink
-                  to="/timesheets"
-                  end
-                  className={({ isActive }) => navLinkClassName({ isActive })}
-                  data-testid="nav-timesheets"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h8c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
-                  </svg>
-                  Timesheets
-                </NavLink>
-                <NavLink
-                  to="/approvals"
-                  className={({ isActive }) => navLinkClassName({ isActive })}
-                  data-testid="nav-approvals"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
-                  </svg>
-                  Approvals
-                </NavLink>
-              </>
-            )}
-
             {access.isAdmin && (
               <>
                 <NavLink
@@ -198,16 +177,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </svg>
                   Users
                 </NavLink>
-                <NavLink
-                  to="/reports"
-                  className={({ isActive }) => navLinkClassName({ isActive })}
-                  data-testid="nav-reports"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
-                  </svg>
-                  Reports
-                </NavLink>
               </>
             )}
           </div>
@@ -215,8 +184,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8" data-testid="dashboard-main">
-        <div className="container mx-auto" data-testid="main-content">
+      <main className="flex-1 py-4 sm:py-6 lg:py-8" data-testid="dashboard-main">
+        <div className="layout-container" data-testid="main-content">
           <NotificationPresenter />
           {children}
         </div>

@@ -490,20 +490,8 @@ class BackendManager {
     this.backendOwned = false;
   }
 
-  shouldSkipStartup() {
-    const flag = process.env.E2E_SKIP_BACKEND || '';
-    return ['1', 'true', 'yes'].includes(flag.toLowerCase());
-  }
-
-  async start() {
-    console.log('📋 Starting backend...');
-
-    if (this.shouldSkipStartup()) {
-      console.log('⚙️  Skipping backend startup (E2E_SKIP_BACKEND enabled)');
-      this.backendOwned = false;
-      return true;
-    }
-
+    async start() {
+      console.log('📋 Starting backend...');
     const existingHealth = await this.portManager.checkBackendHealth();
     if (existingHealth.healthy) {
       console.log(`♻️  Reusing backend on ${this.portManager.backendHost}:${this.portManager.backendPort}`);

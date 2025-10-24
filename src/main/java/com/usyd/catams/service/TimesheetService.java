@@ -150,23 +150,23 @@ public interface TimesheetService {
     List<Timesheet> getPendingTimesheetsForApprover(Long approverId);
 
     /**
-     * Get paginated timesheets pending lecturer approval.
+     * Get paginated timesheets pending tutor confirmation.
      * 
      * Access control:
-     * - LECTURER can view timesheets pending approval for their courses only
-     * - ADMIN can view all timesheets pending approval system-wide
-     * - TUTOR cannot access this endpoint (will throw SecurityException)
+     * - TUTOR can view their own pending confirmations only
+     * - ADMIN can view all pending tutor confirmations system-wide
+     * - LECTURER access is disallowed by the permission policy
      * 
      * Business rules:
-     * - Only returns timesheets with status PENDING_LECTURER_APPROVAL
-     * - Results are filtered by lecturer's assigned courses (unless ADMIN)
+     * - Only returns timesheets with status PENDING_TUTOR_CONFIRMATION
+     * - Results are filtered by tutor ownership unless caller is ADMIN
      * - Supports pagination and sorting
      * - Default sort is by submission date (oldest first for priority)
      * 
      * @param requesterId the ID of the user making the request
      * @param pageable pagination and sorting parameters
-     * @return page of timesheets pending lecturer approval
-     * @throws SecurityException if user lacks permission (TUTOR role)
+     * @return page of timesheets pending tutor confirmation
+     * @throws SecurityException if user lacks permission (e.g. LECTURER role)
      */
     Page<Timesheet> getPendingApprovalTimesheets(Long requesterId, Pageable pageable);
 

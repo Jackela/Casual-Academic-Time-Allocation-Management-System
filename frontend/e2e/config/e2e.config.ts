@@ -3,37 +3,72 @@
  * Provides environment-specific settings for consistent test execution
  */
 
-const env = (name: string, fallback?: string) =>
-  (process.env[name] && String(process.env[name])) ||
-  (fallback !== undefined ? fallback : undefined);
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const resolveBackendUrl = () => {
-  const explicitUrl = env('E2E_BACKEND_URL');
-  if (explicitUrl) return explicitUrl;
-  const port = env('E2E_BACKEND_PORT', '8084');
-  return `http://127.0.0.1:${port}`;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendRoot = path.resolve(__dirname, '..', '..');
+const projectRoot = path.resolve(frontendRoot, '..');
+
+const loadEnvFile = (filePath: string) => {
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+
+  const content = fs.readFileSync(filePath, 'utf-8');
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+
+    const separator = line.indexOf('=');
+    if (separator === -1) {
+      continue;
+    }
+
+    const key = line.slice(0, separator).trim();
+    const value = line.slice(separator + 1).trim();
+
+    if (!process.env[key] && key.length > 0) {
+      process.env[key] = value;
+    }
+  }
 };
 
-const resolveFrontendUrl = () => {
-  const explicitUrl = env('E2E_FRONTEND_URL');
-  if (explicitUrl) return explicitUrl;
-  const port = env('E2E_FRONTEND_PORT', '5174');
-  return `http://localhost:${port}`;
+[
+  path.resolve(projectRoot, '.env'),
+  path.resolve(projectRoot, '.env.e2e'),
+  path.resolve(frontendRoot, '.env'),
+  path.resolve(frontendRoot, '.env.e2e'),
+].forEach(loadEnvFile);
+
+const requireEnv = (name: string): string => {
+  const value = process.env[name];
+  if (!value || value.trim().length === 0) {
+    throw new Error(`Missing required environment variable "${name}" for E2E configuration`);
+  }
+  return value.trim();
 };
+
+const resolveBackendUrl = () => requireEnv('E2E_BACKEND_URL');
+const resolveFrontendUrl = () => requireEnv('E2E_FRONTEND_URL');
 
 const resolveTestUsers = () => ({
   lecturer: {
-    email: env('E2E_LECTURER_EMAIL', 'lecturer@example.com'),
-    password: env('E2E_LECTURER_PASSWORD', 'Lecturer123!')
+    email: requireEnv('E2E_LECTURER_EMAIL'),
+    password: requireEnv('E2E_LECTURER_PASSWORD'),
   },
   tutor: {
-    email: env('E2E_TUTOR_EMAIL', 'tutor@example.com'),
-    password: env('E2E_TUTOR_PASSWORD', 'Tutor123!')
+    email: requireEnv('E2E_TUTOR_EMAIL'),
+    password: requireEnv('E2E_TUTOR_PASSWORD'),
   },
   admin: {
-    email: env('E2E_ADMIN_EMAIL', 'admin@example.com'),
-    password: env('E2E_ADMIN_PASSWORD', 'Admin123!')
-  }
+    email: requireEnv('E2E_ADMIN_EMAIL'),
+    password: requireEnv('E2E_ADMIN_PASSWORD'),
+  },
 });
 
 export const E2E_CONFIG = {

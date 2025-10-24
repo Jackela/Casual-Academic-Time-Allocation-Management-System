@@ -15,6 +15,7 @@ export interface NotificationPayload {
 
 export type AppEvent =
   | { type: 'TIMESHEET_SUBMIT_SUCCESS'; count: number }
+  | { type: 'TIMESHEET_CREATE_SUCCESS'; tutorName?: string; courseName?: string }
   | { type: 'API_ERROR'; message: string; retry?: () => void }
   | { type: 'DRAFTS_PENDING'; count: number; onSubmitDrafts?: () => void }
   | { type: 'REJECTIONS_PENDING'; count: number }
@@ -31,6 +32,18 @@ export function notificationRouter(event: AppEvent): NotificationPayload | null 
         severity: 'success',
         durationMs: 4500,
       };
+    case 'TIMESHEET_CREATE_SUCCESS': {
+      const tutor = event.tutorName ?? 'selected tutor';
+      const course = event.courseName ? ` (${event.courseName})` : '';
+      return {
+        channel: 'toast',
+        message: `Timesheet created for ${tutor}${course}.`,
+        title: 'Draft created',
+        icon: '🆕',
+        severity: 'success',
+        durationMs: 4500,
+      };
+    }
     case 'API_ERROR':
       return {
         channel: 'banner',

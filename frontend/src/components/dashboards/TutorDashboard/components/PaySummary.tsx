@@ -10,10 +10,18 @@ export interface PaySummaryProps {
   thisWeekPay: number;
   averagePerTimesheet: number;
   paymentStatus: Record<string, number>;
+  nextPaymentDate?: string | null;
   className?: string;
 }
 
-const PaySummary = memo<PaySummaryProps>(({ totalEarned, thisWeekPay, averagePerTimesheet, paymentStatus, className = '' }) => {
+const PaySummary = memo<PaySummaryProps>(({
+  totalEarned,
+  thisWeekPay,
+  averagePerTimesheet,
+  paymentStatus,
+  nextPaymentDate = null,
+  className = '',
+}) => {
   const formatCurrency = useCurrencyFormatter();
   const totalEarningsLabel = messages.tutorDashboard.totalEarnings;
 
@@ -23,11 +31,11 @@ const PaySummary = memo<PaySummaryProps>(({ totalEarned, thisWeekPay, averagePer
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
-  const nextPaymentDate = formatters.date('2024-01-31');
+  const nextPaymentText = nextPaymentDate ? formatters.date(nextPaymentDate) : 'N/A';
   const cardClassName = ['p-4', className].filter(Boolean).join(' ');
 
   return (
-    <Card className={cardClassName}>
+    <Card className={`w-full max-w-full ${cardClassName}`}>
       <CardTitle className="mb-2 text-lg font-semibold">Pay Summary</CardTitle>
       <CardContent className="space-y-2 p-0">
         <div className="flex justify-between text-sm">
@@ -48,7 +56,7 @@ const PaySummary = memo<PaySummaryProps>(({ totalEarned, thisWeekPay, averagePer
           <div className="space-y-1 text-sm text-muted-foreground">
             <p>{paymentStatus.FINAL_CONFIRMED || 0} Final Confirmed</p>
             <p>{paymentStatus.LECTURER_CONFIRMED || 0} Awaiting Final Approval</p>
-            <p className="font-medium text-primary">Next Payment Date: {nextPaymentDate}</p>
+            <p className="font-medium text-primary">Next Payment Date: {nextPaymentText}</p>
           </div>
         </div>
 

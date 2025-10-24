@@ -7,7 +7,6 @@ import type { Dispatch, SetStateAction } from "react";
 import {
   useTimesheetQuery,
   useTimesheetDashboardSummary,
-  useCreateTimesheet,
   useUpdateTimesheet,
   useTimesheetStats,
 } from "../../../../hooks/timesheets";
@@ -31,7 +30,6 @@ type TimesheetsQueryResult = ReturnType<typeof useTimesheetQuery>;
 type DashboardSummaryQueryResult = ReturnType<
   typeof useTimesheetDashboardSummary
 >;
-type CreateTimesheetMutation = ReturnType<typeof useCreateTimesheet>;
 type UpdateTimesheetMutation = ReturnType<typeof useUpdateTimesheet>;
 
 export interface TutorDashboardViewModel {
@@ -57,7 +55,6 @@ export interface TutorDashboardViewModel {
   inProgressCount: number;
   timesheetsQuery: TimesheetsQueryResult;
   dashboardQuery: DashboardSummaryQueryResult;
-  createMutation: CreateTimesheetMutation;
   updateMutation: UpdateTimesheetMutation;
   tutorStats: ReturnType<typeof useTimesheetStats>;
 }
@@ -75,7 +72,6 @@ export const useTutorDashboardViewModel = (): TutorDashboardViewModel => {
     scope: "tutor",
     lazy: false,
   });
-  const createMutation = useCreateTimesheet();
   const updateMutation = useUpdateTimesheet();
   const tutorStats = useTimesheetStats(timesheetsQuery.timesheets);
 
@@ -225,35 +221,33 @@ export const useTutorDashboardViewModel = (): TutorDashboardViewModel => {
     tutorStats.totalPay,
   ]);
 
-  const supportResources = useMemo<SupportResourceItem[]>(
-    () => [
-      {
-        id: "knowledge-base",
-        label: "Timesheet Knowledge Base",
-        description:
-          "Step-by-step guides for submitting and tracking timesheets.",
-        href: "#",
-        icon: "📚",
-      },
-      {
-        id: "contact-staffing",
-        label: "Contact Staffing Team",
-        description:
-          "Email the staffing desk for urgent issues or pay corrections.",
-        href: "mailto:staffing@casual-academic.edu",
-        icon: "✉️",
-      },
-      {
-        id: "office-hours",
-        label: "Tutor Support Hours",
-        description:
-          "Join weekly drop-in sessions for payroll and scheduling questions.",
-        href: "#",
-        icon: "🕑",
-      },
-    ],
-    [],
-  );
+  const supportResources = useMemo<SupportResourceItem[]>(() => {
+    const summary = dashboardQuery.data as unknown as {
+      supportResources?: Array<Partial<SupportResourceItem>>;
+    } | null;
+
+    if (!summary?.supportResources || !Array.isArray(summary.supportResources)) {
+      return [];
+    }
+
+  return summary.supportResources
+    .filter((resource): resource is Required<Pick<SupportResourceItem, 'id' | 'label'>> & Partial<SupportResourceItem> => {
+      return Boolean(resource?.id && resource?.label);
+    })
+    .map((resource) => ({
+      id: resource.id!,
+      label: resource.label!,
+      description: resource.description,
+      href:
+        typeof resource.href === 'string' && resource.href.trim() && resource.href !== '#'
+          ? resource.href
+          : undefined,
+      comingSoon:
+        !resource.href ||
+        (typeof resource.href === 'string' && (!resource.href.trim() || resource.href === '#')),
+      icon: resource.icon,
+    }));
+  }, [dashboardQuery.data]);
 
   const visibleRejectedCount = dismissedSet.has("rejected-reminder")
     ? 0
@@ -263,13 +257,19 @@ export const useTutorDashboardViewModel = (): TutorDashboardViewModel => {
     : draftBaseCount;
 
   const visibleDeadlines = useMemo(() => {
-    const deadlines = (dashboardQuery.data?.upcomingDeadlines ??
-      []) as DashboardDeadline[];
-    return deadlines.filter((deadline, index) => {
+    const summary = dashboardQuery.data as
+      | { deadlines?: DashboardDeadline[]; upcomingDeadlines?: DashboardDeadline[] }
+      | null;
+    const rawDeadlines = Array.isArray(summary?.deadlines)
+      ? summary!.deadlines
+      : Array.isArray(summary?.upcomingDeadlines)
+        ? summary!.upcomingDeadlines
+        : [];
+    return rawDeadlines.filter((deadline, index) => {
       const identifier = `deadline-${deadline.courseId ?? index}`;
       return !dismissedSet.has(identifier);
     });
-  }, [dashboardQuery.data?.upcomingDeadlines, dismissedSet]);
+  }, [dashboardQuery.data, dismissedSet]);
 
   const handleNotificationDismiss = useCallback((notificationId: string) => {
     setDismissedNotifications((prev) => {
@@ -308,7 +308,6 @@ export const useTutorDashboardViewModel = (): TutorDashboardViewModel => {
     inProgressCount,
     timesheetsQuery,
     dashboardQuery,
-    createMutation,
     updateMutation,
     tutorStats,
   };

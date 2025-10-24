@@ -46,6 +46,39 @@ const colors = {
 
 const TEST_FILE_REGEX = /\.(test|spec)\.[jt]sx?$/i;
 
+const loadEnvFile = (filePath) => {
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+
+  const content = fs.readFileSync(filePath, 'utf-8');
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+
+    const separator = line.indexOf('=');
+    if (separator === -1) {
+      continue;
+    }
+
+    const key = line.slice(0, separator).trim();
+    const value = line.slice(separator + 1).trim();
+
+    if (!process.env[key] && key.length > 0) {
+      process.env[key] = value;
+    }
+  }
+};
+
+[
+  join(projectRoot, '.env'),
+  join(projectRoot, '.env.e2e'),
+  join(frontendDir, '.env'),
+  join(frontendDir, '.env.e2e'),
+].forEach(loadEnvFile);
+
 const managedChildren = new Set();
 
 function log(message, color = colors.reset) {
@@ -347,12 +380,6 @@ function collectPlaywrightArgs() {
 }
 
 async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backendProfile }) {
-  const skipBackend = isTruthy(process.env.E2E_SKIP_BACKEND);
-  if (skipBackend) {
-    logWarning('Skipping backend startup because E2E_SKIP_BACKEND is enabled.');
-    return;
-  }
-
   if (await isServiceHealthy(backendHealthUrl)) {
     logSuccess(`Detected healthy backend at ${backendHealthUrl}. Reusing existing instance.`);
     return;
@@ -422,15 +449,31 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
 
   logStep('STEP 3', 'Starting Vite frontend dev server...');
   const npmCommand = resolveNpmCommand();
+  // Align Vite dev origin with E2E_FRONTEND_URL to match storageState origin exactly
+  let resolvedHost = frontendHost;
+  let resolvedPort = frontendPort;
+  let frontendOrigin = `http://${resolvedHost}:${resolvedPort}`;
+  try {
+    if (process.env.E2E_FRONTEND_URL) {
+      const u = new URL(process.env.E2E_FRONTEND_URL);
+      if (u.hostname) resolvedHost = u.hostname;
+      if (u.port) resolvedPort = Number(u.port);
+      frontendOrigin = `${u.protocol}//${u.host}`;
+    }
+  } catch {}
   const env = {
     E2E_FRONTEND_PORT: String(frontendPort),
     E2E_BACKEND_PORT: String(backendPort),
     E2E_BACKEND_URL: backendUrl,
-    VITE_API_BASE_URL: backendUrl,
+    VITE_API_BASE_URL: frontendOrigin,
+    VITE_API_PROXY_TARGET: backendUrl,
+    VITE_E2E: 'true',
+    E2E_FRONTEND_HOST: frontendHost,
     NODE_ENV: 'test',
   };
 
-  const child = spawnBackground(npmCommand, ['run', 'dev', '--', '--mode', 'e2e', '--port', String(frontendPort)], {
+  const devArgs = ['run', 'dev', '--', '--mode', 'e2e', '--host', resolvedHost, '--port', String(resolvedPort)];
+  const child = spawnBackground(npmCommand, devArgs, {
     cwd: frontendDir,
     env,
   });
@@ -560,8 +603,19 @@ async function main() {
     });
 
     // Reset backend test data after backend is ready
-    if (!isTruthy(process.env.E2E_SKIP_BACKEND)) {
-      await resetBackendData(backendUrl);
+    await resetBackendData(backendUrl);
+    // Seed minimal lecturer resources for deterministic UI (id=2)
+    try {
+      const token = process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset';
+      const seedUrl = new URL('/api/test-data/seed/lecturer-resources', backendUrl).toString();
+      await fetch(seedUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Test-Reset-Token': token },
+        body: JSON.stringify({ lecturerId: 2, seedTutors: true }),
+      }).catch(() => undefined);
+      logSuccess('Seeded lecturer resources (id=2)');
+    } catch (e) {
+      logWarning(`Seed step failed or skipped: ${e.message}`);
     }
 
     await ensureFrontend({
@@ -607,4 +661,3 @@ main()
     await cleanupAll();
     process.exit(1);
   });
-

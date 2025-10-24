@@ -12,6 +12,14 @@ vi.mock('../../config/unified-config', () => ({
   }),
 }));
 
+vi.mock('../../utils/environment', () => ({
+  ENV_CONFIG: {
+    isE2E: () => false,
+    getMode: () => 'development',
+    isTest: () => false,
+  },
+}));
+
 vi.mock('../../utils/secure-logger', () => ({
   secureLogger: {
     warn: vi.fn(),

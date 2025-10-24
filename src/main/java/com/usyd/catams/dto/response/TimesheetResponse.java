@@ -10,6 +10,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Response DTO for timesheet data.
@@ -39,6 +41,10 @@ public class TimesheetResponse {
     @JsonProperty("weekStartDate")
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate weekStartDate;
+
+    @JsonProperty("sessionDate")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate sessionDate;
 
     @JsonProperty("hours")
     private BigDecimal hours;
@@ -98,6 +104,9 @@ public class TimesheetResponse {
     @JsonProperty("rejectionReason")
     private String rejectionReason;
 
+    @JsonProperty("approvals")
+    private List<ApprovalActionResponse> approvals = Collections.emptyList();
+
     // Default constructor
     public TimesheetResponse() {
     }
@@ -113,6 +122,7 @@ public class TimesheetResponse {
         this.courseId = courseId;
         this.courseName = courseName;
         this.weekStartDate = weekStartDate;
+        this.sessionDate = weekStartDate;
         this.hours = hours;
         this.hourlyRate = hourlyRate;
         this.description = description;
@@ -185,6 +195,14 @@ public class TimesheetResponse {
 
     public void setWeekStartDate(LocalDate weekStartDate) {
         this.weekStartDate = weekStartDate;
+    }
+
+    public LocalDate getSessionDate() {
+        return sessionDate;
+    }
+
+    public void setSessionDate(LocalDate sessionDate) {
+        this.sessionDate = sessionDate;
     }
 
     public BigDecimal getHours() {
@@ -339,6 +357,14 @@ public class TimesheetResponse {
         this.rejectionReason = rejectionReason;
     }
 
+    public List<ApprovalActionResponse> getApprovals() {
+        return approvals;
+    }
+
+    public void setApprovals(List<ApprovalActionResponse> approvals) {
+        this.approvals = approvals == null ? Collections.emptyList() : approvals;
+    }
+
     // Business logic methods
     private BigDecimal calculateTotalPay() {
         if (totalPay != null) {
@@ -373,6 +399,7 @@ public class TimesheetResponse {
                 ", courseId=" + courseId +
                 ", courseName='" + courseName + '\'' +
                 ", weekStartDate=" + weekStartDate +
+                ", sessionDate=" + sessionDate +
                 ", hours=" + hours +
                 ", hourlyRate=" + hourlyRate +
                 ", deliveryHours=" + deliveryHours +
@@ -392,6 +419,7 @@ public class TimesheetResponse {
                 ", canBeApproved=" + canBeApproved +
                 ", createdBy=" + createdBy +
                 ", rejectionReason='" + rejectionReason + '\'' +
+                ", approvals=" + approvals +
                 '}';
     }
 }

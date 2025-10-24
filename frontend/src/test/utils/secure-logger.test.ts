@@ -21,9 +21,6 @@ vi.mock('../../utils/environment', () => ({
       getDebugInfo: vi.fn(() => ({
         mode: 'development',
         isE2E: false,
-        bypassRole: undefined,
-        hasAuthBypass: false,
-        shouldUseMSW: false,
         testFlag: false
       }))
     }

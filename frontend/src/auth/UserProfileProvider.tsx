@@ -9,6 +9,8 @@ import React, {
 } from 'react';
 import { authManager } from '../services/auth-manager';
 import { secureLogger } from '../utils/secure-logger';
+import { secureApiClient } from '../services/api-secure';
+import { API_ENDPOINTS } from '../types/api';
 import { useSession } from './SessionProvider';
 import type { User, UserProfileContextValue, UserProfileState } from '../types/auth';
 
@@ -49,6 +51,44 @@ export const UserProfileProvider: React.FC<UserProfileProviderProps> = ({ childr
       setState({ profile: null, loading: false, error: null });
     }
   }, [session.isAuthenticated]);
+
+  // Async reconciliation: when authenticated and user profile is missing/partial, fetch canonical profile
+  useEffect(() => {
+    let cancelled = false;
+    const shouldReconcile = session.isAuthenticated && (!state.profile || !state.profile.role);
+    if (!shouldReconcile) return;
+
+    (async () => {
+      try {
+        setState((prev) => ({ ...prev, loading: true, error: null }));
+        const res = await secureApiClient.get<User>(API_ENDPOINTS.USERS.PROFILE);
+        if (cancelled) return;
+        const profile = res.data;
+        // Persist into authManager to keep a single source of truth
+        const auth = authManager.getAuthState();
+        if (auth.token) {
+          try {
+            authManager.setAuth(auth.token, profile);
+          } catch (e) {
+            // fallback: just update provider state
+            setState({ profile, loading: false, error: null });
+            return;
+          }
+        } else {
+          setState({ profile, loading: false, error: null });
+        }
+        setState({ profile, loading: false, error: null });
+      } catch (error) {
+        if (cancelled) return;
+        secureLogger.warn?.('User profile reconciliation failed', error as Error);
+        setState((prev) => ({ ...prev, loading: false }));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session.isAuthenticated, state.profile]);
 
   const reload = useCallback(async () => {
     try {

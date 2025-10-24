@@ -24,6 +24,8 @@ import {
 import { Button } from "../../ui/button";
 import { formatters } from "../../../utils/formatting";
 import "../../../styles/dashboard-shell.css";
+import { useUserProfile } from "../../../auth/UserProfileProvider";
+import LecturerTimesheetCreateModal from "./components/LecturerTimesheetCreateModal";
 
 export interface LecturerDashboardShellProps {
   className?: string;
@@ -118,6 +120,13 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
     refetchDashboard,
     resetApproval,
   } = useLecturerDashboardData();
+  const { profile } = useUserProfile();
+  const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const lecturerId = profile?.id ?? null;
+
+  const handleCreateSuccess = useCallback(async () => {
+    await Promise.all([refreshPending(), refetchDashboard()]);
+  }, [refreshPending, refetchDashboard]);
 
   const rejectionDialogRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
@@ -228,9 +237,9 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
 
   if (pageLoading) {
     return (
-      <div className="unified-container">
-        <div className={`macro-grid ${className}`}>
-          <div className="macro-grid-hero">
+      <div className="layout-container">
+        <div className={`layout-grid ${className}`}>
+          <div className="layout-hero">
             <PageLoadingIndicator
               message="Loading pending timesheets…"
               subMessage="Fetching lecturer metrics and approval queue."
@@ -247,19 +256,32 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
   const isRefreshing = loading.pending || loading.dashboard;
 
   return (
-    <div className="unified-container">
+    <div className="layout-container">
       <div
-        className={`macro-grid ${className}`}
+        className={`layout-grid ${className}`}
         data-testid="lecturer-dashboard"
         role="main"
         aria-label={`Lecturer Dashboard (${sessionStatus})`}
       >
-        <header className="macro-grid-hero">
+        <header className="layout-hero">
           <LecturerSummaryBanner
             welcomeMessage={welcomeMessage}
             urgentCount={urgentCount}
             metrics={metrics}
           />
+
+          <div className="mt-4 flex flex-wrap items-center gap-3" data-testid="lecturer-create-entry">
+            <Button
+              type="button"
+              data-testid="lecturer-create-open-btn"
+              aria-haspopup="dialog"
+              aria-expanded={isCreateModalOpen ? 'true' : 'false'}
+              aria-controls="lecturer-create-timesheet-modal"
+              onClick={() => setCreateModalOpen(true)}
+            >
+              Create Timesheet
+            </Button>
+          </div>
 
           <LecturerFiltersPanel
             filters={filters}
@@ -314,12 +336,22 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
           )}
         </header>
 
-        <main className="macro-grid-content has-sidebar">
+        <main className="layout-content">
           <section
-            className="macro-grid-main"
+            className="layout-main"
             role="region"
             aria-label="Pending Approvals"
           >
+            <div className="mb-4 flex items-center justify-between">
+              <div />
+            </div>
+
+            {Object.keys(metrics.statusBreakdown).length > 0 && (
+              <div className="mb-6">
+                <StatusBreakdown statusBreakdown={metrics.statusBreakdown} />
+              </div>
+            )}
+            
             <LecturerPendingTable
               timesheets={displayTimesheets}
               hasNoPendingTimesheets={noPendingTimesheets}
@@ -336,15 +368,6 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
               onClearFilters={handleClearFilters}
             />
           </section>
-
-          <aside
-            className="macro-grid-sidebar"
-            data-testid="dashboard-sidebar"
-          >
-            {Object.keys(metrics.statusBreakdown).length > 0 && (
-              <StatusBreakdown statusBreakdown={metrics.statusBreakdown} />
-            )}
-          </aside>
         </main>
       </div>
 
@@ -411,6 +434,15 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {isCreateModalOpen && (
+        <LecturerTimesheetCreateModal
+          isOpen={isCreateModalOpen}
+          lecturerId={lecturerId ?? 0}
+          onClose={() => setCreateModalOpen(false)}
+          onSuccess={handleCreateSuccess}
+        />
       )}
 
       <div role="status" aria-live="polite" className="sr-only">

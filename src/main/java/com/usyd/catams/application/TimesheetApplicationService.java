@@ -17,7 +17,9 @@ import com.usyd.catams.policy.TimesheetPermissionPolicy;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.service.TimesheetApplicationFacade;
 import com.usyd.catams.service.TimesheetService;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -169,6 +171,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         timesheet.setHourlyRate(calculation.getHourlyRate());
         timesheet.setDeliveryHours(calculation.getDeliveryHours());
         timesheet.setAssociatedHours(calculation.getAssociatedHours());
+        timesheet.setSessionDate(calculation.getSessionDate());
         timesheet.setCalculatedAmount(calculation.getAmount());
         timesheet.setRateCode(calculation.getRateCode());
         timesheet.setCalculationFormula(calculation.getFormula());
@@ -212,7 +215,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     @Override
     @Transactional(readOnly = true)
     public Page<Timesheet> getTimesheets(Long tutorId, Long courseId, ApprovalStatus status,
-                                       Long requesterId, Pageable pageable) {
+                                        Long requesterId, Pageable pageable) {
         
         User requester = userRepository.findById(requesterId)
             .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
@@ -248,13 +251,14 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         User requester = userRepository.findById(requesterId)
             .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
 
-        Optional<Timesheet> timesheetOpt = timesheetRepository.findById(timesheetId);
+        Optional<Timesheet> timesheetOpt = timesheetRepository.findByIdWithApprovals(timesheetId);
         
         if (timesheetOpt.isEmpty()) {
             return timesheetOpt;
         }
 
         Timesheet timesheet = timesheetOpt.get();
+        org.hibernate.Hibernate.initialize(timesheet.getApprovals());
         Course course = courseRepository.findById(timesheet.getCourseId())
             .orElseThrow(() -> new IllegalArgumentException("Course not found"));
 
@@ -355,14 +359,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         Course course = courseRepository.findById(timesheet.getCourseId())
             .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
 
-        // Step 1: Authorization check (403 if fails)
-        if (!permissionPolicy.canModifyTimesheet(requester, timesheet, course)) {
-            throw new com.usyd.catams.exception.AuthorizationException(
-                "User " + requester.getId() + " (" + requester.getRole() + 
-                ") does not have permission to modify timesheet " + timesheetId);
-        }
-        
-        // Step 2: Business rule check - Use AuthorizationException for tutor restrictions (403 if fails)
+        // Step 1: Business rule check - Use AuthorizationException for tutor restrictions (403 if fails)
         if (!timesheetDomainService.canRoleEditTimesheetWithStatus(requester.getRole(), timesheet.getStatus())) {
             if (requester.getRole() == UserRole.TUTOR) {
                 throw new com.usyd.catams.exception.AuthorizationException("TUTOR can only update timesheets with REJECTED status. " +
@@ -371,6 +368,13 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
                 throw new com.usyd.catams.exception.BusinessRuleException("Cannot update timesheet with status: " + timesheet.getStatus() + 
                     ". Only DRAFT timesheets can be updated.");
             }
+        }
+
+        // Step 2: Authorization check (403 if fails)
+        if (!permissionPolicy.canModifyTimesheet(requester, timesheet, course)) {
+            throw new com.usyd.catams.exception.AuthorizationException(
+                "User " + requester.getId() + " (" + requester.getRole() + 
+                ") does not have permission to modify timesheet " + timesheetId);
         }
 
         timesheetDomainService.validateUpdateData(hours, hourlyRate, description);
@@ -589,7 +593,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
             case LECTURER:
                 return timesheetRepository.findApprovedByTutorByCourses(requester.getId(), pageable);
             case ADMIN:
-                return timesheetRepository.findByStatus(ApprovalStatus.TUTOR_CONFIRMED, pageable);
+                return timesheetRepository.findByStatus(ApprovalStatus.LECTURER_CONFIRMED, pageable);
             default:
                 throw new com.usyd.catams.exception.AuthorizationException("Unknown user role: " + requester.getRole());
         }

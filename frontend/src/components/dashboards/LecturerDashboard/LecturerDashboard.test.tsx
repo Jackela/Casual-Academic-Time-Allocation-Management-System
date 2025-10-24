@@ -29,6 +29,7 @@ const timesheetHooksMock = vi.hoisted(() => ({
   useApprovalAction: vi.fn(),
   usePendingTimesheets: vi.fn(),
   useTimesheetStats: vi.fn(),
+  useTimesheetCreate: vi.fn(),
 }));
 
 vi.mock("../../../auth/SessionProvider", () => sessionHooksMock);
@@ -46,6 +47,7 @@ const mockTimesheetHooks = timesheetHooksMock as unknown as {
   useApprovalAction: ReturnType<typeof vi.fn>;
   usePendingTimesheets: ReturnType<typeof vi.fn>;
   useTimesheetStats: ReturnType<typeof vi.fn>;
+  useTimesheetCreate: ReturnType<typeof vi.fn>;
 };
 
 const renderWithRouter = (ui: React.ReactElement, { route = "/" } = {}) => {
@@ -152,6 +154,14 @@ beforeEach(() => {
   });
 
   mockTimesheetHooks.useTimesheetStats.mockReturnValue(mockLecturerStats);
+
+  mockTimesheetHooks.useTimesheetCreate.mockReturnValue({
+    createTimesheet: vi.fn(),
+    loading: false,
+    error: null,
+    data: null,
+    reset: vi.fn(),
+  });
 });
 
 describe("LecturerDashboard Component", () => {

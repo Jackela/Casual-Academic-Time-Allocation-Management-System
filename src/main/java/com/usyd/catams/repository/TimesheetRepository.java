@@ -5,6 +5,7 @@ import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.enums.ApprovalStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +18,10 @@ import java.util.Optional;
 
 @Repository
 public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
+    
+    @EntityGraph(attributePaths = {"approvals"})
+    @Query("SELECT t FROM Timesheet t WHERE t.id = :id")
+    Optional<Timesheet> findByIdWithApprovals(@Param("id") Long id);
     
     /**
      * Find all timesheets for a specific tutor.
@@ -43,6 +48,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param pageable the paging information
      * @return page of timesheets ordered by creation date descending
      */
+    @EntityGraph(attributePaths = {"approvals"})
     Page<Timesheet> findByTutorIdOrderByCreatedAtDesc(Long tutorId, Pageable pageable);
     
     /**
@@ -101,6 +107,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     /**
      * Find timesheets by status and tutor with paging ordered by creation time ascending.
      */
+    @EntityGraph(attributePaths = {"approvals"})
     Page<Timesheet> findByStatusAndTutorIdOrderByCreatedAtAsc(ApprovalStatus status, Long tutorId, Pageable pageable);
     
     /**
@@ -128,6 +135,15 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @return list of timesheets
      */
     List<Timesheet> findByCourseIdAndStatus(Long courseId, ApprovalStatus status);
+    
+    /**
+     * Find timesheets by multiple courses and status.
+     *
+     * @param courseIds list of course IDs
+     * @param status approval status
+     * @return matching timesheets
+     */
+    List<Timesheet> findByCourseIdInAndStatus(List<Long> courseIds, ApprovalStatus status);
     
     /**
      * Find timesheets within a date range.
@@ -171,6 +187,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     /**
      * Get all timesheets with optional filtering and paging.
      * Used for admin queries with flexible filtering.
+     * Eagerly fetches approvals collection to prevent LazyInitializationException in mapper.
      *
      * @param tutorId optional tutor ID filter
      * @param courseId optional course ID filter
@@ -178,6 +195,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param pageable paging information
      * @return page of timesheets
      */
+    @EntityGraph(attributePaths = {"approvals"})
     @Query("SELECT t FROM Timesheet t WHERE " +
            "(:tutorId IS NULL OR t.tutorId = :tutorId) AND " +
            "(:courseId IS NULL OR t.courseId = :courseId) AND " +
@@ -220,8 +238,8 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
 
     /**
      * Get pending timesheets for a specific approver based on role.
-     * For tutors: timesheets in PENDING_TUTOR_REVIEW status for themselves
-     * For HR: timesheets in PENDING_HR_REVIEW status
+     * For tutors: timesheets in PENDING_TUTOR_CONFIRMATION status assigned to them
+     * For HR/final approvers: timesheets in LECTURER_CONFIRMED status
      *
      * @param approverId the approver's ID
      * @param isHR whether the approver is HR
@@ -268,6 +286,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param pageable paging and sorting information
      * @return page of all timesheets pending tutor confirmation
      */
+    @EntityGraph(attributePaths = {"approvals"})
     Page<Timesheet> findByStatusOrderByCreatedAtAsc(ApprovalStatus status, Pageable pageable);
 
     /**

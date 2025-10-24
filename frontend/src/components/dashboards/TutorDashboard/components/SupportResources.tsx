@@ -7,6 +7,7 @@ export interface SupportResourceItem {
   description?: string;
   href?: string;
   icon?: ReactNode;
+  comingSoon?: boolean;
 }
 
 export interface SupportResourcesProps {
@@ -25,7 +26,7 @@ const SupportResources = ({
   const cardClassName = ['p-4', className].filter(Boolean).join(' ');
 
   return (
-    <Card className={cardClassName} data-testid="support-resources">
+    <Card className={`w-full max-w-full ${cardClassName}`} data-testid="support-resources">
       <CardTitle className="mb-2 text-lg font-semibold">{title}</CardTitle>
       <CardContent className="space-y-3 p-0">
         {resources.length === 0 && (
@@ -43,7 +44,7 @@ const SupportResources = ({
               {resource.description && (
                 <p className="text-xs text-muted-foreground">{resource.description}</p>
               )}
-              {resource.href && (
+              {resource.href ? (
                 <a
                   href={resource.href}
                   target="_blank"
@@ -52,7 +53,9 @@ const SupportResources = ({
                 >
                   View details
                 </a>
-              )}
+              ) : resource.comingSoon ? (
+                <span className="text-xs text-muted-foreground">Link available soon</span>
+              ) : null}
             </div>
           </div>
         ))}

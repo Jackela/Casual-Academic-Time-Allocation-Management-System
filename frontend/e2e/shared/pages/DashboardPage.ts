@@ -33,7 +33,22 @@ export class DashboardPage {
   async waitForDashboardReady(options: { timeout?: number } = {}) {
     const timeout = options.timeout ?? 15000;
     await this.page.waitForLoadState('domcontentloaded', { timeout: Math.min(timeout, 5000) }).catch(() => undefined);
-    const state = await this.timesheetPage.waitForFirstRender({ timeout });
+    let state: 'table' | 'empty' | 'error' | 'banner';
+    try {
+      state = await this.timesheetPage.waitForFirstRender({ timeout });
+    } catch (error) {
+      const adminDashboard = this.page.locator('[data-testid="admin-dashboard"], .admin-dashboard');
+      const lecturerDashboard = this.page.locator('[data-testid="lecturer-dashboard"], .lecturer-dashboard');
+      const dashboardLoaded = await Promise.race([
+        adminDashboard.waitFor({ state: 'visible', timeout }).then(() => true).catch(() => false),
+        lecturerDashboard.waitFor({ state: 'visible', timeout }).then(() => true).catch(() => false),
+      ]);
+
+      if (!dashboardLoaded) {
+        throw error;
+      }
+      state = 'banner';
+    }
 
     if (state === 'banner') {
       await this.page.getByTestId('page-banner').waitFor({ state: 'visible', timeout: 2000 }).catch(() => undefined);

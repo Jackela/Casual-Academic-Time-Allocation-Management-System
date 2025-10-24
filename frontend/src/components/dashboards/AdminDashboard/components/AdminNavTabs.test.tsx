@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import AdminNavTabs from './AdminNavTabs';
 import type { AdminTabSpec } from '../../../../types/dashboard/admin-dashboard';
 
-describe('AdminNavTabs placeholder tabs', () => {
+describe('AdminNavTabs', () => {
   const tabs: AdminTabSpec[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'pending', label: 'Pending Approvals' },
@@ -13,25 +13,19 @@ describe('AdminNavTabs placeholder tabs', () => {
     { id: 'settings', label: 'System Settings' },
   ];
 
-  it('disables placeholder tabs and shows a tooltip on hover', async () => {
+  it('renders only implemented tabs', () => {
     render(<AdminNavTabs tabs={tabs} currentTab="overview" onTabChange={vi.fn()} />);
 
-    const user = userEvent.setup();
-    const disabledTabLabels = ['Users', 'Reports & Analytics', 'System Settings'];
+    expect(screen.getByRole('button', { name: 'Overview' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pending Approvals' })).toBeInTheDocument();
 
-    for (const label of disabledTabLabels) {
-      const tabButton = screen.getByRole('button', { name: label });
-
-      expect(tabButton).toBeDisabled();
-      expect(tabButton).toHaveAttribute('aria-disabled', 'true');
-
-      await user.hover(tabButton);
-      expect(tabButton).toHaveAttribute('title', 'Coming soon');
-    }
+    expect(screen.queryByRole('button', { name: 'Users' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reports & Analytics' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'System Settings' })).not.toBeInTheDocument();
   });
 
   it('keeps active tabs enabled without placeholder tooltip', () => {
-    render(<AdminNavTabs tabs={tabs} currentTab="overview" onTabChange={vi.fn()} />);
+    render(<AdminNavTabs tabs={tabs.slice(0, 2)} currentTab="overview" onTabChange={vi.fn()} />);
 
     const overviewTab = screen.getByRole('button', { name: 'Overview' });
     const pendingTab = screen.getByRole('button', { name: 'Pending Approvals' });

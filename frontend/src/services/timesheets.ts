@@ -90,8 +90,10 @@ export class TimesheetService {
       sortDirection: query.sortDirection || 'desc'
     });
 
-    const activeSignal = signal ?? new AbortController().signal;
-    const response = await secureApiClient.get<TimesheetPagePayload>(`/api/timesheets?${queryString}`, { signal: activeSignal });
+    const response = await secureApiClient.get<TimesheetPagePayload>(
+      `/api/timesheets?${queryString}`,
+      signal ? { signal } : undefined,
+    );
 
     // Normalize response format for backward compatibility
     return this.normalizeTimesheetPage(response.data);
@@ -108,21 +110,18 @@ export class TimesheetService {
   /**
    * Get timesheets by tutor ID
    */
-  static async getTimesheetsByTutor(tutorId: number, query: Omit<TimesheetQuery, 'tutorId'> = {}): Promise<TimesheetPage> {
-    const queryString = secureApiClient.createQueryString({
-      page: query.page || 0,
-      size: query.size || 20,
-      status: query.status,
-      courseId: query.courseId,
-      weekStartDate: query.weekStartDate,
-      startDate: query.startDate,
-      endDate: query.endDate,
-      sortBy: query.sortBy || 'createdAt',
-      sortDirection: query.sortDirection || 'desc'
-    });
-
-    const response = await secureApiClient.get<TimesheetPagePayload>(`/api/timesheets/tutor/${tutorId}?${queryString}`);
-    return this.normalizeTimesheetPage(response.data);
+  static async getTimesheetsByTutor(
+    tutorId: number,
+    query: Omit<TimesheetQuery, 'tutorId'> = {},
+    signal?: AbortSignal,
+  ): Promise<TimesheetPage> {
+    return this.getTimesheets(
+      {
+        ...query,
+        tutorId,
+      },
+      signal,
+    );
   }
 
   /**
@@ -176,7 +175,11 @@ export class TimesheetService {
    * Approve or reject timesheet
    */
   static async approveTimesheet(request: ApprovalRequest): Promise<ApprovalResponse> {
-    const payload = { ...request, action: normalizeApprovalAction(request.action) };
+    const payload = {
+      timesheetId: request.timesheetId,
+      action: normalizeApprovalAction(request.action),
+      comment: request.comment ?? null,
+    };
     const response = await secureApiClient.post<ApprovalResponse>('/api/approvals', payload);
     return response.data;
   }
@@ -333,14 +336,6 @@ export class TimesheetService {
       errors.push('Delivery hours must be between 0.1 and 10');
     }
 
-    if (typeof timesheet.hours !== 'number' || timesheet.hours <= 0 || timesheet.hours > 60) {
-      errors.push('Payable hours must be between 0.1 and 60');
-    }
-
-    if (typeof timesheet.hourlyRate !== 'number' || timesheet.hourlyRate <= 0 || timesheet.hourlyRate > 200) {
-      errors.push('Hourly rate must be between 0.01 and 200');
-    }
-
     if (!timesheet.taskType) {
       errors.push('Task type is required');
     }
@@ -385,3 +380,5 @@ export const {
   getActionableTimesheets,
   validateTimesheet
 } = TimesheetService;
+
+

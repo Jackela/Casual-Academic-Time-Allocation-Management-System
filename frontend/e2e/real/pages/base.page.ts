@@ -1,0 +1,35 @@
+/**
+ * BasePage – shared helpers for real E2E flows.
+ * Uses data-testid centric querying to keep selectors stable.
+ */
+import { Page, Locator, expect } from '@playwright/test';
+import { attachPageDiagnostics } from '../../shared/utils/diagnostics';
+
+export class BasePage {
+  readonly page: Page;
+
+  constructor(page: Page) {
+    this.page = page;
+  }
+
+  async goto(path: string) {
+    // Delegate relative navigation to Playwright baseURL configured in config.
+    // Absolute URLs also supported directly.
+    attachPageDiagnostics(this.page);
+    await this.page.goto(path);
+    await this.waitForAppIdle();
+  }
+
+  byTestId(testId: string): Locator {
+    return this.page.getByTestId(testId);
+  }
+
+  async waitForAppIdle() {
+    // Prefer network idle + no spinners to reduce arbitrary waits
+    await this.page.waitForLoadState('networkidle');
+    const spinners = this.page.locator('[data-testid="loading"], [aria-busy="true"]');
+    await expect.soft(spinners).toHaveCount(0, { timeout: 2000 });
+  }
+}
+
+export default BasePage;

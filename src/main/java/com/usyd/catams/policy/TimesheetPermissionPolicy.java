@@ -237,9 +237,10 @@ public interface TimesheetPermissionPolicy {
      * <ul>
      * <li><strong>DRAFT</strong>: Editable by owner (TUTOR) or course authority (LECTURER/ADMIN)</li>
      * <li><strong>MODIFICATION_REQUESTED</strong>: Editable by owner to address requested changes</li>
-     * <li><strong>PENDING_TUTOR_REVIEW</strong>: Not editable (under review)</li>
-     * <li><strong>APPROVED_*</strong>: Not editable (approved states are immutable)</li>
-     * <li><strong>FINAL_APPROVED</strong>: Not editable (final approval locks timesheet)</li>
+     * <li><strong>PENDING_TUTOR_CONFIRMATION</strong>: Not editable (awaiting tutor confirmation)</li>
+     * <li><strong>TUTOR_CONFIRMED</strong>: Not editable (awaiting lecturer confirmation)</li>
+     * <li><strong>LECTURER_CONFIRMED</strong>: Not editable (awaiting final confirmation)</li>
+     * <li><strong>FINAL_CONFIRMED</strong>: Not editable (final confirmation locks timesheet)</li>
      * <li><strong>REJECTED</strong>: Not editable (requires new timesheet creation)</li>
      * </ul>
      * 

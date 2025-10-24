@@ -87,6 +87,7 @@ ApprovalActionResponse:
       example: "Dr. John Smith"
     comment:
       type: string
+      nullable: true
       description: Comment provided with the action
       example: "Confirmed - hours and description look correct"
     timestamp:
@@ -99,6 +100,7 @@ ApprovalActionResponse:
       description: Information about what happens next in the workflow
       items:
         type: string
+      nullable: true
       example:
         - "Timesheet automatically moved to lecturer for confirmation"
 

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Run Node-based checks for E2E guardrails
+node "$(git rev-parse --show-toplevel)/.githooks/precommit-checks.js"
+

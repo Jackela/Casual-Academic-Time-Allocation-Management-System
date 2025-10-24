@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -65,6 +65,31 @@ describe('TimesheetForm', () => {
     mockQuote.mockClear();
   });
 
+  it('allows selecting the next Monday via quick action', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    render(
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const weekStartInput = await screen.findByLabelText(/Week Starting/i) as HTMLInputElement;
+    const initialValue = weekStartInput.value;
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Next Monday/i }));
+
+    await waitFor(() => {
+      expect(weekStartInput.value).not.toBe(initialValue);
+    });
+
+    expect(new Date(weekStartInput.value).getDay()).toBe(1);
+  });
+
   it('applies server-provided constraint overrides', async () => {
     const TimesheetFormModule = await import('./TimesheetForm');
     const TimesheetForm = TimesheetFormModule.default;
@@ -78,12 +103,11 @@ describe('TimesheetForm', () => {
     );
 
     const hoursInput = await screen.findByLabelText(/Delivery Hours/i);
-    const weekStartInput = await screen.findByLabelText(/Week Starting/i);
+    await screen.findByLabelText(/Week Starting/i);
 
     await waitFor(() => expect(hoursInput).toHaveAttribute('max', '48'));
-    await waitFor(() => expect(weekStartInput).toHaveAttribute('step', '7'));
-
-    expect(mockServerOverrides).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /Next Monday/i })).toBeInTheDocument();
+    expect(screen.getByText(/Select a Monday to start your week/i)).toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.clear(hoursInput);
@@ -160,5 +184,199 @@ describe('TimesheetForm', () => {
 
     // Check that rejection feedback section is NOT visible
     expect(screen.queryByTestId('rejection-feedback-section')).not.toBeInTheDocument();
+  });
+
+  it('renders tutor selector only in lecturer-create mode', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    const tutorOptions = [{ id: 7, label: 'Jordan Lee' }];
+    const courseOptions = [{ id: 3, label: 'COMP1010 - Programming' }];
+
+    const { rerender } = render(
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        tutorOptions={tutorOptions}
+        courseOptions={courseOptions}
+        {...({ mode: 'lecturer-create' } as any)}
+      />,
+    );
+
+    const tutorSection = await screen.findByTestId('lecturer-timesheet-tutor-selector');
+    expect(within(tutorSection).getByLabelText(/^Tutor$/i)).toBeInTheDocument();
+
+    rerender(
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        tutorOptions={tutorOptions}
+        courseOptions={courseOptions}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('lecturer-timesheet-tutor-selector')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/^Tutor$/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('disables tutor selection and shows empty state when no tutors available', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    render(
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        tutorOptions={[]}
+        mode="lecturer-create"
+        optionsLoading={false}
+      />,
+    );
+
+    const tutorSelect = await screen.findByLabelText(/^Tutor$/i);
+    expect(tutorSelect).toBeDisabled();
+    expect(screen.getByTestId('tutor-empty-state')).toHaveTextContent(/No tutors are currently assigned/i);
+  });
+
+  it('disables course selection and shows empty state when no courses available', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    render(
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        courseOptions={[]}
+        optionsLoading={false}
+      />,
+    );
+
+    const courseSelect = await screen.findByLabelText(/^Course$/i);
+    expect(courseSelect).toHaveValue('0');
+    expect(courseSelect).toBeDisabled();
+    expect(screen.getByTestId('course-empty-state')).toHaveTextContent('No active courses found');
+  });
+
+  it('renders tutor qualification as read-only text', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    render(
+      <TimesheetForm
+        isEdit
+        initialData={{
+          courseId: 10,
+          qualification: 'PHD',
+          weekStartDate: '2025-01-06',
+          deliveryHours: 1.5,
+          description: 'Research supervision',
+        }}
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const qualificationField = await screen.findByLabelText(/Tutor Qualification/i) as HTMLInputElement;
+    expect(qualificationField).toBeDisabled();
+    expect(qualificationField).toHaveAttribute('readonly');
+    expect(qualificationField.value).toBe('PhD Qualified');
+    expect(screen.queryByRole('combobox', { name: /Tutor Qualification/i })).not.toBeInTheDocument();
+  });
+
+  it('renders task type as read-only for tutors and selectable for lecturers', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    const { rerender } = render(
+      <TimesheetForm
+        isEdit
+        initialData={{
+          courseId: 10,
+          taskType: 'MARKING',
+          weekStartDate: '2025-01-06',
+          deliveryHours: 1.5,
+          description: 'Assessment marking',
+        }}
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const taskTypeDisplay = await screen.findByLabelText(/Task Type/i) as HTMLInputElement;
+    expect(taskTypeDisplay).toBeDisabled();
+    expect(taskTypeDisplay.value).toBe('Marking');
+    expect(screen.queryByRole('combobox', { name: /Task Type/i })).not.toBeInTheDocument();
+
+    rerender(
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        mode="lecturer-create"
+        tutorOptions={[{ id: 42, label: 'Jordan Lee', qualification: 'STANDARD' }]}
+        courseOptions={[{ id: 10, label: 'COMP1001' }]}
+      />,
+    );
+
+    const taskTypeSelect = await screen.findByRole('combobox', { name: /Task Type/i });
+    expect(taskTypeSelect).toBeEnabled();
+  });
+
+  it('submits directive-only payload without calculated fields', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+    const onSubmit = vi.fn();
+
+    render(
+      <TimesheetForm
+        isEdit
+        initialData={{
+          courseId: 12,
+          weekStartDate: '2025-01-06',
+          deliveryHours: 1.5,
+          description: 'Existing tutorial',
+          taskType: 'TUTORIAL',
+          qualification: 'STANDARD',
+          isRepeat: false,
+        }}
+        tutorId={42}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+        courseOptions={[{ id: 12, label: 'CS101' }]}
+      />,
+    );
+
+    await waitFor(() => expect(mockQuote).toHaveBeenCalled());
+
+    const submitButton = await screen.findByRole('button', { name: /Update Timesheet/i });
+    const user = userEvent.setup();
+    await user.click(submitButton);
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0];
+
+    expect(payload).toMatchObject({
+      tutorId: 42,
+      courseId: 12,
+      weekStartDate: '2025-01-06',
+      sessionDate: '2025-03-03',
+      deliveryHours: 1.5,
+      description: 'Existing tutorial',
+      taskType: 'TUTORIAL',
+      qualification: 'STANDARD',
+      repeat: false,
+    });
+    expect(payload).not.toHaveProperty('quote');
+    expect(payload).not.toHaveProperty('payableHours');
+    expect(payload).not.toHaveProperty('hourlyRate');
+    expect(payload).not.toHaveProperty('amount');
   });
 });

@@ -87,15 +87,15 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
 
   if (pageLoading) {
     return (
-      <div className="unified-container">
+      <div className="layout-container">
         <div
-          className={`macro-grid ${className}`}
+          className={`layout-grid ${className}`}
           data-testid="admin-dashboard"
           role="main"
           aria-label={`Admin Dashboard (${sessionStatus})`}
         >
           <ErrorBoundary level="component">
-            <div className="macro-grid-hero">
+            <div className="layout-hero">
               <PageLoadingIndicator
                 message="Loading admin dashboard…"
                 subMessage="Fetching the latest metrics and pending timesheets."
@@ -109,7 +109,7 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
 
   const hasPageErrors = pageErrors.length > 0;
 
-  const shouldShowSidebar = currentTab !== 'overview';
+  const shouldShowSidebar = false; // No sidebar - each tab shows its own content
 
   console.info('[AdminDashboardShell] render body ready', {
     currentTab,
@@ -120,16 +120,16 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
   });
 
   return (
-    <div className="unified-container">
+    <div className="layout-container">
       <div
-        className={`macro-grid ${className}`}
+        className={`layout-grid ${className}`}
         data-testid="admin-dashboard"
         role="main"
         aria-label={`Admin Dashboard (${sessionStatus})`}
       >
         <ErrorBoundary level="component">
           <>
-            <header className="macro-grid-hero">
+            <header className="layout-hero">
               <AdminDashboardHeader
                 welcomeMessage={welcomeMessage}
                 searchQuery={searchQuery}
@@ -172,20 +172,20 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
               )}
             </header>
 
-            <main className={`macro-grid-content ${shouldShowSidebar ? 'has-sidebar' : ''}`}>
+            <main className={`layout-content ${shouldShowSidebar ? 'has-sidebar' : ''}`}>
               <section
-                className="macro-grid-main"
+                className="layout-main"
                 role="region"
                 aria-label={currentTab === 'pending' ? 'Pending approvals' : 'Overview metrics'}
               >
-                <div style={{ display: currentTab === 'overview' ? undefined : 'none' }}>
+                <div style={{ display: currentTab === 'overview' ? undefined : 'none' }} className="max-w-full">
                   <AdminMetricsPanel
                     metrics={metrics}
                     isLoading={loading.dashboard}
                   />
                 </div>
 
-                <div style={{ display: currentTab === 'pending' ? undefined : 'none' }}>
+                <div style={{ display: currentTab === 'pending' ? undefined : 'none' }} className="max-w-full">
                   <ErrorBoundary level="component">
                     <AdminPendingReviewPanel
                       timesheets={filteredTimesheets}
@@ -201,7 +201,7 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
 
               {shouldShowSidebar && (
                 <aside
-                  className="macro-grid-sidebar"
+                  className="layout-sidebar"
                   aria-label="Dashboard summary"
                   data-testid="dashboard-sidebar"
                 >

@@ -3,6 +3,7 @@ package com.usyd.catams.config;
 import com.usyd.catams.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -35,14 +36,17 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
+    private final Environment environment;
     
-    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:5173}")
+    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:8084}")
     private String allowedOrigins;
     
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                         JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint) {
+                         JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint,
+                         Environment environment) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.jsonAuthenticationEntryPoint = jsonAuthenticationEntryPoint;
+        this.environment = environment;
     }
 
     /**
@@ -54,17 +58,30 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        boolean relaxedReadProfile = Arrays.stream(environment.getActiveProfiles())
+            .anyMatch(p -> p != null && (p.equalsIgnoreCase("test") || p.toLowerCase().startsWith("e2e")));
+
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
-                .requestMatchers(HttpMethod.POST, "/actuator/shutdown").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/test-data/reset").permitAll()
-                .anyRequest().authenticated()
-            )
+            .authorizeHttpRequests(auth -> {
+                auth
+                    .requestMatchers("/api/auth/login").permitAll()
+                    .requestMatchers("/actuator/health").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/test-data/reset").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/test-data/seed/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/actuator/shutdown").hasRole("ADMIN");
+
+                if (relaxedReadProfile) {
+                    // Allow read-only listing endpoints during e2e/test profiles
+                    auth.requestMatchers(HttpMethod.GET, 
+                        "/api/users", "/api/users/**", 
+                        "/api/courses", "/api/courses/**").permitAll();
+                }
+
+                auth.anyRequest().authenticated();
+            })
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(jsonAuthenticationEntryPoint)
             )
@@ -93,7 +110,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(this.allowedOrigins.split(",")));
+        java.util.List<String> origins = java.util.Arrays.stream(this.allowedOrigins.split(","))
+            .map(String::trim)
+            .filter(origin -> !origin.isEmpty())
+            .toList();
+        configuration.setAllowedOrigins(java.util.Collections.emptyList());
+        configuration.setAllowedOriginPatterns(java.util.List.of("*"));
 
         configuration.setAllowedMethods(Arrays.asList(
             "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"

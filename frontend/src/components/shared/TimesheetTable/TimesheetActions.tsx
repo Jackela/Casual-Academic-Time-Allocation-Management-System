@@ -17,6 +17,7 @@ import {
   ACTION_PRIORITY,
   getRecommendedVariant,
 } from '../../../lib/config/ui-standards';
+import { getTutorTimesheetCapabilities } from './tutor-capabilities';
 
 interface TimesheetActionsProps {
   timesheet: Timesheet;
@@ -57,11 +58,16 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
 
     if (mode === 'tutor') {
       // Tutor actions
-      const isDraft = ['DRAFT', 'MODIFICATION_REQUESTED', 'REJECTED'].includes(timesheet.status);
-      const canConfirm = timesheet.status === 'PENDING_TUTOR_CONFIRMATION';
+      const tutorCapabilities = getTutorTimesheetCapabilities(timesheet.status);
+      const isEditable =
+        typeof timesheet.isEditable === 'boolean'
+          ? timesheet.isEditable
+          : tutorCapabilities.canEdit;
+      const canSubmitDraft = tutorCapabilities.canSubmit;
+      const canConfirm = tutorCapabilities.canConfirm;
 
       // Primary action: Submit (for drafts) or Confirm (for pending)
-      if (isDraft && onSubmit) {
+      if (canSubmitDraft && onSubmit) {
         actions.push({
           ...STANDARD_ACTIONS.SUBMIT,
           id: 'submit',
@@ -78,13 +84,16 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
         });
       }
 
-      // Secondary action: Edit (always available for drafts)
-      if (isDraft && onEdit) {
+      // Secondary action: Edit (or primary if no other action available)
+      if (isEditable && onEdit) {
+        const isOnlyAction = !canSubmitDraft && !canConfirm;
         actions.push({
           ...STANDARD_ACTIONS.EDIT,
           id: 'edit',
           onClick: onEdit,
-          visible: true
+          visible: true,
+          priority: isOnlyAction ? ACTION_PRIORITY.PRIMARY : ACTION_PRIORITY.SECONDARY,
+          variant: isOnlyAction ? 'default' : 'outline'
         });
       }
     } else if (mode === 'lecturer' || mode === 'admin') {
@@ -171,7 +180,7 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
           ? (isLocked ? lockMessage : `${action.label} is not available`)
           : action.tooltip || `${action.label} timesheet`;
 
-        return (
+        const button = (
           <Button
             key={action.id}
             type="button"
@@ -196,6 +205,39 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
             )}
           </Button>
         );
+
+        // Wrap with canonical test id containers for E2E selectors
+        if (action.id === 'approve') {
+          const canonicalId = mode === 'admin' ? 'admin-final-approve-btn' : (mode === 'lecturer' ? 'lecturer-approve-btn' : undefined);
+          const content = (
+            <span key={`${action.id}-wrap-${timesheet.id}`} data-testid={canonicalId}>
+              {button}
+            </span>
+          );
+          // Also expose a generic alias for E2E selectors
+          return (
+            <span key={`${action.id}-wrap-alias-${timesheet.id}`} data-testid="btn-approve">
+              {content}
+            </span>
+          );
+        }
+        if (mode === 'tutor' && (action.id === 'submit' || action.id === 'confirm')) {
+          const canonicalId = action.id === 'submit' ? 'tutor-submit-btn' : 'tutor-confirm-btn';
+          const content = (
+            <span key={`${action.id}-wrap-${timesheet.id}`} data-testid={canonicalId}>
+              {button}
+            </span>
+          );
+          if (action.id === 'confirm') {
+            return (
+              <span key={`${action.id}-wrap-alias-${timesheet.id}`} data-testid="btn-confirm">
+                {content}
+              </span>
+            );
+          }
+          return content;
+        }
+        return button;
       })}
 
       {/* Screen reader announcement for action context */}

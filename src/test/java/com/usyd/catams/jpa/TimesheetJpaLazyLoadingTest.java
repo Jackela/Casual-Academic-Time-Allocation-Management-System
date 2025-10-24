@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @DataJpaTest
 @Import(com.usyd.catams.config.ApplicationConfig.class)
 @TestPropertySource(properties = {
+    "spring.jpa.hibernate.ddl-auto=create-drop",
     "spring.flyway.enabled=false"
 })
 public class TimesheetJpaLazyLoadingTest {

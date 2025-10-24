@@ -171,21 +171,6 @@ public class TimesheetDomainService {
     }
 
     // Private validation methods (moved from TimesheetApplicationService)
-    private void validateCreatorPermissions(User creator, Course course) {
-        if (creator.getRole() != UserRole.LECTURER) {
-            throw new SecurityException("Only LECTURER users can create timesheets. User role: " + creator.getRole());
-        }
-
-        if (!creator.isAccountActive()) {
-            throw new IllegalArgumentException("Creator account is not active");
-        }
-
-        if (!creator.getId().equals(course.getLecturerId())) {
-            throw new SecurityException("LECTURER is not assigned to this course. Expected lecturer ID: " 
-                + course.getLecturerId() + ", but got: " + creator.getId());
-        }
-    }
-
     private void validateTutorEligibility(User tutor) {
         if (tutor.getRole() != UserRole.TUTOR) {
             throw new IllegalArgumentException("Target user must have TUTOR role. User role: " + tutor.getRole());

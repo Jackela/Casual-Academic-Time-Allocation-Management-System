@@ -1,5 +1,6 @@
 package com.usyd.catams.controller;
 
+import com.usyd.catams.service.TimesheetApplicationFacade;
 import com.usyd.catams.dto.request.TimesheetCreateRequest;
 import com.usyd.catams.dto.request.TimesheetQuoteRequest;
 import com.usyd.catams.dto.request.TimesheetUpdateRequest;
@@ -9,15 +10,16 @@ import com.usyd.catams.dto.response.TimesheetQuoteResponse;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.TimesheetTaskType;
 import com.usyd.catams.enums.TutorQualification;
+import com.usyd.catams.dto.response.ApprovalActionResponse;
+import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.exception.ResourceNotFoundException;
-import com.usyd.catams.mapper.TimesheetMapper;
+import com.usyd.catams.mapper.ApprovalMapper;
 import com.usyd.catams.policy.AuthenticationFacade;
+import com.usyd.catams.service.ApprovalService;
 import com.usyd.catams.service.Schedule1CalculationResult;
 import com.usyd.catams.service.Schedule1Calculator;
-import com.usyd.catams.service.TimesheetService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -39,20 +41,23 @@ import java.util.Optional;
 @RequestMapping("/api/timesheets")
 public class TimesheetController {
 
-    private final TimesheetService timesheetService;
-    private final TimesheetMapper timesheetMapper;
+    private final TimesheetApplicationFacade timesheetService;
     private final AuthenticationFacade authenticationFacade;
     private final Schedule1Calculator schedule1Calculator;
+    private final ApprovalService approvalService;
+    private final ApprovalMapper approvalMapper;
 
     @Autowired
-    public TimesheetController(TimesheetService timesheetService,
-                               TimesheetMapper timesheetMapper,
+    public TimesheetController(TimesheetApplicationFacade timesheetService,
                                AuthenticationFacade authenticationFacade,
-                               Schedule1Calculator schedule1Calculator) {
+                               Schedule1Calculator schedule1Calculator,
+                               ApprovalService approvalService,
+                               ApprovalMapper approvalMapper) {
         this.timesheetService = timesheetService;
-        this.timesheetMapper = timesheetMapper;
         this.authenticationFacade = authenticationFacade;
         this.schedule1Calculator = schedule1Calculator;
+        this.approvalService = approvalService;
+        this.approvalMapper = approvalMapper;
     }
 
     @PostMapping("/quote")
@@ -70,7 +75,7 @@ public class TimesheetController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('LECTURER','TUTOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
     public ResponseEntity<TimesheetResponse> createTimesheet(
             @Valid @RequestBody TimesheetCreateRequest request,
             Authentication authentication) {
@@ -82,7 +87,7 @@ public class TimesheetController {
                 request.isRepeat(),
                 request.getQualification()
         );
-        var entity = timesheetService.createTimesheet(
+        TimesheetResponse responseBody = timesheetService.createTimesheetAndReturnDto(
                 request.getTutorId(),
                 request.getCourseId(),
                 request.getWeekStartDate(),
@@ -91,7 +96,7 @@ public class TimesheetController {
                 request.getDescription(),
                 creatorId
         );
-        return new ResponseEntity<>(timesheetMapper.toResponse(entity), HttpStatus.CREATED);
+        return new ResponseEntity<>(responseBody, HttpStatus.CREATED);
     }
 
     @GetMapping
@@ -109,10 +114,9 @@ public class TimesheetController {
         Pageable pageable = createPageable(page, size, sort);
 
         Long requesterId = authenticationFacade.getCurrentUserId();
-        Page<com.usyd.catams.entity.Timesheet> pageEntities = timesheetService.getTimesheets(
+        PagedTimesheetResponse response = timesheetService.getTimesheetsAsDto(
                 tutorId, courseId, status, requesterId, pageable
         );
-        PagedTimesheetResponse response = timesheetMapper.toPagedResponse(pageEntities);
         return ResponseEntity.ok(response);
     }
 
@@ -130,9 +134,9 @@ public class TimesheetController {
         if (size <= 0 || size > 100) size = 20;
         Pageable pageable = createPageable(page, size, sort);
         Long requesterId = authenticationFacade.getCurrentUserId();
-        Page<com.usyd.catams.entity.Timesheet> pageEntities =
-                timesheetService.getPendingApprovalTimesheets(requesterId, pageable);
-        return ResponseEntity.ok(timesheetMapper.toPagedResponse(pageEntities));
+        PagedTimesheetResponse response =
+                timesheetService.getPendingApprovalTimesheetsAsDto(requesterId, pageable);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
@@ -140,9 +144,9 @@ public class TimesheetController {
     public ResponseEntity<TimesheetResponse> getTimesheetById(
             @PathVariable("id") Long id) {
         Long requesterId = authenticationFacade.getCurrentUserId();
-        Optional<com.usyd.catams.entity.Timesheet> opt = timesheetService.getTimesheetById(id, requesterId);
+        Optional<TimesheetResponse> opt = timesheetService.getTimesheetByIdAsDto(id, requesterId);
         if (opt.isEmpty()) throw new ResourceNotFoundException("Timesheet", id.toString());
-        return ResponseEntity.ok(timesheetMapper.toResponse(opt.get()));
+        return ResponseEntity.ok(opt.get());
     }
 
     @PutMapping("/{id}")
@@ -156,7 +160,7 @@ public class TimesheetController {
         TimesheetTaskType taskType = request.getTaskType() != null ? request.getTaskType() : existing.getTaskType();
         TutorQualification qualification = request.getQualification() != null ? request.getQualification() : existing.getQualification();
         BigDecimal deliveryHours = request.getDeliveryHours() != null ? request.getDeliveryHours() : existing.getDeliveryHours();
-        LocalDate sessionDate = request.getSessionDate() != null ? request.getSessionDate() : existing.getWeekStartDate();
+        LocalDate sessionDate = request.getSessionDate() != null ? request.getSessionDate() : existing.getSessionDate();
 
         Schedule1CalculationResult calculation = calculateSchedule1(
                 taskType,
@@ -166,14 +170,14 @@ public class TimesheetController {
                 qualification
         );
         // Let the service handle both authorization and business rule validation with proper exceptions
-        var entity = timesheetService.updateTimesheet(
+        TimesheetResponse response = timesheetService.updateTimesheetAndReturnDto(
                 id,
                 calculation,
                 taskType,
                 request.getDescription(),
                 requesterId
         );
-        return ResponseEntity.ok(timesheetMapper.toResponse(entity));
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
@@ -184,6 +188,16 @@ public class TimesheetController {
         // Let the service handle both authorization and business rule validation with proper exceptions
         timesheetService.deleteTimesheet(id, requesterId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/confirm")
+    @PreAuthorize("hasRole('TUTOR') or hasRole('LECTURER') or hasRole('ADMIN')")
+    public ResponseEntity<ApprovalActionResponse> confirmTimesheet(
+            @PathVariable("id") Long id) {
+        Long requesterId = authenticationFacade.getCurrentUserId();
+        var approval = approvalService.performApprovalAction(
+                id, ApprovalAction.TUTOR_CONFIRM, null, requesterId);
+        return ResponseEntity.ok(approvalMapper.toResponse(approval));
     }
 
     @GetMapping("/me")
@@ -200,8 +214,8 @@ public class TimesheetController {
         Pageable pageable = createPageable(page, size, sort);
 
         PagedTimesheetResponse response = (status != null)
-                ? timesheetMapper.toPagedResponse(timesheetService.getTimesheets(requesterId, null, status, requesterId, pageable))
-                : timesheetMapper.toPagedResponse(timesheetService.getTimesheetsByTutor(requesterId, pageable));
+                ? timesheetService.getTimesheetsAsDto(requesterId, null, status, requesterId, pageable)
+                : timesheetService.getTimesheetsByTutorAsDto(requesterId, pageable);
         return ResponseEntity.ok(response);
     }
 
@@ -215,9 +229,9 @@ public class TimesheetController {
         if (size <= 0 || size > 100) size = 20;
         Pageable pageable = createPageable(page, size, sort);
         Long requesterId = authenticationFacade.getCurrentUserId();
-        Page<com.usyd.catams.entity.Timesheet> pageEntities =
-                timesheetService.getLecturerFinalApprovalQueue(requesterId, pageable);
-        return ResponseEntity.ok(timesheetMapper.toPagedResponse(pageEntities));
+        PagedTimesheetResponse response =
+                timesheetService.getLecturerFinalApprovalQueueAsDto(requesterId, pageable);
+        return ResponseEntity.ok(response);
     }
 
     private Schedule1CalculationResult calculateSchedule1(TimesheetTaskType taskType,
@@ -273,4 +287,3 @@ public class TimesheetController {
         );
     }
 }
-

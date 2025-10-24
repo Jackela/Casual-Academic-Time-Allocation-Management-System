@@ -6,9 +6,9 @@ This guide documents the Timesheet permission policies that gate access in the E
 
 | Role | Description | Key Capabilities |
 |------|-------------|------------------|
-| TUTOR | Casual academic submitting hours | Create/update own draft timesheets, request quotes, view own history |
-| LECTURER | Unit coordinator | Review/approve tutor submissions, view course-level reports |
-| ADMIN | Faculty operations team | Manage tutors and courses, override approvals |
+| TUTOR | Casual academic submitting hours | Request quotes, edit returned drafts, confirm or respond to approvals for their own timesheets |
+| LECTURER | Unit coordinator | Create timesheets for tutors they coordinate, review/approve tutor submissions, view course-level reports |
+| ADMIN | Faculty operations team | Create timesheets on behalf of any tutor, manage courses and users, override approvals |
 
 Authentication is handled by Spring Security with JWT tokens. Authorization decisions are delegated to policy classes.
 
@@ -17,12 +17,14 @@ Authentication is handled by Spring Security with JWT tokens. Authorization deci
 `TimesheetPermissionPolicy` centralises authorization checks for create, read, update, and approval workflows. It accepts the authenticated principal and the target timesheet (or request payload) and returns boolean decisions.
 
 ### Key Methods
-- `canCreateTimesheet(principal, payload)` ? Tutors may create for themselves; admins may create on behalf of any tutor; lecturers are denied.
+- `canCreateTimesheet(principal, payload)` ? Only users with `ADMIN` or `LECTURER` roles can initiate creation. Tutor users must escalate to their course coordinator.
 - `canUpdateTimesheet(principal, timesheet)` ? Tutors can edit while status is draft or returned; admins can edit until final approval; lecturers cannot modify financial fields.
 - `canApproveTimesheet(principal, timesheet)` ? Lecturers approve tutor submissions for their courses; admins can finalise.
 - `canViewTimesheet(principal, timesheet)` ? Tutors limited to their own records; lecturers restricted to courses they coordinate; admins unrestricted.
 
 The calculator policy is enforced separately (see `docs/policy/timesheet-ssot.md`). Even if a user is authorized to update a record, they cannot alter calculated values.
+
+> **API enforcement:** `TimesheetController#createTimesheet` is annotated with `@PreAuthorize("hasAnyRole('ADMIN','LECTURER')")`, ensuring HTTP clients authenticated as tutors will receive `403 Forbidden` when attempting to create a timesheet.
 
 ## Usage Pattern
 

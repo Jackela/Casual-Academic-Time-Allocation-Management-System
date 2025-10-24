@@ -50,7 +50,16 @@ const mockDashboardSummary = createMockDashboardSummary();
 describe('TimesheetService CRUD Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApiClient.createQueryString.mockReturnValue('page=0&size=20&sortBy=createdAt&sortDirection=desc');
+    mockApiClient.createQueryString.mockImplementation((params: Record<string, unknown>) => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null) {
+          return;
+        }
+        searchParams.append(key, String(value));
+      });
+      return searchParams.toString();
+    });
   });
 
   describe('getTimesheets', () => {
@@ -74,7 +83,7 @@ describe('TimesheetService CRUD Operations', () => {
 
       expect(mockApiClient.get).toHaveBeenCalledWith(
         '/api/timesheets?page=0&size=20&sortBy=createdAt&sortDirection=desc',
-        { signal: expect.any(Object) }
+        undefined
       );
       expect(result).toEqual(mockTimesheetPage);
     });
@@ -177,6 +186,7 @@ describe('TimesheetService CRUD Operations', () => {
         page: 0,
         size: 20,
         status: 'TUTOR_CONFIRMED',
+        tutorId,
         courseId: undefined,
         weekStartDate: undefined,
         startDate: undefined,
@@ -185,7 +195,14 @@ describe('TimesheetService CRUD Operations', () => {
         sortDirection: 'desc'
       });
 
-      expect(mockApiClient.get).toHaveBeenCalledWith(`/api/timesheets/tutor/${tutorId}?page=0&size=20&sortBy=createdAt&sortDirection=desc`);
+      const [url, options] = mockApiClient.get.mock.calls.at(-1)!;
+      expect(url).toContain('page=0');
+      expect(url).toContain('size=20');
+      expect(url).toContain(`tutorId=${tutorId}`);
+      expect(url).toContain('status=TUTOR_CONFIRMED');
+      expect(url).toContain('sortBy=createdAt');
+      expect(url).toContain('sortDirection=desc');
+      expect(options).toBeUndefined();
     });
   });
 
@@ -271,8 +288,6 @@ describe('TimesheetService CRUD Operations', () => {
         taskType: 'TUTORIAL',
         qualification: 'STANDARD',
         repeat: false,
-        hours: 3.5,
-        hourlyRate: 70.0,
       };
 
       mockApiClient.post.mockResolvedValue(createMockApiResponse(mockTimesheet));
@@ -290,8 +305,6 @@ describe('TimesheetService CRUD Operations', () => {
         weekStartDate: '2024-01-08',
         sessionDate: '2024-01-08',
         deliveryHours: 1.0,
-        hours: 2.5,
-        hourlyRate: 65,
         description: 'Updated description',
         taskType: 'TUTORIAL',
         qualification: 'STANDARD',
@@ -578,8 +591,6 @@ describe('TimesheetService Validation', () => {
       weekStartDate: '2024-01-01',
       sessionDate: '2024-01-01',
       deliveryHours: 1.5,
-      hours: 3.5,
-      hourlyRate: 70,
       description: 'Valid timesheet description',
       taskType: 'TUTORIAL',
       qualification: 'STANDARD',
@@ -618,20 +629,6 @@ describe('TimesheetService Validation', () => {
       expect(high).toContain('Delivery hours must be between 0.1 and 10');
     });
 
-    it('should validate payable hours range', () => {
-      const low = TimesheetService.validateTimesheet({ ...validTimesheet, hours: 0 });
-      const high = TimesheetService.validateTimesheet({ ...validTimesheet, hours: 80 });
-      expect(low).toContain('Payable hours must be between 0.1 and 60');
-      expect(high).toContain('Payable hours must be between 0.1 and 60');
-    });
-
-    it('should validate hourlyRate range', () => {
-      const low = TimesheetService.validateTimesheet({ ...validTimesheet, hourlyRate: 0 });
-      const high = TimesheetService.validateTimesheet({ ...validTimesheet, hourlyRate: 250 });
-      expect(low).toContain('Hourly rate must be between 0.01 and 200');
-      expect(high).toContain('Hourly rate must be between 0.01 and 200');
-    });
-
     it('should validate task type', () => {
       const errors = TimesheetService.validateTimesheet({ ...validTimesheet, taskType: undefined } as Partial<TimesheetCreateRequest>);
       expect(errors).toContain('Task type is required');
@@ -660,16 +657,12 @@ describe('TimesheetService Validation', () => {
         taskType: undefined,
         qualification: undefined,
         repeat: false,
-        hours: 0,
-        hourlyRate: 0,
       } as Partial<TimesheetCreateRequest>);
       expect(errors).toContain('Valid tutor ID is required');
       expect(errors).toContain('Valid course ID is required');
       expect(errors).toContain('Week start date is required');
       expect(errors).toContain('Session date is required');
       expect(errors).toContain('Delivery hours must be between 0.1 and 10');
-      expect(errors).toContain('Payable hours must be between 0.1 and 60');
-      expect(errors).toContain('Hourly rate must be between 0.01 and 200');
       expect(errors).toContain('Description is required');
       expect(errors).toContain('Task type is required');
       expect(errors).toContain('Qualification is required');
@@ -726,8 +719,6 @@ describe('TimesheetService Integration', () => {
       weekStartDate: '2024-01-01',
       sessionDate: '2024-01-01',
       deliveryHours: 2,
-      hours: 5,
-      hourlyRate: 65,
       description: 'Weekly tutoring session',
       taskType: 'TUTORIAL',
       qualification: 'STANDARD',
@@ -744,8 +735,6 @@ describe('TimesheetService Integration', () => {
       weekStartDate: '2024-01-08',
       sessionDate: '2024-01-08',
       deliveryHours: 1.5,
-      hours: 4,
-      hourlyRate: 80,
       description: 'Updated description',
       taskType: 'TUTORIAL',
       qualification: 'STANDARD',
@@ -755,7 +744,9 @@ describe('TimesheetService Integration', () => {
     mockApiClient.put.mockResolvedValue(createMockApiResponse({ ...mockTimesheet, ...updateRequest }));
     
     const updatedTimesheet = await TimesheetService.updateTimesheet(createdTimesheet.id, updateRequest);
-    expect(updatedTimesheet.hours).toBe(12);
+    expect(mockApiClient.post).toHaveBeenCalledWith('/api/timesheets', createRequest);
+    expect(mockApiClient.put).toHaveBeenCalledWith(`/api/timesheets/${createdTimesheet.id}`, updateRequest);
+    expect(updatedTimesheet).toMatchObject({ ...mockTimesheet, ...updateRequest });
 
     // Approve timesheet
     const approvalRequest: ApprovalRequest = {

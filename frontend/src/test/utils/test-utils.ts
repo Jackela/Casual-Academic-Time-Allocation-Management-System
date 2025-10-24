@@ -155,12 +155,15 @@ export function createMockDashboardSummary(overrides: Partial<DashboardSummary> 
     statusBreakdown: overrides.statusBreakdown ?? {},
     recentActivity: overrides.recentActivity ?? [],
     upcomingDeadlines: overrides.upcomingDeadlines ?? [],
+    deadlines: overrides.deadlines ?? [],
     systemMetrics: overrides.systemMetrics ?? undefined,
     lecturerCount: overrides.lecturerCount ?? undefined,
     tutorCount: overrides.tutorCount ?? undefined,
     courseCount: overrides.courseCount ?? undefined,
     activeUsers: overrides.activeUsers ?? undefined,
     systemHealth: overrides.systemHealth ?? undefined,
+    supportResources: overrides.supportResources ?? [],
+    nextPaymentDate: overrides.nextPaymentDate ?? null,
   };
 }
 

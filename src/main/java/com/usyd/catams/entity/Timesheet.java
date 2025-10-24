@@ -52,6 +52,10 @@ public class Timesheet {
     @Embedded
     @AttributeOverride(name = "weekStartDate", column = @Column(name = "week_start_date"))
     private WeekPeriod weekPeriod;
+
+    @NotNull
+    @Column(name = "session_date", nullable = false)
+    private LocalDate sessionDate;
     
     @NotNull
     @Digits(integer = 2, fraction = 1)
@@ -144,6 +148,7 @@ public class Timesheet {
         this.tutorId = tutorId;
         this.courseId = courseId;
         this.weekPeriod = weekPeriod;
+        this.sessionDate = weekPeriod != null ? weekPeriod.getStartDate() : null;
         this.hours = hours;
         this.hourlyRate = hourlyRate;
         this.description = description;
@@ -170,6 +175,9 @@ public class Timesheet {
         LocalDateTime now = LocalDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
+        if (this.sessionDate == null && this.weekPeriod != null) {
+            this.sessionDate = this.weekPeriod.getStartDate();
+        }
         enforceDynamicValidation();
     }
     
@@ -210,6 +218,9 @@ public class Timesheet {
     
     public void setWeekPeriod(WeekPeriod weekPeriod) {
         this.weekPeriod = weekPeriod;
+        if (weekPeriod != null && this.sessionDate == null) {
+            this.sessionDate = weekPeriod.getStartDate();
+        }
     }
     
     public LocalDate getWeekStartDate() {
@@ -219,6 +230,17 @@ public class Timesheet {
     public void setWeekStartDate(LocalDate weekStartDate) {
         // Use unsafe factory to allow setter staging; validation enforced in validateBusinessRules()
         this.weekPeriod = WeekPeriod.unsafe(weekStartDate);
+        if (this.sessionDate == null) {
+            this.sessionDate = weekStartDate;
+        }
+    }
+
+    public LocalDate getSessionDate() {
+        return sessionDate;
+    }
+
+    public void setSessionDate(LocalDate sessionDate) {
+        this.sessionDate = sessionDate != null ? sessionDate : getWeekStartDate();
     }
     
     public BigDecimal getHours() {

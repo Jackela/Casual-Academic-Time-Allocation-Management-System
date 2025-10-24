@@ -115,7 +115,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .build();
 
         // Act & Assert - HTTP layer
-        performPost("/api/timesheets", request, lecturerToken)
+        performPostWithoutFinancialFields("/api/timesheets", request, lecturerToken)
             .andExpect(status().isCreated())
             .andExpect(content().contentType("application/json"))
             .andExpect(jsonPath("$.id").exists())
@@ -147,7 +147,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .build();
 
         // Act & Assert
-        performPost("/api/timesheets", request, null) // No auth token
+        performPostWithoutFinancialFields("/api/timesheets", request, null) // No auth token
             .andExpect(status().isUnauthorized());
 
         // Verify no data was persisted
@@ -156,30 +156,17 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("Authorization workflow - tutor can create own timesheets")
-    void timesheetCreation_TutorRole_ShouldSucceed() throws Exception {
-        // Arrange
+    @DisplayName("Authorization workflow - tutor self-creation is forbidden")
+    void timesheetCreation_TutorRole_ShouldBeForbidden() throws Exception {
         TimesheetCreateRequest request = TestDataBuilder.aTimesheetRequest()
             .withTutorId(testTutor.getId())
             .withCourseId(testCourse.getId())
             .build();
 
-        // Act & Assert
-        performPost("/api/timesheets", request, tutorToken)
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.tutorId").value(testTutor.getId()))
-            .andExpect(jsonPath("$.courseId").value(testCourse.getId()))
-            .andExpect(jsonPath("$.createdBy").value(testTutor.getId()))
-            .andExpect(jsonPath("$.status").value(com.usyd.catams.enums.ApprovalStatus.DRAFT.name()));
+        performPostWithoutFinancialFields("/api/timesheets", request, tutorToken)
+            .andExpect(status().isForbidden());
 
-        // Verify timesheet persisted with correct ownership
-        var timesheets = timesheetRepository.findAll();
-        assert timesheets.size() == 1;
-        var createdTimesheet = timesheets.get(0);
-        assert createdTimesheet.getTutorId().equals(testTutor.getId());
-        assert createdTimesheet.getCourseId().equals(testCourse.getId());
-        assert createdTimesheet.getCreatedBy().equals(testTutor.getId());
-        assert createdTimesheet.getStatus() == com.usyd.catams.enums.ApprovalStatus.DRAFT;
+        assert timesheetRepository.findAll().isEmpty();
     }
 
     @Test
@@ -200,7 +187,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .build();
 
         // Act & Assert
-        performPost("/api/timesheets", request, tutorToken)
+        performPostWithoutFinancialFields("/api/timesheets", request, tutorToken)
             .andExpect(status().isForbidden());
 
         // Verify no unauthorized timesheet was persisted
@@ -218,7 +205,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .build();
 
         // Act & Assert
-        performPost("/api/timesheets", request, lecturerToken)
+        performPostWithoutFinancialFields("/api/timesheets", request, lecturerToken)
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.errorMessage").exists());
@@ -238,7 +225,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .build();
 
         // Act & Assert
-        performPost("/api/timesheets", request, lecturerToken)
+        performPostWithoutFinancialFields("/api/timesheets", request, lecturerToken)
             .andExpect(status().isBadRequest());
 
         // Verify transaction rollback - no partial data persisted
@@ -267,7 +254,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         MvcResult createResponse = mockMvc.perform(
                 post("/api/timesheets")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(createRequest))
+                    .content(toJsonWithoutFinancialFields(createRequest))
             )
             .andExpect(status().isCreated())
             .andReturn();
@@ -320,7 +307,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .withCourseId(testCourse.getId())
             .build();
 
-        var createResponse = performPost("/api/timesheets", request, lecturerToken)
+        var createResponse = performPostWithoutFinancialFields("/api/timesheets", request, lecturerToken)
             .andExpect(status().isCreated())
             .andReturn();
 

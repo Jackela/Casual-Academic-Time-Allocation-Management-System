@@ -1,5 +1,4 @@
 import { Fragment, memo, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import TimesheetTable from '../../../shared/TimesheetTable/TimesheetTable';
 import { Button } from '../../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../ui/card';
@@ -109,7 +108,7 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
   return (
     <Fragment>
       <Card>
-        <CardHeader>
+        <CardHeader className="layout-flush">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Pending Approvals</CardTitle>
@@ -119,7 +118,7 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="layout-flush">
           {hasNoPendingTimesheets ? (
             <div className="py-12 text-center" data-testid="empty-state">
               <div className="mx-auto max-w-xs">
@@ -129,11 +128,9 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
                 <p className="mt-2 text-sm text-muted-foreground">
                   All caught up! No timesheets are waiting for your review.
                 </p>
-                <Button asChild variant="link" className="mt-4">
-                  <Link to="/approvals/history" data-testid="cta-view-approval-history">
-                    View Approval History
-                  </Link>
-                </Button>
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Approved records remain available in the reporting archive.
+                </p>
               </div>
             </div>
           ) : showFilteredEmptyState ? (
@@ -149,6 +146,7 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
               </div>
             </div>
           ) : (
+            <div data-testid="lecturer-table">
             <TimesheetTable
               timesheets={timesheets}
               loading={loading}
@@ -168,6 +166,7 @@ const LecturerPendingTable = memo<LecturerPendingTableProps>(({
                 ? 'You do not have permission to approve timesheets.'
                 : 'Processing approval. Please wait before taking another action.'}
             />
+            </div>
           )}
         </CardContent>
       </Card>

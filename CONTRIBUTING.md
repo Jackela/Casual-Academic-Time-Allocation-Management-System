@@ -1,71 +1,65 @@
-# Contributing to CATAMS
+# Contributing
 
-Thanks for helping improve the Casual Academic Time Allocation Management System. Follow these guidelines to keep the repository predictable for everyone.
+This document highlights the conventions and guardrails for maintaining a clean architecture and a stable, maintainable E2E suite.
 
-## 1. Ground Rules
+## Local Setup
 
-- Use English for all code comments, documentation, commit messages, and test descriptions (see [`docs/governance/translation-charter.md`](docs/governance/translation-charter.md)).
-- Follow the domain-driven design boundaries already in place (`controller → application → domain → repository`).
-- Prefer incremental PRs that include tests and documentation updates in the same change set.
-- Keep the root clean. New automation scripts belong in `tools/scripts/`; keep `scripts/` limited to thin shims.
+- Node.js ≥ 18 and npm installed
+- Install frontend deps:
+  - `cd frontend && npm ci`
+- Optional: set up pre-commit hooks to enforce E2E guardrails
+  - `pwsh scripts/setup-git-hooks.ps1`
 
-## 2. Development Workflow
+## E2E Environment
 
-1. Fork or branch from `main`.
-2. Run the task matrix commands relevant to your work (`docs/tasks.md`).
-3. Update documentation when adding features, changing workflows, or introducing new directories.
-4. Run the full regression suite (see below) before asking for review.
-5. Submit a PR with:
-   - Description of changes and rationale.
-   - Linked issue/ADR (if applicable).
-   - Checklist confirming tests and linting.
+Real E2E uses environment variables. Copy and fill the example:
 
-## 3. Commit & Branch Naming
+- `frontend/e2e/real/.env.example`
 
-- Use Conventional Commit prefixes (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`…).
-- Short-lived feature branches: `feature/<scope>`.
-- Bug fixes: `fix/<issue-id>-<slug>`.
-- Documentation-only: `docs/<topic>`.
+Required variables:
 
-## 4. Testing Expectations
+- `BASE_URL`
+- `E2E_LECTURER_EMAIL`, `E2E_LECTURER_PASSWORD`
+- `E2E_TUTOR_EMAIL`, `E2E_TUTOR_PASSWORD`
+- `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`
 
-Run these before opening a PR:
+Do not commit secrets. Use your shell env or CI secrets.
 
-```bash
-./gradlew clean test                     # Backend unit + integration
-./gradlew integrationTest                # Additional integration (once added)
-cd frontend && npm ci
-npm run test:ci                          # Frontend unit/component/api
-npm run test:e2e:mock                    # Playwright with MSW backend
-npm run backend:start && npm run test:e2e:real && npm run backend:stop
-npm run test:e2e:visual                  # Visual regression (update baselines when intentional)
-```
+Quick preflight (local/CI):
+- `cd frontend && node scripts/e2e-preflight.cjs`
+  - Verifies `BASE_URL`/`E2E_FRONTEND_URL` and all role credentials are set
+  - Checks the deployed frontend is reachable
 
-If you cannot execute a command (e.g., missing Docker), note it clearly in the PR and coordinate with the team to run it.
+## Running Tests
 
-## 5. Documentation
+- Lint and typecheck: `cd frontend && npm run lint && npx tsc -b`
+- Real E2E (Chromium-only): `cd frontend && npm run test:e2e:real`
+- P0 subset: name specs under `e2e/real/specs/` (CI runs this folder as the P0 lane)
+- Smoke (UI login): name files `*smoke*.spec.ts` under `e2e/real/tests/` (CI runs these by filename)
 
-- Keep `docs/index.md` up to date whenever adding or renaming files.
-- Log architecture or tooling decisions as ADRs in `docs/adr/` using the naming pattern `NNNN-title.md`.
-- Update [`docs/tasks.md`](docs/tasks.md) if you introduce new automation commands.
+## E2E Guardrails (enforced)
 
-## 6. Code Review Checklist
+- ESLint override for `frontend/e2e/real/**`:
+  - Disallow `.only` in tests/suites
+  - Disallow `page.waitForTimeout(..)`
+  - Warn on very large functions and deep nesting
+- Pre-commit hook checks (optional, via `scripts/setup-git-hooks.ps1`):
+  - Blocks `.only` and `waitForTimeout` from being committed in real E2E
+  - Warns if a spec under `e2e/real/specs/` is missing a priority tag like `@p0`/`@p1`
+  - Blocks `page.route(...)` network interception; tests must exercise the real backend
 
-- [ ] Code matches the acceptance criteria and existing architecture.
-- [ ] All new/changed tests pass locally.
-- [ ] No new warnings in build logs.
-- [ ] Documentation and comments updated.
-- [ ] No generated artifacts or large binaries committed.
-- [ ] `.gitignore` covers any new output directories.
+## Best Practices
 
-## 7. Security & Secrets
+- Use `data-testid` selectors exclusively; avoid brittle CSS/XPath
+- Prefer programmatic login; UI login only in smoke
+- Keep specs thin: actions in Page Objects, assertions in helpers
+- Contract-first: assert request/response shape via OpenAPI helpers
+- Tag tests by priority (`@p0`, `@p1`) and domain (`@admin`, `@timesheet`)
+- Record flake sources in `frontend/e2e/real/fixtures/flake-log.md`
+- Maintain `specs/001-playwright-e2e-refactor/checklists/e2e-definition-of-done.md`
 
-- Never commit credentials, access tokens, or `.env` overrides.
-- Use environment variables and reference examples in `.env.example`.
-- Report suspected security issues privately to the maintainers instead of opening a public issue.
+## CI
 
-## 8. Contact
-
-Questions? Reach out on Slack `#catams-dev` or tag the maintainers listed in `CODEOWNERS`.
-
-Happy shipping!
+- Lint and typecheck always run
+- Real E2E P0 runs when `BASE_URL` and user secrets are provided
+- Playwright HTML report uploaded as artifact on failure

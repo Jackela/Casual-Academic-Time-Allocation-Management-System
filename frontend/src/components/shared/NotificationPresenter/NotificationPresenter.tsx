@@ -156,7 +156,7 @@ const NotificationPresenter = memo(() => {
           <div
             key={toast.id}
             className={`dashboard-toast ${TOAST_CLASS_MAP[toast.severity]}`}
-            data-testid="toast"
+            data-testid={toast.severity === 'success' ? 'toast-success' : (toast.severity === 'error' ? 'toast-error' : 'toast')}
             role="status"
           >
             <div className="dashboard-toast__content">

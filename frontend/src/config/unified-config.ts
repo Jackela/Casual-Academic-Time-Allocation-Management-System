@@ -156,10 +156,8 @@ class ConfigurationBuilder {
       return undefined;
     };
 
-    if (ENV_CONFIG.isE2E() || ENV_CONFIG.getMode() === 'test') {
-      const envUrl = tryEnvBackend();
-      if (envUrl) return envUrl;
-    }
+    const envBackendUrl = tryEnvBackend();
+    const isE2EorTest = ENV_CONFIG.isE2E() || ENV_CONFIG.getMode() === 'test';
 
     // Vite env for browser runtime
     try {
@@ -168,9 +166,25 @@ class ConfigurationBuilder {
         if (typeof VITE_API_BASE_URL === 'string' && VITE_API_BASE_URL.length > 0) {
           return VITE_API_BASE_URL;
         }
+        if (!isE2EorTest) {
+          return window.location.origin;
+        }
+        if (envBackendUrl) {
+          return envBackendUrl;
+        }
       }
     } catch {
       // ignore
+    }
+
+    const fallbackPort = getProcessEnv().E2E_BACKEND_PORT ?? '8084';
+
+    if (isE2EorTest) {
+      return envBackendUrl ?? `http://127.0.0.1:${fallbackPort}`;
+    }
+
+    if (envBackendUrl) {
+      return envBackendUrl;
     }
 
     // Production/development defaults
@@ -179,7 +193,6 @@ class ConfigurationBuilder {
     }
 
     // Dev fallback
-    const fallbackPort = getProcessEnv().E2E_BACKEND_PORT ?? '8084';
     return `http://127.0.0.1:${fallbackPort}`;
   }
 

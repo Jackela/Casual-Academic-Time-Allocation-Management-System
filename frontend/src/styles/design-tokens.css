@@ -8,16 +8,21 @@
  */
 
 :root {
-  /* Macro Grid / Layout Tokens */
-  --grid-container-max-width: 1400px;
-  --grid-container-padding: clamp(1rem, 4vw, 2.5rem);
-  --grid-hero-padding: clamp(1.75rem, 3vw, 2.75rem);
-  --grid-content-padding: clamp(1.25rem, 2.5vw, 2rem);
-  --grid-gap-primary: clamp(1.75rem, 3vw, 2.75rem);
-  --grid-gap-secondary: clamp(1.25rem, 2vw, 2rem);
-  --hero-content-alignment: calc(var(--grid-hero-padding) - var(--grid-content-padding));
-  --hero-border-radius: clamp(1.75rem, 3.5vw, 3rem);
+  /* Layout System Tokens - Mobile-First Responsive */
+  --grid-container-max-width: 1616px;
+  --grid-container-padding: clamp(1rem, 2vw, 1.5rem);
+  --grid-hero-padding: clamp(1rem, 2vw, 1.5rem);
+  --grid-content-padding: clamp(1rem, 2vw, 1.5rem);
+  --grid-gap-primary: clamp(1.25rem, 2vw, 2rem);
+  --grid-gap-secondary: clamp(1rem, 1.5vw, 1.5rem);
+  --hero-border-radius: clamp(0.5rem, 1.5vw, 1rem);
   --hero-height-base: clamp(14rem, 26vw, 22rem);
+  
+  /* Layout Component Dimensions */
+  --header-h: 64px;
+  --banner-h: 48px;
+  --aside-w: 320px;
+  --safe-top: calc(var(--header-h) + var(--banner-h) + 1rem);
 
   /* Unified Z-Index Scale */
   /* Corrected z-index stack: lowest to highest */

@@ -21,31 +21,35 @@ const AdminPendingReviewPanel = memo<AdminPendingReviewPanelProps>(({
   onSelectionChange,
   onApprovalAction,
 }) => (
-  <section role="region" aria-label="Pending Review">
-    <Card>
+  <section role="region" aria-label="Pending Review" className="w-full" data-testid="admin-pending-review">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Pending Admin Review</CardTitle>
         <CardDescription>
           Review and finalize timesheets that have been approved by lecturers.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <TimesheetTable
-          timesheets={timesheets}
-          loading={loading}
-          actionLoading={actionState.loadingId}
-          showActions
-          showTutorInfo
-          showCourseInfo
-          showSelection
-          selectedIds={selectedTimesheets}
-          onSelectionChange={onSelectionChange}
-          onApprovalAction={onApprovalAction}
-          className="admin-timesheet-table"
-          approvalRole="ADMIN"
-          actionsDisabled={actionState.isSubmitting}
-          actionsDisabledReason="An approval action is already in progress. Please wait."
-        />
+      <CardContent className="overflow-x-auto p-0">
+        <div className="min-w-full inline-block align-middle">
+          <div className="overflow-x-auto">
+            <TimesheetTable
+              timesheets={timesheets}
+              loading={loading}
+              actionLoading={actionState.loadingId}
+              showActions
+              showTutorInfo
+              showCourseInfo
+              showSelection
+              selectedIds={selectedTimesheets}
+              onSelectionChange={onSelectionChange}
+              onApprovalAction={onApprovalAction}
+              className="admin-timesheet-table"
+              approvalRole="ADMIN"
+              actionsDisabled={actionState.isSubmitting}
+              actionsDisabledReason="An approval action is already in progress. Please wait."
+            />
+          </div>
+        </div>
       </CardContent>
     </Card>
   </section>

@@ -311,7 +311,7 @@ class TimesheetServiceUnitTest {
         // Arrange
         // Following DDD: Application service validates requester exists
         when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
-        when(timesheetRepository.findById(timesheet.getId()))
+        when(timesheetRepository.findByIdWithApprovals(timesheet.getId()))
             .thenReturn(Optional.of(timesheet));
         when(courseRepository.findById(timesheet.getCourseId())).thenReturn(Optional.of(course));
         
@@ -325,7 +325,7 @@ class TimesheetServiceUnitTest {
         assertThat(result.get()).isEqualTo(timesheet);
 
         verify(userRepository).findById(lecturer.getId());
-        verify(timesheetRepository).findById(timesheet.getId());    }
+        verify(timesheetRepository).findByIdWithApprovals(timesheet.getId());    }
 
     @Test
     @DisplayName("getTimesheetById - Should return empty when not found")
@@ -334,7 +334,7 @@ class TimesheetServiceUnitTest {
         Long nonExistentId = 99999L;
         // Following DDD: Application service validates requester exists
         when(userRepository.findById(lecturer.getId())).thenReturn(Optional.of(lecturer));
-        when(timesheetRepository.findById(nonExistentId))            .thenReturn(Optional.empty());
+        when(timesheetRepository.findByIdWithApprovals(nonExistentId))            .thenReturn(Optional.empty());
 
         // Act
         Optional<Timesheet> result = timesheetService.getTimesheetById(nonExistentId, lecturer.getId());
@@ -343,7 +343,7 @@ class TimesheetServiceUnitTest {
         assertThat(result).isEmpty();
 
         verify(userRepository).findById(lecturer.getId());
-        verify(timesheetRepository).findById(nonExistentId);    }
+        verify(timesheetRepository).findByIdWithApprovals(nonExistentId);    }
 
     @Test
     @DisplayName("canUserModifyTimesheet - Lecturer can modify timesheet for their course")

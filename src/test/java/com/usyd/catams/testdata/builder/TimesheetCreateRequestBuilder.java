@@ -92,13 +92,12 @@ public class TimesheetCreateRequestBuilder {
         request.setTutorId(tutorId);
         request.setCourseId(courseId);
         request.setWeekStartDate(weekStartDate); // Corrected setter call
-        request.setHours(hours);
-        request.setHourlyRate(hourlyRate);
         request.setDescription(description);
         request.setTaskType(taskType);
         request.setQualification(qualification);
         request.setRepeat(repeat);
-        request.setDeliveryHours(deliveryHours != null ? deliveryHours : hours);
+        BigDecimal effectiveDeliveryHours = deliveryHours != null ? deliveryHours : hours;
+        request.setDeliveryHours(effectiveDeliveryHours);
         request.setSessionDate(sessionDate != null ? sessionDate : weekStartDate);
         return request;
     }

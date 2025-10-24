@@ -24,4 +24,31 @@ describe("PaySummary", () => {
     expect(totalEarningsRow).not.toBeNull();
     expect(totalEarningsRow?.textContent).toMatch(/AUD/);
   });
+
+  it("shows N/A when next payment date is not provided", () => {
+    render(
+      <PaySummary
+        totalEarned={0}
+        thisWeekPay={0}
+        averagePerTimesheet={0}
+        paymentStatus={{}}
+      />,
+    );
+
+    expect(screen.getByText(/Next Payment Date: N\/A/i)).toBeInTheDocument();
+  });
+
+  it("formats next payment date when provided", () => {
+    render(
+      <PaySummary
+        totalEarned={0}
+        thisWeekPay={0}
+        averagePerTimesheet={0}
+        paymentStatus={{}}
+        nextPaymentDate="2025-01-31"
+      />,
+    );
+
+    expect(screen.getByText(/Next Payment Date:/i).textContent).toContain('31 Jan 2025');
+  });
 });

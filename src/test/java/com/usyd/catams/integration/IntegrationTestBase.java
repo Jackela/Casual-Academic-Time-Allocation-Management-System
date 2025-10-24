@@ -1,6 +1,9 @@
 package com.usyd.catams.integration;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.security.JwtTokenProvider;
 import com.usyd.catams.testdata.TestDataBuilder;
@@ -17,6 +20,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Arrays;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -152,6 +157,17 @@ public abstract class IntegrationTestBase {
         return mockMvc.perform(requestBuilder);
     }
 
+    protected ResultActions performPostWithoutFinancialFields(String endpoint, Object requestBody, String authToken) throws Exception {
+        var requestBuilder = post(endpoint).contentType(MediaType.APPLICATION_JSON);
+        if (requestBody != null) {
+            requestBuilder.content(toJsonWithoutFinancialFields(requestBody));
+        }
+        if (authToken != null) {
+            requestBuilder.header("Authorization", authToken);
+        }
+        return mockMvc.perform(requestBuilder);
+    }
+
     protected ResultActions performPut(String endpoint, Object requestBody, String authToken) throws Exception {
         var requestBuilder = put(endpoint).contentType(MediaType.APPLICATION_JSON);
         if (requestBody != null) {
@@ -161,6 +177,30 @@ public abstract class IntegrationTestBase {
             requestBuilder.header("Authorization", authToken);
         }
         return mockMvc.perform(requestBuilder);
+    }
+
+    protected ResultActions performPutWithoutFinancialFields(String endpoint, Object requestBody, String authToken) throws Exception {
+        var requestBuilder = put(endpoint).contentType(MediaType.APPLICATION_JSON);
+        if (requestBody != null) {
+            requestBuilder.content(toJsonWithoutFinancialFields(requestBody));
+        }
+        if (authToken != null) {
+            requestBuilder.header("Authorization", authToken);
+        }
+        return mockMvc.perform(requestBuilder);
+    }
+
+    protected String toJsonWithoutFinancialFields(Object payload) throws JsonProcessingException {
+        if (payload == null) {
+            return "";
+        }
+        JsonNode node = objectMapper.valueToTree(payload);
+        if (node.isObject()) {
+            ObjectNode objectNode = (ObjectNode) node;
+            objectNode.remove(Arrays.asList("hours", "payableHours", "hourlyRate", "amount", "associatedHours", "rateCode"));
+            return objectMapper.writeValueAsString(objectNode);
+        }
+        return objectMapper.writeValueAsString(payload);
     }
 
     protected ResultActions performDelete(String endpoint, String authToken) throws Exception {

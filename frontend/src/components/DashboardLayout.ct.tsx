@@ -3,11 +3,18 @@ import { test, expect } from '@playwright/experimental-ct-react';
 import DashboardLayout from './DashboardLayout';
 import type { User } from '../types/auth';
 
-const TEST_USER: User = {
+const LECTURER_USER: User = {
   id: 501,
   email: 'lecturer@example.com',
   name: 'Alexandra Lecturer',
   role: 'LECTURER',
+};
+
+const ADMIN_USER: User = {
+  id: 999,
+  email: 'admin@example.com',
+  name: 'Ada Admin',
+  role: 'ADMIN',
 };
 
 const mountDashboardLayout = async (
@@ -20,7 +27,7 @@ const mountDashboardLayout = async (
     </DashboardLayout>,
     {
       hooksConfig: {
-        authUser: TEST_USER,
+        authUser: LECTURER_USER,
         initialPath: '/dashboard',
         ...(hooksConfig ?? {}),
       },
@@ -30,9 +37,9 @@ const mountDashboardLayout = async (
 
 test.describe('DashboardLayout', () => {
   test('inactive navigation link shows hover border highlight', async ({ mount, page }) => {
-    await mountDashboardLayout(mount);
+    await mountDashboardLayout(mount, { authUser: ADMIN_USER });
 
-    const inactiveLink = page.getByTestId('nav-timesheets');
+    const inactiveLink = page.getByTestId('nav-users');
 
     await expect(inactiveLink).toBeVisible();
     await inactiveLink.hover();

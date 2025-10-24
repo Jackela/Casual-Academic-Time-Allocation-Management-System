@@ -22,7 +22,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 
 @SpringBootTest
-@ActiveProfiles("e2e")
+@ActiveProfiles("integration-test")
 @WithMockUser(roles = {"LECTURER"})
 public class ApprovalFlowIntegrationTest {
 
@@ -92,5 +92,49 @@ public class ApprovalFlowIntegrationTest {
         approvalApplicationService.performApprovalAction(ts.getId(), ApprovalAction.LECTURER_CONFIRM, "lec ok", lecturer.getId());
         Timesheet afterLecturer = timesheetRepository.findById(ts.getId()).orElseThrow();
         Assertions.assertEquals(ApprovalStatus.LECTURER_CONFIRMED, afterLecturer.getStatus());
+    }
+
+    @Test
+    void tutorCanResubmitAfterModificationRequest_andLecturerCannot() {
+        User lecturer = new User("lecturer-mod@example.com", "Lecturer Mod", "x", UserRole.LECTURER);
+        userRepository.save(lecturer);
+
+        User tutor = new User("tutor-mod@example.com", "Tutor Mod", "x", UserRole.TUTOR);
+        userRepository.save(tutor);
+
+        Course course = new Course();
+        course.setCode("COMP3310");
+        course.setName("Workflow Regression Harness");
+        course.setSemester("S1 2025");
+        course.setLecturerId(lecturer.getId());
+        course.setBudgetAllocated(new BigDecimal("12000.00"));
+        course.setIsActive(true);
+        courseRepository.save(course);
+
+        Timesheet timesheet = new Timesheet(
+            tutor.getId(),
+            course.getId(),
+            mondayWeeksAgo(8),
+            new BigDecimal("4.0"),
+            new BigDecimal("55.00"),
+            "Needs lecturer feedback",
+            tutor.getId()
+        );
+        timesheetRepository.save(timesheet);
+
+        approvalApplicationService.performApprovalAction(timesheet.getId(), ApprovalAction.SUBMIT_FOR_APPROVAL, "initial submit", tutor.getId());
+        approvalApplicationService.performApprovalAction(timesheet.getId(), ApprovalAction.TUTOR_CONFIRM, "tutor confirmed", tutor.getId());
+        approvalApplicationService.performApprovalAction(timesheet.getId(), ApprovalAction.REQUEST_MODIFICATION, "please attach receipts", lecturer.getId());
+
+        Timesheet afterRequest = timesheetRepository.findById(timesheet.getId()).orElseThrow();
+        Assertions.assertEquals(ApprovalStatus.MODIFICATION_REQUESTED, afterRequest.getStatus());
+
+        Assertions.assertThrows(SecurityException.class, () ->
+            approvalApplicationService.performApprovalAction(timesheet.getId(), ApprovalAction.SUBMIT_FOR_APPROVAL, "lecturer resubmit attempt", lecturer.getId())
+        );
+
+        approvalApplicationService.performApprovalAction(timesheet.getId(), ApprovalAction.SUBMIT_FOR_APPROVAL, "tutor resubmit", tutor.getId());
+        Timesheet afterResubmit = timesheetRepository.findById(timesheet.getId()).orElseThrow();
+        Assertions.assertEquals(ApprovalStatus.PENDING_TUTOR_CONFIRMATION, afterResubmit.getStatus());
     }
 }

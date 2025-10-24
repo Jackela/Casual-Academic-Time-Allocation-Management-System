@@ -1,8 +1,9 @@
 // React import removed as it's not needed in React 17+
 import type { ReactNode } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { useUserProfile } from './auth/UserProfileProvider';
+import useRole from './auth/useRole';
 import LoginPage from './components/LoginPage';
 import DashboardLayout from './components/DashboardLayout';
 import { AdminDashboard, LecturerDashboard, TutorDashboard } from './components/dashboards';
@@ -14,6 +15,7 @@ import { secureLogger } from './utils/secure-logger';
 import PageLoadingIndicator from './components/shared/feedback/PageLoadingIndicator';
 import { AdminUsersPage } from './features/admin-users';
 import './App.css';
+import TimesheetCreateRoute from './components/Routes/TimesheetCreateRoute';
 
 // Initialize configuration system
 if (!initializeConfiguration()) {
@@ -44,77 +46,12 @@ function createDashboardElement(content: ReactNode, options?: DashboardElementOp
   );
 }
 
-type PlaceholderPageProps = {
-  title: string;
-  description?: string;
-  children?: ReactNode;
-};
-
-function PlaceholderPage({ title, description, children }: PlaceholderPageProps) {
-  return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
-      {description && (
-        <p className="text-muted-foreground">{description}</p>
-      )}
-      {children}
-    </div>
-  );
-}
-
-function TimesheetsPage() {
-  return (
-    <PlaceholderPage
-      title="Timesheets"
-      description="Full timesheet management is being restored. For now, continue using the dashboard actions to manage drafts and submissions."
-    />
-  );
-}
-
-function ApprovalsPage() {
-  return (
-    <PlaceholderPage
-      title="Approvals"
-      description="Approval workflows are available from the dashboard while we finish re-enabling dedicated approval screens."
-    />
-  );
-}
-
-function UsersPage() {
-  return (
-    <PlaceholderPage
-      title="User Management"
-      description="Administrator tools for managing users will return shortly. Existing data remains accessible from the dashboard summaries."
-    />
-  );
-}
-
-function ReportsPage() {
-  return (
-    <PlaceholderPage
-      title="Reports & Analytics"
-      description="Detailed reports are under reconstruction. Use the dashboard KPIs for the most up-to-date metrics."
-    />
-  );
-}
-
-function ApprovalsHistoryPage() {
-  return (
-    <PlaceholderPage
-      title="Approval History"
-      description="The archived approval log is being migrated. We'll surface the complete history here once the migration is complete."
-    >
-      <Link to="/approvals" className="text-primary underline">Return to approvals</Link>
-    </PlaceholderPage>
-  );
-}
 // Component to determine which dashboard to show based on user role
 const DashboardRoute = () => {
-  const { profile, loading } = useUserProfile();
+  const { role, ready } = useRole();
+  const { profile } = useUserProfile();
 
-  console.info('[DashboardRoute] loading:', loading, 'profile:', profile);
-
-  if (loading || !profile?.role) {
+  if (!ready || !role) {
     return (
       <PageLoadingIndicator
         message="Preparing your dashboard…"
@@ -123,9 +60,7 @@ const DashboardRoute = () => {
     );
   }
 
-  console.info('[DashboardRoute] resolved role', profile.role);
-
-  const role = profile.role;
+  const resolvedRole = role || profile?.role;
   switch (role) {
     case 'ADMIN':
       return <AdminDashboard key="admin-dashboard" />;
@@ -134,7 +69,7 @@ const DashboardRoute = () => {
     case 'TUTOR':
       return <TutorDashboard key="tutor-dashboard" />;
     default:
-      return <div className="unknown-role-banner">Unknown role: {role}</div>;
+      return <div className="unknown-role-banner">Unknown role: {resolvedRole}</div>;
   }
 };
 
@@ -157,15 +92,11 @@ function App() {
                   </ErrorBoundary>
                 } 
               />
-              
+             
               {/* Protected routes */}
+              <Route path="/timesheets/create" element={createDashboardElement(<TimesheetCreateRoute />)} />
               <Route path="/dashboard" element={createDashboardElement(<DashboardRoute />)} />
-              <Route path="/timesheets" element={createDashboardElement(<TimesheetsPage />)} />
-              <Route path="/approvals" element={createDashboardElement(<ApprovalsPage />)} />
-              <Route path="/approvals/history" element={createDashboardElement(<ApprovalsHistoryPage />)} />
-              <Route path="/users" element={createDashboardElement(<UsersPage />)} />
               <Route path="/admin/users" element={createDashboardElement(<AdminUsersPage />, { requiredRole: 'ADMIN' })} />
-              <Route path="/reports" element={createDashboardElement(<ReportsPage />)} />              
               {/* Redirect root to dashboard */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               

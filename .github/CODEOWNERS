@@ -1,25 +1,12 @@
-# Default owners
-* @catams/maintainers
+# CODEOWNERS governs who must review changes to matching paths.
+# Replace the example handles below with your actual org/team or users.
 
-# Backend (Java)
-src/main/java/ @catams/backend-core
-src/test/java/ @catams/backend-core
+# E2E real suite (Playwright)
+# frontend/e2e/real/*  @your-org/e2e-core  @your-org/qa
 
-# Frontend (React/Vite)
-frontend/ @catams/frontend-guild
+# Frontend application
+# frontend/src/*        @your-org/frontend-core
 
-# Contracts & schemas
-schema/ @catams/backend-core @catams/frontend-guild
+# Specifications for E2E refactor
+# specs/001-playwright-e2e-refactor/*  @your-org/qa  @your-org/arch
 
-# Documentation
-docs/ @catams/documentation
-README.md @catams/documentation
-CONTRIBUTING.md @catams/documentation
-
-# Infrastructure & DevOps
-infra/ @catams/platform
-docker-compose.yml @catams/platform
-
-# Automation Scripts
-tools/scripts/ @catams/platform
-scripts/ @catams/platform

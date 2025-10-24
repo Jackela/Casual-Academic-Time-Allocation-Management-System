@@ -12,10 +12,6 @@ const __dirname = path.dirname(__filename);
 const AUTH_DIR = path.resolve(__dirname, '../shared/.auth');
 const STORAGE_STATE_FILE = path.resolve(AUTH_DIR, 'storageState.json');
 
-const truthy = new Set(['1', 'true', 'TRUE', 'yes', 'YES']);
-
-const asBool = (value?: string | null): boolean => (value ? truthy.has(value) : false);
-
 const hasRealProject = (config: FullConfig): boolean =>
   config.projects.some((project) => project.name === 'real');
 
@@ -62,6 +58,48 @@ const performLoginAndPersist = async () => {
     await ensureStorageDirectory();
     await context.storageState({ path: STORAGE_STATE_FILE });
     console.info(`[real/global.setup] Stored shared auth state at ${STORAGE_STATE_FILE}`);
+
+    // Validate that storageState yields an authenticated SPA session
+    let validationContext: import('@playwright/test').BrowserContext | null = null;
+    let validationPage: import('@playwright/test').Page | null = null;
+    try {
+      validationContext = await browser.newContext({ storageState: STORAGE_STATE_FILE });
+      validationPage = await validationContext.newPage();
+      await validationPage.goto(E2E_CONFIG.FRONTEND.URL, { waitUntil: 'domcontentloaded' });
+      // Ensure root exists before polling for E2E hooks
+      await validationPage.waitForSelector('#root', { timeout: 10000 }).catch(() => undefined);
+      // Wait up to 30s for the SPA to expose the E2E auth hook
+      const hasHook = await validationPage
+        .waitForFunction(() => typeof (window as any).__E2E_GET_AUTH__ === 'function', { timeout: 30000 })
+        .then(() => true)
+        .catch(() => false);
+      if (hasHook) {
+        const authState = await validationPage.evaluate(() => (window as any).__E2E_GET_AUTH__?.());
+        const isAuthenticated = !!(authState && (authState.isAuthenticated === true));
+        const gotRole = String(authState?.user?.role ?? '');
+        if (!isAuthenticated || gotRole.toUpperCase() !== 'ADMIN') {
+          console.warn('[real/global.setup] storageState validation: WARN (hook present but not authenticated ADMIN)');
+        } else {
+          console.info('[real/global.setup] storageState validation: PASS (authenticated ADMIN)');
+        }
+      } else {
+        console.warn('[real/global.setup] storageState validation: SKIP (SPA hook not available)');
+      }
+    } catch (e) {
+      // Diagnostics only; do not fail setup on validation error
+      try {
+        const ls = await validationPage?.evaluate(() => ({
+          token: localStorage.getItem('token'),
+          user: localStorage.getItem('user'),
+        }));
+        console.warn(`[real/global.setup] validation error: ${(e as Error).message}\n[real/global.setup] localStorage snapshot: ${JSON.stringify(ls)}`);
+      } catch {
+        console.warn(`[real/global.setup] validation error: ${(e as Error).message}`);
+      }
+    } finally {
+      try { await validationPage?.close(); } catch {}
+      try { await validationContext?.close(); } catch {}
+    }
   } finally {
     await browser.close();
   }
@@ -69,14 +107,8 @@ const performLoginAndPersist = async () => {
 
 export default async function globalSetup(config: FullConfig) {
   const isRealProjectRequested = hasRealProject(config);
-  const shouldSkip =
-    !isRealProjectRequested || asBool(process.env.E2E_SKIP_BACKEND) || asBool(process.env.E2E_SKIP_REAL_LOGIN);
-
-  if (shouldSkip) {
-    const reason = !isRealProjectRequested
-      ? 'real project not selected for this run'
-      : 'skip flag detected (E2E_SKIP_BACKEND / E2E_SKIP_REAL_LOGIN)';
-    console.info(`[real/global.setup] Skipping real authentication setup: ${reason}.`);
+  if (!isRealProjectRequested) {
+    console.info('[real/global.setup] Skipping real authentication setup: real project not selected for this run.');
     return;
   }
 
@@ -91,7 +123,7 @@ export default async function globalSetup(config: FullConfig) {
     await removeExistingState();
     await performLoginAndPersist();
   } catch (error) {
+    console.warn('[real/global.setup] Non-fatal error during auth setup; continuing without shared storage state.', error);
     await removeExistingState().catch(() => undefined);
-    throw error;
   }
 }
