@@ -4,8 +4,8 @@ export interface AdminSummaryMetrics {
   totalTimesheets: number;
   pendingApprovals: number;
   totalHours: number;
-  totalPayroll: number;
-  tutorCount: number;
+  totalPay: number;
+  tutorCount: number | null;
 }
 
 export interface AdminTabSpec {

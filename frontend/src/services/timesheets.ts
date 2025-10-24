@@ -90,8 +90,10 @@ export class TimesheetService {
       sortDirection: query.sortDirection || 'desc'
     });
 
-    const activeSignal = signal ?? new AbortController().signal;
-    const response = await secureApiClient.get<TimesheetPagePayload>(`/api/timesheets?${queryString}`, { signal: activeSignal });
+    const response = await secureApiClient.get<TimesheetPagePayload>(
+      `/api/timesheets?${queryString}`,
+      signal ? { signal } : undefined,
+    );
 
     // Normalize response format for backward compatibility
     return this.normalizeTimesheetPage(response.data);
@@ -334,14 +336,6 @@ export class TimesheetService {
       errors.push('Delivery hours must be between 0.1 and 10');
     }
 
-    if (typeof timesheet.hours !== 'number' || timesheet.hours <= 0 || timesheet.hours > 60) {
-      errors.push('Payable hours must be between 0.1 and 60');
-    }
-
-    if (typeof timesheet.hourlyRate !== 'number' || timesheet.hourlyRate <= 0 || timesheet.hourlyRate > 200) {
-      errors.push('Hourly rate must be between 0.01 and 200');
-    }
-
     if (!timesheet.taskType) {
       errors.push('Task type is required');
     }
@@ -386,3 +380,5 @@ export const {
   getActionableTimesheets,
   validateTimesheet
 } = TimesheetService;
+
+

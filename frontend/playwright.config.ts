@@ -1,10 +1,14 @@
 import { defineConfig } from '@playwright/test';
-import { URL } from 'node:url';
+import { URL, fileURLToPath } from 'node:url';
+import fs from 'node:fs';
+import path from 'node:path';
 import { E2E_CONFIG } from './e2e/config/e2e.config';
 
 const useExternalWebServer = !!process.env.E2E_EXTERNAL_WEBSERVER;
 const frontendUrl = new URL(E2E_CONFIG.FRONTEND.URL);
 const FRONTEND_PORT = process.env.E2E_FRONTEND_PORT || frontendUrl.port || '5174';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -66,7 +70,16 @@ export default defineConfig({
       workers: 1,
       timeout: 60000,
       use: {
-        storageState: './e2e/shared/.auth/storageState.json',
+        // Prefer per-role admin storage state if present for admin-focused runs; fallback to shared state
+        storageState: (() => {
+          const preferred = path.resolve(__dirname, 'e2e/shared/.auth/admin.json');
+          const fallback = path.resolve(__dirname, 'e2e/shared/.auth/storageState.json');
+          try {
+            return fs.existsSync(preferred) ? preferred : fallback;
+          } catch {
+            return fallback;
+          }
+        })(),
         baseURL: E2E_CONFIG.FRONTEND.URL,
       },
     },

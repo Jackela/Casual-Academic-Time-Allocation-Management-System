@@ -1,30 +1,42 @@
 # Frontend Architecture
 
-## Stack
-- React 18 with TypeScript and Vite.
-- State management via React Query and context providers.
-- Axios-based API clients with interceptors for JWT handling.
+## Runtime & Tooling
+- React 18 + TypeScript served by Vite.
+- Tailwind CSS with design-token backed custom layers (`src/index.modern.css`, `src/styles/*`).
+- React Query (TanStack Query) for server state and cache orchestration.
+- Secure Axios wrapper (`src/services/api-secure.ts`) shared by feature services.
 
-## Quote Workflow Modules
-- `src/lib/timesheetQuoteClient.ts` ? wraps Axios instance for `/api/timesheets/quote`.
-- `src/hooks/useTimesheetQuote.ts` ? debounces input changes and triggers quotes.
-- `src/components/TimesheetForm.tsx` ? renders the form and read-only calculation summary.
-- `src/components/TimesheetSummaryPanel.tsx` ? displays rate code, rate version, formula, and clause reference.
+## Core Feature Modules
 
-## Data Flow
-1. User edits form fields.
-2. Hook triggers a quote request (debounced) and stores the latest result in component state.
-3. Read-only fields render from the quote response.
-4. Form submission constructs payload without financial fields and posts to `/api/timesheets`.
-5. Upon success, React Query invalidates the timesheet list cache.
+### Lecturer-led Timesheet Creation
+- **Entry point:** `frontend/src/components/dashboards/LecturerDashboard/components/LecturerTimesheetCreateModal.tsx` wraps `TimesheetForm` and wires the create mutation exposed by `useTimesheetCreate`.
+- **Data dependencies:** Courses (`services/courses.ts`) and tutors (`services/users.ts`) fetched on modal open, normalised into `TimesheetForm` option lists.
+- **Form engine:** `TimesheetForm.tsx` (re-used by tutor edit flows) owns validation, quoting, and SSOT enforcement. It calls `TimesheetService.quoteTimesheet` directly and persists only directive fields (courseId, tutorId, deliveryHours, etc.). Read-only quote results (payableHours, hourlyRate, amount) stay in local state until submit.
+- **Permissions:** Form props expose `mode` so lecturer-created sessions automatically hide tutor-edit-only controls and ensure qualification/task type permissions follow role rules.
 
-## Error Handling
-- Quote failures show inline validation errors and disable submit until resolved.
-- Network errors fallback to toast notifications with retry actions.
+### Dashboards
+- **Tutor / Lecturer / Admin shells:** Each dashboard composes shared layout primitives (`layout-container`, `layout-grid`) and opts into React Query hooks for domain data (`useTimesheetQuery`, `useTimesheetDashboardSummary`, `useApprovalAction`, etc.).
+- **Data SSOT:** Summary panels and tables read directly from service-backed hooks; mock values were removed in Phase 3. Admin statistics, lecturer pending tables, and tutor quick stats now all source `TimesheetService` responses.
+- **State surfaces:** Mutations (approve, reject, create) trigger query invalidations to maintain a single source of truth across dashboards.
 
-## Testing Hooks
-- Unit tests cover hooks using MSW to mock API responses.
-- Playwright E2E spec verifies the quote request is issued and financial fields are excluded from the POST payload.
+### Admin User Management
+- **Create flow:** `features/admin-users/AdminUsersPage.tsx` manages a modal with secure password entry (no defaults) and uses `createUser` service call.
+- **Activation & edits:** Table rows expose status badges and PATCH actions through the shared `updateUser` service (PATCH `/api/users/{id}`) to toggle `isActive` and update names.
+- **Tests:** `AdminUsersPage.test.tsx` mocks service calls to cover password masking, status toggles, and optimistic refresh.
+
+## Styling & Layout
+- Design tokens defined in `styles/design-tokens.css` and layout grid rules in `styles/unified-grid.css` ensure consistent spacing, breakpoints, and z-indices.
+- Components consume Tailwind utility classes layered on top of these tokens; modal overlays and dashboard shells share the `layout-*` utilities.
+- Icons standardised on `lucide-react` in interactive surfaces (e.g., tutor quick actions) to avoid emoji drift.
+
+## Error & Loading Patterns
+- Page-level boundaries (`components/ErrorBoundary`) isolate crashed widgets and render `GlobalErrorBanner` or `PageLoadingIndicator` states.
+- Tables and stat cards surface loading/empty/error states via shared patterns (`TimesheetTable`, skeleton utilities).
+
+## Testing Strategy
+- Vitest + Testing Library for unit/integration coverage (forms, modals, dashboards).
+- Playwright component tests validate navigation props (e.g., `DashboardLayout.ct.tsx`).
+- React Query hooks mocked via MSW or local stubs in tests to assert cache invalidation and SSOT behaviour.
 
 ## Related Documents
 - `docs/frontend/ux-spec.md`

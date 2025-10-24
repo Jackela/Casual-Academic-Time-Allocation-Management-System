@@ -449,7 +449,18 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
 
   logStep('STEP 3', 'Starting Vite frontend dev server...');
   const npmCommand = resolveNpmCommand();
-  const frontendOrigin = `http://${frontendHost}:${frontendPort}`;
+  // Align Vite dev origin with E2E_FRONTEND_URL to match storageState origin exactly
+  let resolvedHost = frontendHost;
+  let resolvedPort = frontendPort;
+  let frontendOrigin = `http://${resolvedHost}:${resolvedPort}`;
+  try {
+    if (process.env.E2E_FRONTEND_URL) {
+      const u = new URL(process.env.E2E_FRONTEND_URL);
+      if (u.hostname) resolvedHost = u.hostname;
+      if (u.port) resolvedPort = Number(u.port);
+      frontendOrigin = `${u.protocol}//${u.host}`;
+    }
+  } catch {}
   const env = {
     E2E_FRONTEND_PORT: String(frontendPort),
     E2E_BACKEND_PORT: String(backendPort),
@@ -461,7 +472,7 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
     NODE_ENV: 'test',
   };
 
-  const devArgs = ['run', 'dev', '--', '--mode', 'e2e', '--host', frontendHost, '--port', String(frontendPort)];
+  const devArgs = ['run', 'dev', '--', '--mode', 'e2e', '--host', resolvedHost, '--port', String(resolvedPort)];
   const child = spawnBackground(npmCommand, devArgs, {
     cwd: frontendDir,
     env,
@@ -593,6 +604,19 @@ async function main() {
 
     // Reset backend test data after backend is ready
     await resetBackendData(backendUrl);
+    // Seed minimal lecturer resources for deterministic UI (id=2)
+    try {
+      const token = process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset';
+      const seedUrl = new URL('/api/test-data/seed/lecturer-resources', backendUrl).toString();
+      await fetch(seedUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Test-Reset-Token': token },
+        body: JSON.stringify({ lecturerId: 2, seedTutors: true }),
+      }).catch(() => undefined);
+      logSuccess('Seeded lecturer resources (id=2)');
+    } catch (e) {
+      logWarning(`Seed step failed or skipped: ${e.message}`);
+    }
 
     await ensureFrontend({
       frontendPort,

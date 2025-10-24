@@ -17,6 +17,9 @@ export interface User {
   firstName?: string;
   lastName?: string;
   displayName?: string;
+  qualification?: TutorQualification;
+  isActive?: boolean;
+  active?: boolean;
 }
 
 export interface AuthSession {
@@ -131,8 +134,6 @@ export interface TimesheetCreateRequest {
   taskType: TimesheetTaskType;
   qualification: TutorQualification;
   repeat: boolean;
-  hours: number;
-  hourlyRate: number;
 }
 
 export interface TimesheetUpdateRequest extends Partial<Omit<TimesheetCreateRequest, 'tutorId' | 'courseId'>> {
@@ -202,6 +203,14 @@ export interface DashboardDeadline {
   priority?: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
+export interface DashboardSupportResource {
+  id: string;
+  label: string;
+  description?: string;
+  href?: string;
+  icon?: string;
+}
+
 export interface DashboardSummary {
   totalTimesheets?: number;
   pendingApprovals?: number;
@@ -217,12 +226,15 @@ export interface DashboardSummary {
   statusBreakdown?: Record<string, number>;
   recentActivity?: DashboardActivity[];
   upcomingDeadlines?: DashboardDeadline[];
+  deadlines?: DashboardDeadline[];
   systemMetrics?: DashboardSystemMetrics;
   lecturerCount?: number;
   tutorCount?: number;
   courseCount?: number;
   activeUsers?: number;
   systemHealth?: 'HEALTHY' | 'WARNING' | 'ERROR';
+  supportResources?: DashboardSupportResource[];
+  nextPaymentDate?: string | null;
 }
 
 // =============================================================================
@@ -352,7 +364,14 @@ export interface CreateUserRequest {
   password: string;
 }
 
-export interface UpdateUserRequest extends Partial<CreateUserRequest> {
+export interface UpdateUserRequest {
+  email?: string;
+  name?: string;
+  role?: User['role'];
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+  isActive?: boolean;
   active?: boolean;
 }
 

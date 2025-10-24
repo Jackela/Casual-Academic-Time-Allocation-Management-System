@@ -180,7 +180,7 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
           ? (isLocked ? lockMessage : `${action.label} is not available`)
           : action.tooltip || `${action.label} timesheet`;
 
-        return (
+        const button = (
           <Button
             key={action.id}
             type="button"
@@ -205,6 +205,39 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
             )}
           </Button>
         );
+
+        // Wrap with canonical test id containers for E2E selectors
+        if (action.id === 'approve') {
+          const canonicalId = mode === 'admin' ? 'admin-final-approve-btn' : (mode === 'lecturer' ? 'lecturer-approve-btn' : undefined);
+          const content = (
+            <span key={`${action.id}-wrap-${timesheet.id}`} data-testid={canonicalId}>
+              {button}
+            </span>
+          );
+          // Also expose a generic alias for E2E selectors
+          return (
+            <span key={`${action.id}-wrap-alias-${timesheet.id}`} data-testid="btn-approve">
+              {content}
+            </span>
+          );
+        }
+        if (mode === 'tutor' && (action.id === 'submit' || action.id === 'confirm')) {
+          const canonicalId = action.id === 'submit' ? 'tutor-submit-btn' : 'tutor-confirm-btn';
+          const content = (
+            <span key={`${action.id}-wrap-${timesheet.id}`} data-testid={canonicalId}>
+              {button}
+            </span>
+          );
+          if (action.id === 'confirm') {
+            return (
+              <span key={`${action.id}-wrap-alias-${timesheet.id}`} data-testid="btn-confirm">
+                {content}
+              </span>
+            );
+          }
+          return content;
+        }
+        return button;
       })}
 
       {/* Screen reader announcement for action context */}

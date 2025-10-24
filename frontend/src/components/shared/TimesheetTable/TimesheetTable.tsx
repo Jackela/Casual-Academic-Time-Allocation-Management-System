@@ -498,6 +498,7 @@ function renderDefaultCell(
       return (
         <StatusBadge
           status={timesheet.status}
+          // Align with tests expecting status-badge-<id>
           dataTestId={`status-badge-${timesheet.id}`}
           lastModified={timesheet.updatedAt}
           submittedAt={timesheet.createdAt}

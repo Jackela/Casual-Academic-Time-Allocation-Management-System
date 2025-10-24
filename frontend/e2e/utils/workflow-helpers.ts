@@ -340,24 +340,27 @@ export async function createTimesheetWithStatus(
     selectedCourse = candidate.courseId;
     selectedWeek = candidate.weekStartDate;
 
+    // Align with backend expectations: include intrinsic fields (hours, hourlyRate), 
+    // exclude calculated fields (totalPay, associatedHours)
     const payload = {
       tutorId: tokens.tutor.userId,
       courseId: selectedCourse,
       weekStartDate: selectedWeek,
-      hours: options.hours ?? 6,
+      sessionDate: options.sessionDate ?? selectedWeek,
+      deliveryHours: options.deliveryHours ?? options.hours ?? 1,
+      hours: options.hours ?? (options.deliveryHours ?? 1),
       hourlyRate: options.hourlyRate ?? 42,
       description,
       taskType: options.taskType ?? 'TUTORIAL',
       qualification: options.qualification ?? 'STANDARD',
       repeat: options.repeat ?? false,
-      deliveryHours: options.deliveryHours ?? options.hours ?? 1,
-      sessionDate: options.sessionDate ?? selectedWeek
     };
 
     try {
+      // Timesheets are created by Lecturer/Admin only per new permissions
       createResponse = await request.post(timesheetsEndpoint, {
-        headers: toHeaders(tokens.tutor.token),
-        data: payload
+        headers: toHeaders(tokens.lecturer.token),
+        data: payload,
       });
     } catch (error) {
       lastError = { status: -1, body: String(error) };
@@ -526,8 +529,6 @@ export async function transitionTimesheet(
     await waitForTimesheetStatus(request, tokens, timesheetId, expectedStatus);
   }
 }
-
-
 
 
 

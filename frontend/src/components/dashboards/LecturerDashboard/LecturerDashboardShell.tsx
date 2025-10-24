@@ -24,6 +24,8 @@ import {
 import { Button } from "../../ui/button";
 import { formatters } from "../../../utils/formatting";
 import "../../../styles/dashboard-shell.css";
+import { useUserProfile } from "../../../auth/UserProfileProvider";
+import LecturerTimesheetCreateModal from "./components/LecturerTimesheetCreateModal";
 
 export interface LecturerDashboardShellProps {
   className?: string;
@@ -118,6 +120,13 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
     refetchDashboard,
     resetApproval,
   } = useLecturerDashboardData();
+  const { profile } = useUserProfile();
+  const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const lecturerId = profile?.id ?? null;
+
+  const handleCreateSuccess = useCallback(async () => {
+    await Promise.all([refreshPending(), refetchDashboard()]);
+  }, [refreshPending, refetchDashboard]);
 
   const rejectionDialogRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
@@ -261,6 +270,19 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
             metrics={metrics}
           />
 
+          <div className="mt-4 flex flex-wrap items-center gap-3" data-testid="lecturer-create-entry">
+            <Button
+              type="button"
+              data-testid="lecturer-create-open-btn"
+              aria-haspopup="dialog"
+              aria-expanded={isCreateModalOpen ? 'true' : 'false'}
+              aria-controls="lecturer-create-timesheet-modal"
+              onClick={() => setCreateModalOpen(true)}
+            >
+              Create Timesheet
+            </Button>
+          </div>
+
           <LecturerFiltersPanel
             filters={filters}
             courseOptions={courseOptions}
@@ -320,6 +342,10 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
             role="region"
             aria-label="Pending Approvals"
           >
+            <div className="mb-4 flex items-center justify-between">
+              <div />
+            </div>
+
             {Object.keys(metrics.statusBreakdown).length > 0 && (
               <div className="mb-6">
                 <StatusBreakdown statusBreakdown={metrics.statusBreakdown} />
@@ -408,6 +434,15 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {isCreateModalOpen && (
+        <LecturerTimesheetCreateModal
+          isOpen={isCreateModalOpen}
+          lecturerId={lecturerId ?? 0}
+          onClose={() => setCreateModalOpen(false)}
+          onSuccess={handleCreateSuccess}
+        />
       )}
 
       <div role="status" aria-live="polite" className="sr-only">

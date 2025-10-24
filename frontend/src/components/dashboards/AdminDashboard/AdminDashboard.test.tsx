@@ -84,6 +84,7 @@ const mockAdminSummary = createMockDashboardSummary({
   totalPay: 43767.5,
   thisWeekHours: 180,
   thisWeekPay: 6300,
+  tutorCount: 24,
   statusBreakdown: {
     DRAFT: 8,
     PENDING_TUTOR_CONFIRMATION: 12,
@@ -256,6 +257,23 @@ describe("AdminDashboard Component", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows N/A when tutor metrics are unavailable", () => {
+    mockTimesheetModule.useTimesheetDashboardSummary.mockReturnValueOnce({
+      data: createMockDashboardSummary({ tutorCount: undefined }),
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<AdminDashboard />);
+
+    const tutorCoverageCard = screen.getByTestId("tutors-card");
+    expect(within(tutorCoverageCard).getByText(/N\/A/i)).toBeInTheDocument();
+    expect(
+      within(tutorCoverageCard).getByText(/Data not available yet/i),
+    ).toBeInTheDocument();
+  });
+
   it.skip("displays system health metrics with status badge context", () => {
     render(<AdminDashboard />);
 
@@ -297,17 +315,17 @@ describe("AdminDashboard Component", () => {
     });
   });
 
-  it("allows switching to Pending Review tab and shows table", async () => {
+  it("allows switching to Pending Approvals tab and shows table", async () => {
     const user = userEvent.setup();
     render(<AdminDashboard />);
 
     const navigation = screen.getByRole("navigation");
     await user.click(
-      within(navigation).getByRole("button", { name: /pending review/i }),
+      within(navigation).getByRole("button", { name: /pending approvals/i }),
     );
 
     const pendingRegion = screen.getByRole("region", {
-      name: /pending review/i,
+      name: /pending approvals/i,
     });
     expect(
       within(pendingRegion).getByRole("heading", {
@@ -381,7 +399,7 @@ describe("AdminDashboard Component", () => {
 
     const navigation = screen.getByRole("navigation");
     await user.click(
-      within(navigation).getByRole("button", { name: /pending review/i }),
+      within(navigation).getByRole("button", { name: /pending approvals/i }),
     );
 
     const approveButton = await screen.findByRole("button", {
@@ -432,7 +450,7 @@ describe("AdminDashboard Component", () => {
 
     const navigation = screen.getByRole("navigation");
     await user.click(
-      within(navigation).getByRole("button", { name: /pending review/i }),
+      within(navigation).getByRole("button", { name: /pending approvals/i }),
     );
 
     const rejectButton = await screen.findByRole("button", {

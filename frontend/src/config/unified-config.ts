@@ -166,16 +166,21 @@ class ConfigurationBuilder {
         if (typeof VITE_API_BASE_URL === 'string' && VITE_API_BASE_URL.length > 0) {
           return VITE_API_BASE_URL;
         }
-        if (isE2EorTest) {
+        if (!isE2EorTest) {
           return window.location.origin;
+        }
+        if (envBackendUrl) {
+          return envBackendUrl;
         }
       }
     } catch {
       // ignore
     }
 
-    if (isE2EorTest && envBackendUrl) {
-      return envBackendUrl;
+    const fallbackPort = getProcessEnv().E2E_BACKEND_PORT ?? '8084';
+
+    if (isE2EorTest) {
+      return envBackendUrl ?? `http://127.0.0.1:${fallbackPort}`;
     }
 
     if (envBackendUrl) {
@@ -188,7 +193,6 @@ class ConfigurationBuilder {
     }
 
     // Dev fallback
-    const fallbackPort = getProcessEnv().E2E_BACKEND_PORT ?? '8084';
     return `http://127.0.0.1:${fallbackPort}`;
   }
 

@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
-import type { FormEvent } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import type {
   Timesheet,
   TimesheetQuoteResponse,
@@ -16,6 +16,22 @@ import { TimesheetService } from '../../../../services/timesheets';
 
 const DEFAULT_TASK_TYPE: TimesheetTaskType = 'TUTORIAL';
 const DEFAULT_QUALIFICATION: TutorQualification = 'STANDARD';
+const TASK_TYPE_LABELS: Record<TimesheetTaskType, string> = {
+  LECTURE: 'Lecture',
+  TUTORIAL: 'Tutorial',
+  ORAA: 'ORAA',
+  DEMO: 'Demonstration',
+  MARKING: 'Marking',
+  OTHER: 'Other',
+};
+const QUALIFICATION_LABELS: Record<TutorQualification, string> = {
+  STANDARD: 'Standard Tutor',
+  PHD: 'PhD Qualified',
+  COORDINATOR: 'Course Coordinator',
+};
+const formatTaskTypeLabel = (taskType: TimesheetTaskType) => TASK_TYPE_LABELS[taskType] ?? taskType;
+const formatQualificationLabel = (qualification: TutorQualification) =>
+  QUALIFICATION_LABELS[qualification] ?? qualification;
 
 export interface TimesheetFormState {
   courseId: number;
@@ -25,10 +41,31 @@ export interface TimesheetFormState {
   taskType: TimesheetTaskType;
   qualification: TutorQualification;
   isRepeat: boolean;
+  repeat: boolean;
 }
 
-export interface TimesheetFormSubmitData extends TimesheetFormState {
-  quote: TimesheetQuoteResponse;
+export interface TimesheetFormSubmitData {
+  tutorId: number;
+  courseId: number;
+  weekStartDate: string;
+  sessionDate: string;
+  deliveryHours: number;
+  description: string;
+  taskType: TimesheetTaskType;
+  qualification: TutorQualification;
+  repeat: boolean;
+}
+
+export interface TimesheetFormTutorOption {
+  id: number;
+  label: string;
+  qualification?: TutorQualification | null;
+  courseIds?: number[];
+}
+
+export interface TimesheetFormCourseOption {
+  id: number;
+  label: string;
 }
 
 export interface TimesheetFormProps {
@@ -37,8 +74,14 @@ export interface TimesheetFormProps {
   tutorId: number;
   onSubmit: (data: TimesheetFormSubmitData) => void;
   onCancel: () => void;
+  mode?: 'tutor' | 'lecturer-create' | 'lecturer-edit';
   loading?: boolean;
   error?: string | null;
+  tutorOptions?: TimesheetFormTutorOption[];
+  selectedTutorId?: number | null;
+  onTutorChange?: (tutorId: number) => void;
+  courseOptions?: TimesheetFormCourseOption[];
+  optionsLoading?: boolean;
 }
 
 type QuoteState =
@@ -274,7 +317,21 @@ const WeekStartDatePicker = ({
   );
 };
 
-const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, tutorId, onSubmit, onCancel, loading = false, error }) => {
+const TimesheetForm = memo<TimesheetFormProps>(({
+  isEdit = false,
+  initialData,
+  tutorId,
+  onSubmit,
+  onCancel,
+  mode = 'tutor',
+  loading = false,
+  error,
+  tutorOptions,
+  selectedTutorId = null,
+  onTutorChange,
+  courseOptions,
+  optionsLoading = false,
+}) => {
   const {
     HOURS_MIN,
     HOURS_MAX,
@@ -293,6 +350,22 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
     isRepeat: Boolean(initialData?.isRepeat),
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const isLecturerCreateMode = mode === 'lecturer-create';
+  const isLecturerEditMode = mode === 'lecturer-edit';
+  const isLecturerMode = isLecturerCreateMode || isLecturerEditMode;
+  const tutorOptionsAvailable = Array.isArray(tutorOptions) && tutorOptions.length > 0;
+  const [internalTutorId, setInternalTutorId] = useState<number>(() => {
+    if (isLecturerCreateMode) {
+      if (selectedTutorId) {
+        return selectedTutorId;
+      }
+      if (tutorOptionsAvailable) {
+        return tutorOptions![0].id;
+      }
+      return 0;
+    }
+    return tutorId;
+  });
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [autoSaveMessage, setAutoSaveMessage] = useState<string | null>(null);
   const autoSaveDelay = process.env.NODE_ENV === 'test' ? 0 : 30000;
@@ -321,6 +394,68 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
     return { status: 'idle', data: null, error: null };
   });
 
+  useEffect(() => {
+    if (!isLecturerCreateMode) {
+      setInternalTutorId(tutorId);
+      return;
+    }
+
+    if (selectedTutorId && selectedTutorId > 0) {
+      setInternalTutorId((current) => (current === selectedTutorId ? current : selectedTutorId));
+      return;
+    }
+
+    if (tutorOptionsAvailable) {
+      const firstTutor = tutorOptions![0]?.id ?? 0;
+      setInternalTutorId(firstTutor);
+    } else {
+      setInternalTutorId(0);
+    }
+  }, [isLecturerCreateMode, selectedTutorId, tutorId, tutorOptions, tutorOptionsAvailable]);
+
+  const resolvedTutorId = isLecturerCreateMode ? internalTutorId : tutorId;
+  const resolvedCourseOptions = useMemo(
+    () => (Array.isArray(courseOptions) ? courseOptions.filter(Boolean) : []),
+    [courseOptions],
+  );
+  const hasCourseOptions = resolvedCourseOptions.length > 0;
+
+  useEffect(() => {
+    if (!isLecturerMode) {
+      return;
+    }
+
+    const selectedTutor = tutorOptions?.find((option) => option.id === resolvedTutorId);
+    if (!selectedTutor) {
+      return;
+    }
+
+    setFormData((previous) => {
+      const nextQualification = selectedTutor.qualification ?? previous.qualification ?? DEFAULT_QUALIFICATION;
+      if (previous.qualification === nextQualification) {
+        return previous;
+      }
+      return { ...previous, qualification: nextQualification };
+    });
+  }, [isLecturerMode, resolvedTutorId, tutorOptions]);
+
+  useEffect(() => {
+    setFormData((previous) => {
+      if (!hasCourseOptions) {
+        return previous.courseId === 0 ? previous : { ...previous, courseId: 0 };
+      }
+
+      const courseStillValid = previous.courseId !== 0
+        && resolvedCourseOptions.some((option) => option.id === previous.courseId);
+
+      if (courseStillValid || previous.courseId === 0) {
+        return previous;
+      }
+
+      return { ...previous, courseId: 0 };
+    });
+  }, [hasCourseOptions, resolvedCourseOptions]);
+
   const isWeekStartOnAllowedDay = useCallback(
     (value: string | undefined) => {
       if (!value) {
@@ -342,6 +477,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
   );
 
   const isFormValid = useMemo(() => {
+    const hasTutor = !isLecturerMode || resolvedTutorId > 0;
     const hasCourse = formData.courseId > 0;
     const hasWeekStart = Boolean(formData.weekStartDate) && isWeekStartOnAllowedDay(formData.weekStartDate);
     const hasValidDeliveryHours =
@@ -350,8 +486,10 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
       formData.deliveryHours <= HOURS_MAX;
     const hasQuote = quoteState.status === 'loaded' && quoteState.data !== null;
     const noValidationErrors = Object.values(validationErrors).every(message => !message);
-    return hasCourse && hasWeekStart && hasValidDeliveryHours && hasQuote && noValidationErrors;
+    return hasTutor && hasCourse && hasWeekStart && hasValidDeliveryHours && hasQuote && noValidationErrors;
   }, [
+    resolvedTutorId,
+    isLecturerMode,
     formData.courseId,
     formData.weekStartDate,
     formData.deliveryHours,
@@ -362,7 +500,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
     quoteState,
   ]);
 
-  const isSubmitDisabled = loading || !isFormValid;
+  const isSubmitDisabled = loading || optionsLoading || !isFormValid || !hasCourseOptions;
 
   useEffect(() => {
     if (autoSaveTimeout) {
@@ -387,6 +525,10 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
 
   const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};
+
+    if (isLecturerMode && (!resolvedTutorId || resolvedTutorId <= 0)) {
+      errors.tutorId = 'Tutor is required';
+    }
 
     if (!formData.courseId) {
       errors.courseId = 'Course is required';
@@ -426,11 +568,38 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
-  }, [HOURS_MAX, HOURS_MIN, MONDAY_ERROR_MESSAGE, formData, isWeekStartOnAllowedDay, quoteState]);
+  }, [HOURS_MAX, HOURS_MIN, MONDAY_ERROR_MESSAGE, formData, isLecturerMode, isWeekStartOnAllowedDay, quoteState, resolvedTutorId]);
+
+  const handleTutorSelection = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    const nextId = Number.parseInt(event.target.value, 10) || 0;
+    setInternalTutorId(nextId);
+    if (tutorOptions && tutorOptions.length > 0) {
+      const selectedTutor = tutorOptions.find((option) => option.id === nextId);
+      if (selectedTutor?.qualification) {
+        setFormData((previous) => {
+          if (previous.qualification === selectedTutor.qualification) {
+            return previous;
+          }
+          return { ...previous, qualification: selectedTutor.qualification ?? DEFAULT_QUALIFICATION };
+        });
+      }
+    }
+    onTutorChange?.(nextId);
+    setValidationErrors((previous) => {
+      if (previous.tutorId && nextId > 0) {
+        const { tutorId: _ignored, ...rest } = previous;
+        return rest;
+      }
+      if (!previous.tutorId && nextId <= 0) {
+        return { ...previous, tutorId: 'Tutor is required' };
+      }
+      return previous;
+    });
+  }, [onTutorChange, tutorOptions]);
 
   const quoteRequest = useMemo(() => {
     if (
-      tutorId <= 0 ||
+      resolvedTutorId <= 0 ||
       formData.courseId <= 0 ||
       !formData.weekStartDate ||
       formData.deliveryHours <= 0
@@ -438,7 +607,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
       return null;
     }
     return {
-      tutorId,
+      tutorId: resolvedTutorId,
       courseId: formData.courseId,
       sessionDate: formData.weekStartDate,
       taskType: formData.taskType,
@@ -447,7 +616,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
       deliveryHours: formData.deliveryHours,
     };
   }, [
-    tutorId,
+    resolvedTutorId,
     formData.courseId,
     formData.weekStartDate,
     formData.taskType,
@@ -519,13 +688,20 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
     }
 
     const submission: TimesheetFormSubmitData = {
-      ...formData,
-      quote: quoteState.data,
+      tutorId: resolvedTutorId,
+      courseId: formData.courseId,
+      weekStartDate: formData.weekStartDate,
+      sessionDate: quoteState.data.sessionDate ?? formData.weekStartDate,
+      deliveryHours: formData.deliveryHours,
+      description: formData.description,
+      taskType: formData.taskType,
+      qualification: formData.qualification,
+      repeat: formData.isRepeat,
     };
 
     secureLogger.debug('submitting form', submission);
     onSubmit(submission);
-  }, [formData, loading, onSubmit, quoteState, validateForm]);
+  }, [formData.courseId, formData.deliveryHours, formData.description, formData.isRepeat, formData.qualification, formData.taskType, formData.weekStartDate, loading, onSubmit, quoteState, resolvedTutorId, validateForm]);
 
   const handleFieldChange = useCallback((field: keyof TimesheetFormState, value: string | number | boolean) => {
     secureLogger.debug('field change', { field, value });
@@ -563,6 +739,13 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
         <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-center text-sm text-destructive">{error}</div>
       )}
 
+      {optionsLoading && (
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground" role="status">
+          <LoadingSpinner size="small" />
+          <span>Loading available options…</span>
+        </div>
+      )}
+
       {initialData?.rejectionReason && initialData?.status === 'REJECTED' && (
         <div 
           data-testid="rejection-feedback-section" 
@@ -584,26 +767,67 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
       )}
 
       <form onSubmit={handleSubmit} className="timesheet-form space-y-4" data-testid="edit-timesheet-form">
+        {isLecturerMode && (
+          <div
+            className="form-field space-y-1"
+            data-testid={mode === 'lecturer-create' ? 'lecturer-timesheet-tutor-selector' : undefined}
+          >
+            <label htmlFor="tutor" className="text-sm font-medium">Tutor</label>
+            <select
+              id="tutor"
+              value={resolvedTutorId}
+              onChange={handleTutorSelection}
+              disabled={optionsLoading || loading || !tutorOptionsAvailable}
+              className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${validationErrors.tutorId ? 'border-destructive ring-destructive/20' : ''}`}
+              aria-describedby={validationErrors.tutorId ? 'tutor-error' : undefined}
+            >
+              <option value={0}>Select a tutor</option>
+              {tutorOptions?.map((option) => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+            {!optionsLoading && !tutorOptionsAvailable && (
+              <p className="text-xs text-muted-foreground" data-testid="tutor-empty-state">
+                No tutors are currently assigned. Please contact an administrator for assistance.
+              </p>
+            )}
+            {validationErrors.tutorId && (
+              <span id="tutor-error" className="text-xs text-destructive">{validationErrors.tutorId}</span>
+            )}
+          </div>
+        )}
+
         <div className="form-field space-y-1">
           <label htmlFor="course" className="text-sm font-medium">Course</label>
           <select
             id="course"
             value={formData.courseId}
             onChange={(e) => handleFieldChange('courseId', parseInt(e.target.value, 10))}
+            disabled={optionsLoading || loading || !hasCourseOptions}
             className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${validationErrors.courseId ? 'border-destructive ring-destructive/20' : ''}`}
             aria-describedby={[ 'course-help', validationErrors.courseId ? 'course-error' : null ].filter(Boolean).join(' ')}
+            data-testid={isLecturerMode ? 'create-course-select' : undefined}
           >
             <option value={0}>Select a course</option>
-            <option value={1}>CS101 - Computer Science 101</option>
-            <option value={2}>CS102 - Data Structures</option>
+            {resolvedCourseOptions.map((option) => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
           </select>
           <span id="course-help" className="text-xs text-muted-foreground">Select the course this timesheet applies to</span>
+          {!optionsLoading && !hasCourseOptions && (
+            <p
+              className="text-xs text-muted-foreground"
+              data-testid="course-empty-state"
+            >
+              No active courses found. Please contact an administrator to be assigned to a course.
+            </p>
+          )}
           {validationErrors.courseId && (
             <span id="course-error" className="text-xs text-destructive">{validationErrors.courseId}</span>
           )}
         </div>
 
-        <div className="form-field space-y-2">
+        <div className="form-field space-y-2" data-testid={isLecturerMode ? 'create-week-start-input' : undefined}>
           <label htmlFor="weekStartDate" className="text-sm font-medium">
             Week Starting
           </label>
@@ -615,25 +839,38 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
             errorId="week-start-error"
             errorMessage={validationErrors.weekStartDate}
           />
+          {isLecturerMode && <span className="sr-only" data-testid="input-week" />}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="form-field space-y-1">
             <label htmlFor="task-type" className="text-sm font-medium">Task Type</label>
-            <select
-              id="task-type"
-              value={formData.taskType}
-              onChange={(e) => handleFieldChange('taskType', e.target.value as TimesheetTaskType)}
-              className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${validationErrors.taskType ? 'border-destructive ring-destructive/20' : ''}`}
-              aria-describedby={validationErrors.taskType ? 'task-type-error' : undefined}
-            >
-              <option value="TUTORIAL">Tutorial</option>
-              <option value="LECTURE">Lecture</option>
-              <option value="ORAA">ORAA</option>
-              <option value="DEMO">Demonstration</option>
-              <option value="MARKING">Marking</option>
-              <option value="OTHER">Other</option>
-            </select>
+            {isLecturerMode ? (
+              <select
+                id="task-type"
+                value={formData.taskType}
+                onChange={(e) => handleFieldChange('taskType', e.target.value as TimesheetTaskType)}
+                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${validationErrors.taskType ? 'border-destructive ring-destructive/20' : ''}`}
+                aria-describedby={validationErrors.taskType ? 'task-type-error' : undefined}
+                data-testid={isLecturerMode ? 'create-task-type-select' : undefined}
+              >
+                <option value="TUTORIAL">Tutorial</option>
+                <option value="LECTURE">Lecture</option>
+                <option value="ORAA">ORAA</option>
+                <option value="DEMO">Demonstration</option>
+                <option value="MARKING">Marking</option>
+                <option value="OTHER">Other</option>
+              </select>
+            ) : (
+              <Input
+                id="task-type"
+                value={formatTaskTypeLabel(formData.taskType)}
+                readOnly
+                disabled
+                aria-readonly="true"
+                className="cursor-not-allowed"
+              />
+            )}
             {validationErrors.taskType && (
               <span id="task-type-error" className="text-xs text-destructive">{validationErrors.taskType}</span>
             )}
@@ -641,17 +878,16 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
 
           <div className="form-field space-y-1">
             <label htmlFor="qualification" className="text-sm font-medium">Tutor Qualification</label>
-            <select
+            <Input
               id="qualification"
-              value={formData.qualification}
-              onChange={(e) => handleFieldChange('qualification', e.target.value as TutorQualification)}
-              className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${validationErrors.qualification ? 'border-destructive ring-destructive/20' : ''}`}
+              value={formatQualificationLabel(formData.qualification)}
+              readOnly
+              disabled
+              aria-readonly="true"
+              className={`cursor-not-allowed ${validationErrors.qualification ? 'border-destructive ring-destructive/20' : ''}`}
               aria-describedby={validationErrors.qualification ? 'qualification-error' : undefined}
-            >
-              <option value="STANDARD">Standard Tutor</option>
-              <option value="PHD">PhD Qualified</option>
-              <option value="COORDINATOR">Course Coordinator</option>
-            </select>
+              data-testid={isLecturerMode ? 'create-qualification-select' : undefined}
+            />
             {validationErrors.qualification && (
               <span id="qualification-error" className="text-xs text-destructive">{validationErrors.qualification}</span>
             )}
@@ -665,6 +901,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
             className="mt-1 h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-primary"
             checked={formData.isRepeat}
             onChange={(e) => handleFieldChange('isRepeat', e.target.checked)}
+            data-testid={isLecturerMode ? 'create-repeat-checkbox' : undefined}
           />
           <div className="space-y-1">
             <label htmlFor="is-repeat" className="text-sm font-medium leading-none">Repeat session within seven days</label>
@@ -685,6 +922,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
             onBlur={() => validateForm()}
             className={validationErrors.deliveryHours ? 'border-destructive ring-destructive/20' : ''}
             aria-describedby="delivery-hours-error delivery-hours-help"
+            data-testid={isLecturerMode ? 'create-delivery-hours-input' : undefined}
           />
           <span id="delivery-hours-help" className="text-xs text-muted-foreground">Enter the in-class delivery hours ({HOURS_MIN} - {HOURS_MAX})</span>
           {validationErrors.deliveryHours && (
@@ -692,7 +930,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
           )}
         </div>
 
-        <div className="rounded-md border border-border bg-muted/30 p-4">
+        <div className="rounded-md border border-border bg-muted/30 p-4" data-testid={isLecturerMode ? 'calculated-preview' : undefined}>
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold">Calculated Pay Summary</h3>
@@ -762,6 +1000,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
             rows={4}
             className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             aria-describedby="description-help"
+            data-testid={isLecturerMode ? 'create-description-input' : undefined}
           />
           <span id="description-help" className="text-xs text-muted-foreground">Provide details about your tutoring activities</span>
         </div>
@@ -779,7 +1018,13 @@ const TimesheetForm = memo<TimesheetFormProps>(({ isEdit = false, initialData, t
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitDisabled} title={isSubmitDisabled && !loading ? 'Complete all required fields before submitting.' : undefined}>
+          <Button
+            type="submit"
+            disabled={isSubmitDisabled}
+            title={isSubmitDisabled && !loading ? 'Complete all required fields before submitting.' : undefined}
+            data-testid={mode === 'lecturer-create' ? 'lecturer-create-submit-btn' : undefined}
+          >
+            {mode === 'lecturer-create' && <span className="sr-only" data-testid="btn-save-timesheet" />}
             {loading ? <LoadingSpinner size="small" /> : (isEdit ? 'Update Timesheet' : 'Create Timesheet')}
           </Button>
         </div>

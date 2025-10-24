@@ -50,7 +50,6 @@ vi.mock("../../../hooks/timesheets", () => ({
   __esModule: true,
   useTimesheetQuery: vi.fn(),
   useTimesheetDashboardSummary: vi.fn(),
-  useCreateTimesheet: vi.fn(),
   useUpdateTimesheet: vi.fn(),
   useTimesheetStats: vi.fn(),
 }));
@@ -247,14 +246,6 @@ describe("TutorDashboard Component", () => {
       refetch: vi.fn(),
     });
 
-    mockReadHooks.useCreateTimesheet.mockImplementation(() => ({
-      data: null,
-      loading: false,
-      error: null,
-      createTimesheet: vi.fn().mockResolvedValue(createMockTimesheet()),
-      reset: vi.fn(),
-    }));
-
     mockReadHooks.useUpdateTimesheet.mockReturnValue({
       data: null,
       loading: false,
@@ -286,15 +277,18 @@ describe("TutorDashboard Component", () => {
   });
 
   describe("Main Content Layout", () => {
-    it("should display primary action buttons inside the timesheet card", async () => {
+    it("should not expose a create timesheet button in the timesheet card", async () => {
       render(<TutorDashboard />, { wrapper });
       const timesheetsRegion = screen.getByRole("region", {
         name: /My Timesheets/i,
       });
       const cardScope = within(timesheetsRegion);
       expect(
-        cardScope.getByRole("button", { name: /Create New/i }),
-      ).toBeInTheDocument();
+        cardScope.queryByRole("button", { name: /Create New/i }),
+      ).not.toBeInTheDocument();
+      expect(cardScope.getByTestId("creation-info")).toHaveTextContent(
+        /Timesheets are created by your lecturer or administrator/i,
+      );
     });
 
     it("should show quick statistics cards", async () => {
@@ -479,27 +473,13 @@ describe("TutorDashboard Component", () => {
         expect(badge).toBeInTheDocument();
       });
     });
-  });
 
-  // Most form tests can be moved to a dedicated Form component test file.
-  // We'll keep a simple one to ensure the modal opens.
-  describe("Timesheet Form Modal", () => {
-    it("should open the form modal on create", async () => {
-      const user = userEvent.setup();
+    it("should expose edit actions for editable timesheets", async () => {
       render(<TutorDashboard />, { wrapper });
-
-      const timesheetsRegion = screen.getByRole("region", {
-        name: /My Timesheets/i,
+      const editButtons = await screen.findAllByRole("button", {
+        name: /^Edit$/i,
       });
-      const cardScope = within(timesheetsRegion);
-      const createButton = cardScope.getByRole("button", {
-        name: /Create New/i,
-      });
-      await user.click(createButton);
-
-      expect(
-        await screen.findByRole("heading", { name: /New Timesheet Form/i }),
-      ).toBeInTheDocument();
+      expect(editButtons.length).toBeGreaterThan(0);
     });
   });
 
@@ -602,30 +582,17 @@ describe("TutorDashboard Component", () => {
       expect(
         within(emptyState).getByTestId("empty-state-title"),
       ).toHaveTextContent(/No Timesheets Found/i);
+      const description = within(emptyState).getByTestId(
+        "empty-state-description",
+      );
+      expect(description).toHaveTextContent(
+        /Ask your lecturer or administrator to create a timesheet/i,
+      );
       expect(
-        within(emptyState).getByTestId("empty-state-description"),
-      ).toHaveTextContent(/Create your first timesheet to get started/i);
-      expect(
-        within(emptyState).getByRole("button", {
+        within(emptyState).queryByRole("button", {
           name: /Create First Timesheet/i,
         }),
-      ).toBeInTheDocument();
-    });
-
-    it("should handle timesheet creation errors", async () => {
-      mockReadHooks.useCreateTimesheet.mockImplementation(() => ({
-        data: null,
-        loading: false,
-        error: "Course not found or inactive",
-        createTimesheet: vi.fn(),
-        reset: vi.fn(),
-      }));
-
-      render(<TutorDashboard />, { wrapper });
-
-      expect(
-        screen.getByText(/Course not found or inactive/i),
-      ).toBeInTheDocument();
+      ).not.toBeInTheDocument();
     });
 
     it("should handle network errors gracefully", async () => {
@@ -694,14 +661,13 @@ describe("TutorDashboard Component", () => {
 
       await user.tab();
       expect(document.activeElement).toHaveAccessibleName(
-        /Create New Timesheet/i,
+        /Refresh Data/i,
       );
 
       await user.keyboard("{Enter}");
-      const modalHeading = await screen.findByRole("heading", {
-        name: /New Timesheet Form/i,
-      });
-      expect(modalHeading).toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: /New Timesheet Form/i }),
+      ).not.toBeInTheDocument();
     });
 
     it("should announce status changes to screen readers", async () => {
@@ -713,29 +679,6 @@ describe("TutorDashboard Component", () => {
       expect(statusRegion).toBeInTheDocument();
     });
 
-    it("should have proper form labels and descriptions", async () => {
-      const user = userEvent.setup();
-      render(<TutorDashboard />, { wrapper });
-
-      const timesheetsRegion = screen.getByRole("region", {
-        name: /My Timesheets/i,
-      });
-      const cardScope = within(timesheetsRegion);
-      const createButton = cardScope.getByRole("button", {
-        name: /Create New/i,
-      });
-      await user.click(createButton);
-
-      expect(
-        await screen.findByLabelText(/Course/i),
-      ).toHaveAccessibleDescription();
-      expect(
-        await screen.findByLabelText(/Delivery Hours/i),
-      ).toHaveAccessibleDescription();
-      expect(
-        await screen.findByLabelText(/Description/i),
-      ).toHaveAccessibleDescription();
-    });
   });
 });
 

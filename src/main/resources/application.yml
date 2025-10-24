@@ -5,12 +5,23 @@ spring:
     group:
       demo: e2e-local
   
+  # Default database configuration (connects to Docker PostgreSQL)
+  datasource:
+    url: jdbc:postgresql://localhost:5433/catams
+    username: catams_user
+    password: catams_password
+    driver-class-name: org.postgresql.Driver
+  
   # Default JPA configuration (can be overridden by profiles)
   jpa:
     open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
   
   # Default Flyway configuration (enabled by default, disabled in test profiles)
   flyway:

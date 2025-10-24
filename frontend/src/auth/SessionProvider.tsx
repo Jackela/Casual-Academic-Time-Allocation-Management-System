@@ -86,11 +86,19 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
       __E2E_SESSION_STATE__?: () => SessionState;
       __E2E_APPLY_SESSION__?: (session: AuthSession) => void;
       __E2E_PENDING_SESSION__?: AuthSession | null;
+      __E2E_GET_AUTH__?: () => { isAuthenticated: boolean; user: any };
+      __E2E_SET_AUTH__?: (session: AuthSession) => void;
+      __E2E_AUTH_MANAGER_STATE__?: () => { isAuthenticated: boolean; token: string | null; user: any };
     };
 
     global.__E2E_SESSION_STATE__ = () => state;
-    global.__E2E_APPLY_SESSION__ = (session: AuthSession) => {
-      applyInjectedSession(session);
+    global.__E2E_APPLY_SESSION__ = (session: AuthSession) => { applyInjectedSession(session); };
+    global.__E2E_SET_AUTH__ = (session: AuthSession) => { applyInjectedSession(session); };
+
+    // Expose a minimal auth snapshot for E2E diagnostics and optional checks
+    global.__E2E_GET_AUTH__ = () => {
+      const authState = authManager.getAuthState();
+      return { isAuthenticated: authState.isAuthenticated, user: authState.user };
     };
 
     if (global.__E2E_PENDING_SESSION__) {
@@ -98,9 +106,17 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
       global.__E2E_PENDING_SESSION__ = null;
     }
 
+    global.__E2E_AUTH_MANAGER_STATE__ = () => {
+      const state = authManager.getAuthState();
+      return { isAuthenticated: state.isAuthenticated, token: state.token, user: state.user } as const;
+    };
+
     return () => {
       delete global.__E2E_SESSION_STATE__;
       delete global.__E2E_APPLY_SESSION__;
+      delete global.__E2E_GET_AUTH__;
+      delete global.__E2E_SET_AUTH__;
+      delete global.__E2E_AUTH_MANAGER_STATE__;
     };
   }, [state, applyInjectedSession, syncFromAuthManager]);
 

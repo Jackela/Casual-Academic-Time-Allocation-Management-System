@@ -6,6 +6,7 @@ import { ENV_CONFIG } from './utils/environment'
 import { secureLogger } from './utils/secure-logger'
 import { authManager } from './services/auth-manager'
 import type { AuthSession } from './types/api'
+import { STORAGE_KEYS } from './utils/storage-keys'
 
 type E2EDebugInfo = ReturnType<typeof ENV_CONFIG.e2e.getDebugInfo>
 
@@ -49,9 +50,31 @@ if (ENV_CONFIG.features.enableDetailedLogging()) {
   }
 }
 
+// SPA bootstrap hydrator: if token+user exist in storage, hydrate auth before first render
+try {
+  const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+  const rawUser = localStorage.getItem(STORAGE_KEYS.USER);
+  if (token && rawUser) {
+    const current = authManager.getAuthState();
+    if (!current.isAuthenticated) {
+      try {
+        const parsedUser = JSON.parse(rawUser);
+        authManager.setAuth({ token, user: parsedUser, refreshToken: null, expiresAt: null });
+        if (ENV_CONFIG.isE2E()) {
+          secureLogger.e2e('Bootstrap auth hydration applied');
+        }
+      } catch (e) {
+        secureLogger.warn('Failed to parse stored user for bootstrap auth hydration', e as Error);
+      }
+    }
+  }
+} catch (e) {
+  // ignore storage access errors
+}
+
 // Expose globals for Playwright introspection - ONLY in E2E mode
-// This code block is completely removed in production builds via conditional compilation
-if (__E2E_GLOBALS__ && ENV_CONFIG.isE2E()) {
+// In e2e mode, always expose globals for test harness regardless of additional flags
+if (ENV_CONFIG.isE2E()) {
   try {
     const e2eEnv: E2EEnvironmentSnapshot = {
       ...ENV_CONFIG.e2e.getDebugInfo(),
@@ -112,6 +135,19 @@ const globalForAuth = window as typeof window & {
   __E2E_AUTH_MANAGER_STATE__?: () => ReturnType<typeof authManager.getAuthState>;
 };
 globalForAuth.__E2E_AUTH_MANAGER_STATE__ = () => authManager.getAuthState();
+
+// Proactively consume any pending E2E session injected before app render
+try {
+  const g = window as typeof window & { __E2E_PENDING_SESSION__?: AuthSession | null };
+  if (g.__E2E_PENDING_SESSION__) {
+    // Apply via the same public hook to keep behavior consistent
+    window.__E2E_SET_AUTH__?.(g.__E2E_PENDING_SESSION__);
+    g.__E2E_PENDING_SESSION__ = null;
+    secureLogger.e2e?.('Consumed pending E2E session before render');
+  }
+} catch (err) {
+  secureLogger.warn?.('Failed to consume pending E2E session', err as Error);
+}
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {

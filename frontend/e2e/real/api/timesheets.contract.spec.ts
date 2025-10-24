@@ -105,4 +105,63 @@ test.describe('Timesheet API Contract', () => {
       status: 400,
     });
   });
+
+  test('create: ignores calculated/forbidden fields in payload (server-side SSOT)', async ({ request }) => {
+    const lecturerAuth = await request.post(`${BACKEND_URL}/api/auth/login`, {
+      headers: { 'Content-Type': 'application/json' },
+      data: { email: E2E_CONFIG.USERS.lecturer.email, password: E2E_CONFIG.USERS.lecturer.password }
+    });
+    expect(lecturerAuth.ok()).toBeTruthy();
+    const { token, user } = await lecturerAuth.json();
+
+    // Discover a real courseId for the lecturer to avoid flake
+    const coursesRes = await request.get(`${BACKEND_URL}/api/courses?lecturerId=${tokens.lecturer.userId ?? 2}&active=true`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect.soft(coursesRes.ok()).toBeTruthy();
+    const courses: Array<{ id: number }> = coursesRes.ok() ? await coursesRes.json() : [];
+    const courseId = courses[0]?.id ?? 1; // fall back to 1 if environment is unusual
+
+    const forbiddenPayload = {
+      tutorId: tokens.tutor.userId,
+      courseId,
+      weekStartDate: '2025-01-27',
+      sessionDate: '2025-01-27',
+      deliveryHours: 1,
+      description: 'Contract test with forbidden fields',
+      taskType: 'TUTORIAL',
+      qualification: 'STANDARD',
+      repeat: false,
+      // Forbidden/calculated (should be ignored by server)
+      totalPay: 12345,
+      associatedHours: 999,
+      hourlyRate: 999,
+    } as any;
+
+    const create = await request.post(`${BACKEND_URL}/api/timesheets`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      data: forbiddenPayload,
+    });
+
+    // Server may accept the create (201) but must ignore/overwrite forbidden fields;
+    // alternatively, it may reject the payload as validation error (4xx).
+    if (create.status() === 201) {
+      const body = await create.json();
+      if (typeof body.hourlyRate !== 'undefined') {
+        expect(body.hourlyRate).not.toBe(forbiddenPayload.hourlyRate);
+      }
+      if (typeof body.associatedHours !== 'undefined') {
+        expect(body.associatedHours).not.toBe(forbiddenPayload.associatedHours);
+      }
+      if (typeof body.totalPay !== 'undefined') {
+        expect(body.totalPay).not.toBe(forbiddenPayload.totalPay);
+      }
+    } else {
+      expect(create.status()).toBeGreaterThanOrEqual(400);
+      expect(create.status()).toBeLessThan(500);
+    }
+  });
 });

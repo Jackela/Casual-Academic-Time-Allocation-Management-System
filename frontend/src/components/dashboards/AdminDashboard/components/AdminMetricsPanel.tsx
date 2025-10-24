@@ -68,9 +68,12 @@ const AdminMetricsPanel = memo<AdminMetricsPanelProps>(({ metrics, isLoading }) 
     totalTimesheets,
     pendingApprovals,
     totalHours,
-    totalPayroll,
+    totalPay,
     tutorCount,
   } = metrics;
+  const tutorCountValue = typeof tutorCount === 'number' ? tutorCount : 'N/A';
+  const tutorSubtitle =
+    typeof tutorCount === 'number' ? 'Active tutors this term' : 'Data not available yet';
 
   return (
     <section role="region" aria-label="System Overview">
@@ -102,15 +105,15 @@ const AdminMetricsPanel = memo<AdminMetricsPanelProps>(({ metrics, isLoading }) 
         />
         <AdminStatCard
           title="Total Payroll"
-          value={formatters.currency(totalPayroll)}
+          value={formatters.currency(totalPay)}
           subtitle="Approved payouts"
           icon="💰"
           testId="total-pay-card"
         />
         <AdminStatCard
           title="Tutor Coverage"
-          value={tutorCount}
-          subtitle="Active tutors this term"
+          value={tutorCountValue}
+          subtitle={tutorSubtitle}
           icon="👥"
           testId="tutors-card"
         />

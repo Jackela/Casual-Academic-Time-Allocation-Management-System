@@ -110,8 +110,9 @@ application-prod.yml
 # LOGS & MONITORING
 # ===========================
 
-# Log files
+# Log files (STRICT: prevent root directory pollution)
 logs/
+**/*.log
 *.log
 *.log.*
 npm-debug.log*
@@ -119,6 +120,14 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Prevent specific root-level log pollution patterns
+/backend*.log
+/frontend*.log
+/test*.log
+/dev*.log
+/e2e*.log
+/*.log
 
 # ===========================
 # OPERATING SYSTEM
@@ -153,6 +162,19 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
+
+# Windows reserved filenames (AI tool pollution prevention)
+CON
+PRN
+AUX
+NUL
+COM[1-9]
+LPT[1-9]
+con
+prn
+aux
+nul
+patch.tmp
 
 # Linux
 *~
@@ -275,3 +297,17 @@ frontend/dist/
 
 # Tooling archives
 tools/logs/archive/
+/.codex
+
+# Added by speckit plan verification (E2E real)
+.env*
+playwright/
+.terraform/
+*.tfstate*
+*.tfvars
+.terraform.lock.hcl
+
+# Added by automation on 2025-10-22T16:59:25.1861684+11:00
+playwright-report/
+test-results/
+.pnpm-store/

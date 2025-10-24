@@ -21,7 +21,7 @@ const AdminPendingReviewPanel = memo<AdminPendingReviewPanelProps>(({
   onSelectionChange,
   onApprovalAction,
 }) => (
-  <section role="region" aria-label="Pending Review" className="w-full">
+  <section role="region" aria-label="Pending Review" className="w-full" data-testid="admin-pending-review">
     <Card className="w-full">
       <CardHeader>
         <CardTitle>Pending Admin Review</CardTitle>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { Dispatch, SetStateAction } from 'react';
 import {
   useTimesheetQuery,
@@ -116,6 +117,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
 
   const [selectedTimesheets, setSelectedTimesheetsState] = useState<number[]>([]);
   const [currentTab, setCurrentTab] = useState<AdminTabId>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [rejectionModal, setRejectionModal] = useState<RejectionModalState>({
     open: false,
@@ -227,7 +229,24 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
 
   const handleTabChange = useCallback((tab: AdminTabId) => {
     setCurrentTab((previous) => (previous === tab ? previous : tab));
-  }, []);
+    try {
+      const next = new URLSearchParams(searchParams);
+      next.set('tab', tab);
+      setSearchParams(next, { replace: true });
+    } catch {}
+  }, [searchParams, setSearchParams]);
+
+  // Initialize currentTab from `?tab=` query on mount and when it changes
+  useEffect(() => {
+    const tabParam = (searchParams.get('tab') || '').toLowerCase();
+    if (tabParam === 'pending' && currentTab !== 'pending') {
+      setCurrentTab('pending');
+      return;
+    }
+    if (tabParam === 'overview' && currentTab !== 'overview') {
+      setCurrentTab('overview');
+    }
+  }, [searchParams, currentTab]);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -306,30 +325,35 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     }
   }, [actionLoadingId, approvalLoading, approveTimesheet, refreshTimesheets, refetchDashboard, setSelectedTimesheets]);
 
-  const tabs = useMemo<AdminTabSpec[]>(() => {
-    const baseTabs: AdminTabSpec[] = [
-      { id: 'overview', label: 'System Overview' },
-      { id: 'pending', label: 'Pending Review' },
-    ];
+  const tabs = useMemo<AdminTabSpec[]>(() => [
+    { id: 'overview', label: 'Overview' },
+    { id: 'pending', label: 'Pending Approvals' },
+  ], []);
 
-    if (canViewAdminDashboard) {
-      baseTabs.push(
-        { id: 'users', label: 'User Management' },
-        { id: 'analytics', label: 'Reports & Analytics' },
-        { id: 'settings', label: 'System Settings' },
-      );
-    }
+  const metrics: AdminSummaryMetrics = useMemo(() => {
+    const summary = dashboardData ?? {};
+    const pendingApprovals =
+      typeof summary.pendingApprovals === 'number'
+        ? summary.pendingApprovals
+        : typeof summary.pendingApproval === 'number'
+          ? summary.pendingApproval
+          : 0;
+    const totalPay =
+      typeof summary.totalPay === 'number'
+        ? summary.totalPay
+        : typeof summary.totalPayroll === 'number'
+          ? summary.totalPayroll
+          : 0;
+    const tutorCount = typeof summary.tutorCount === 'number' ? summary.tutorCount : null;
 
-    return baseTabs;
-  }, [canViewAdminDashboard]);
-
-  const metrics: AdminSummaryMetrics = useMemo(() => ({
-    totalTimesheets: dashboardData?.totalTimesheets ?? 0,
-    pendingApprovals: dashboardData?.pendingApprovals ?? 0,
-    totalHours: dashboardData?.totalHours ?? 0,
-    totalPayroll: dashboardData?.totalPayroll ?? 0,
-    tutorCount: dashboardData?.tutorCount ?? 0,
-  }), [dashboardData]);
+    return {
+      totalTimesheets: summary.totalTimesheets ?? 0,
+      pendingApprovals,
+      totalHours: summary.totalHours ?? 0,
+      totalPay,
+      tutorCount,
+    };
+  }, [dashboardData]);
 
   const errors = useMemo(() => {
     const timesheetErrorMessage = timesheetsError;

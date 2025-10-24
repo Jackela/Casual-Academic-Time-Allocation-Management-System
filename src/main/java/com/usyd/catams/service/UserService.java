@@ -49,6 +49,15 @@ public interface UserService {
     java.util.List<UserResponse> getUsers();
 
     /**
+     * Search users by optional filters.
+     *
+     * @param role optional role name (e.g., TUTOR, LECTURER, ADMIN)
+     * @param active optional active flag
+     * @return list of matching users
+     */
+    java.util.List<UserResponse> searchUsers(String role, Boolean active);
+
+    /**
      * Partially update user details.
      *
      * @param userId identifier of the user to update

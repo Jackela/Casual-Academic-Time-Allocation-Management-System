@@ -147,6 +147,37 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public List<UserResponse> searchUsers(String role, Boolean active) {
+        List<User> users;
+        try {
+            if (role != null && !role.isBlank()) {
+                UserRole r = UserRole.valueOf(role.trim().toUpperCase());
+                if (active != null) {
+                    users = userRepository.findByRoleAndIsActive(r, active);
+                } else {
+                    users = userRepository.findByRole(r);
+                }
+            } else {
+                users = userRepository.findAll();
+            }
+        } catch (IllegalArgumentException e) {
+            // Fallback to empty on invalid role
+            users = List.of();
+        }
+
+        if (active != null && (role == null || role.isBlank())) {
+            users = users.stream()
+                .filter(u -> Boolean.TRUE.equals(active) ? Boolean.TRUE.equals(u.getIsActive()) : Boolean.FALSE.equals(u.getIsActive()))
+                .toList();
+        }
+
+        return users.stream()
+            .sorted(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER))
+            .map(this::toResponse)
+            .toList();
+    }
+
+    @Override
     public UserResponse updateUser(Long userId, UserUpdateRequest request) {
         Assert.notNull(userId, "User ID cannot be null");
         Assert.notNull(request, "User update request cannot be null");

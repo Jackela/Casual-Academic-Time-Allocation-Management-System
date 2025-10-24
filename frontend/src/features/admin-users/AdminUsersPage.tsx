@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { User } from '../../types/api';
-import { createUser, fetchUsers } from '../../services/users';
+import { createUser, fetchUsers, updateUser } from '../../services/users';
 
 type FormState = {
   firstName: string;
@@ -26,7 +26,93 @@ const initialFormState: FormState = {
   password: '',
 };
 
-const normalizeUserName = (user: User) => user.name || `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+const PASSWORD_LENGTH = 16;
+const PASSWORD_CHARSETS = [
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  'abcdefghijklmnopqrstuvwxyz',
+  '0123456789',
+  '!@#$%^&*()-_=+[]{};:,.<>?/|',
+] as const;
+
+const PASSWORD_HINT =
+  'Use at least 12 characters with a mix of uppercase, lowercase, numbers, and symbols.';
+
+const generateSecurePassword = (): string => {
+  const getRandomValues = (count: number) => {
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+      const buffer = new Uint32Array(count);
+      crypto.getRandomValues(buffer);
+      return Array.from(buffer);
+    }
+    return Array.from({ length: count }, () => Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+  };
+
+  const baseCharacters = PASSWORD_CHARSETS.join('');
+  const requiredCharacters = PASSWORD_CHARSETS.map((charset, index) => {
+    const randomIndex = getRandomValues(1)[0] % charset.length;
+    return charset.charAt(randomIndex);
+  });
+
+  const remainingLength = Math.max(PASSWORD_LENGTH - requiredCharacters.length, 0);
+  const additionalCharacters = Array.from({ length: remainingLength }, (_, idx) => {
+    const randomIndex = getRandomValues(remainingLength)[idx] % baseCharacters.length;
+    return baseCharacters.charAt(randomIndex);
+  });
+
+  const combined = [...requiredCharacters, ...additionalCharacters];
+  const shuffleValues = getRandomValues(combined.length);
+
+  for (let i = combined.length - 1; i > 0; i -= 1) {
+    const j = shuffleValues[i] % (i + 1);
+    [combined[i], combined[j]] = [combined[j], combined[i]];
+  }
+
+  return combined.join('');
+};
+
+const resolveIsActive = (user: User): boolean => {
+  if (typeof user.isActive === 'boolean') {
+    return user.isActive;
+  }
+  if (typeof (user as { active?: boolean }).active === 'boolean') {
+    return (user as { active?: boolean }).active ?? true;
+  }
+  return true;
+};
+
+const extractNameParts = (user: User) => {
+  const first = user.firstName?.trim();
+  const last = user.lastName?.trim();
+  if (first || last) {
+    return {
+      firstName: first ?? '',
+      lastName: last ?? '',
+    };
+  }
+
+  if (typeof user.name === 'string' && user.name.trim().length > 0) {
+    const parts = user.name.trim().split(/\s+/);
+    const [firstName, ...rest] = parts;
+    return {
+      firstName: firstName ?? '',
+      lastName: rest.join(' '),
+    };
+  }
+
+  return { firstName: '', lastName: '' };
+};
+
+const buildDisplayName = (firstName: string, lastName: string) =>
+  [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
+
+const normalizeUserName = (user: User) => {
+  const trimmedName = typeof user.name === 'string' ? user.name.trim() : '';
+  if (trimmedName.length > 0) {
+    return trimmedName;
+  }
+  const { firstName, lastName } = extractNameParts(user);
+  return [firstName, lastName].filter(Boolean).join(' ').trim();
+};
 
 const visuallyHiddenStyle: CSSProperties = {
   position: 'absolute',
@@ -44,9 +130,22 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [requestState, setRequestState] = useState<RequestState>('idle');
   const [modalOpen, setModalOpen] = useState(false);
-  const [formState, setFormState] = useState<FormState>({ ...initialFormState, password: 'ChangeMe123!' });
+  const [formState, setFormState] = useState<FormState>(initialFormState);
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editFormState, setEditFormState] = useState<{ firstName: string; lastName: string }>({
+    firstName: '',
+    lastName: '',
+  });
+  const [updatingUserId, setUpdatingUserId] = useState<number | null>(null);
+
+  const fetchAndSetUsers = useCallback(async () => {
+    const data = await fetchUsers();
+    setUsers(data);
+    return data;
+  }, []);
 
   const sortedUsers = useMemo(
     () =>
@@ -56,50 +155,26 @@ export default function AdminUsersPage() {
     [users],
   );
 
-  const renderUserRows = () => {
-    try {
-      return sortedUsers.map((user) => {
-        const emailValue = user.email ?? '';
-        const normalizedEmail = emailValue.replace(/\+/g, '');
-        return (
-          <tr key={user.id} className="hover:bg-slate-50">
-            <td className="px-4 py-3 text-sm text-slate-900">{normalizeUserName(user)}</td>
-            <td className="relative px-4 py-3 text-sm text-slate-700">
-              <span>{emailValue}</span>
-              {emailValue.length > 0 && (
-                <span style={visuallyHiddenStyle}>{normalizedEmail}</span>
-              )}
-            </td>
-            <td className="px-4 py-3 text-sm text-slate-700">{ROLE_LABELS[user.role]}</td>
-          </tr>
-        );
-      });
-    } catch (error) {
-      console.error('AdminUsersPage failed to render rows', { error, users });
-      throw error;
-    }
-  };
-
   const loadUsers = useCallback(async () => {
     setRequestState('loading');
     setErrorMessage(null);
     try {
-      const data = await fetchUsers();
-      setUsers(data);
+      await fetchAndSetUsers();
       setRequestState('idle');
     } catch (error) {
       console.error('Failed to load users', error);
       setErrorMessage('Unable to load users. Please try again later.');
       setRequestState('error');
     }
-  }, []);
+  }, [fetchAndSetUsers]);
 
   useEffect(() => {
     void loadUsers();
   }, [loadUsers]);
 
   const handleOpenModal = () => {
-    setFormState({ ...initialFormState, password: 'ChangeMe123!' });
+    setFormState(initialFormState);
+    setGeneratedPassword(null);
     setFeedbackMessage(null);
     setErrorMessage(null);
     setModalOpen(true);
@@ -109,12 +184,17 @@ export default function AdminUsersPage() {
     if (requestState === 'submitting') {
       return;
     }
+    setGeneratedPassword(null);
     setModalOpen(false);
   };
 
   const handleChange =
     (field: keyof FormState) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      setFormState((prev) => ({ ...prev, [field]: event.target.value }));
+      const value = event.target.value;
+      setFormState((prev) => ({ ...prev, [field]: value }));
+      if (field === 'password') {
+        setGeneratedPassword(null);
+      }
     };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -126,9 +206,8 @@ export default function AdminUsersPage() {
 
       let updatedFromServer = false;
       try {
-        const refreshedUsers = await fetchUsers();
+        const refreshedUsers = await fetchAndSetUsers();
         if (Array.isArray(refreshedUsers) && refreshedUsers.length > 0) {
-          setUsers(refreshedUsers);
           updatedFromServer = true;
         }
       } catch (refreshError) {
@@ -150,7 +229,8 @@ export default function AdminUsersPage() {
 
       setFeedbackMessage('User created successfully.');
       setModalOpen(false);
-      setFormState({ ...initialFormState, password: 'ChangeMe123!' });
+      setFormState(initialFormState);
+      setGeneratedPassword(null);
     } catch (error) {
       console.error('Failed to create user', error);
       setErrorMessage('Unable to create user. Please verify the details and try again.');
@@ -159,8 +239,89 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleGeneratePassword = () => {
+    const password = generateSecurePassword();
+    setFormState((prev) => ({ ...prev, password }));
+    setGeneratedPassword(password);
+  };
+
+  const handleToggleActive = async (user: User) => {
+    const nextStatus = !resolveIsActive(user);
+    setUpdatingUserId(user.id);
+    setErrorMessage(null);
+    try {
+      await updateUser(user.id, { isActive: nextStatus });
+      await fetchAndSetUsers();
+      setFeedbackMessage(nextStatus ? 'User reactivated successfully.' : 'User deactivated successfully.');
+    } catch (error) {
+      console.error('Failed to toggle user activation', error);
+      setErrorMessage('Unable to update user status. Please try again.');
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
+  const handleOpenEditModal = (user: User) => {
+    const parts = extractNameParts(user);
+    setEditFormState(parts);
+    setEditingUser(user);
+    setFeedbackMessage(null);
+    setErrorMessage(null);
+  };
+
+  const handleCloseEditModal = () => {
+    if (editingUser && updatingUserId === editingUser.id) {
+      return;
+    }
+    setEditingUser(null);
+  };
+
+  const handleEditChange =
+    (field: 'firstName' | 'lastName') => (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setEditFormState((prev) => ({ ...prev, [field]: value }));
+    };
+
+  const handleEditSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingUser) {
+      return;
+    }
+
+    const trimmedFirstName = editFormState.firstName.trim();
+    const trimmedLastName = editFormState.lastName.trim();
+
+    const payload: Record<string, string> = {};
+    if (trimmedFirstName.length > 0) {
+      payload.firstName = trimmedFirstName;
+    }
+    if (trimmedLastName.length > 0) {
+      payload.lastName = trimmedLastName;
+    }
+
+    const displayName = buildDisplayName(trimmedFirstName, trimmedLastName);
+    if (displayName.length > 0) {
+      payload.name = displayName;
+    }
+
+    setUpdatingUserId(editingUser.id);
+    setErrorMessage(null);
+
+    try {
+      await updateUser(editingUser.id, payload);
+      await fetchAndSetUsers();
+      setFeedbackMessage('User details updated.');
+      setEditingUser(null);
+    } catch (error) {
+      console.error('Failed to update user details', error);
+      setErrorMessage('Unable to update user details. Please try again.');
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
   return (
-    <section className="space-y-6" aria-labelledby="admin-user-management-heading">
+    <section className="space-y-6" aria-labelledby="admin-user-management-heading" data-testid="admin-users-ready">
       <header className="space-y-2">
         <h1
           id="admin-user-management-heading"
@@ -175,13 +336,21 @@ export default function AdminUsersPage() {
           type="button"
           className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           onClick={handleOpenModal}
+          data-testid="admin-user-create-btn"
+          aria-label="Add user"
+          // Aliases for E2E tests
+          data-e2e="btn-create-user"
         >
           Add User
         </button>
       </header>
 
       {feedbackMessage && (
-        <div role="status" className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
+        <div
+          role="status"
+          className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700"
+          data-testid="toast-success"
+        >
           {feedbackMessage}
         </div>
       )}
@@ -193,7 +362,7 @@ export default function AdminUsersPage() {
       )}
 
       <div className="overflow-hidden rounded-lg border border-slate-200 shadow-sm">
-        <table className="min-w-full divide-y divide-slate-200">
+        <table className="min-w-full divide-y divide-slate-200" data-testid="admin-users-table">
           <thead className="bg-slate-50">
             <tr>
               <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-slate-700">
@@ -205,24 +374,84 @@ export default function AdminUsersPage() {
               <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-slate-700">
                 Role
               </th>
+              <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-slate-700">
+                Status
+              </th>
+              <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-slate-700">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
             {requestState === 'loading' && (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-sm text-slate-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">
                   Loading users…
                 </td>
               </tr>
             )}
             {requestState !== 'loading' && sortedUsers.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-sm text-slate-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">
                   No users found. Create the first user to get started.
                 </td>
               </tr>
             )}
-            {renderUserRows()}
+            {sortedUsers.map((user) => {
+              const emailValue = user.email ?? '';
+              const normalizedEmail = emailValue.replace(/\+/g, '');
+              const isActive = resolveIsActive(user);
+              const toggleLabel = isActive ? 'Deactivate' : 'Reactivate';
+              const actionDisabled = updatingUserId === user.id;
+              const statusClasses = isActive
+                ? 'inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700'
+                : 'inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700';
+
+              return (
+                <tr
+                  key={user.id}
+                  className="hover:bg-slate-50"
+                  data-testid={`row-${normalizedEmail}`}
+                >
+                  <td className="px-4 py-3 text-sm text-slate-900">{normalizeUserName(user)}</td>
+                  <td className="relative px-4 py-3 text-sm text-slate-700">
+                    <span>{emailValue}</span>
+                    {emailValue.length > 0 && <span style={visuallyHiddenStyle}>{normalizedEmail}</span>}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-700">{ROLE_LABELS[user.role]}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">
+                    <span className={statusClasses}>{isActive ? 'Active' : 'Inactive'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-700">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                        onClick={() => handleOpenEditModal(user)}
+                        disabled={actionDisabled}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className={`rounded-md px-3 py-1 text-xs font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                          isActive
+                            ? 'bg-rose-600 hover:bg-rose-500 focus-visible:outline-rose-600'
+                            : 'bg-emerald-600 hover:bg-emerald-500 focus-visible:outline-emerald-600'
+                          } disabled:opacity-60`}
+                        onClick={() => handleToggleActive(user)}
+                        disabled={actionDisabled}
+                        data-testid="admin-user-activate-toggle"
+                        // Aliases for stable E2E selectors
+                        data-e2e={isActive ? 'btn-deactivate' : 'btn-activate'}
+                      >
+                        {actionDisabled ? 'Updating…' : toggleLabel}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -286,16 +515,17 @@ export default function AdminUsersPage() {
                 <label htmlFor="email" className="text-sm font-medium text-slate-700">
                   Email
                 </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20"
-                  value={formState.email}
-                  onChange={handleChange('email')}
-                />
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20"
+                    value={formState.email}
+                    onChange={handleChange('email')}
+                    data-testid="admin-user-email"
+                  />
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -309,6 +539,7 @@ export default function AdminUsersPage() {
                     className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20"
                     value={formState.role}
                     onChange={handleChange('role')}
+                    data-testid="admin-user-role"
                   >
                     {Object.entries(ROLE_LABELS).map(([value, label]) => (
                       <option key={value} value={value}>
@@ -324,12 +555,35 @@ export default function AdminUsersPage() {
                   <input
                     id="password"
                     name="password"
-                    type="text"
+                    type="password"
+                    autoComplete="new-password"
                     required
                     className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20"
                     value={formState.password}
                     onChange={handleChange('password')}
+                    aria-describedby="password-hint"
+                    data-testid="admin-user-password"
                   />
+                  <p id="password-hint" className="mt-1 text-xs text-slate-500">
+                    {PASSWORD_HINT}
+                  </p>
+                  {generatedPassword && (
+                    <p
+                      data-testid="generated-password-hint"
+                      className="mt-1 text-xs text-emerald-600"
+                    >
+                      Generated password:{' '}
+                      <code className="font-mono">{generatedPassword}</code>
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    className="mt-2 w-fit rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                    onClick={handleGeneratePassword}
+                    disabled={requestState === 'submitting'}
+                  >
+                    Generate Secure Password
+                  </button>
                 </div>
               </div>
 
@@ -346,8 +600,91 @@ export default function AdminUsersPage() {
                   type="submit"
                   className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-70"
                   disabled={requestState === 'submitting'}
+                  data-testid="admin-user-submit"
                 >
                   {requestState === 'submitting' ? 'Creating…' : 'Create User'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {editingUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="presentation"
+          onClick={handleCloseEditModal}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-user-title"
+            className="w-full max-w-lg rounded-lg bg-white shadow-xl ring-1 ring-slate-900/10"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="border-b border-slate-200 px-6 py-4">
+              <h2 id="edit-user-title" className="text-xl font-semibold text-slate-900">
+                Edit User
+              </h2>
+              <p className="text-sm text-slate-500">
+                Update profile details for{' '}
+                <span className="font-medium text-slate-700">
+                  {normalizeUserName(editingUser)}
+                </span>
+                .
+              </p>
+            </div>
+            <form onSubmit={handleEditSubmit} className="space-y-4 px-6 py-5">
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Email
+                </span>
+                <span className="text-sm text-slate-700">{editingUser.email ?? 'Not supplied'}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col">
+                  <label htmlFor="edit-first-name" className="text-sm font-medium text-slate-700">
+                    First Name
+                  </label>
+                  <input
+                    id="edit-first-name"
+                    name="edit-first-name"
+                    type="text"
+                    className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20"
+                    value={editFormState.firstName}
+                    onChange={handleEditChange('firstName')}
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label htmlFor="edit-last-name" className="text-sm font-medium text-slate-700">
+                    Last Name
+                  </label>
+                  <input
+                    id="edit-last-name"
+                    name="edit-last-name"
+                    type="text"
+                    className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20"
+                    value={editFormState.lastName}
+                    onChange={handleEditChange('lastName')}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  onClick={handleCloseEditModal}
+                  disabled={updatingUserId === editingUser.id}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-70"
+                  disabled={updatingUserId === editingUser.id}
+                >
+                  {updatingUserId === editingUser.id ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
             </form>
@@ -357,4 +694,3 @@ export default function AdminUsersPage() {
     </section>
   );
 }
-

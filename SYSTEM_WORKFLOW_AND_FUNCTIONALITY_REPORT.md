@@ -3,11 +3,11 @@
 ## Core Workflows
 
 ### Timesheet Creation
-- **Initiation:** New timesheets are initiated by lecturers (for their own courses) or administrators (for any tutor) using the secured `POST /api/timesheets` endpoint, which now enforces `@PreAuthorize("hasAnyRole('ADMIN','LECTURER')")`. Tutors can no longer open the creation flow; they only interact with drafts that were created on their behalf (TimesheetController.java:77-100, DefaultTimesheetPermissionPolicy.java:144-172).
-- **Input capture:** The form collects course, task type, qualification band, repeat flag, delivery hours, and descriptive notes. Currently the course list is a static placeholder (`CS101`, `CS102`), while task type and qualification enumerate the EA-aligned values (TimesheetForm.tsx:588-738, TimesheetTaskType.java:8-16, TutorQualification.java:9-16).
-- **Real-time quote:** Every material input change triggers `POST /api/timesheets/quote`, returning authoritative associated hours, payable hours, rate code, hourly rate, total amount, and clause reference. The UI renders these values read-only to embody the SSOT policy (TimesheetForm.tsx:351-738, TimesheetService.quoteTimesheet call at TimesheetForm.tsx:477-505, TimesheetController.java:63-76, docs/policy/timesheet-ssot.md).
-- **Submission:** When a tutor submits, the frontend omits all calculator-managed fields; the backend recalculates using `Schedule1Calculator` before persisting and responds with the stored totals (TimesheetController.java:79-120, TimesheetApplicationService.java:216-270, docs/backend/api-timesheets.md). Creation enforces one timesheet per tutor/course/week and Monday-aligned week start dates (TimesheetApplicationService.java:306-369).
-- **Post-submission visibility:** Freshly saved drafts or pending items surface in the Tutor Dashboard table and in the role-specific dashboard summaries that are driven by `DashboardServiceImpl` aggregations (DashboardServiceImpl.java:42-147).
+- **Initiation:** New timesheets originate from lecturers (limited to their assigned courses) or administrators (any tutor) through the secured `POST /api/timesheets` endpoint. Tutors cannot launch the creation flow; they only edit or confirm drafts issued on their behalf (TimesheetController.java, DefaultTimesheetPermissionPolicy.java).
+- **Input capture:** `LecturerTimesheetCreateModal` hydrates tutor and course pickers from live APIs (`fetchLecturerCourses`, `fetchTutorsForLecturer`). `TimesheetForm` captures course, task type, session date, repeat flag, delivery hours, qualification (read-only), and description while reflecting the selected tutor’s attributes. EA enumerations for task type and qualification remain the authoritative option sets (TimesheetTaskType.java, TutorQualification.java, TimesheetForm.tsx).
+- **Real-time quote:** Every meaningful change triggers `TimesheetService.quoteTimesheet` and renders associated hours, payable hours, rate code, hourly rate, total amount, formula, and clause reference as read-only SSOT fields (TimesheetForm.tsx, docs/policy/timesheet-ssot.md).
+- **Submission:** The frontend submits only directive fields (tutorId, courseId, weekStartDate, sessionDate, deliveryHours, description, taskType, qualification, repeat). The backend recalculates financials via `Schedule1Calculator` and persists the definitive values (TimesheetApplicationService.java, docs/backend/api-timesheets.md). Domain rules enforce Monday week starts and one draft per tutor/course/week.
+- **Post-submission visibility:** Drafts and pending items rehydrate immediately through React Query caches feeding the Tutor, Lecturer, and Admin dashboards (`useTimesheetQuery`, `useTimesheetDashboardSummary`, DashboardServiceImpl.java).
 
 ### Approval Cycle
 - **Status model:** The workflow progresses through `DRAFT → PENDING_TUTOR_CONFIRMATION → TUTOR_CONFIRMED → LECTURER_CONFIRMED → FINAL_CONFIRMED`, with `REJECTED` and `MODIFICATION_REQUESTED` as exception states (ApprovalStatus.java:17-126).
@@ -29,25 +29,26 @@
 ### Tutor Experience
 
 #### Tutor Dashboard
-- **Overview panels:** Quick stats summarise total earnings, hours, average weekly contribution, and draft/in-progress counts derived from tutor metrics (useTutorDashboardViewModel.ts:171-227, QuickStats.tsx:6-65).
-- **Progress & support:** Sidebar widgets show completion progress, pay summary, workload deadlines, and curated support resources to guide compliance (TutorDashboard.tsx:137-336).
-- **Timesheet table:** Tutors see course, hours, calculated totals, rate metadata, and action buttons that respect the capability matrix, with batch submission available for drafts they are allowed to edit or resubmit (TimesheetTable.tsx:90-284, TimesheetActions.tsx:59-118).
-- **Notifications:** Inline banners surface submission outcomes, quote errors, or action locks to keep the user informed (TutorDashboard.tsx:188-470).
+- **Quick actions:** Refresh and “View Pay Summary” are the sole tutor-facing quick actions, both implemented with lucide icons and permission-aware disabled states (TutorDashboard.tsx).
+- **Overview panels:** Quick stats, completion progress, earnings breakdown, and deadlines are sourced from the tutor dashboard view model with skeleton, empty, and error fallbacks (useTutorDashboardViewModel.ts, QuickStats.tsx, CompletionProgress.tsx, UpcomingDeadlines.tsx).
+- **Support resources:** Curated links adapt between empty placeholders and active resources using consistent copy styles (SupportResources.tsx).
+- **Timesheet table:** Tutors see course metadata, calculated totals, EA clause references, and capability-gated action buttons with batch submission restricted to drafts they may confirm (TimesheetTable.tsx, TimesheetActions.tsx).
+- **Notifications:** Inline banners and toast routes surface submission outcomes, quote errors, or action locks (TutorDashboard.tsx, notificationRouter.ts).
 
 #### Timesheet Form & Modal
-- **Inputs:** Course selection (currently static placeholder), task type, qualification, repeat checkbox, week picker (Monday enforced), delivery hours, and descriptive notes (TimesheetForm.tsx:588-745).
-- **Calculation summary:** Read-only cards display rate code, qualification, associated/payable hours, hourly rate, total amount, clause reference, and formula with live updates per quote (TimesheetForm.tsx:695-739).
-- **Validation & autosave:** Client validation enforces EA limits and Monday/week rules, provides error messaging, and periodically autosaves draft state (TimesheetForm.tsx:323-415, 675-693).
-- **Submission flow:** For tutors, the form is used to update or confirm timesheets that a lecturer or administrator created; the submit handler refreshes the cache after calling the appropriate mutation (TimesheetForm.tsx:513-555, useTutorDashboardViewModel.ts:107-162).
+- **Inputs:** Lecturer mode loads tutor/course options from live APIs; tutor edit mode bypasses selectors and sets qualification/task type from the saved record. Common controls include Monday-enforced week picker, repeat toggle, delivery hours, and descriptive notes (LecturerTimesheetCreateModal.tsx, TimesheetForm.tsx).
+- **Calculation summary:** Read-only fields render rate code, qualification, associated/payable hours, hourly rate, total amount, clause reference, and formula using the latest quote response (TimesheetForm.tsx).
+- **Validation:** Client validation and server responses guard EA limits, ensuring quotes succeed before submission. Errors produce inline messaging and disable the submit CTA until resolved (TimesheetForm.tsx, useUiConstraints.ts).
+- **Submission flow:** Tutors submit updates to drafts already created for them; lecturers and admins use the same component in creation mode. Successful mutations invalidate dashboard queries to keep tables in sync (TimesheetForm.tsx, useTimesheetCreate.ts, useTimesheetUpdate.ts).
 
 ### Lecturer Experience
 
 #### Lecturer Dashboard
-- **Creation entry points:** Dedicated actions allow lecturers to initiate new timesheets for tutors assigned to their courses; submissions flow through the secured backend endpoint that accepts only lecturer/admin principals (TimesheetController.java:77-100).
+- **Creation entry points:** “Create Timesheet” opens a modal that loads lecturer-authorised tutors/courses, enforces read-only qualification, and submits via the lecturer/admin-protected endpoint (LecturerTimesheetCreateModal.tsx, TimesheetController.java).
 - **Summary banner:** Displays welcome message, urgent count, and metrics such as pending approvals, total timesheets, current-week hours/pay, and lecturer-approved totals (LecturerSummaryBanner.tsx:8-77).
 - **Filtering tools:** Toggle for urgent-only queue, course filter dropdown populated from lecturer-authorised courses, free-text search, and refresh with loading states (LecturerFiltersPanel.tsx:9-87).
-- **Pending table:** Shows tutor and course context, timesheet financials, status badges, and action buttons. Batch approval/rejection is available when all selected rows share compatible statuses (LecturerPendingTable.tsx:15-170).
-- **Error handling:** Global banners surface approval errors with expandable details; rejection modal requires explanatory text before submitting `REJECT` (LecturerDashboardShell.tsx:107-324).
+- **Pending table:** Shows tutor/course context, financials, status badges, and action buttons with batch approval when rows share compatible states. Empty states now explain that approved records live in reporting archives instead of linking to placeholder pages (LecturerPendingTable.tsx).
+- **Error handling:** Global banners surface approval errors with retry hooks, and the rejection modal requires descriptive comments before issuing `REJECT` (LecturerDashboardShell.tsx, AdminRejectionModal.tsx).
 - **Data pipeline:** Metrics and tables are sourced from `DashboardServiceImpl` lecturer aggregations and `TimesheetService.getPendingTimesheets`, respecting access control (DashboardServiceImpl.java:85-173, TimesheetService.java:198-219, usePendingTimesheets.ts:21-88).
 
 ### Admin Experience
@@ -56,14 +57,14 @@
 - **Header controls:** Search field, dashboard refresh with lockable state, urgent indicator combining escalation counts (AdminDashboardHeader.tsx:10-63).
 - **Metrics panel:** System-wide totals for timesheets, approvals pending, hours, payroll, and active tutor coverage, backed by admin-role aggregates (AdminMetricsPanel.tsx:9-78, DashboardServiceImpl.java:174-258).
 - **Creation capabilities:** Admins can raise timesheets on behalf of any tutor when operational adjustments are required, leveraging the same restricted creation endpoint as lecturers (TimesheetController.java:77-100).
-- **Tabs:** Overview (metrics) and Pending Review (final approval queue). Additional tabs (`User Management`, `Reports`, `Settings`) are flagged “Coming soon” in navigation (AdminNavTabs.tsx:8-47).
+- **Tabs:** Navigation now exposes only the implemented tabs—Overview and Pending Approvals—to avoid signalling unavailable areas (AdminNavTabs.tsx, AdminDashboardShell.tsx).
 - **Pending review panel:** Presents lecturer-confirmed rows with multi-selection, action state tracking, and reject modal launching (AdminPendingReviewPanel.tsx:11-46).
 - **Rejection flow:** Admins must provide a descriptive reason; the modal displays tutor/course context and disables confirmation until validation passes (AdminRejectionModal.tsx:9-156).
 
 #### Admin User Management
-- **Dedicated page:** Accessible at `/admin/users`, allowing admins to list, search (by name/email), and create users with assigned roles and temporary passwords (AdminUsersPage.tsx:24-231).
-- **Backend support:** Protected REST endpoints (`GET/POST /api/users`) enforce admin-only access and operate through `UserService` (UserController.java:31-72).
-- **Feedback & error handling:** The page surfaces loading states, form validation, submission feedback, and modal dialogs with accessibility hooks (AdminUsersPage.tsx:50-224).
+- **Dedicated page:** Accessible at `/admin/users`, allowing admins to list, search, create, edit, and activate/deactivate users. Password fields are masked and support secure random generation (AdminUsersPage.tsx).
+- **Backend support:** Protected REST endpoints (`GET/POST/PATCH /api/users`) enforce admin-only access and operate through `UserService` (UserController.java).
+- **Feedback & error handling:** The page surfaces loading states, form validation, submission feedback, and modal dialogs with accessibility hooks (AdminUsersPage.tsx).
 
 ## Role-Based Permissions & Definitions
 - **Creation and editing:** Admins and lecturers can create or edit timesheets for any tutor/course they manage; tutors are limited to their own records. Status-aware rules ensure only draft or modification-requested entries are editable (DefaultTimesheetPermissionPolicy.java:101-279).
@@ -82,8 +83,8 @@
 - SSOT and EA compliance mandates—quote-on-change, server-side recalculation, clause display, and audit trail—are enforced across controllers, services, and UI (docs/policy/timesheet-ssot.md, docs/backend/api-timesheets.md, TimesheetController.java:63-164, TimesheetForm.tsx:695-739).
 
 ## Observations & Considerations
-- **Course selection data:** The tutor form currently seeds a static course list; integrating it with the authenticated user’s course assignments (likely via a course API) will be necessary before production (TimesheetForm.tsx:596-599).
-- **Modification UI gaps:** While backend and tests support `REQUEST_MODIFICATION`, the lecturer/admin dashboards presently surface reject/approve actions. Extending the UI to offer “Request changes” would expose the full workflow defined in `ApprovalAction` (TimesheetActions.tsx:99-118).
-- **Tab placeholders:** Admin navigation advertises upcoming `User Management`, `Reports & Analytics`, and `System Settings` tabs; only the overview and pending review content are active today (AdminNavTabs.tsx:8-47, AdminDashboardShell.tsx:96-207).
+- **Resource coverage:** Lecturer creation depends on course/tutor endpoints returning active assignments. Empty states are handled, but additional UX copy may be desirable when no tutors are linked to a lecturer (LecturerTimesheetCreateModal.tsx).
+- **Modification UI gaps:** While backend and tests support `REQUEST_MODIFICATION`, the lecturer/admin dashboards presently surface reject/approve actions. Extending the UI to offer “Request changes” would expose the full workflow defined in `ApprovalAction` (TimesheetActions.tsx).
+- **Future enhancements:** Reporting/analytics and system settings remain roadmap items; the admin navigation now only shows implemented tabs, so future releases should reintroduce additional tabs once the underlying features land (AdminNavTabs.tsx).
 
 This report consolidates the implemented workflows and role-specific interfaces across the CATAMS codebase, ensuring that engineering, product, and UX stakeholders share a consistent understanding of current capabilities and outstanding gaps.

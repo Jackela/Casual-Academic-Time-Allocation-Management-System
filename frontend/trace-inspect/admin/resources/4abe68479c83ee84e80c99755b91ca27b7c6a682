@@ -1,0 +1,56 @@
+<!DOCTYPE html><html lang="en"><head>
+    <script type="module">import { injectIntoGlobalHook } from "/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;</script>
+
+    <script type="module" src="/@vite/client"></script>
+
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/vite.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vite + React + TS</title>
+  <style type="text/css" data-vite-dev-id="D:/Code/Casual-Academic-Time-Allocation-Management-System/frontend/src/index.modern.css">/* Import design tokens and unified layout systems */
+/**
+ * Design Tokens & CSS Custom Properties
+ *
+ * Single source of truth for layout metrics, z-index layers,
+ * component color tokens, and reusable elevation utilities.
+ * All UI layers should reference these tokens to maintain
+ * consistent visuals across dashboards.
+ */
+:root {
+  /* Layout System Tokens - Mobile-First Responsive */
+  --grid-container-max-width: 1616px;
+  --grid-container-padding: clamp(1rem, 2vw, 1.5rem);
+  --grid-hero-padding: clamp(1rem, 2vw, 1.5rem);
+  --grid-content-padding: clamp(1rem, 2vw, 1.5rem);
+  --grid-gap-primary: clamp(1.25rem, 2vw, 2rem);
+  --grid-gap-secondary: clamp(1rem, 1.5vw, 1.5rem);
+  --hero-border-radius: clamp(0.5rem, 1.5vw, 1rem);
+  --hero-height-base: clamp(14rem, 26vw, 22rem);
+  
+  /* Layout Component Dimensions */
+  --header-h: 64px;
+  --banner-h: 48px;
+  --aside-w: 320px;
+  --safe-top: calc(var(--header-h) + var(--banner-h) + 1rem);
+
+  /* Unified Z-Index Scale */
+  /* Corrected z-index stack: lowest to highest */
+  --z-background: -1;
+  --z-base: 0;
+  --z-content: 1;
+  --z-elevated: 2;
+  --z-sticky: 4;
+  --z-header: 100;
+  --z-banner: 200;
+  --z-popover: 400;
+  --z-overlay: 900;
+  --z-modal-backdrop: 950;
+  --z-modal: 1000;
+  --z-toast: 1500;
+  --z-tooltip: 2000;
+
+  /* MUST-FIX: Responsive Breakpoints (eliminate magic numbers) */
+  --breakpoint-mobile

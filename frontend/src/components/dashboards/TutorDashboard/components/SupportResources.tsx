@@ -7,6 +7,7 @@ export interface SupportResourceItem {
   description?: string;
   href?: string;
   icon?: ReactNode;
+  comingSoon?: boolean;
 }
 
 export interface SupportResourcesProps {
@@ -43,7 +44,7 @@ const SupportResources = ({
               {resource.description && (
                 <p className="text-xs text-muted-foreground">{resource.description}</p>
               )}
-              {resource.href && (
+              {resource.href ? (
                 <a
                   href={resource.href}
                   target="_blank"
@@ -52,7 +53,9 @@ const SupportResources = ({
                 >
                   View details
                 </a>
-              )}
+              ) : resource.comingSoon ? (
+                <span className="text-xs text-muted-foreground">Link available soon</span>
+              ) : null}
             </div>
           </div>
         ))}

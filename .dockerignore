@@ -1,0 +1,22 @@
+# Docker build context excludes
+.git/
+node_modules/
+**/node_modules/
+Dockerfile*
+.dockerignore
+*.log*
+.env*
+coverage/
+dist/
+**/dist/
+build/
+**/build/
+playwright-report/
+test-results/
+
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/

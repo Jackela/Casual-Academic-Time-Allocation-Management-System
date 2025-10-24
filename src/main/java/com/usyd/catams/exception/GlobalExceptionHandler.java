@@ -86,6 +86,24 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle business conflict exceptions (HTTP 409)
+     */
+    @ExceptionHandler(BusinessConflictException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessConflict(BusinessConflictException e, HttpServletRequest request) {
+        logger.warn("Business conflict: {}", e.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+            .timestamp(Instant.now().toString())
+            .status(HttpStatus.CONFLICT.value())
+            .error(e.getErrorCode())
+            .message(e.getMessage())
+            .path(request.getRequestURI())
+            .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    /**
      * Handle authorization failures - returns 403 Forbidden
      */
     @ExceptionHandler(AuthorizationException.class)

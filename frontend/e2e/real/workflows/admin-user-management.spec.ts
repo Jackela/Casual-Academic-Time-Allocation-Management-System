@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signInAsRole, clearAuthSessionFromPage } from '../../api/auth-helper';
+import { AdminUsersPage } from '../../shared/pages/AdminUsersPage';
 
 test.describe('Admin User Management', () => {
   test.beforeEach(async ({ page }) => {
@@ -11,29 +12,32 @@ test.describe('Admin User Management', () => {
     await clearAuthSessionFromPage(page);
   });
 
-  test('admin can create a new tutor account', async ({ page }) => {
+  test('admin can create and activate/deactivate a user', async ({ page }) => {
     const timestamp = Date.now();
     const email = `tutor.auto+${timestamp}@example.com`;
+    const users = new AdminUsersPage(page);
 
-    await expect(page.getByRole('heading', { name: /user management/i })).toBeVisible();
+    await users.goto();
+    await users.openCreateModal();
 
-    await page.getByRole('button', { name: /add user/i }).click();
+    // Password UX hint present and generator works
+    await expect(page.getByText(/temporary password/i)).toBeVisible();
+    await expect(page.getByText(/Use at least 12 characters/i)).toBeVisible();
 
-    await expect(page.getByRole('dialog', { name: /create user/i })).toBeVisible();
+    await users.fillCreateForm({
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email,
+      role: 'TUTOR',
+      password: 'ChangeMe123!'
+    });
+    await users.submitCreate();
 
-    await page.getByLabel(/first name/i).fill('Ada');
-    await page.getByLabel(/last name/i).fill('Lovelace');
-    await page.getByLabel(/email/i).fill(email);
+    const row = users.rowByEmail(email);
+    await expect(row).toBeVisible();
 
-    const roleSelector = page.getByLabel(/role/i);
-    await roleSelector.click();
-    await roleSelector.selectOption('TUTOR');
-
-    await page.getByLabel(/temporary password/i).fill('ChangeMe123!');
-
-    await page.getByRole('button', { name: /create user/i }).click();
-
-    await expect(page.getByText(/user created successfully/i)).toBeVisible();
-    await expect(page.getByRole('row', { name: new RegExp(email, 'i') })).toBeVisible();
+    // Toggle deactivate then reactivate via PATCH
+    await users.toggleActiveForRow(row);
+    await users.toggleActiveForRow(row);
   });
 });

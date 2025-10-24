@@ -6,6 +6,7 @@
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { RotateCw, Wallet } from 'lucide-react';
 import { useTutorDashboardViewModel } from './hooks/useTutorDashboardViewModel';
 import TimesheetTable from '../../shared/TimesheetTable/TimesheetTable';
 
@@ -72,7 +73,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
     timesheetsQuery,
     dashboardQuery,
-    createMutation,
     updateMutation,
     tutorStats
   } = useTutorDashboardViewModel();
@@ -95,17 +95,11 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const noTimesheets = !timesheetsLoading && filteredTimesheets.length === 0;
 
   const {
+    data: dashboardData,
     loading: dashboardLoading,
     error: dashboardError,
     refetch: refetchDashboard
   } = dashboardQuery;
-
-  const {
-    loading: createLoading,
-    error: createError,
-    createTimesheet,
-    reset: resetCreate
-  } = createMutation;
 
   const {
     loading: updateLoading,
@@ -114,13 +108,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     reset: resetUpdate
   } = updateMutation;
 
-  const isFormSubmitting = createLoading || updateLoading;
   const isTimesheetActionInFlight = actionLoadingId !== null;
-
-  const handleCreateTimesheet = useCallback(() => {
-    setEditingTimesheet(null);
-    setShowForm(true);
-  }, []);
 
   const handleEditTimesheet = useCallback((timesheet: Timesheet) => {
     setEditingTimesheet(timesheet);
@@ -128,55 +116,59 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   }, []);
 
   const handleFormSubmit = useCallback(async (data: TimesheetFormSubmitData) => {
-    if (createLoading || updateLoading) {
+    if (updateLoading) {
       return;
     }
 
-    const tutorId = user?.id || 0;
-    const quote = data.quote;
+    const tutorId = data.tutorId || user?.id || 0;
     const basePayload = {
       tutorId,
       courseId: data.courseId,
       weekStartDate: data.weekStartDate,
-      sessionDate: quote.sessionDate ?? data.weekStartDate,
+      sessionDate: data.sessionDate ?? data.weekStartDate,
       deliveryHours: data.deliveryHours,
       description: data.description,
       taskType: data.taskType,
       qualification: data.qualification,
-      repeat: data.isRepeat,
-      hours: quote.payableHours,
-      hourlyRate: quote.hourlyRate,
+      repeat: data.repeat,
     } as const;
 
     try {
-      secureLogger.debug('createTimesheet fn', Boolean(createTimesheet));
-      if (editingTimesheet) {
-        await updateTimesheet(editingTimesheet.id, {
-          weekStartDate: basePayload.weekStartDate,
-          sessionDate: basePayload.sessionDate,
-          deliveryHours: basePayload.deliveryHours,
-          description: basePayload.description,
-          taskType: basePayload.taskType,
-          qualification: basePayload.qualification,
-          repeat: basePayload.repeat,
-          hours: basePayload.hours,
-          hourlyRate: basePayload.hourlyRate,
-        });
-      } else {
-        await createTimesheet({
-          tutorId: basePayload.tutorId,
-          courseId: basePayload.courseId,
-          weekStartDate: basePayload.weekStartDate,
-          sessionDate: basePayload.sessionDate,
-          deliveryHours: basePayload.deliveryHours,
-          description: basePayload.description,
-          taskType: basePayload.taskType,
-          qualification: basePayload.qualification,
-          repeat: basePayload.repeat,
-          hours: basePayload.hours,
-          hourlyRate: basePayload.hourlyRate,
-        });
+      if (!editingTimesheet) {
+        secureLogger.warn('Tutor attempted to submit a new timesheet via disabled path');
+        routeNotification({
+          type: 'API_ERROR',
+          message: 'Timesheets must be created by your lecturer or administrator.',
+  });
+
+  // E2E test-only hook to open the tutor create modal deterministically
+  useEffect(() => {
+    const handler = () => {
+      try {
+        setEditingTimesheet(null);
+        setShowForm(true);
+      } catch {}
+    };
+    try {
+      (window as any).addEventListener?.('catams-open-tutor-create-modal', handler);
+    } catch {}
+    return () => {
+      try { (window as any).removeEventListener?.('catams-open-tutor-create-modal', handler); } catch {}
+    };
+  }, []);
+        setShowForm(false);
+        return;
       }
+
+      await updateTimesheet(editingTimesheet.id, {
+        weekStartDate: basePayload.weekStartDate,
+        sessionDate: basePayload.sessionDate,
+        deliveryHours: basePayload.deliveryHours,
+        description: basePayload.description,
+        taskType: basePayload.taskType,
+        qualification: basePayload.qualification,
+        repeat: basePayload.repeat,
+      });
 
       await Promise.all([refetchTimesheets(), refetchDashboard()]);
       setShowForm(false);
@@ -186,7 +178,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       secureLogger.error('Failed to save timesheet', error);
       routeNotification({ type: 'API_ERROR', message });
     }
-  }, [createLoading, createTimesheet, editingTimesheet, refetchDashboard, refetchTimesheets, updateLoading, updateTimesheet, user?.id]);
+  }, [editingTimesheet, refetchDashboard, refetchTimesheets, updateLoading, updateTimesheet, user?.id]);
 
   const clearActionFeedback = useCallback(() => {
     setActionError(null);
@@ -334,9 +326,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     }
 
     switch (action) {
-      case 'create':
-        handleCreateTimesheet();
-        break;
       case 'submitDrafts':
         handleSubmitAllDrafts();
         break;
@@ -359,13 +348,10 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           setActionNotice('Pay summary section is unavailable at the moment.');
         }
         break;
-      case 'export':
-        setActionNotice('Timesheet data export is coming soon.');
-        break;
       default:
         break;
     }
-  }, [ACTION_LOCK_MESSAGE, clearActionFeedback, handleCreateTimesheet, handleSubmitAllDrafts, isTimesheetActionInFlight, refetchDashboard, refetchTimesheets, setActionNotice]);
+  }, [ACTION_LOCK_MESSAGE, clearActionFeedback, handleSubmitAllDrafts, isTimesheetActionInFlight, refetchDashboard, refetchTimesheets, setActionNotice]);
 
   const handlePendingNotifications = useCallback(() => {
     const draftCount = allTimesheets.filter(
@@ -418,12 +404,23 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     );
   }
 
-  const hasPrimaryErrors = timesheetsError || dashboardError || createError || updateError;
+  const hasPrimaryErrors = timesheetsError || dashboardError || updateError;
   const hasAnyErrors = Boolean(hasPrimaryErrors || actionError);
   const actionInFlightMessage = ACTION_LOCK_MESSAGE;
   const canSubmitAllDrafts = allTimesheets.some(t => t.status === 'DRAFT' || t.status === 'MODIFICATION_REQUESTED');
+  // Tutor creation restriction banner (clarified requirement)
+  const restrictionBanner = (
+    <div
+      className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800"
+      role="status"
+      data-testid="restriction-message"
+    >
+      Timesheet creation is restricted to Lecturers and Admins.
+    </div>
+  );
   const feedbackStack = (hasAnyErrors || actionNotice) ? (
     <div className="space-y-4">
+      {restrictionBanner}
       {timesheetsError && (
         <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
           <span>Failed to load timesheets: {timesheetsError}</span>
@@ -436,10 +433,10 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           <Button variant="destructive" size="sm" className="ml-4" data-testid="retry-button-dashboard" onClick={refetchDashboard}>Retry</Button>
         </div>
       )}
-      {(createError || updateError) && (
+      {updateError && (
         <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive" data-testid="error-message">
-          <span>{createError || updateError}</span>
-          <Button variant="ghost" size="sm" className="ml-4" onClick={() => { resetCreate(); resetUpdate(); }}>Dismiss</Button>
+          <span>{updateError}</span>
+          <Button variant="ghost" size="sm" className="ml-4" onClick={() => { resetUpdate(); }}>Dismiss</Button>
         </div>
       )}
       {actionError && (
@@ -472,19 +469,11 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
           <section className="layout-main" role="region" aria-label="Tutor dashboard content">
             <section className="mb-8" role="region" aria-label="Quick Actions">
               <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="quick-actions">
-                <QuickAction
-                  label="Create New Timesheet"
-                  description="Start a new timesheet entry"
-                  icon="📝"
-                  onClick={() => handleQuickAction('create')}
-                  shortcut="Ctrl+N"
-                />
-
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="quick-actions">
                 <QuickAction
                   label="Refresh Data"
                   description="Reload the latest timesheets"
-                  icon="🔄"
+                  icon={<RotateCw className="h-5 w-5" aria-hidden="true" />}
                   onClick={() => handleQuickAction('refresh')}
                   disabled={isTimesheetActionInFlight}
                   disabledReason={actionInFlightMessage}
@@ -492,16 +481,9 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
                 <QuickAction
                   label="View Pay Summary"
-                  description="Check earnings and payments"
-                  icon="💰"
+                  description="Jump to earnings and payments"
+                  icon={<Wallet className="h-5 w-5" aria-hidden="true" />}
                   onClick={() => handleQuickAction('viewPay')}
-                />
-
-                <QuickAction
-                  label="Export My Data"
-                  description="Download timesheet records (coming soon)"
-                  icon="📊"
-                  onClick={() => handleQuickAction('export')}
                 />
               </div>
             </section>
@@ -534,13 +516,9 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                         Manage all your work logs here.
                       </p>
                     </div>
-                    <Button
-                      onClick={handleCreateTimesheet}
-                      disabled={isFormSubmitting}
-                      title={isFormSubmitting ? 'Please wait while we finish saving your timesheet.' : undefined}
-                    >
-                      Create New
-                    </Button>
+                    <p className="text-sm text-muted-foreground" data-testid="creation-info">
+                      Timesheets are created by your lecturer or administrator.
+                    </p>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -607,19 +585,12 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                           No Timesheets Found
                         </h3>
                         <p className="mt-2 text-sm text-muted-foreground" data-testid="empty-state-description">
-                          Create your first timesheet to get started.
+                          Ask your lecturer or administrator to create a timesheet on your behalf.
                         </p>
-                        <Button
-                          className="mt-4"
-                          onClick={handleCreateTimesheet}
-                          disabled={isFormSubmitting}
-                          title={isFormSubmitting ? 'Please wait while we finish saving your timesheet.' : undefined}
-                        >
-                          Create First Timesheet
-                        </Button>
                       </div>
                     </div>
                   ) : (
+                    <div data-testid="tutor-inbox-table">
                     <TimesheetTable
                       timesheets={filteredTimesheets}
                       loading={timesheetsLoading}
@@ -655,18 +626,24 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                       actionsDisabled={isTimesheetActionInFlight}
                       actionsDisabledReason={actionInFlightMessage}
                     />
+                    </div>
                   )}
                 </CardContent>
               </Card>
             </section>
 
-            <UpcomingDeadlines deadlines={visibleDeadlines} />
+            <UpcomingDeadlines
+              deadlines={visibleDeadlines}
+              isLoading={dashboardLoading}
+              errorMessage={dashboardError ? 'Unable to load upcoming deadlines' : null}
+            />
             <div ref={paySummaryRef} tabIndex={-1}>
               <PaySummary
                 totalEarned={tutorStats.totalPay}
                 thisWeekPay={thisWeekSummary.pay}
                 averagePerTimesheet={tutorStats.averagePayPerTimesheet}
                 paymentStatus={tutorStats.statusCounts || {}}
+                nextPaymentDate={dashboardData?.nextPaymentDate ?? null}
               />
             </div>
             <SupportResources resources={supportResources} />
@@ -681,7 +658,11 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             event.stopPropagation();
           }}
         >
-          <div className="relative w-full max-w-lg rounded-lg bg-card shadow-lg" onClick={e => e.stopPropagation()}>
+          <div
+            className="relative w-full max-w-lg rounded-lg bg-card shadow-lg"
+            onClick={e => e.stopPropagation()}
+            data-testid="tutor-create-modal"
+          >
             <TimesheetForm
               isEdit={!!editingTimesheet}
               initialData={editingTimesheet || undefined}
@@ -691,15 +672,14 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                 setShowForm(false);
                 setEditingTimesheet(null);
               }}
-              loading={createLoading || updateLoading}
-              error={createError || updateError}
+              loading={updateLoading}
+              error={updateError}
             />
           </div>
         </div>
       )}
 
       <div role="status" aria-live="polite" className="sr-only" aria-label="dashboard status">
-        {createLoading && 'Creating timesheet...'}
         {updateLoading && 'Updating timesheet...'}
         {timesheetsLoading && 'Loading timesheets...'}
       </div>

@@ -165,13 +165,27 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
 
   const urgentCount = useMemo(() => pendingTimesheets.filter(isTimesheetUrgent).length, [pendingTimesheets, isTimesheetUrgent]);
 
-  const metrics = useMemo<LecturerDashboardMetrics>(() => ({
-    pendingApproval: dashboardData?.pendingApproval ?? 0,
-    totalTimesheets: dashboardData?.totalTimesheets ?? 0,
-    thisWeekHours: dashboardData?.thisWeekHours ?? 0,
-    thisWeekPay: dashboardData?.thisWeekPay ?? 0,
-    statusBreakdown: dashboardData?.statusBreakdown ?? {},
-  }), [dashboardData]);
+  const metrics = useMemo<LecturerDashboardMetrics>(() => {
+    const pendingApproval =
+      typeof dashboardData?.pendingApproval === 'number'
+        ? dashboardData.pendingApproval
+        : typeof dashboardData?.pendingApprovals === 'number'
+          ? dashboardData.pendingApprovals
+          : 0;
+
+    const statusBreakdown =
+      dashboardData?.statusBreakdown && typeof dashboardData.statusBreakdown === 'object'
+        ? dashboardData.statusBreakdown
+        : {};
+
+    return {
+      pendingApproval,
+      totalTimesheets: dashboardData?.totalTimesheets ?? 0,
+      thisWeekHours: dashboardData?.thisWeekHours ?? 0,
+      thisWeekPay: dashboardData?.thisWeekPay ?? 0,
+      statusBreakdown,
+    };
+  }, [dashboardData]);
 
   const courseOptions = useMemo<LecturerCourseOption[]>(() => {
     const seen = new Map<string, string>();

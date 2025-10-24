@@ -27,8 +27,6 @@ const baseRequest: TimesheetCreateRequest = {
   taskType: "TUTORIAL",
   qualification: "STANDARD",
   repeat: false,
-  hours: 3.5,
-  hourlyRate: 70,
 };
 
 const mockTimesheet = createMockTimesheet({ id: 99 });
