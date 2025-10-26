@@ -119,8 +119,9 @@ export function resolveNpxCommand() {
 }
 
 export function resolveGradleCommand(cwd = process.cwd()) {
-  // Prefer system Gradle in CI or when explicitly requested
-  if (process.env.CI === '1' || process.env.USE_SYSTEM_GRADLE === '1') {
+  // Prefer system Gradle in CI (CI=true/1) or when explicitly requested
+  const preferSystem = String(process.env.CI || process.env.USE_SYSTEM_GRADLE || '').toLowerCase();
+  if (['1', 'true', 'yes', 'y'].includes(preferSystem)) {
     return 'gradle';
   }
   if (isWsl()) {
