@@ -94,6 +94,21 @@ export async function loginAsRole(
   request: APIRequestContext,
   role: UserRole,
 ): Promise<RoleAuthSession> {
+  const skip = String(process.env.E2E_SKIP_BACKEND || process.env.E2E_SKIP_REAL_LOGIN || '').toLowerCase();
+  if (['1','true','yes','y'].includes(skip)) {
+    const creds = roleCredentials(role);
+    const idMap: Record<UserRole, number> = { admin: 1, lecturer: 2, tutor: 3 } as const;
+    const user: User = {
+      id: idMap[role] ?? 0,
+      email: creds.email,
+      name: role,
+      role: role.toUpperCase() as User['role'],
+      firstName: role,
+      lastName: 'Mock',
+      displayName: `${role} Mock`,
+    };
+    return { token: `mock-${role}-token`, refreshToken: null, expiresAt: null, user, role };
+  }
   const { email, password } = roleCredentials(role);
   const response = await request.post(LOGIN_ENDPOINT, {
     headers: { 'Content-Type': 'application/json' },
@@ -172,6 +187,45 @@ export async function signInAsRole(page: Page, role: UserRole): Promise<void> {
  * - Returns details for reporting.
  */
 export async function programmaticLoginApi(role: UserRole): Promise<{ ok: true; endpoint: string; persisted: 'jwt'; session: AuthSession }>{
+  const skip = String(process.env.E2E_SKIP_BACKEND || process.env.E2E_SKIP_REAL_LOGIN || '').toLowerCase();
+  if (['1','true','yes','y'].includes(skip)) {
+    // Synthesize a mock session without network calls
+    const creds = roleCredentials(role);
+    const idMap: Record<UserRole, number> = { admin: 1, lecturer: 2, tutor: 3 } as const;
+    const session: AuthSession = {
+      token: `mock-${role}-token`,
+      refreshToken: null,
+      expiresAt: null,
+      user: {
+        id: idMap[role] ?? 0,
+        email: creds.email,
+        name: role,
+        role: role.toUpperCase() as User['role'],
+        firstName: role,
+        lastName: 'Mock',
+        displayName: `${role} Mock`,
+      },
+    };
+    // Persist synthetic storage state for frontend origin
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const AUTH_DIR = path.resolve(__dirname, '../shared/.auth');
+    const STORAGE_STATE_FILE = path.resolve(AUTH_DIR, 'storageState.json');
+    await fs.mkdir(AUTH_DIR, { recursive: true });
+    const storageState: SessionState = {
+      origins: [
+        {
+          origin: E2E_CONFIG.FRONTEND.URL,
+          localStorage: [
+            { name: STORAGE_KEYS.TOKEN, value: session.token },
+            { name: STORAGE_KEYS.USER, value: JSON.stringify(session.user) },
+          ],
+        },
+      ],
+    } as unknown as SessionState;
+    await fs.writeFile(STORAGE_STATE_FILE, JSON.stringify(storageState, null, 2), 'utf8');
+    return { ok: true, endpoint: 'mock', persisted: 'jwt', session };
+  }
   const creds = roleCredentials(role);
   const candidates = [
     `${E2E_CONFIG.BACKEND.URL}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`,
