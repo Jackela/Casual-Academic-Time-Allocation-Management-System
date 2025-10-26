@@ -381,6 +381,10 @@ function collectPlaywrightArgs() {
 }
 
 async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backendProfile }) {
+  if (isTruthy(process.env.E2E_SKIP_BACKEND)) {
+    logWarning('Skipping backend startup (E2E_SKIP_BACKEND detected)');
+    return;
+  }
   if (await isServiceHealthy(backendHealthUrl)) {
     logSuccess(`Detected healthy backend at ${backendHealthUrl}. Reusing existing instance.`);
     return;
@@ -651,20 +655,22 @@ async function main() {
       backendProfile,
     });
 
-    // Reset backend test data after backend is ready
-    await resetBackendData(backendUrl);
-    // Seed minimal lecturer resources for deterministic UI (id=2)
-    try {
-      const token = process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset';
-      const seedUrl = new URL('/api/test-data/seed/lecturer-resources', backendUrl).toString();
-      await fetch(seedUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Test-Reset-Token': token },
-        body: JSON.stringify({ lecturerId: 2, seedTutors: true }),
-      }).catch(() => undefined);
-      logSuccess('Seeded lecturer resources (id=2)');
-    } catch (e) {
-      logWarning(`Seed step failed or skipped: ${e.message}`);
+    if (!isTruthy(process.env.E2E_SKIP_BACKEND)) {
+      // Reset backend test data after backend is ready
+      await resetBackendData(backendUrl);
+      // Seed minimal lecturer resources for deterministic UI (id=2)
+      try {
+        const token = process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset';
+        const seedUrl = new URL('/api/test-data/seed/lecturer-resources', backendUrl).toString();
+        await fetch(seedUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Test-Reset-Token': token },
+          body: JSON.stringify({ lecturerId: 2, seedTutors: true }),
+        }).catch(() => undefined);
+        logSuccess('Seeded lecturer resources (id=2)');
+      } catch (e) {
+        logWarning(`Seed step failed or skipped: ${e.message}`);
+      }
     }
 
     await ensureFrontend({
