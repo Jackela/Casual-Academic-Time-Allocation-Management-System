@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  e2e:
+  e2e-deterministic:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -64,8 +64,8 @@ jobs:
         id: p0
         run: node scripts/e2e-runner.js --project=real --grep @p0
 
-      - name: Upload P0 report
-        if: ${{ failure() && env.ACT != 'true' }}
+      - name: Upload P0 Report
+        if: ${{ failure() && github.actor != 'nektos/act' }}
         uses: actions/upload-artifact@v4
         with:
           name: e2e-p0-report
@@ -76,8 +76,8 @@ jobs:
         id: contract
         run: node scripts/e2e-runner.js --project=real --grep contract
 
-      - name: Upload Contract report
-        if: ${{ failure() && env.ACT != 'true' }}
+      - name: Upload Contract Report
+        if: ${{ failure() && github.actor != 'nektos/act' }}
         uses: actions/upload-artifact@v4
         with:
           name: e2e-contract-report
@@ -89,10 +89,17 @@ jobs:
         continue-on-error: true
         run: node scripts/e2e-runner.js --project=real
 
-      - name: Upload Full Real report
-        if: ${{ failure() && env.ACT != 'true' }}
+      - name: Upload Full Real Report
+        if: ${{ failure() && github.actor != 'nektos/act' }}
         uses: actions/upload-artifact@v4
         with:
           name: e2e-full-report
           path: frontend/playwright-report
           if-no-files-found: ignore
+
+      - name: Dump Docker Logs (on failure)
+        if: ${{ failure() }}
+        run: |
+          docker compose ps
+          docker compose logs --no-color --timestamps api || true
+          docker compose logs --no-color --timestamps db || true

@@ -22,7 +22,8 @@ env:
 
 jobs:
   lint-and-typecheck:
-    if: ${{ env.ACT != 'true' }}
+    # Skip when running locally via nektos/act (uses default actor 'nektos/act')
+    if: ${{ github.actor != 'nektos/act' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -78,13 +79,18 @@ jobs:
       - name: Run P0 E2E (grep @p0, canonical)
         if: ${{ env.BASE_URL != '' }}
         run: node ../scripts/e2e-runner.js --project=real --grep @p0
-      - name: Upload Playwright report
-        if: ${{ always() && env.BASE_URL != '' }}
+      - name: Upload Playwright Report
+        if: ${{ always() && env.BASE_URL != '' && github.actor != 'nektos/act' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: frontend/playwright-report
           if-no-files-found: ignore
+      - name: Dump Logs (on failure)
+        if: ${{ failure() }}
+        run: |
+          echo 'Gradle build scan hint:'
+          echo 'Consider enabling --scan locally to get details.'
 
   e2e-smoke:
     needs: lint-and-typecheck
@@ -111,8 +117,8 @@ jobs:
       - name: Run Smoke E2E (canonical)
         if: ${{ env.BASE_URL != '' }}
         run: node ../scripts/e2e-runner.js --project=smoke
-      - name: Upload Playwright report
-        if: ${{ always() && env.BASE_URL != '' }}
+      - name: Upload Playwright Report (Smoke)
+        if: ${{ always() && env.BASE_URL != '' && github.actor != 'nektos/act' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-smoke
