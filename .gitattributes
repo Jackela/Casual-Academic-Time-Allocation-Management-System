@@ -1,2 +1,10 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Ensure binaries are not line-normalized
+*.jar binary
+*.zip binary
+
+# Enforce LF for shell scripts and Gradle wrapper script
+*.sh text eol=lf
+gradlew text eol=lf
