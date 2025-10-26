@@ -65,7 +65,7 @@ jobs:
           CI: '1'
           E2E_SKIP_BACKEND: '1'
           E2E_SKIP_REAL_LOGIN: '1'
-        run: node scripts/e2e-runner.js --project=mock
+        run: node scripts/e2e-runner.js --project=real --grep @smoke
       - name: Upload mock Playwright report
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
