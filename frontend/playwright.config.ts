@@ -5,6 +5,7 @@ import path from 'node:path';
 import { E2E_CONFIG } from './e2e/config/e2e.config';
 
 const useExternalWebServer = !!process.env.E2E_EXTERNAL_WEBSERVER;
+const SKIP_REAL_LOGIN = ['1','true','yes','y'].includes(String(process.env.E2E_SKIP_REAL_LOGIN || process.env.E2E_SKIP_BACKEND || '').toLowerCase());
 const frontendUrl = new URL(E2E_CONFIG.FRONTEND.URL);
 const FRONTEND_PORT = process.env.E2E_FRONTEND_PORT || frontendUrl.port || '5174';
 const __filename = fileURLToPath(import.meta.url);
@@ -74,15 +75,17 @@ export default defineConfig({
       timeout: 60000,
       use: {
         // Prefer per-role admin storage state if present for admin-focused runs; fallback to shared state
-        storageState: (() => {
-          const preferred = path.resolve(__dirname, 'e2e/shared/.auth/admin.json');
-          const fallback = path.resolve(__dirname, 'e2e/shared/.auth/storageState.json');
-          try {
-            return fs.existsSync(preferred) ? preferred : fallback;
-          } catch {
-            return fallback;
-          }
-        })(),
+        ...(SKIP_REAL_LOGIN ? {} : {
+          storageState: (() => {
+            const preferred = path.resolve(__dirname, 'e2e/shared/.auth/admin.json');
+            const fallback = path.resolve(__dirname, 'e2e/shared/.auth/storageState.json');
+            try {
+              return fs.existsSync(preferred) ? preferred : fallback;
+            } catch {
+              return fallback;
+            }
+          })(),
+        }),
         baseURL: E2E_CONFIG.FRONTEND.URL,
       },
     },
