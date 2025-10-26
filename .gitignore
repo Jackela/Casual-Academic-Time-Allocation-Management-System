@@ -198,6 +198,7 @@ patch.tmp
 
 # Cache directories
 .cache/
+tools/bin/
 *.cache
 .npm
 .eslintcache
