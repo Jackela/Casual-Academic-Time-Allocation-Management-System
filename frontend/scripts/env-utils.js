@@ -119,6 +119,10 @@ export function resolveNpxCommand() {
 }
 
 export function resolveGradleCommand(cwd = process.cwd()) {
+  // Prefer system Gradle in CI or when explicitly requested
+  if (process.env.CI === '1' || process.env.USE_SYSTEM_GRADLE === '1') {
+    return 'gradle';
+  }
   if (isWsl()) {
     // Convert POSIX path (/mnt/d/dir) to Windows path (D:\dir) for cmd.exe
     const winGradle = toWindowsPath(path.join(cwd, 'gradlew.bat'));
