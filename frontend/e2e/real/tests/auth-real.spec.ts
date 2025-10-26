@@ -92,10 +92,10 @@ test.describe('logout behaviour', () => {
     await page.getByTestId('logout-button').click();
     await logoutDone;
 
-    // Give router a tick and then verify storage cleared
-    await page.waitForTimeout(250);
-    const token = await page.evaluate(() => localStorage.getItem('token'));
-    expect(token).toBeNull();
+    // Wait until token is cleared from storage deterministically (no timeouts)
+    await expect.poll(async () => {
+      return await page.evaluate(() => localStorage.getItem('token'));
+    }).toBeNull();
 
     // Force navigation to a protected route; it must redirect to login
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
