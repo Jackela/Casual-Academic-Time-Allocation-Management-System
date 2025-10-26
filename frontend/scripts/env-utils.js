@@ -1,6 +1,7 @@
 import path from 'path';
 import http from 'node:http';
 import https from 'node:https';
+import os from 'node:os';
 
 const requireEnv = (name) => {
   const value = process.env[name];
@@ -19,7 +20,17 @@ const parseUrl = (name) => {
 };
 
 export function resolveBackendUrl() {
-  return requireEnv('E2E_BACKEND_URL');
+  const raw = requireEnv('E2E_BACKEND_URL');
+  if (isWsl()) {
+    try {
+      const u = new URL(raw);
+      if (u.hostname === '127.0.0.1') {
+        u.hostname = 'localhost';
+        return u.toString();
+      }
+    } catch {}
+  }
+  return raw;
 }
 
 export function resolveFrontendUrl() {
@@ -36,7 +47,7 @@ export function resolveBackendPort() {
     return parsed;
   }
 
-  const url = parseUrl('E2E_BACKEND_URL');
+  const url = new URL(resolveBackendUrl());
   if (!url.port) {
     throw new Error('E2E_BACKEND_URL must include an explicit port or set E2E_BACKEND_PORT');
   }
@@ -65,7 +76,7 @@ export function resolveBackendHost() {
   if (explicit && explicit.trim()) {
     return explicit.trim();
   }
-  const url = parseUrl('E2E_BACKEND_URL');
+  const url = new URL(resolveBackendUrl());
   return url.hostname;
 }
 
@@ -90,6 +101,15 @@ export function isWindows() {
   return process.platform === 'win32';
 }
 
+export function isWsl() {
+  // Heuristics to detect WSL when Node reports linux
+  if (process.platform !== 'linux') return false;
+  if (process.env.WSL_DISTRO_NAME) return true;
+  const release = os.release().toLowerCase();
+  if (release.includes('microsoft')) return true;
+  return false;
+}
+
 export function resolveNpmCommand() {
   return isWindows() ? 'npm.cmd' : 'npm';
 }
@@ -99,19 +119,25 @@ export function resolveNpxCommand() {
 }
 
 export function resolveGradleCommand(cwd = process.cwd()) {
+  if (isWsl()) {
+    // Convert POSIX path (/mnt/d/dir) to Windows path (D:\dir) for cmd.exe
+    const winGradle = toWindowsPath(path.join(cwd, 'gradlew.bat'));
+    return winGradle;
+  }
   const wrapperName = isWindows() ? 'gradlew.bat' : 'gradlew';
   return path.join(cwd, wrapperName);
 }
 
 export function resolveCmdShim(command) {
-  if (!isWindows()) {
+  if (!(isWindows() || isWsl())) {
     return { command, args: [] };
   }
+  // Use cmd to execute the .bat file; arguments will follow in the spawn call
   return { command: 'cmd.exe', args: ['/d', '/s', '/c', command] };
 }
 
 export function toPlatformCommand(binary, args = []) {
-  if (!isWindows()) {
+  if (!(isWindows() || isWsl())) {
     return { command: binary, args: [...args] };
   }
 
@@ -126,6 +152,18 @@ export function toPlatformCommand(binary, args = []) {
   }
 
   return { command: binary, args: [...args] };
+}
+
+export function toWindowsPath(posixPath) {
+  // Minimal WSL path translator: /mnt/<drive>/<path> -> <DRIVE>:\<path>
+  if (!posixPath || typeof posixPath !== 'string') return posixPath;
+  if (!posixPath.startsWith('/mnt/')) return posixPath;
+  const parts = posixPath.split('/');
+  // [ '', 'mnt', 'd', 'Code', ... ]
+  if (parts.length < 4) return posixPath;
+  const drive = parts[2].toUpperCase();
+  const rest = parts.slice(3).join('\\');
+  return `${drive}:\\${rest}`;
 }
 
 function coerceAttemptConfig(value, fallback) {

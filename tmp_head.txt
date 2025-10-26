@@ -1,0 +1,200 @@
+plugins {
+    java
+    id("org.springframework.boot") version "3.2.0"
+    id("org.openapi.generator") version "7.7.0" // Core: Add OpenAPI Generator plugin (Gradle 9-ready)
+    jacoco
+    id("com.github.node-gradle.node") version "7.1.0" // 1. Introduce node-gradle plugin (Gradle 9 compat)
+}
+
+import org.springframework.boot.gradle.tasks.run.BootRun
+import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.file.DirectoryProperty
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
+
+
+
+group = "com.usyd"
+version = "1.0.0"
+description = "CATAMS"
+java.sourceCompatibility = JavaVersion.VERSION_21
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
+val schemaDirectory = layout.projectDirectory.dir("schema")
+val contractsScript = layout.projectDirectory.file("tools/scripts/contracts-pipeline.js")
+val contractsOutputDir = layout.buildDirectory.dir("generated-contracts")
+val contractsLockFile = layout.projectDirectory.file("schema/contracts.lock")
+val frontendContractsDir = layout.projectDirectory.dir("frontend/src/contracts/generated")
+
+val generateContracts by tasks.registering(Exec::class) {
+    group = "Contracts"
+    description = "Generates Java and TypeScript contracts from JSON Schema sources."
+    workingDir = layout.projectDirectory.asFile
+    commandLine("node", contractsScript.asFile.absolutePath)
+    environment(
+        mapOf(
+            "CONTRACTS_OUTPUT_DIR" to contractsOutputDir.get().asFile.absolutePath,
+            "CONTRACTS_LOCK_FILE" to contractsLockFile.asFile.absolutePath,
+        ),
+    )
+    inputs.files(fileTree(schemaDirectory) {
+        include("*.schema.json")
+    })
+    outputs.dir(contractsOutputDir)
+    outputs.dir(frontendContractsDir)
+    outputs.file(contractsLockFile)
+}
+
+val verifyContracts by tasks.registering(Exec::class) {
+    group = "Verification"
+    description = "Verifies that schema fingerprints and generated TypeScript contracts are up-to-date."
+    workingDir = layout.projectDirectory.asFile
+    commandLine("node", contractsScript.asFile.absolutePath, "--verify")
+    environment(
+        mapOf(
+            "CONTRACTS_OUTPUT_DIR" to contractsOutputDir.get().asFile.absolutePath,
+            "CONTRACTS_LOCK_FILE" to contractsLockFile.asFile.absolutePath,
+        ),
+    )
+    mustRunAfter(generateContracts)
+    inputs.files(fileTree(schemaDirectory) {
+        include("*.schema.json")
+    })
+    inputs.file(contractsLockFile)
+    inputs.dir(frontendContractsDir)
+}
+
+tasks.check {
+    dependsOn(verifyContracts)
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    dependsOn(generateContracts)
+}
+
+// Enforce modern API usage and fail on warnings to keep the codebase clean
+tasks.withType<JavaCompile> {
+    options.compilerArgs.addAll(listOf(
+        "-Xlint:all"
+    ))
+    // Ensure target bytecode level is Java 21
+    options.release.set(21)
+}
+
+// Improve test visibility in CI/terminal
+tasks.withType<Test> {
+    useJUnitPlatform()
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = uri("https://packages.confluent.io/maven/") }
+}
+
+val javaParserVersion = "3.26.0" // Use latest version
+val jacksonVersion = "2.15.3"
+val antlrVersion = "4.10.1"
+
+configurations {
+    // Create a dedicated configuration to store dependencies for our generator tool
+    create("contractGenerator")
+}
+
+dependencies {
+    // Spring Boot Starters
+    implementation(libs.org.springframework.boot.spring.boot.starter.web)
+    implementation(libs.org.springframework.boot.spring.boot.starter.data.jpa)
+    implementation(libs.org.springframework.boot.spring.boot.starter.security)
+    implementation(libs.org.springframework.boot.spring.boot.starter.validation)
+    implementation(libs.org.springframework.boot.spring.boot.starter.actuator)
+
+    // Database
+    runtimeOnly(libs.org.postgresql.postgresql)
+    // Flyway for database migrations in dev/docker environments (Flyway 10 modular DB support)
+    implementation("org.flywaydb:flyway-core:10.17.0")
+    implementation("org.flywaydb:flyway-database-postgresql:10.17.0")
+    // E2E runtime Testcontainers (self-managed DB for e2e profile)
+    implementation(libs.org.testcontainers.testcontainers)
+    implementation(libs.org.testcontainers.postgresql)
+    // Testcontainers JDBC driver to enable jdbc:tc:postgresql URL in e2e
+    implementation("org.testcontainers:jdbc:1.19.1")
+    // Removed Embedded PostgreSQL to enforce Testcontainers-only for E2E (fail fast)
+    
+
+    // JWT
+    implementation(libs.io.jsonwebtoken.jjwt.api)
+    runtimeOnly(libs.io.jsonwebtoken.jjwt.impl)
+    runtimeOnly(libs.io.jsonwebtoken.jjwt.jackson)
+
+    // Development Tools
+    developmentOnly(libs.org.springframework.boot.spring.boot.devtools)
+
+    // Core: JSON Schema Validator for response contract testing
+    testImplementation("com.networknt:json-schema-validator:1.4.0")
+    // Core: YAML parser for schema extraction task and reusable tooling
+    implementation("org.yaml:snakeyaml:2.2")
+    // Keep test Jackson managed by Spring Boot BOM (avoid explicit version overrides)
+
+    // Add dependencies for our generator tool
+    "contractGenerator"("com.github.javaparser:javaparser-core:$javaParserVersion")
+    "contractGenerator"("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+
+    // Add for compilation of ContractGenerator.java
+    implementation("com.github.javaparser:javaparser-core:$javaParserVersion")
+    implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+
+    // Monitoring and Metrics
+    implementation(libs.io.micrometer.micrometer.core)
+    
+    // Testing
+    testImplementation(libs.org.springframework.boot.spring.boot.starter.test)
+    testImplementation(libs.org.springframework.security.spring.security.test)
+    testImplementation(libs.org.testcontainers.junit.jupiter)
+    testImplementation(libs.org.testcontainers.postgresql)
+    testImplementation(libs.org.testcontainers.testcontainers)
+    runtimeOnly("com.h2database:h2:2.2.224")
+    testImplementation("com.h2database:h2:2.2.224")
+    // ArchUnit for architecture rules
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.2.1")
+
+    // Performance Testing
+    testImplementation(libs.org.apache.httpcomponents.client5.httpclient5)
+    testImplementation(libs.org.junit.platform.junit.platform.launcher)
+    
+    // OpenAPI Testing
+    testImplementation(libs.com.atlassian.oai.swagger.request.validator.mockmvc)
+    testImplementation(libs.io.swagger.parser.v3.swagger.parser)
+
+    // Karate DSL for API Testing
+    testImplementation("io.karatelabs:karate-junit5:1.5.1") {
+        exclude(group = "org.antlr", module = "antlr4-runtime")
+    }
+    implementation("org.antlr:antlr4-runtime:$antlrVersion")
+}
+
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.antlr" && requested.name == "antlr4-runtime") {
+            useVersion(antlrVersion)
+            because("Align ANTLR runtime version with Hibernate-generated grammars to prevent tool/runtime mismatch")
+        }
+    }
+}
+
+// 2. Configure node-gradle

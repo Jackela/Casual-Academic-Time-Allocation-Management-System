@@ -1,0 +1,18 @@
+FROM node:20-bullseye-slim
+WORKDIR /app
+
+# Install dependencies
+COPY frontend/package*.json ./
+RUN npm ci
+
+# Copy source
+# Copy source (frontend app)
+COPY frontend/ .
+# Also copy shared JSON schemas used by the frontend validation/config
+COPY schema/ /app/schema/
+
+ENV VITE_E2E=true
+EXPOSE 5174
+
+# Run Vite dev server for E2E with explicit host/port
+CMD ["npm","run","dev:e2e","--","--host","0.0.0.0","--port","5174"]

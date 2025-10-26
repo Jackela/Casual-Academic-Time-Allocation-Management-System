@@ -6,8 +6,8 @@ import Ajv, {
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 
-import commonSchema from '../../../../schema/common.schema.json';
-import timesheetSchema from '../../../../schema/timesheet.schema.json';
+import commonSchema from '@schema/common.schema.json';
+import timesheetSchema from '@schema/timesheet.schema.json';
 import type {
   Timesheet,
   TimesheetUiConstraints,

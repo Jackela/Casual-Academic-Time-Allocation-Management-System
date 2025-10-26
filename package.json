@@ -1,0 +1,13 @@
+{
+  "name": "catams-repo-meta",
+  "private": true,
+  "type": "module",
+  "description": "Repository-level metadata; enables ESM for canonical scripts under scripts/.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@redocly/cli": "^2.8.0"
+  },
+  "devDependencies": {
+    "quicktype-core": "^23.0.171"
+  }
+}

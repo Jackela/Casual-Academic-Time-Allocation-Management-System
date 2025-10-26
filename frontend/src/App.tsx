@@ -97,6 +97,8 @@ function App() {
               <Route path="/timesheets/create" element={createDashboardElement(<TimesheetCreateRoute />)} />
               <Route path="/dashboard" element={createDashboardElement(<DashboardRoute />)} />
               <Route path="/admin/users" element={createDashboardElement(<AdminUsersPage />, { requiredRole: 'ADMIN' })} />
+              {/* Backwards-compatible alias: some tests and deep-links use /users */}
+              <Route path="/users" element={<Navigate to="/admin/users" replace />} />
               {/* Redirect root to dashboard */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               

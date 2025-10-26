@@ -80,13 +80,30 @@ export async function waitForIdleAfter(page: Page, action: () => Promise<void>, 
 }
 
 // App readiness: wait for role-specific shell where available
-export async function waitForAppReady(page: Page, _role: 'ADMIN'|'LECTURER'|'TUTOR', timeout = 15000): Promise<void> {
+export async function waitForAppReady(page: Page, _role: 'ADMIN'|'LECTURER'|'TUTOR', timeout = 30000): Promise<void> {
   await page.waitForLoadState('domcontentloaded').catch(() => undefined);
+  // Ensure root mounts before looking for shell sentinels
+  await page.waitForSelector('#root', { timeout: 10000 }).catch(() => undefined);
   await page.waitForLoadState('networkidle').catch(() => undefined);
 
-  // Single-timeout, combined locator per SPA best practices
-  const shell = page.locator('[data-testid="app-ready"], [data-testid="app-title"], [data-testid="dashboard-nav"], [data-testid="dashboard-main"]').first();
-  await expect(shell).toBeVisible({ timeout });
+  // Combined sentinel per SPA best practices
+  const shell = page.locator([
+    '[data-testid="app-ready"]',
+    '[data-testid="app-title"]',
+    '[data-testid="dashboard-nav"]',
+    '[data-testid="dashboard-main"]',
+    '[data-testid="admin-dashboard"]',
+    '[data-testid="lecturer-dashboard"]',
+    '[data-testid="tutor-dashboard"]',
+  ].join(',')).first();
+  try {
+    await expect(shell).toBeVisible({ timeout });
+  } catch (err) {
+    // One more stabilization pass after potential lazy mounting
+    await page.waitForLoadState('networkidle').catch(() => undefined);
+    await expect(shell).toBeVisible({ timeout: Math.max(5000, Math.floor(timeout / 2)) });
+  }
+
   // Optional: wait for first whoami/profile to succeed, but don't block if app doesn't call it
   await page.waitForResponse(
     (resp) => {
@@ -99,7 +116,7 @@ export async function waitForAppReady(page: Page, _role: 'ADMIN'|'LECTURER'|'TUT
         );
       } catch { return false; }
     },
-    { timeout }
+    { timeout: Math.min(10000, timeout) }
   ).catch(() => undefined);
 }
 
@@ -132,4 +149,33 @@ export async function waitForAdminUsersReady(page: Page, timeout = 15000): Promi
 // Convenience: wait until GET /api/users yields a 2xx response once (handles auth warmup)
 export async function waitForUsersListOk(page: Page, timeout = 10000): Promise<void> {
   await waitForApiOk(page, 'GET', '/api/users', timeout);
+}
+
+// Auth warm-up: ensure whoami returns 200 before first protected list call
+export async function waitForAuthAndWhoamiOk(page: Page, timeoutMs = 5000): Promise<boolean> {
+  const start = Date.now();
+  let attempt = 0;
+  while (Date.now() - start < timeoutMs) {
+    attempt += 1;
+    try {
+      const res = await page.request.get('/api/whoami');
+      if (res.ok()) return true;
+    } catch {}
+    // bounded backoff, capped small; this helper is only used once per spec after navigation
+    const backoff = Math.min(250 + attempt * 100, 600);
+    try { await page.waitForTimeout(backoff); } catch {}
+  }
+  return false;
+}
+
+// Optional micro-stability after sentinel; never a primary wait
+export async function waitForStableVisible(locator: Locator, windowMs = 400): Promise<boolean> {
+  const page: Page | undefined = (locator as any).page?.() as any;
+  const start = Date.now();
+  while (Date.now() - start < windowMs) {
+    const ok = await locator.isVisible().catch(() => false);
+    if (!ok) return false;
+    try { await page?.waitForTimeout?.(50); } catch {}
+  }
+  return true;
 }

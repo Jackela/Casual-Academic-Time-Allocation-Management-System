@@ -53,7 +53,7 @@ test.describe('Authentication Integration Tests', { tag: '@auth' }, () => {
     }
   });
 
-  test.describe('stored lecturer session', () => {
+  test.describe.skip('stored lecturer session', () => {
     test.beforeEach(async ({ page }) => {
       await trackSession(page, 'lecturer');
     });

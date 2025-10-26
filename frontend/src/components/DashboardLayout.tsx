@@ -26,6 +26,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       secureLogger.warn('Logout did not complete cleanly', error);
     }
     navigate('/login', { replace: true });
+    // Fallback: in case the router doesn't commit navigation promptly,
+    // enforce a hard redirect to login to guarantee a clean session exit.
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        try {
+          if (!window.location.pathname.startsWith('/login')) {
+            window.location.assign('/login');
+          }
+        } catch {}
+      }, 0);
+    }
   };
 
   const getRoleDisplayName = (role: string) => {

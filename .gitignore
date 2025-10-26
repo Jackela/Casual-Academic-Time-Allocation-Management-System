@@ -289,11 +289,24 @@ logs/
 
 # Frontend generated artifacts
 frontend/playwright-report/
+frontend/playwright-screenshots/
 frontend/test-results/
 frontend/__screenshots__/
 frontend/clips/
 frontend/coverage/
 frontend/dist/
+frontend/trace-inspect/
+frontend/src/contracts/generated/
+
+# Backend and contracts generated code
+build/generated-contracts/
+build/generated/openapi/
+
+# Additional generated artifacts (reports/manifests)
+artifacts/
+tools/diagnostic-reports/
+tools/logs/
+tools/process-management/.process-ledger.json
 
 # Tooling archives
 tools/logs/archive/

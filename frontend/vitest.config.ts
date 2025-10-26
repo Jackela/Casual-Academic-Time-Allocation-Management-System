@@ -1,6 +1,7 @@
 /* eslint-disable import/no-unresolved */
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import path from 'path';
 
 const testIncludePatterns = ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'];
 
@@ -8,6 +9,11 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    environmentOptions: {
+      jsdom: {
+        url: 'http://localhost/'
+      }
+    },
     setupFiles: ['./src/test-setup.ts'],
     globalTeardown: './src/test-utils/global-teardown.ts',
     globals: false,
@@ -35,7 +41,7 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'json-summary', 'lcov', 'html'],
       include: ['src/**/*.{js,ts,jsx,tsx}'],
       exclude: [
         'src/main.tsx',
@@ -43,7 +49,11 @@ export default defineConfig({
         'src/test-setup.ts',
         'src/**/*.d.ts',
         'src/**/*.test.{js,ts,jsx,tsx}',
-        'src/test-utils/**'
+        'src/test-utils/**',
+        // Exclude generated and definition-only code from coverage
+        'src/contracts/**',
+        'src/contracts/generated/**',
+        'src/types/**'
       ],
       thresholds: {
         global: {
@@ -55,11 +65,26 @@ export default defineConfig({
       }
     },
     // Reporter configuration
-    reporters: ['verbose']
+    reporters: [
+      'verbose',
+      ['json', { outputFile: 'test-results/vitest.json' }]
+    ]
   },
   resolve: {
     alias: {
-      '@': '/src'
+      // Keep aliases in sync with vite.config.ts to ensure
+      // module resolution works the same under Vitest.
+      '@': '/src',
+      '@/components': '/src/components',
+      '@/lib': '/src/lib',
+      '@/utils': '/src/utils',
+      '@/hooks': '/src/hooks',
+      '@/types': '/src/types',
+      '@/services': '/src/services',
+      '@/contexts': '/src/contexts',
+      // Shared JSON Schemas (referenced by AJV validation layer)
+      // Resolve to the repo-level schema directory
+      '@schema': path.resolve(__dirname, '../schema'),
     }
   }
 });

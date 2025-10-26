@@ -3,7 +3,9 @@
 # Database configuration is handled via @DynamicPropertySource in IntegrationTestBase
 
 spring:
-  # Disable Flyway for integration tests (schema managed by Hibernate)
+  datasource:
+    url: jdbc:tc:postgresql:15:///catams
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver  # Disable Flyway for integration tests (schema managed by Hibernate)
   flyway:
     enabled: false
     

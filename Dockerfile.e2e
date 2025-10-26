@@ -1,0 +1,23 @@
+FROM mcr.microsoft.com/playwright:v1.54.2-jammy
+WORKDIR /app
+
+# Install dependencies
+COPY frontend/package*.json ./
+RUN npm ci
+
+# Ensure browsers + system deps (image already contains browsers; keep with-deps for parity)
+RUN npx playwright install --with-deps
+
+# Copy tests and config
+COPY frontend/ .
+
+ENV E2E_BACKEND_URL=http://api:8084
+ENV E2E_FRONTEND_URL=http://web:5174
+ENV TEST_DATA_RESET_TOKEN=local-e2e-reset
+
+# Wait for backend/frontend and run Playwright
+CMD bash -lc 'set -e; \
+  for i in {1..120}; do curl -fsS ${E2E_BACKEND_URL}/actuator/health >/dev/null 2>&1 && break || sleep 1; done; \
+  for i in {1..120}; do curl -fsS ${E2E_FRONTEND_URL} >/dev/null 2>&1 && break || sleep 1; done; \
+  npx playwright test --project=real --config=playwright.config.ts'
+

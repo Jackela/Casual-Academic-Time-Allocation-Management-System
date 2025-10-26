@@ -27,11 +27,13 @@ const initialFormState: FormState = {
 };
 
 const PASSWORD_LENGTH = 16;
+// Align password generator with backend validation policy
+// Backend regex allows only letters, digits, and the following specials: @$!%*?&
 const PASSWORD_CHARSETS = [
   'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
   'abcdefghijklmnopqrstuvwxyz',
   '0123456789',
-  '!@#$%^&*()-_=+[]{};:,.<>?/|',
+  '@$!%*?&',
 ] as const;
 
 const PASSWORD_HINT =

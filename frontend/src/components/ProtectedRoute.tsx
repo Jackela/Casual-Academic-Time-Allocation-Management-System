@@ -25,7 +25,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Show loading spinner while checking authentication only if no token fallback is present
   const isLoadingSession = session.status === 'authenticating' || session.status === 'refreshing';
   const hasToken = typeof window !== 'undefined' && !!window.localStorage.getItem(STORAGE_KEYS.TOKEN);
-  const hasSeededUser = !!(typeof window !== 'undefined' && (window as any).__E2E_AUTH_MANAGER_STATE__?.()?.user) || false;
   if (isLoadingSession && !hasToken) {
     return (
       <div className="loading-container">
@@ -38,7 +37,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // SPA E2E best-practice: honor injected auth in localStorage immediately
-  const effectiveIsAuthed = session.isAuthenticated || hasToken || hasSeededUser;
+  const effectiveIsAuthed = session.isAuthenticated || hasToken;
 
   // Redirect to login if not authenticated
   if (!effectiveIsAuthed) {

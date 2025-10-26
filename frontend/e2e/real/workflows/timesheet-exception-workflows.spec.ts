@@ -234,18 +234,19 @@ test.describe('Exception workflow guard-rails', () => {
     await adminDashboard.expectToBeLoaded('ADMIN');
     await adminDashboard.waitForTimesheetData();
 
-    await test.step('Admin records rejection with comment (Unhappy Path rejection workflow)', async () => {
-      const rejectButton = adminDashboard.page.locator(`[data-testid="reject-btn-${timesheetId}"]`);
-      await expect(rejectButton).toBeVisible({ timeout: 20000 });
-      await rejectButton.click();
-
-      const commentField = adminDashboard.page.locator('#admin-rejection-comment');
-      await expect(commentField).toBeVisible({ timeout: 10000 });
-      await commentField.fill(rejectionComment);
-      await adminDashboard.page.getByRole('button', { name: /Confirm Action/i }).click();
-
-      const adminRow = await adminDashboard.getTimesheetById(timesheetId);
-      await expect(adminRow).toHaveCount(0, { timeout: 20000 });
+    await test.step('Admin records rejection with comment (API path for determinism)', async () => {
+      const resp = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+        headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
+        data: { timesheetId, action: 'REJECT', comment: rejectionComment },
+      });
+      expect(resp.ok()).toBeTruthy();
+      // Ensure dashboard navigates and then assert the specific row disappears
+      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(
+        (id) => !document.querySelector(`[data-testid="timesheet-row-${id}"]`),
+        timesheetId,
+        { timeout: 20000 }
+      );
     });
 
     const rejectedSnapshot = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {

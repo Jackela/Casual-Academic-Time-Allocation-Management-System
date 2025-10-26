@@ -1,0 +1,87 @@
+name: E2E Deterministic Suite
+
+on:
+  push:
+    branches: [ feat/e2e-hardening-deterministic-suite, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      # Determinism + reporting
+      PWTEST_WORKERS: 1
+      PWTEST_RETRIES: 1
+      PLAYWRIGHT_HTML_REPORT: ./playwright-report
+      # Frontend server origin used by runner script
+      E2E_FRONTEND_URL: http://127.0.0.1:5174
+      # Backend origin used by runner script
+      E2E_BACKEND_URL: http://127.0.0.1:8090
+      E2E_BACKEND_PORT: 8090
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Repo guard (no ad-hoc generators)
+        run: node scripts/guard-allowed-generators.js
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+
+      - name: Guardrail - no waitForTimeout in real specs
+        working-directory: frontend
+        run: npm run lint:e2e:timeouts
+
+      - name: Run P0 acceptance (required)
+        id: p0
+        run: node scripts/e2e-runner.js --project=real --grep @p0
+
+      - name: Upload P0 report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-p0-report
+          path: frontend/playwright-report
+          if-no-files-found: warn
+
+      - name: Run Contract lane (required)
+        id: contract
+        run: node scripts/e2e-runner.js --project=real --grep contract
+
+      - name: Upload Contract report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-contract-report
+          path: frontend/playwright-report
+          if-no-files-found: warn
+
+      - name: Run Full Real (non-blocking)
+        id: full
+        continue-on-error: true
+        run: node scripts/e2e-runner.js --project=real
+
+      - name: Upload Full Real report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-full-report
+          path: frontend/playwright-report
+          if-no-files-found: warn

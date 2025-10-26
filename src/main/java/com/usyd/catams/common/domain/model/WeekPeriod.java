@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.io.Serializable;
 import java.time.DayOfWeek;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
@@ -82,6 +83,15 @@ public class WeekPeriod implements Serializable, Comparable<WeekPeriod> {
      */
     public static WeekPeriod current() {
         return new WeekPeriod(LocalDate.now());
+    }
+
+    /**
+     * Factory method to create a WeekPeriod for the current week using a specific clock.
+     * Note: caller must ensure the resulting date is a Monday; intended for tests using a Monday-fixed clock.
+     */
+    public static WeekPeriod current(Clock clock) {
+        Objects.requireNonNull(clock, "clock");
+        return new WeekPeriod(LocalDate.now(clock));
     }
     
     /**
@@ -215,6 +225,14 @@ public class WeekPeriod implements Serializable, Comparable<WeekPeriod> {
     public boolean isCurrentWeek() {
         return contains(LocalDate.now());
     }
+
+    /**
+     * Returns true if this week period contains today's date from the provided clock.
+     */
+    public boolean isCurrentWeek(Clock clock) {
+        Objects.requireNonNull(clock, "clock");
+        return contains(LocalDate.now(clock));
+    }
     
     /**
      * Checks if this week period is in the past
@@ -224,6 +242,14 @@ public class WeekPeriod implements Serializable, Comparable<WeekPeriod> {
     public boolean isPast() {
         return getEndDate().isBefore(LocalDate.now());
     }
+
+    /**
+     * Returns true if this week period ended before 'today' from the provided clock.
+     */
+    public boolean isPast(Clock clock) {
+        Objects.requireNonNull(clock, "clock");
+        return getEndDate().isBefore(LocalDate.now(clock));
+    }
     
     /**
      * Checks if this week period is in the future
@@ -232,6 +258,14 @@ public class WeekPeriod implements Serializable, Comparable<WeekPeriod> {
      */
     public boolean isFuture() {
         return getStartDate().isAfter(LocalDate.now());
+    }
+
+    /**
+     * Returns true if this week period starts after 'today' from the provided clock.
+     */
+    public boolean isFuture(Clock clock) {
+        Objects.requireNonNull(clock, "clock");
+        return getStartDate().isAfter(LocalDate.now(clock));
     }
     
     /**

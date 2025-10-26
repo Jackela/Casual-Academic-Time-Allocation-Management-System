@@ -2,7 +2,7 @@ import type { ValidateFunction } from 'ajv';
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import type { Currency, TimesheetUiConstraints } from '../../types/timesheet';
-import commonSchema from '../../../../schema/common.schema.json';
+import commonSchema from '@schema/common.schema.json';
 import { secureApiClient } from '../../services/api-secure';
 import { secureLogger } from '../../utils/secure-logger';
 import { getConfig } from '../../config/unified-config';

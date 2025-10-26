@@ -139,98 +139,29 @@ export async function clearAuthSessionFromPage(page: Page): Promise<void> {
 
 export async function signInAsRole(page: Page, role: UserRole): Promise<void> {
   const session = await loginAsRole(page.request, role);
-  const payload = {
-    session,
-    storageKeys: STORAGE_KEYS,
-  };
-
-  await page.goto(E2E_CONFIG.FRONTEND.URL, { waitUntil: 'domcontentloaded' });
-
-  await page.waitForFunction(() => {
-    const global = window as typeof window & {
-      __E2E_SET_AUTH__?: (session: unknown) => void;
-      __E2E_GET_AUTH__?: () => unknown;
-      __E2E_SESSION_STATE__?: () => unknown;
-      __E2E_AUTH_MANAGER_STATE__?: () => unknown;
-    };
-    return (
-      typeof global.__E2E_SET_AUTH__ === 'function' &&
-      typeof global.__E2E_GET_AUTH__ === 'function' &&
-      typeof global.__E2E_SESSION_STATE__ === 'function' &&
-      typeof global.__E2E_AUTH_MANAGER_STATE__ === 'function'
-    );
-  }, undefined, { timeout: 15000 });
-
-  const authDebug = await page.evaluate(({ session: sess, storageKeys }) => {
+  // Ensure token is available before any app scripts run so api client picks it up on init
+  await page.addInitScript(({ keys, sess }) => {
     try {
-      localStorage.setItem(storageKeys.TOKEN, sess.token);
-      localStorage.setItem(storageKeys.USER, JSON.stringify(sess.user));
-
+      // Allow tests/app to disable auth seeding for logout flows
+      if (localStorage.getItem('__E2E_DISABLE_AUTH_SEED__') === '1') {
+        return;
+      }
+      localStorage.setItem(keys.TOKEN, sess.token);
+      localStorage.setItem(keys.USER, JSON.stringify(sess.user));
       if (sess.refreshToken) {
-        localStorage.setItem(storageKeys.REFRESH_TOKEN, sess.refreshToken);
+        localStorage.setItem(keys.REFRESH_TOKEN, sess.refreshToken);
       } else {
-        localStorage.removeItem(storageKeys.REFRESH_TOKEN);
+        localStorage.removeItem(keys.REFRESH_TOKEN);
       }
-
       if (typeof sess.expiresAt === 'number') {
-        localStorage.setItem(storageKeys.TOKEN_EXPIRY, String(sess.expiresAt));
+        localStorage.setItem(keys.TOKEN_EXPIRY, String(sess.expiresAt));
       } else {
-        localStorage.removeItem(storageKeys.TOKEN_EXPIRY);
+        localStorage.removeItem(keys.TOKEN_EXPIRY);
       }
-    } catch {
-      // ignore storage issues in automation environments
-    }
-    const global = window as typeof window & {
-      __E2E_SET_AUTH__?: (session: typeof sess) => void;
-      __E2E_GET_AUTH__?: () => { isAuthenticated: boolean; token: string | null; user: { role?: string } | null };
-      __E2E_SESSION_STATE__?: () => SessionState & { user?: { id?: number; role?: string } };
-      __E2E_AUTH_MANAGER_STATE__?: () => { isAuthenticated: boolean; token: string | null; user: { id?: number; role?: string } | null };
-    };
-    const beforeContext = global.__E2E_SESSION_STATE__?.() ?? null;
-    const before = global.__E2E_GET_AUTH__?.() ?? beforeContext ?? null;
-    global.__E2E_SET_AUTH__?.(sess);
-    const afterContext = global.__E2E_SESSION_STATE__?.() ?? null;
-    const managerState = global.__E2E_AUTH_MANAGER_STATE__?.() ?? null;
-    const state = global.__E2E_GET_AUTH__?.() ?? managerState ?? afterContext ?? null;
-    return {
-      before,
-      after: state,
-      context: afterContext,
-      manager: managerState,
-      isAuthenticated: state?.isAuthenticated ?? false,
-      hasToken: Boolean(state?.token),
-      role: managerState?.user?.role ?? state?.user?.role ?? null,
-    };
-  }, payload);
+    } catch {}
+  }, { keys: STORAGE_KEYS, sess: session });
 
-  // eslint-disable-next-line no-console
-  console.log(`E2E auth state after injection (${role}):`, authDebug);
-
-  const authenticated = authDebug.isAuthenticated || authDebug.manager?.isAuthenticated;
-  if (!authenticated) {
-    // eslint-disable-next-line no-console
-    console.error(`E2E auth injection details for role ${role}:`, authDebug);
-    throw new Error(`Failed to inject auth state for role "${role}"`);
-  }
-  await page.waitForFunction(
-    ({ expectedId, expectedRole, expectedToken }) => {
-      const global = window as typeof window & {
-        __E2E_AUTH_MANAGER_STATE__?: () => { isAuthenticated: boolean; user?: { id?: number; role?: string } };
-        __E2E_SESSION_STATE__?: () => SessionState;
-      };
-      const managerState = global.__E2E_AUTH_MANAGER_STATE__?.();
-      const sessionState = global.__E2E_SESSION_STATE__?.();
-      return (
-        Boolean(managerState?.isAuthenticated) &&
-        managerState?.user?.id === expectedId &&
-        managerState?.user?.role === expectedRole &&
-        sessionState?.token === expectedToken
-      );
-    },
-    { expectedId: session.user.id, expectedRole: session.user.role, expectedToken: session.token },
-    { timeout: 10000 },
-  );
-
+  // Navigate fresh with injected storage to let app initialize with token
   await page.goto(`${E2E_CONFIG.FRONTEND.URL}/dashboard`, { waitUntil: 'domcontentloaded' });
 }
 

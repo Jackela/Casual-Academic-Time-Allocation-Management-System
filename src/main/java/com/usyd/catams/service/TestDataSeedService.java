@@ -38,39 +38,49 @@ public class TestDataSeedService {
             throw new IllegalArgumentException("lecturerId must be a positive number");
         }
 
-        List<Course> existing = courseRepository.findByLecturerIdAndIsActive(lecturerId, true);
-        if (!existing.isEmpty()) {
-            return;
-        }
+        // Idempotent upsert by globally-unique course code to avoid unique constraint conflicts
+        ensureCourseByCode("E2E101", "E2E Course 101", lecturerId, new BigDecimal("10000"));
+        ensureCourseByCode("E2E102", "E2E Course 102", lecturerId, new BigDecimal("5000"));
 
-        // Seed two simple active courses for the lecturer
-        Course c1 = new Course(new CourseCode("E2E101"), "E2E Course 101", currentSemester(), lecturerId, new Money(new BigDecimal("10000")));
-        c1.setIsActive(true);
-        courseRepository.save(c1);
+        LOGGER.info("Ensured courses for lecturer {} exist and are active: E2E101, E2E102", lecturerId);
+    }
 
-        Course c2 = new Course(new CourseCode("E2E102"), "E2E Course 102", currentSemester(), lecturerId, new Money(new BigDecimal("5000")));
-        c2.setIsActive(true);
-        courseRepository.save(c2);
-
-        LOGGER.info("Seeded courses for lecturer {}: {}, {}", lecturerId, c1.getCode(), c2.getCode());
+    private void ensureCourseByCode(String code, String name, Long lecturerId, BigDecimal budgetAllocated) {
+        courseRepository.findByCode(code).ifPresentOrElse(existing -> {
+            // Update ownership/metadata to requested lecturer deterministically for test environments
+            existing.setName(name);
+            existing.setSemester(currentSemester());
+            existing.setLecturerId(lecturerId);
+            existing.setBudgetAllocated(budgetAllocated);
+            existing.setIsActive(true);
+            courseRepository.save(existing);
+        }, () -> {
+            Course course = new Course(new CourseCode(code), name, currentSemester(), lecturerId, new Money(budgetAllocated));
+            course.setIsActive(true);
+            courseRepository.save(course);
+        });
     }
 
     @Transactional
     public void ensureBasicTutors() {
-        // Create a couple of active tutors if the system has none
-        long tutors = userRepository.countByRole(UserRole.TUTOR);
-        if (tutors > 0) return;
-
-        createTutorIfMissing("tutor@example.com", "E2E Tutor One", "Tutor123!");
-        createTutorIfMissing("tutor2@example.com", "E2E Tutor Two", "Tutor123!");
+        // Create or update a couple of active tutors deterministically
+        upsertTutor("tutor@example.com", "E2E Tutor One", "Tutor123!");
+        upsertTutor("tutor2@example.com", "E2E Tutor Two", "Tutor123!");
     }
 
-    private void createTutorIfMissing(String email, String name, String rawPassword) {
-        if (userRepository.findByEmail(email).isPresent()) return;
-        String hashed = passwordEncoder.encode(rawPassword);
-        User user = new User(email, name, hashed, UserRole.TUTOR);
-        user.setActive(true);
-        userRepository.save(user);
+    private void upsertTutor(String email, String name, String rawPassword) {
+        userRepository.findByEmail(email).ifPresentOrElse(existing -> {
+            // Normalize to an active TUTOR for test determinism; keep existing password
+            existing.setName(name);
+            existing.setRole(UserRole.TUTOR);
+            existing.setActive(true);
+            userRepository.save(existing);
+        }, () -> {
+            String hashed = passwordEncoder.encode(rawPassword);
+            User user = new User(email, name, hashed, UserRole.TUTOR);
+            user.setActive(true);
+            userRepository.save(user);
+        });
     }
 
     private String currentSemester() {

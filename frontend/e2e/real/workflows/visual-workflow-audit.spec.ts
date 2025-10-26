@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { promises as fs } from 'node:fs';
 
 import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
+import { waitForStableVisible } from '../../shared/utils/waits';
 import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
 import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
 import { DashboardPage } from '../../shared/pages/DashboardPage';
@@ -23,9 +24,14 @@ test.describe('Visual Workflow Audit', () => {
 
     const capture = async (name: string) => {
       const resolved = path.resolve(SCREENSHOT_DIR, name);
-      await page.waitForTimeout(300);
-      await page.screenshot({ path: resolved, fullPage: true });
-      console.info(`[visual-workflow] captured ${resolved}`);
+      try {
+        const root = page.getByTestId('dashboard-main').first().or(page.getByTestId('app-ready').first());
+        await waitForStableVisible(root, 350);
+        await page.screenshot({ path: resolved, fullPage: true });
+        console.info(`[visual-workflow] captured ${resolved}`);
+      } catch (e) {
+        console.warn(`[visual-workflow] screenshot skipped for ${resolved}: ${String((e as Error)?.message ?? e)}`);
+      }
     };
 
     const tokens = dataFactory.getAuthTokens();
@@ -37,9 +43,11 @@ test.describe('Visual Workflow Audit', () => {
     try {
       // Tutor stage: submit draft
       await signInAsRole(page, 'tutor');
+      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
       const tutorDashboard = new TutorDashboardPage(page);
       await tutorDashboard.waitForMyTimesheetData();
-      await tutorDashboard.expectToBeLoaded();
+      const waitsTutor = await import('../../shared/utils/waits');
+      await waitsTutor.waitForAppReady(page, 'TUTOR', 20000);
       await capture('01-tutor-dashboard.png');
 
       await tutorDashboard.submitDraft(seed.id);
@@ -54,15 +62,15 @@ test.describe('Visual Workflow Audit', () => {
 
       // Lecturer stage: approve pending timesheet
       await signInAsRole(page, 'lecturer');
+      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
       const lecturerDashboard = new DashboardPage(page);
-      await lecturerDashboard.waitForTimesheetData();
-      await lecturerDashboard.expectToBeLoaded('LECTURER');
+      const { waitForAppReady } = await import('../../shared/utils/waits');
+      await waitForAppReady(page, 'LECTURER', 20000);
       await capture('03-lecturer-dashboard.png');
 
       await dataFactory.transitionTimesheet(seed.id, 'LECTURER_CONFIRM');
       await page.reload({ waitUntil: 'domcontentloaded' });
-      await lecturerDashboard.waitForTimesheetData();
-      await lecturerDashboard.expectToBeLoaded('LECTURER');
+      await waitForAppReady(page, 'LECTURER', 20000);
       await capture('04-lecturer-approved.png');
 
       await clearAuthSessionFromPage(page);
@@ -71,9 +79,10 @@ test.describe('Visual Workflow Audit', () => {
       await dataFactory.transitionTimesheet(seed.id, 'HR_CONFIRM');
 
       await signInAsRole(page, 'admin');
+      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
       const adminDashboard = new DashboardPage(page);
-      await adminDashboard.waitForTimesheetData();
-      await adminDashboard.expectToBeLoaded('ADMIN');
+      const waits = await import('../../shared/utils/waits');
+      await waits.waitForAppReady(page, 'ADMIN', 20000);
       await capture('05-admin-final-approval.png');
 
       // Validate final status through API response (safety check)

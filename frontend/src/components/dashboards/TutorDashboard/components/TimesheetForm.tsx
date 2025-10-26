@@ -441,8 +441,12 @@ const TimesheetForm = memo<TimesheetFormProps>(({
 
   useEffect(() => {
     setFormData((previous) => {
+      // In lecturer create/edit modes, require explicit course options; otherwise keep existing courseId for tutor edit flows
       if (!hasCourseOptions) {
-        return previous.courseId === 0 ? previous : { ...previous, courseId: 0 };
+        if (isLecturerMode) {
+          return previous.courseId === 0 ? previous : { ...previous, courseId: 0 };
+        }
+        return previous;
       }
 
       const courseStillValid = previous.courseId !== 0
@@ -452,9 +456,10 @@ const TimesheetForm = memo<TimesheetFormProps>(({
         return previous;
       }
 
-      return { ...previous, courseId: 0 };
+      // Only reset to 0 in lecturer modes where course must be explicitly chosen from options
+      return isLecturerMode ? { ...previous, courseId: 0 } : previous;
     });
-  }, [hasCourseOptions, resolvedCourseOptions]);
+  }, [hasCourseOptions, resolvedCourseOptions, isLecturerMode]);
 
   const isWeekStartOnAllowedDay = useCallback(
     (value: string | undefined) => {
@@ -500,7 +505,8 @@ const TimesheetForm = memo<TimesheetFormProps>(({
     quoteState,
   ]);
 
-  const isSubmitDisabled = loading || optionsLoading || !isFormValid || !hasCourseOptions;
+  // In tutor edit mode, allow submission without course options (course is immutable and pre-selected)
+  const isSubmitDisabled = loading || optionsLoading || !isFormValid || (isLecturerMode && !hasCourseOptions);
 
   useEffect(() => {
     if (autoSaveTimeout) {

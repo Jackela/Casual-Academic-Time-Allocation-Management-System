@@ -13,6 +13,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.Clock;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -32,11 +33,18 @@ import java.util.regex.Pattern;
 public class DashboardController {
 
     private final DashboardService dashboardService;
+    private final Clock clock;
     private static final Pattern SEMESTER_PATTERN = Pattern.compile("^\\d{4}-[12]$");
 
     @Autowired
-    public DashboardController(DashboardService dashboardService) {
+    public DashboardController(DashboardService dashboardService, Clock clock) {
         this.dashboardService = dashboardService;
+        this.clock = (clock != null ? clock : Clock.systemDefaultZone());
+    }
+
+    // Backward-compatible constructor for tests that manually construct the controller
+    public DashboardController(DashboardService dashboardService) {
+        this(dashboardService, Clock.systemDefaultZone());
     }
 
     /**
@@ -222,7 +230,7 @@ public class DashboardController {
      * @return Array with [startDate, endDate] for current semester
      */
     private LocalDate[] buildCurrentSemesterDateRange() {
-        LocalDate now = LocalDate.now();
+        LocalDate now = LocalDate.now(clock);
         int currentYear = now.getYear();
         int currentMonth = now.getMonthValue();
         

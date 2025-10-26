@@ -32,20 +32,12 @@ jobs:
       - name: Install frontend deps
         working-directory: frontend
         run: npm ci
-      - name: Backend unit tests
+      - name: Repo guard (no ad-hoc generators)
+        run: node scripts/guard-allowed-generators.js
+      - name: Backend unit+integration+coverage (canonical)
         env:
           JWT_SECRET: test-secret
-        run: node ./scripts/test-backend-unit.js
-      - name: Backend integration tests
-        if: ${{ env.ACT != 'true' }}
-        env:
-          JWT_SECRET: test-secret
-        run: node scripts/test-backend-integration.js
-      - name: Frontend unit & contract tests
-        if: ${{ env.ACT != 'true' }}
-        run: |
-          npm run -w frontend test:unit --silent
-          npm run -w frontend test:contract --silent
+        run: ./gradlew check
 
   playwright-mock:
     needs: test-backend
@@ -62,13 +54,12 @@ jobs:
       - name: Install Playwright browsers
         working-directory: frontend
         run: npx playwright install --with-deps
-      - name: Run Playwright mock suite
-        working-directory: frontend
+      - name: Run Playwright mock suite (canonical)
         env:
           CI: '1'
           E2E_SKIP_BACKEND: '1'
           E2E_SKIP_REAL_LOGIN: '1'
-        run: npx playwright test --project=mock
+        run: node scripts/e2e-runner.js --project=mock
       - name: Upload mock Playwright report
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
@@ -119,48 +110,21 @@ jobs:
       - name: Install Playwright browsers
         working-directory: frontend
         run: npx playwright install --with-deps
-      - name: Download Gradle 8.7
-        run: |
-          curl -sSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o gradle-8.7-bin.zip
-          unzip -q gradle-8.7-bin.zip
-      - name: Start backend (e2e profile)
-        env:
-          GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
-        run: |
-          ./gradle-8.7/bin/gradle bootRun --args="--spring.profiles.active=e2e" --no-daemon > backend.log 2>&1 &
-          echo $! > backend.pid
-      - name: Wait for backend readiness
-        working-directory: frontend
-        run: npx wait-on http://127.0.0.1:8084/actuator/health --timeout 180000 --interval 1000
-      - name: Run Playwright real suite
-        working-directory: frontend
+      - name: Run Playwright real suite (canonical)
         env:
           CI: '1'
-          E2E_BACKEND_URL: http://127.0.0.1:8084
           E2E_ADMIN_EMAIL: admin@example.com
           E2E_ADMIN_PASSWORD: Admin123!
           E2E_LECTURER_EMAIL: lecturer@example.com
           E2E_LECTURER_PASSWORD: Lecturer123!
           E2E_TUTOR_EMAIL: tutor@example.com
           E2E_TUTOR_PASSWORD: Tutor123!
-        run: npx playwright test --project=real
+        run: node scripts/e2e-runner.js --project=real
       - name: Upload real Playwright report
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-real-report
           path: frontend/playwright-report
-      - name: Print backend logs on failure
-        if: ${{ failure() }}
-        run: |
-          echo "==== backend.log ===="
-          cat backend.log || true
-      - name: Stop backend
-        if: always()
-        run: |
-          if [ -f backend.pid ]; then
-            kill $(cat backend.pid) || true
-            rm -f backend.pid
-          fi
-          pkill -f "gradle.*bootRun" || true
+      # Backend lifecycle handled by canonical runner
 

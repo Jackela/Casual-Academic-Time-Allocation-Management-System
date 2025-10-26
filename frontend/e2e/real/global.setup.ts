@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { promises as fs } from 'node:fs';
 import { E2E_CONFIG } from '../config/e2e.config';
 import { waitForBackendReady } from '../utils/health-checker';
-import { loginAsRole } from '../api/auth-helper';
+import { loginAsRole, programmaticLoginApi } from '../api/auth-helper';
 import { STORAGE_KEYS } from '../../src/utils/storage-keys';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -122,6 +122,25 @@ export default async function globalSetup(config: FullConfig) {
   try {
     await removeExistingState();
     await performLoginAndPersist();
+    // Also persist per-role storage state to match project preference
+    try {
+      const admin = await programmaticLoginApi('admin');
+      console.info(`[real/global.setup] programmatic admin login persisted via ${admin.endpoint}`);
+    } catch (e) {
+      console.warn('[real/global.setup] programmatic admin storage state generation failed (non-fatal)', e);
+    }
+    try {
+      const lecturer = await programmaticLoginApi('lecturer');
+      console.info(`[real/global.setup] programmatic lecturer login persisted via ${lecturer.endpoint}`);
+    } catch (e) {
+      console.warn('[real/global.setup] programmatic lecturer storage state generation failed (non-fatal)', e);
+    }
+    try {
+      const tutor = await programmaticLoginApi('tutor');
+      console.info(`[real/global.setup] programmatic tutor login persisted via ${tutor.endpoint}`);
+    } catch (e) {
+      console.warn('[real/global.setup] programmatic tutor storage state generation failed (non-fatal)', e);
+    }
   } catch (error) {
     console.warn('[real/global.setup] Non-fatal error during auth setup; continuing without shared storage state.', error);
     await removeExistingState().catch(() => undefined);

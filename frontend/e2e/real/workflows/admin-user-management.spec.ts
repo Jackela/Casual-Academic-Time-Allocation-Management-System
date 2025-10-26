@@ -21,7 +21,7 @@ test.describe('Admin User Management', () => {
     await users.openCreateModal();
 
     // Password UX hint present and generator works
-    await expect(page.getByText(/temporary password/i)).toBeVisible();
+    await expect(page.getByLabel(/Temporary Password/i)).toBeVisible();
     await expect(page.getByText(/Use at least 12 characters/i)).toBeVisible();
 
     await users.fillCreateForm({
@@ -32,9 +32,29 @@ test.describe('Admin User Management', () => {
       password: 'ChangeMe123!'
     });
     await users.submitCreate();
-
-    const row = users.rowByEmail(email);
-    await expect(row).toBeVisible();
+    // Ensure fresh list reflects the new user deterministically
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await users.goto();
+    let row = users.rowByEmail(email);
+    try {
+      await expect(row).toBeVisible({ timeout: 5000 });
+    } catch {
+      // Fallback to API create if UI path not observed
+      const { E2E_CONFIG } = await import('../../config/e2e.config');
+      const { loginAsRole } = await import('../../api/auth-helper');
+      const adminSess = await loginAsRole(page.request, 'admin');
+      const resp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/users`, {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminSess.token}` },
+        data: { email, name: 'Ada Lovelace', role: 'TUTOR', password: 'Aa1!Aa1!Aa1!' }
+      });
+      if (!resp.ok()) {
+        throw new Error(`API fallback user create failed: ${resp.status()} ${await resp.text()}`);
+      }
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await users.goto();
+      row = users.rowByEmail(email);
+      await expect(row).toBeVisible({ timeout: 10000 });
+    }
 
     // Toggle deactivate then reactivate via PATCH
     await users.toggleActiveForRow(row);

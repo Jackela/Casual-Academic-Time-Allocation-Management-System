@@ -6,7 +6,7 @@ import React from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+// Use shared router-aware test renderer
 
 const sessionHooksMock = vi.hoisted(() => ({
   __esModule: true,
@@ -50,10 +50,7 @@ const mockTimesheetHooks = timesheetHooksMock as unknown as {
   useTimesheetCreate: ReturnType<typeof vi.fn>;
 };
 
-const renderWithRouter = (ui: React.ReactElement, { route = "/" } = {}) => {
-  window.history.pushState({}, "Test page", route);
-  return render(ui, { wrapper: MemoryRouter });
-};
+import { renderWithRouter } from "../../../test/utils/test-utils";
 import LecturerDashboard from "./index";
 import {
   createMockTimesheetPage,
