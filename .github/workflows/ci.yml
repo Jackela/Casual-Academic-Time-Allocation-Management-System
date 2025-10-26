@@ -15,6 +15,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Install repo-level tooling deps
+        run: npm ci --ignore-scripts
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
