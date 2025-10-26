@@ -14,12 +14,13 @@ jobs:
   test-backend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install repo-level tooling deps
+      - name: Install Repo Tooling Deps
         run: npm ci --ignore-scripts
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -35,16 +36,16 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      - name: Setup Gradle 8.7
+      - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.7
-      - name: Install frontend deps
+      - name: Install Frontend Deps
         working-directory: frontend
         run: npm ci
-      - name: Repo guard (no ad-hoc generators)
+      - name: Repo Guard (no ad-hoc generators)
         run: node scripts/guard-allowed-generators.js
-      - name: Backend unit+integration+coverage (canonical)
+      - name: Backend Unit+Integration+Coverage (Canonical)
         env:
           JWT_SECRET: test-secret
         run: gradle check
@@ -53,15 +54,16 @@ jobs:
     needs: test-backend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install frontend deps
+      - name: Install Frontend Deps
         working-directory: frontend
         run: npm ci
-      - name: Run frontend unit tests (mocked)
+      - name: Run Frontend Unit Tests (Mocked)
         working-directory: frontend
         env:
           CI: '1'
@@ -86,7 +88,8 @@ jobs:
     needs: [test-backend, playwright-mock, detect-act]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -105,13 +108,13 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      - name: Install frontend deps
+      - name: Install Frontend Deps
         working-directory: frontend
         run: npm ci
-      - name: Install Playwright browsers
+      - name: Install Playwright Browsers
         working-directory: frontend
         run: npx playwright install --with-deps
-      - name: Run Playwright real suite (canonical)
+      - name: Run Playwright Real Suite (Canonical)
         env:
           CI: '1'
           E2E_ADMIN_EMAIL: admin@example.com

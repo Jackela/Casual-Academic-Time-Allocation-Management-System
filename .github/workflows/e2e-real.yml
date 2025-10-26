@@ -65,6 +65,11 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -86,6 +91,13 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report
           if-no-files-found: ignore
+      - name: Diagnostics (on failure)
+        if: ${{ failure() }}
+        run: |
+          echo 'Listing frontend/playwright-report:'
+          ls -la frontend/playwright-report || true
+          echo 'Listing frontend/test-results:'
+          ls -la frontend/test-results || true
       - name: Dump Logs (on failure)
         if: ${{ failure() }}
         run: |
@@ -105,6 +117,11 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -124,3 +141,10 @@ jobs:
           name: playwright-report-smoke
           path: frontend/playwright-report
           if-no-files-found: ignore
+      - name: Diagnostics (on failure)
+        if: ${{ failure() }}
+        run: |
+          echo 'Listing frontend/playwright-report:'
+          ls -la frontend/playwright-report || true
+          echo 'Listing frontend/test-results:'
+          ls -la frontend/test-results || true
