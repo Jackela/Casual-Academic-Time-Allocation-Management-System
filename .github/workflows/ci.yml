@@ -29,6 +29,10 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
+      - name: Setup Gradle 8.7
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.7
       - name: Install frontend deps
         working-directory: frontend
         run: npm ci
@@ -37,9 +41,7 @@ jobs:
       - name: Backend unit+integration+coverage (canonical)
         env:
           JWT_SECRET: test-secret
-        run: |
-          chmod +x gradlew || true
-          ./gradlew check
+        run: gradle check
 
   playwright-mock:
     needs: test-backend
