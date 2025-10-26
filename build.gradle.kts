@@ -32,7 +32,7 @@ java {
 }
 
 val schemaDirectory = layout.projectDirectory.dir("schema")
-val contractsScript = layout.projectDirectory.file("tools/scripts/contracts-pipeline.js")
+val contractsScript = layout.projectDirectory.file("tools/scripts/contracts-pipeline.cjs")
 val contractsOutputDir = layout.buildDirectory.dir("generated-contracts")
 val contractsLockFile = layout.projectDirectory.file("schema/contracts.lock")
 val frontendContractsDir = layout.projectDirectory.dir("frontend/src/contracts/generated")
@@ -72,7 +72,7 @@ val verifyContracts by tasks.registering(Exec::class) {
         include("*.schema.json")
     })
     inputs.file(contractsLockFile)
-    inputs.dir(frontendContractsDir)
+    // Do not require frontend contracts directory to exist for verification; the script checks drift
 }
 
 tasks.check {
@@ -348,6 +348,38 @@ tasks.jacocoTestReport {
         xml.required.set(true)
         html.required.set(true)
     }
+
+    // Exclude generated sources (OpenAPI client, semantic contracts) from coverage
+    val excludes = listOf(
+        "com/usyd/catams/client/**",      // OpenAPI generated
+        "com/usyd/catams/contracts/**"    // Contract generator outputs (if packaged)
+    )
+    val javaMain = fileTree("${buildDir}/classes/java/main") { exclude(excludes) }
+    val kotlinMain = fileTree("${buildDir}/classes/kotlin/main") { exclude(excludes) }
+    classDirectories.setFrom(files(javaMain, kotlinMain))
+}
+
+// Conservative coverage verification to avoid flakiness; can be raised over time.
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(tasks.test)
+    dependsOn(tasks.jacocoTestReport)
+    executionData.setFrom(fileTree(layout.buildDirectory) { include("**/jacoco/test.exec", "**/jacoco/*.exec") })
+    sourceDirectories.setFrom(files("src/main/java"))
+    classDirectories.setFrom(tasks.jacocoTestReport.get().classDirectories)
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.50")
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn("jacocoTestCoverageVerification")
 }
 
 tasks.withType<ProcessResources> {
@@ -385,6 +417,55 @@ tasks.named<BootRun>("bootRun") {
         if (disableDevtools) {
             classpath = classpath.filter { !it.name.contains("spring-boot-devtools") }
         }
+    }
+}
+
+// Clean-all task: removes all generated artifacts across backend and frontend
+tasks.register("cleanAll") {
+    group = "build"
+    description = "Removes backend and frontend generated artifacts, reports and caches."
+    notCompatibleWithConfigurationCache("Shells out to npm and deletes build directories")
+    doLast {
+        // Backend/build artifacts
+        delete(
+            file("build"),
+            file("test-results"),
+            // Contracts/OpenAPI generated
+            file("build/generated-contracts"),
+            file("build/generated/openapi")
+        )
+
+        // Frontend artifacts
+        listOf(
+            "frontend/dist",
+            "frontend/coverage",
+            "frontend/playwright-report",
+            "frontend/playwright-screenshots",
+            "frontend/test-results",
+            "frontend/trace-inspect",
+            "frontend/.vite",
+            // Generated contracts synced into frontend
+            "frontend/src/contracts/generated"
+        ).forEach { path ->
+            delete(file(path))
+        }
+
+        // Attempt to run frontend clean if package.json exists
+        if (file("frontend/package.json").exists()) {
+            try {
+                exec {
+                    workingDir = file("frontend")
+                    // Use platform-specific npm command name
+                    val npmCmd = if (System.getProperty("os.name").lowercase().contains("windows")) "npm.cmd" else "npm"
+                    commandLine(npmCmd, "run", "clean")
+                    isIgnoreExitValue = true
+                }
+            } catch (ignored: Exception) {
+                logger.warn("npm not available on PATH; skipped frontend clean step")
+            }
+        }
+
+        logger.lifecycle("Note: Project .gradle/ directory is not deleted by this task to avoid locking issues. Remove it manually if needed.")
     }
 }
 

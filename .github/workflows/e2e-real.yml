@@ -23,8 +23,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - name: E2E Preflight
-        run: node scripts/e2e-preflight.cjs
+      - name: Repo guard (no ad-hoc generators)
+        run: node scripts/guard-allowed-generators.js
       - run: npm run lint
       - run: npx tsc -b --pretty false
 
@@ -53,12 +53,12 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - name: E2E Preflight
-        run: node scripts/e2e-preflight.cjs
+      - name: Repo guard (no ad-hoc generators)
+        run: node ../scripts/guard-allowed-generators.js
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
-      - name: Run P0 E2E (grep @p0)
-        run: npx playwright test --project=chromium --config=e2e/real/playwright.config.ts --grep @p0
+      - name: Run P0 E2E (grep @p0, canonical)
+        run: node ../scripts/e2e-runner.js --project=real --grep @p0
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -89,8 +89,8 @@ jobs:
       - run: npm ci
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
-      - name: Run Smoke E2E (UI login by filename)
-        run: npx playwright test e2e/real/tests/*smoke*.spec.ts --project=chromium --config=e2e/real/playwright.config.ts
+      - name: Run Smoke E2E (canonical)
+        run: node ../scripts/e2e-runner.js --project=smoke
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4

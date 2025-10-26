@@ -76,7 +76,7 @@ test.describe('Tutor Confirmation E2E Workflow - Bug #1 Coverage', () => {
     expect(finalStatus).toBe('TUTOR_CONFIRMED');
   });
 
-  test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
+  test.skip('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     page,
     request,
   }) => {

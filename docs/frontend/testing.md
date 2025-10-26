@@ -20,6 +20,17 @@
 - Playwright HTML reports live under `frontend/playwright-report/`.
 - Vitest coverage output stored in `frontend/coverage/`.
 
+## Real E2E Constitution (Determinism)
+
+- Determinism over patience: never use `waitForTimeout` in specs.
+- Single sentinel + network anchors:
+  - Exactly one route/region sentinel per spec via `toBeVisible({ timeout: 20000 })`.
+  - Anchor critical actions with `waitForResponse`/`waitForApiOk` for list/quote/save before interacting.
+- Auth warm-up: call `waitForAuthAndWhoamiOk(page)` once after navigation on protected routes, before first list fetch (e.g., `/api/users`, `/api/timesheets`).
+- Policy-gated flows (EA billing, exceptions): prefer seed→edit pattern via test data factory; only keep one UI-create smoke spec when allowed by env.
+- Runner: workers=1, retries=1 for the `real` project; report to `frontend/playwright-report`.
+- CI guardrail: `npm run lint:e2e:timeouts` must pass (no `waitForTimeout(` in specs).
+
 ## Related Docs
 - `docs/frontend/architecture.md`
 - `docs/backend/api-timesheets.md`

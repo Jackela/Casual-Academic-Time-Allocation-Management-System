@@ -8,6 +8,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import { authApi } from './api';
+import { STORAGE_KEYS } from '../utils/storage-keys';
 import { authStorage } from './storage';
 import { authManager } from '../services/auth-manager';
 import { secureLogger } from '../utils/secure-logger';
@@ -172,7 +173,15 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
       secureLogger.warn('Session sign-out encountered an error', error);
     });
 
+    // Clear all persisted auth and set an E2E guard to avoid re-seeding on new documents
     authStorage.clearSession();
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(STORAGE_KEYS.USER);
+        // Signal to any test init scripts to skip re-injecting auth on navigation
+        window.localStorage.setItem('__E2E_DISABLE_AUTH_SEED__', '1');
+      }
+    } catch {}
     authManager.clearAuth();
     setState({
       status: 'unauthenticated',

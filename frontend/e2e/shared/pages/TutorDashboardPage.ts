@@ -239,8 +239,8 @@ export class TutorDashboardPage {
 
   async expectNoActionButtons(timesheetId: number) {
     const row = this.page.getByTestId(`timesheet-row-${timesheetId}`);
-    const actionCell = row.locator('td').last(); // Actions column is last
-    await expect(actionCell).toContainText('—'); // No actions indicator
+    const noActions = row.getByTestId('no-actions');
+    await expect(noActions).toBeVisible();
   }
 
   // Edit modal interactions
@@ -587,7 +587,9 @@ export class TutorDashboardPage {
       return url.includes('/api/timesheets') && response.request().method() === 'PUT';
     }, { timeout: 15000 }).catch(() => null);
 
-    await submitButton.click();
+    // Prefer semantic form submission to avoid viewport/overlay issues
+    const form = this.page.getByTestId('edit-timesheet-form').first();
+    await form.evaluate((el: HTMLFormElement) => el.requestSubmit());
     const updateResponse = await responsePromise;
 
     if (updateResponse && !updateResponse.ok()) {

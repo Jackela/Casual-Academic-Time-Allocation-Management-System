@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -42,12 +43,15 @@ public class DashboardServiceImpl implements DashboardService {
 
     private final TimesheetRepository timesheetRepository;
     private final CourseRepository courseRepository;
+    private final Clock clock;
 
     @Autowired
     public DashboardServiceImpl(TimesheetRepository timesheetRepository,
-                               CourseRepository courseRepository) {
+                               CourseRepository courseRepository,
+                               Clock clock) {
         this.timesheetRepository = timesheetRepository;
         this.courseRepository = courseRepository;
+        this.clock = (clock != null ? clock : Clock.systemDefaultZone());
     }
 
     @Override
@@ -312,7 +316,7 @@ public class DashboardServiceImpl implements DashboardService {
      */
     private WorkloadAnalysis getWorkloadAnalysisForTutor(Long tutorId, LocalDate startDate, LocalDate endDate) {
         // Calculate current week and previous week hours
-        LocalDate currentWeekStart = LocalDate.now().with(java.time.DayOfWeek.MONDAY);
+        LocalDate currentWeekStart = LocalDate.now(clock).with(java.time.DayOfWeek.MONDAY);
         LocalDate currentWeekEnd = currentWeekStart.plusDays(6);
         LocalDate previousWeekStart = currentWeekStart.minusWeeks(1);
         LocalDate previousWeekEnd = previousWeekStart.plusDays(6);
@@ -349,7 +353,7 @@ public class DashboardServiceImpl implements DashboardService {
 
         List<Long> courseIds = courses.stream().map(Course::getId).collect(Collectors.toList());
         
-        LocalDate currentWeekStart = LocalDate.now().with(java.time.DayOfWeek.MONDAY);
+        LocalDate currentWeekStart = LocalDate.now(clock).with(java.time.DayOfWeek.MONDAY);
         LocalDate currentWeekEnd = currentWeekStart.plusDays(6);
         LocalDate previousWeekStart = currentWeekStart.minusWeeks(1);
         LocalDate previousWeekEnd = previousWeekStart.plusDays(6);
@@ -384,7 +388,7 @@ public class DashboardServiceImpl implements DashboardService {
      * Get system-wide workload analysis for ADMIN.
      */
     private WorkloadAnalysis getSystemWideWorkloadAnalysis(LocalDate startDate, LocalDate endDate) {
-        LocalDate currentWeekStart = LocalDate.now().with(java.time.DayOfWeek.MONDAY);
+        LocalDate currentWeekStart = LocalDate.now(clock).with(java.time.DayOfWeek.MONDAY);
         LocalDate currentWeekEnd = currentWeekStart.plusDays(6);
         LocalDate previousWeekStart = currentWeekStart.minusWeeks(1);
         LocalDate previousWeekEnd = previousWeekStart.plusDays(6);

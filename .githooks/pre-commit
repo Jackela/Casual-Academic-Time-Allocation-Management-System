@@ -1,6 +1,38 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+# Block committing generated artifacts and reports
 
-# Run Node-based checks for E2E guardrails
-node "$(git rev-parse --show-toplevel)/.githooks/precommit-checks.js"
+set -eu
 
+blocked_paths="
+build/
+.gradle/
+test-results/
+frontend/dist/
+frontend/coverage/
+frontend/playwright-report/
+frontend/playwright-screenshots/
+frontend/test-results/
+frontend/trace-inspect/
+build/generated-contracts/
+build/generated/openapi/
+frontend/src/contracts/generated/
+artifacts/
+tools/diagnostic-reports/
+tools/logs/
+tools/process-management/.process-ledger.json
+"
+
+changed=$(git diff --cached --name-only)
+for p in $changed; do
+  for b in $blocked_paths; do
+    case "$p" in
+      $b*)
+        echo "ERROR: Attempt to commit generated output: $p" 1>&2
+        echo "Hint: run scripts/clean-all.js or ./gradlew cleanAll before committing." 1>&2
+        exit 1
+        ;;
+    esac
+  done
+done
+
+exit 0

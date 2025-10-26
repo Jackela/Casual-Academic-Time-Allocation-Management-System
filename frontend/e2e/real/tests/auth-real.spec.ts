@@ -85,13 +85,22 @@ test.describe('logout behaviour', () => {
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('logout-button')).toBeVisible();
 
+    // Trigger logout
+    const logoutDone = page
+      .waitForResponse((r) => r.url().includes('/api/auth/logout') && r.request().method() === 'POST')
+      .catch(() => null);
     await page.getByTestId('logout-button').click();
+    await logoutDone;
 
-    await expect(page).toHaveURL(/\/login$/);
+    // Give router a tick and then verify storage cleared
+    await page.waitForTimeout(250);
     const token = await page.evaluate(() => localStorage.getItem('token'));
     expect(token).toBeNull();
 
+    // Force navigation to a protected route; it must redirect to login
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(/\/login$/);
+    const loginForm = page.getByTestId('login-form');
+    await expect(page).toHaveURL(/\/login(\?.*)?$/, { timeout: 15000 });
+    await expect(loginForm).toBeVisible({ timeout: 8000 });
   });
 });

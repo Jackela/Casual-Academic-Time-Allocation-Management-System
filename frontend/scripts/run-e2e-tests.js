@@ -25,6 +25,7 @@ import {
   waitForHttpHealth,
   buildUrl,
   isWindows,
+  isWsl,
 } from './env-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -385,15 +386,63 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
     return;
   }
 
+  // Docker-backed backend mode
+  if ((process.env.E2E_BACKEND_MODE || '').toLowerCase() === 'docker') {
+    logStep('STEP 2', 'Starting backend via Docker Compose...');
+    try {
+      // Bring up DB then API
+      await runCommand('docker', ['compose', 'up', '-d', 'db']);
+      await runCommand('docker', ['compose', 'up', '-d', 'api']);
+    } catch (error) {
+      throw new Error(`Docker Compose startup failed: ${error.message}`);
+    }
+
+    const healthConfig = createHealthConfig('BACKEND');
+    await waitForHttpHealth({ url: backendHealthUrl, label: 'backend', config: healthConfig });
+    logSuccess('Backend (Docker) is healthy and ready.');
+    return;
+  }
+
   if (await tcpPortUsed.check(backendPort, backendHost)) {
-    throw new Error(`Port ${backendPort} already in use but backend health check failed. Aborting.`);
+    logWarning(`Port ${backendPort} in use but health check failed. Attempting cleanup...`);
+    try {
+      // Try orchestrator cleanup first
+      try {
+        await runCommand(resolveNpmCommand(), ['run', 'backend:stop'], { cwd: frontendDir, stdio: 'ignore' });
+      } catch {}
+
+      // Platform-specific cleanup by port (best-effort)
+      if (isWindows() || isWsl()) {
+        // Prefer PowerShell for reliable PID capture and termination
+        const ps = `Get-NetTCPConnection -LocalPort ${backendPort} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }`;
+        await runCommand('cmd.exe', ['/d', '/s', '/c', `powershell -NoProfile -Command "${ps}"`], { stdio: 'ignore' });
+      } else {
+        await runCommand('bash', ['-lc', `pids=$(lsof -ti :${backendPort} || true); if [ -n "$pids" ]; then kill -9 $pids || true; fi`], { stdio: 'ignore' });
+      }
+    } catch (e) {
+      logWarning(`Port cleanup attempt warning: ${e.message}`);
+    }
+    // Re-check once
+    if (await tcpPortUsed.check(backendPort, backendHost)) {
+      throw new Error(`Port ${backendPort} already in use and cleanup failed. Aborting.`);
+    }
   }
 
   logStep('STEP 2', 'Starting Spring Boot backend (Gradle bootRun)...');
 
   const gradleWrapper = resolveGradleCommand(projectRoot);
   const gradle = resolveCmdShim(gradleWrapper);
-  const gradleArgs = [...gradle.args, 'bootRun', '-x', 'test'];
+  const springArgs = [
+    `--spring.profiles.active=${backendProfile}`,
+    `--server.port=${backendPort}`,
+    `--spring.flyway.enabled=false`,
+  ].join(' ');
+  const gradleArgs = [
+    ...gradle.args,
+    'bootRun',
+    '-x', 'test',
+    `--args=${springArgs}`,
+  ];
   const backendEnv = {
     SPRING_PROFILES_ACTIVE: backendProfile,
     SERVER_PORT: String(backendPort),

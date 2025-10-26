@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import java.time.Instant;
+import java.time.Clock;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,6 +32,12 @@ public class GlobalExceptionHandler {
     
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     
+    private final Clock clock;
+
+    public GlobalExceptionHandler(Clock clock) {
+        this.clock = (clock != null ? clock : Clock.systemUTC());
+    }
+
     /**
      * Handle business exceptions
      */
@@ -39,7 +46,7 @@ public class GlobalExceptionHandler {
         logger.warn("Business exception: {} - {}", e.getErrorCode(), e.getMessage());
         
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
+            .timestamp(Instant.now(clock).toString())
             .status(HttpStatus.BAD_REQUEST.value())
             .error(e.getErrorCode())
             .message(e.getMessage())
@@ -57,7 +64,7 @@ public class GlobalExceptionHandler {
         logger.warn("Authentication exception: {}", e.getMessage());
         
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
+            .timestamp(Instant.now(clock).toString())
             .status(HttpStatus.UNAUTHORIZED.value())
             .error(ErrorCodes.AUTH_FAILED)
             .message("Authentication failed")
@@ -75,7 +82,7 @@ public class GlobalExceptionHandler {
         logger.warn("Access denied exception: {}", e.getMessage());
         
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
+            .timestamp(Instant.now(clock).toString())
             .status(HttpStatus.FORBIDDEN.value())
             .error(ErrorCodes.ACCESS_DENIED)
             .message("Access denied")
@@ -93,7 +100,7 @@ public class GlobalExceptionHandler {
         logger.warn("Business conflict: {}", e.getMessage());
 
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
+            .timestamp(Instant.now(clock).toString())
             .status(HttpStatus.CONFLICT.value())
             .error(e.getErrorCode())
             .message(e.getMessage())
@@ -111,7 +118,7 @@ public class GlobalExceptionHandler {
         logger.warn("Authorization failure: {}", e.getMessage());
         
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
+            .timestamp(Instant.now(clock).toString())
             .status(HttpStatus.FORBIDDEN.value())
             .error(e.getErrorCode())
             .message(e.getMessage())
@@ -208,7 +215,7 @@ public class GlobalExceptionHandler {
         logger.warn("Validation exception: {}", message);
         
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
+            .timestamp(Instant.now(clock).toString())
             .status(HttpStatus.BAD_REQUEST.value())
             .error(ErrorCodes.VALIDATION_FAILED)
             .message(message)
@@ -229,7 +236,7 @@ public class GlobalExceptionHandler {
         logger.warn("Constraint violation: {}", message);
         
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
+            .timestamp(Instant.now(clock).toString())
             .status(HttpStatus.BAD_REQUEST.value())
             .error(ErrorCodes.VALIDATION_FAILED)
             .message(message)
@@ -250,7 +257,7 @@ public class GlobalExceptionHandler {
         logger.warn("Message not readable: {}", message);
         
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
+            .timestamp(Instant.now(clock).toString())
             .status(HttpStatus.BAD_REQUEST.value())
             .error(ErrorCodes.VALIDATION_FAILED)
             .message(message)
@@ -269,7 +276,7 @@ public class GlobalExceptionHandler {
         logger.warn("Resource not found: {}", e.getMessage());
         
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
+            .timestamp(Instant.now(clock).toString())
             .status(HttpStatus.NOT_FOUND.value())
             .error(ErrorCodes.RESOURCE_NOT_FOUND)
             .message(e.getMessage())
@@ -289,7 +296,7 @@ public class GlobalExceptionHandler {
         logger.error("Schedule 1 policy lookup failed: {}", e.getMessage());
 
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
+            .timestamp(Instant.now(clock).toString())
             .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
             .error(ErrorCodes.INTERNAL_ERROR)
             .message(e.getMessage())
@@ -307,7 +314,7 @@ public class GlobalExceptionHandler {
         logger.error("System exception: {}", e.getMessage(), e);
         
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
+            .timestamp(Instant.now(clock).toString())
             .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
             .error(ErrorCodes.INTERNAL_ERROR)
             .message("Internal server error, please try again later")

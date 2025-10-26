@@ -1,4 +1,5 @@
 import { Page, expect, Locator } from '@playwright/test';
+import { waitForAuthAndWhoamiOk, waitForApiOk } from '../../shared/utils/waits';
 import { TimesheetPage } from './TimesheetPage';
 import { NavigationPage } from './NavigationPage';
 
@@ -62,6 +63,9 @@ export class DashboardPage {
   async waitForTimesheetData(options: { timeout?: number; preferPendingTab?: boolean } = {}) {
     const { timeout, preferPendingTab = true } = options;
 
+    // Auth warm-up once before the first protected list fetch to reduce 401/403 bursts
+    await waitForAuthAndWhoamiOk(this.page, 5000);
+
     if (preferPendingTab) {
       const pendingTab = this.page.getByRole('button', { name: /Pending Review/i });
       try {
@@ -74,6 +78,8 @@ export class DashboardPage {
       }
     }
 
+    // Anchor: ensure at least one successful GET /api/timesheets before asserting on UI
+    await waitForApiOk(this.page, 'GET', '/api/timesheets', timeout ?? 10000);
     await this.waitForDashboardReady({ timeout });
   }
 

@@ -50,6 +50,7 @@ test-results.json
 
 # Playwright
 playwright-report/
+playwright-screenshots/
 test-results/
 results.json/
 *.webm
@@ -63,6 +64,7 @@ e2e/shared/.auth/*.png
 e2e-results/
 screenshots/
 videos/
+trace-inspect/
 
 # ===========================
 # IDE & EDITORS
@@ -232,3 +234,4 @@ clips/
 playwright-report/
 test-results/
 *.log
+src/contracts/generated/

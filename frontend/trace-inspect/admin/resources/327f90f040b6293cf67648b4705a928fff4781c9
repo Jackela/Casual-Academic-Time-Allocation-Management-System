@@ -1,7 +1,0 @@
-{
-  "spaAuth": null,
-  "whoamiProbe": {
-    "ok": false,
-    "reason": "probe-error"
-  }
-}

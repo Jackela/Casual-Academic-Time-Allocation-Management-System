@@ -102,39 +102,55 @@ public abstract class IntegrationTestBase {
         String defaultPassword = "testPassword123";
         String hashedPassword = passwordEncoder.encode(defaultPassword);
         
-        var testAdmin = TestDataBuilder.anAdmin()
-            .withId(1L)
-            .withEmail("admin@integration.test")
+          var testAdmin = TestDataBuilder.anAdmin()
+              .withId(1L)
+              .withEmail("admin@integration.test")
             .withName("Test Admin")
             .withHashedPassword(hashedPassword)
             .build();
         userRepository.save(testAdmin);
         
-        var testLecturer = TestDataBuilder.aLecturer()
-            .withId(1L) 
-            .withEmail("lecturer1@integration.test")
-            .withName("Test Lecturer 1")
-            .withHashedPassword(hashedPassword)
-            .build();
-        userRepository.save(testLecturer);
+          var testLecturer = TestDataBuilder.aLecturer()
+              .withId(2L)
+              .withEmail("lecturer1@integration.test")
+              .withName("Test Lecturer 1")
+              .withHashedPassword(hashedPassword)
+              .build();
+          userRepository.save(testLecturer);
+          // Also seed token-mapped lecturer
+          var tokenLecturer = TestDataBuilder.aLecturer()
+              .withId(2L)
+              .withEmail("lecturer@integration.test")
+              .withName("Lecturer Token User")
+              .withHashedPassword(hashedPassword)
+              .build();
+          userRepository.save(tokenLecturer);
         
-        var testTutor = TestDataBuilder.aTutor()
-            .withId(1L)
-            .withEmail("tutor1@integration.test")
-            .withName("Test Tutor 1")
-            .withHashedPassword(hashedPassword) 
-            .build();
-        userRepository.save(testTutor);
+          var testTutor = TestDataBuilder.aTutor()
+              .withId(3L)
+              .withEmail("tutor1@integration.test")
+              .withName("Test Tutor 1")
+              .withHashedPassword(hashedPassword)
+              .build();
+          userRepository.save(testTutor);
+          // Also seed token-mapped tutor
+          var tokenTutor = TestDataBuilder.aTutor()
+              .withId(3L)
+              .withEmail("tutor@integration.test")
+              .withName("Tutor Token User")
+              .withHashedPassword(hashedPassword)
+              .build();
+          userRepository.save(tokenTutor);
     }
 
     private void setupAuthTokens() {
-        var testLecturer = TestDataBuilder.aLecturer().withId(1L).withEmail("lecturer@integration.test").build();
+        var testLecturer = TestDataBuilder.aLecturer().withId(2L).withEmail("lecturer@integration.test").build();
         lecturerToken = "Bearer " + jwtTokenProvider.generateToken(testLecturer.getId(), testLecturer.getEmail(), testLecturer.getRole().name());
 
-        var testTutor = TestDataBuilder.aTutor().withId(2L).withEmail("tutor@integration.test").build();
+        var testTutor = TestDataBuilder.aTutor().withId(3L).withEmail("tutor@integration.test").build();
         tutorToken = "Bearer " + jwtTokenProvider.generateToken(testTutor.getId(), testTutor.getEmail(), testTutor.getRole().name());
 
-        var testAdmin = TestDataBuilder.anAdmin().withId(3L).withEmail("admin@integration.test").build();
+        var testAdmin = TestDataBuilder.anAdmin().withId(1L).withEmail("admin@integration.test").build();
         adminToken = "Bearer " + jwtTokenProvider.generateToken(testAdmin.getId(), testAdmin.getEmail(), testAdmin.getRole().name());
     }
 

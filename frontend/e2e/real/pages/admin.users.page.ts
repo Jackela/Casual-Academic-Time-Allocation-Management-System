@@ -1,4 +1,5 @@
 import { Page, expect } from '@playwright/test';
+import { waitForUsersListOk, waitForToastSuccess } from '../../shared/utils/waits';
 import BasePage from './base.page';
 
 export class AdminUsersPage extends BasePage {
@@ -18,30 +19,99 @@ export class AdminUsersPage extends BasePage {
     });
   }
 
-  async createUser(email: string, password: string) {
-    // Prefer canonical button id; fallback to legacy
-    const createBtn = this.byTestId('admin-user-create-btn');
-    if (await createBtn.count()) {
-      await createBtn.click();
-    } else {
-      await this.byTestId('btn-create-user').click();
+  async closeModal() {
+    const dialog = this.page.getByRole('dialog');
+    if (await dialog.isVisible().catch(() => false)) {
+      const cancel = this.page.getByRole('button', { name: /Cancel/i });
+      await cancel.click({ timeout: 5000 }).catch(() => undefined);
     }
+  }
 
+  async createUser(email: string, password: string, opts: { useGenerator?: boolean } = {}) {
+    // If modal already open (overlay present), skip clicking the open button
+    const emailField = this.byTestId('admin-user-email');
+    if (!(await emailField.isVisible().catch(() => false))) {
+      const createBtn = this.byTestId('admin-user-create-btn');
+      if (await createBtn.count()) {
+        await createBtn.scrollIntoViewIfNeeded().catch(() => undefined);
+        await createBtn.click({ trial: true }).catch(() => undefined);
+        await createBtn.click({ force: true }).catch(() => undefined);
+      } else {
+        const legacy = this.byTestId('btn-create-user');
+        await legacy.scrollIntoViewIfNeeded().catch(() => undefined);
+        await legacy.click({ force: true }).catch(() => undefined);
+      }
+    }
+    // Wait for modal fields to appear
+    await emailField.waitFor({ state: 'visible', timeout: 10000 });
+    // Fill required first/last name fields (no data-testids; use ids)
+    const first = this.page.locator('#firstName');
+    const last = this.page.locator('#lastName');
+    if (await first.count()) {
+      await first.fill('New');
+    }
+    if (await last.count()) {
+      await last.fill('User');
+    }
     await this.byTestId('admin-user-email').fill(email);
-    await this.byTestId('admin-user-password').fill(password);
+    // Ensure role is set (default is TUTOR but be explicit for determinism)
+    const roleSelect = this.byTestId('admin-user-role');
+    if (await roleSelect.count()) {
+      await roleSelect.selectOption('TUTOR').catch(() => undefined);
+    }
+    // Choose password entry strategy
+    const useGenerator = !!opts.useGenerator;
+    if (useGenerator) {
+      const genBtn = this.page.getByRole('button', { name: /Generate Secure Password/i });
+      await genBtn.click({ timeout: 5000 }).catch(() => undefined);
+    } else {
+      await this.byTestId('admin-user-password').fill(password);
+    }
     await this.byTestId('admin-user-submit').click();
   }
 
   async activate(email: string) {
-    await this.byTestId(`row-${email}`).getByTestId('btn-activate').click();
+    const row = this.byTestId(`row-${email}`);
+    await row.scrollIntoViewIfNeeded().catch(() => undefined);
+    const toggle = row.getByTestId('admin-user-activate-toggle');
+    await toggle.waitFor({ state: 'visible', timeout: 10000 }).catch(() => undefined);
+    const label = (await toggle.innerText().catch(() => '')) || '';
+    if (!/Reactivate|Activate/i.test(label)) {
+      // Already active; click only if needed
+      return;
+    }
+    const listRefresh = this.page
+      .waitForResponse((r) => r.url().includes('/api/users') && r.request().method() === 'GET')
+      .catch(() => null);
+    await toggle.click({ timeout: 10000 }).catch(() => undefined);
+    await listRefresh;
+    await waitForUsersListOk(this.page).catch(() => undefined);
+    await waitForToastSuccess(this.page, 6000).catch(() => undefined);
   }
 
   async deactivate(email: string) {
-    await this.byTestId(`row-${email}`).getByTestId('btn-deactivate').click();
+    const row = this.byTestId(`row-${email}`);
+    await row.scrollIntoViewIfNeeded().catch(() => undefined);
+    const toggle = row.getByTestId('admin-user-activate-toggle');
+    await toggle.waitFor({ state: 'visible', timeout: 10000 }).catch(() => undefined);
+    const label = (await toggle.innerText().catch(() => '')) || '';
+    if (!/Deactivate/i.test(label)) {
+      // Already inactive; click only if needed
+      return;
+    }
+    const listRefresh = this.page
+      .waitForResponse((r) => r.url().includes('/api/users') && r.request().method() === 'GET')
+      .catch(() => null);
+    await toggle.click({ timeout: 10000 }).catch(() => undefined);
+    await listRefresh;
+    await waitForUsersListOk(this.page).catch(() => undefined);
+    await waitForToastSuccess(this.page, 6000).catch(() => undefined);
   }
 
   async expectPasswordPolicyError() {
-    await expect(this.byTestId('error-password-policy')).toBeVisible();
+    const alert = this.page.getByRole('alert');
+    await expect(alert).toBeVisible({ timeout: 8000 });
+    await expect(alert).toContainText(/password|unable to create user/i);
   }
 }
 

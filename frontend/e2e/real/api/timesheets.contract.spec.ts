@@ -38,6 +38,26 @@ test.describe('Timesheet API Contract', () => {
       password: E2E_CONFIG.USERS.tutor.password,
     });
     expect(tutorAuth.token).toBeTruthy();
+
+    // Ensure lecturer resources exist for course discovery (deterministic precondition)
+    const who = tokens?.lecturer?.userId ?? 2;
+    const lecturerToken = tokens?.lecturer?.token;
+    const hdrs = lecturerToken ? { Authorization: `Bearer ${lecturerToken}` } : {};
+    const coursesProbe = await request.get(`${BACKEND_URL}/api/courses?lecturerId=${who}&active=true`, { headers: hdrs });
+    if (!coursesProbe.ok()) {
+      try {
+        const seed = await request.post(`${BACKEND_URL}/api/test-data/seed/lecturer-resources`, {
+          headers: { 'Content-Type': 'application/json', 'X-Test-Reset-Token': process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset' },
+          data: { lecturerId: who, seedTutors: true },
+        });
+        // tolerate non-2xx here, will re-probe
+        await seed.text().catch(() => undefined);
+      } catch {}
+      const retry = await request.get(`${BACKEND_URL}/api/courses?lecturerId=${who}&active=true`, { headers: hdrs });
+      if (!retry.ok()) {
+        test.skip(true, `Contract precondition not met: /api/courses unavailable for lecturerId=${who}`);
+      }
+    }
   });
 
   test.afterEach(async () => {

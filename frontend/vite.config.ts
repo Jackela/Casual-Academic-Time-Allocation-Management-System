@@ -60,11 +60,20 @@ export default defineConfig({
       "@/types": path.resolve(__dirname, "./src/types"),
       "@/services": path.resolve(__dirname, "./src/services"),
       "@/contexts": path.resolve(__dirname, "./src/contexts"),
+      // Shared JSON Schemas (copied into image at /app/schema in Docker)
+      "@schema": path.resolve(__dirname, "../schema"),
     },
   },
   server: {
     port: 5174,
     strictPort: true,
+    // In containerized E2E runs, the SPA is accessed via the Docker
+    // service hostname ("web"). Vite's default host check blocks this
+    // unless we explicitly allow it. Keep local hosts too.
+    allowedHosts:
+      process.env.VITE_E2E === 'true'
+        ? ['web', 'localhost', '127.0.0.1']
+        : undefined,
     proxy: buildProxyConfig(),
   },
   build: {

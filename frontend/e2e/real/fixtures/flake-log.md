@@ -20,3 +20,8 @@ Status:
 Notes:
 - Keep shared state out of describe scope where possible; prefer per‑test local state or fixtures.
 
+Determinism Constitution (added):
+- One sentinel per spec; anchor lists/quote/save via network waits.
+- Add whoami auth warm-up once after navigation on protected routes.
+- No `waitForTimeout(` in specs; use `waitForStableVisible` only as optional post-sentinel micro-window.
+

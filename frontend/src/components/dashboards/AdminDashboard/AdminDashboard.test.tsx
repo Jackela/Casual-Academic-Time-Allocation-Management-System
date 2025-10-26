@@ -54,6 +54,7 @@ import {
   createMockTimesheetPage,
   createMockDashboardSummary,
   createMockUser,
+  renderWithRouter,
 } from "../../../test/utils/test-utils";
 
 let approveTimesheetMock: MockedFunction<(request: ApprovalRequest) => Promise<ApprovalResponse>>;
@@ -183,7 +184,7 @@ beforeEach(() => {
 
 describe("AdminDashboard Component", () => {
   it("renders admin header with contextual details", () => {
-    render(<AdminDashboard />);
+    renderWithRouter(<AdminDashboard />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       /Welcome back, Sarah/i,
@@ -194,7 +195,7 @@ describe("AdminDashboard Component", () => {
   });
 
   it("shows urgent notification count from pending and overdue timesheets", () => {
-    render(<AdminDashboard />);
+    renderWithRouter(<AdminDashboard />);
 
     const urgentBadge = screen.getByTestId("urgent-notifications");
     const expectedUrgentCount =
@@ -207,7 +208,7 @@ describe("AdminDashboard Component", () => {
   });
 
   it("renders system overview stat cards with key metrics", () => {
-    render(<AdminDashboard />);
+    renderWithRouter(<AdminDashboard />);
 
     const systemOverview = screen.getByRole("region", {
       name: /system overview/i,
@@ -265,7 +266,7 @@ describe("AdminDashboard Component", () => {
       refetch: vi.fn(),
     });
 
-    render(<AdminDashboard />);
+    renderWithRouter(<AdminDashboard />);
 
     const tutorCoverageCard = screen.getByTestId("tutors-card");
     expect(within(tutorCoverageCard).getByText(/N\/A/i)).toBeInTheDocument();
@@ -275,7 +276,7 @@ describe("AdminDashboard Component", () => {
   });
 
   it.skip("displays system health metrics with status badge context", () => {
-    render(<AdminDashboard />);
+    renderWithRouter(<AdminDashboard />);
 
     const systemHealth = screen.getByTestId("system-health-indicator");
     const metrics = within(systemHealth);
@@ -288,7 +289,7 @@ describe("AdminDashboard Component", () => {
   });
 
   it.skip("renders status distribution chart with non-zero buckets", () => {
-    render(<AdminDashboard />);
+    renderWithRouter(<AdminDashboard />);
 
     const distributionChart = screen.getByTestId("status-distribution-chart");
 
@@ -317,7 +318,7 @@ describe("AdminDashboard Component", () => {
 
   it("allows switching to Pending Approvals tab and shows table", async () => {
     const user = userEvent.setup();
-    render(<AdminDashboard />);
+    renderWithRouter(<AdminDashboard />);
 
     const navigation = screen.getByRole("navigation");
     await user.click(
@@ -354,7 +355,7 @@ describe("AdminDashboard Component", () => {
     });
 
     const user = userEvent.setup();
-    render(<AdminDashboard />);
+    renderWithRouter(<AdminDashboard />);
 
     const banner = screen.getAllByTestId('global-error-banner')[0];
     expect(within(banner).getAllByText(/Failed to load admin dashboard data/i)[0]).toBeInTheDocument();
@@ -395,7 +396,7 @@ describe("AdminDashboard Component", () => {
     approveTimesheetMock.mockResolvedValue(approvalResponse);
 
     const user = userEvent.setup();
-    render(<AdminDashboard />);
+    renderWithRouter(<AdminDashboard />);
 
     const navigation = screen.getByRole("navigation");
     await user.click(
@@ -446,7 +447,7 @@ describe("AdminDashboard Component", () => {
     approveTimesheetMock.mockResolvedValue(rejectionResponse);
 
     const user = userEvent.setup();
-    render(<AdminDashboard />);
+    renderWithRouter(<AdminDashboard />);
 
     const navigation = screen.getByRole("navigation");
     await user.click(

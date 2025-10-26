@@ -13,18 +13,15 @@ import com.usyd.catams.repository.UserRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+import com.usyd.catams.integration.IntegrationTestBase;
 import org.springframework.security.test.context.support.WithMockUser;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 
-@SpringBootTest
-@ActiveProfiles("integration-test")
 @WithMockUser(roles = {"LECTURER"})
-public class ApprovalFlowIntegrationTest {
+public class ApprovalFlowIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private ApprovalApplicationService approvalApplicationService;
