@@ -134,10 +134,16 @@ export function resolveGradleCommand(cwd = process.cwd()) {
 }
 
 export function resolveCmdShim(command) {
+  // Only wrap Windows batch/cmd shims. On Linux (including Docker under Windows),
+  // spawning cmd.exe will fail. Keep raw command unless it clearly needs cmd.
   if (!(isWindows() || isWsl())) {
     return { command, args: [] };
   }
-  // Use cmd to execute the .bat file; arguments will follow in the spawn call
+  const lower = String(command || '').toLowerCase();
+  const isBatch = lower.endsWith('.bat') || lower.endsWith('.cmd');
+  if (!isBatch) {
+    return { command, args: [] };
+  }
   return { command: 'cmd.exe', args: ['/d', '/s', '/c', command] };
 }
 

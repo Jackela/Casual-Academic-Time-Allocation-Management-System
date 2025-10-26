@@ -113,9 +113,9 @@ export default async function globalSetup(config: FullConfig) {
   }
 
   // Allow mock-mode runs to skip backend readiness and auth flows
-  const skipBackend = String(process.env.E2E_SKIP_BACKEND || '').toLowerCase();
-  if (['1', 'true', 'yes', 'y'].includes(skipBackend)) {
-    console.info('[real/global.setup] E2E_SKIP_BACKEND detected; skipping backend readiness and auth setup.');
+  const skipRealLogin = String(process.env.E2E_SKIP_REAL_LOGIN || '').toLowerCase();
+  if (['1', 'true', 'yes', 'y'].includes(skipRealLogin)) {
+    console.info('[real/global.setup] E2E_SKIP_REAL_LOGIN detected; skipping backend readiness and auth setup.');
     return;
   }
 

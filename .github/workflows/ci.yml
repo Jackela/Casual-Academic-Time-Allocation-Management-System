@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-backend:
     runs-on: ubuntu-latest
@@ -57,21 +61,12 @@ jobs:
       - name: Install frontend deps
         working-directory: frontend
         run: npm ci
-      - name: Install Playwright browsers
+      - name: Run frontend unit tests (mocked)
         working-directory: frontend
-        run: npx playwright install --with-deps
-      - name: Run Playwright mock suite (canonical)
         env:
           CI: '1'
-          E2E_SKIP_BACKEND: '1'
-          E2E_SKIP_REAL_LOGIN: '1'
-        run: node scripts/e2e-runner.js --project=real --grep @p0
-      - name: Upload mock Playwright report
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-mock-report
-          path: frontend/playwright-report
+          NODE_ENV: test
+        run: npm run test:unit
 
   detect-act:
     runs-on: ubuntu-latest

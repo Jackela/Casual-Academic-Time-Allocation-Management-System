@@ -6,30 +6,47 @@ on:
       - 'frontend/**'
       - 'specs/001-playwright-e2e-refactor/**'
       - '.github/workflows/e2e-real.yml'
+  # Only run on push when explicitly enabled via BASE_URL secret
   push:
     branches: [ main ]
+    paths:
+      - '.github/workflows/e2e-real.yml'
+
+concurrency:
+  group: e2e-real-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Mirror secret into env so act schema accepts `env.` access in job if conditions
+  BASE_URL: ${{ secrets.BASE_URL }}
 
 jobs:
   lint-and-typecheck:
+    if: ${{ env.ACT != 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - if: ${{ always() }}
+        uses: actions/checkout@v4
+      - if: ${{ always() }}
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - if: ${{ always() }}
+        run: npm ci
       - name: Repo guard (no ad-hoc generators)
+        if: ${{ always() }}
         run: node scripts/guard-allowed-generators.js
-      - run: npm run lint
-      - run: npx tsc -b --pretty false
+      - if: ${{ always() }}
+        run: npm run lint
+      - if: ${{ always() }}
+        run: npx tsc -b --pretty false
 
   e2e-p0:
-    if: ${{ github.event_name == 'push' || secrets.BASE_URL != '' }}
     needs: lint-and-typecheck
     runs-on: ubuntu-latest
     env:
@@ -56,11 +73,13 @@ jobs:
       - name: Repo guard (no ad-hoc generators)
         run: node ../scripts/guard-allowed-generators.js
       - name: Install Playwright (Chromium)
+        if: ${{ env.BASE_URL != '' }}
         run: npx playwright install --with-deps chromium
       - name: Run P0 E2E (grep @p0, canonical)
+        if: ${{ env.BASE_URL != '' }}
         run: node ../scripts/e2e-runner.js --project=real --grep @p0
       - name: Upload Playwright report
-        if: always()
+        if: ${{ always() && env.BASE_URL != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
@@ -68,7 +87,6 @@ jobs:
           if-no-files-found: ignore
 
   e2e-smoke:
-    if: ${{ github.event_name == 'push' || secrets.BASE_URL != '' }}
     needs: lint-and-typecheck
     runs-on: ubuntu-latest
     env:
@@ -88,11 +106,13 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - name: Install Playwright (Chromium)
+        if: ${{ env.BASE_URL != '' }}
         run: npx playwright install --with-deps chromium
       - name: Run Smoke E2E (canonical)
+        if: ${{ env.BASE_URL != '' }}
         run: node ../scripts/e2e-runner.js --project=smoke
       - name: Upload Playwright report
-        if: always()
+        if: ${{ always() && env.BASE_URL != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-smoke

@@ -94,7 +94,7 @@ export async function loginAsRole(
   request: APIRequestContext,
   role: UserRole,
 ): Promise<RoleAuthSession> {
-  const skip = String(process.env.E2E_SKIP_BACKEND || process.env.E2E_SKIP_REAL_LOGIN || '').toLowerCase();
+  const skip = String(process.env.E2E_SKIP_REAL_LOGIN || '').toLowerCase();
   if (['1','true','yes','y'].includes(skip)) {
     const creds = roleCredentials(role);
     const idMap: Record<UserRole, number> = { admin: 1, lecturer: 2, tutor: 3 } as const;
@@ -187,7 +187,7 @@ export async function signInAsRole(page: Page, role: UserRole): Promise<void> {
  * - Returns details for reporting.
  */
 export async function programmaticLoginApi(role: UserRole): Promise<{ ok: true; endpoint: string; persisted: 'jwt'; session: AuthSession }>{
-  const skip = String(process.env.E2E_SKIP_BACKEND || process.env.E2E_SKIP_REAL_LOGIN || '').toLowerCase();
+  const skip = String(process.env.E2E_SKIP_REAL_LOGIN || '').toLowerCase();
   if (['1','true','yes','y'].includes(skip)) {
     // Synthesize a mock session without network calls
     const creds = roleCredentials(role);

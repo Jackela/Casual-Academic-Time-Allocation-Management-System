@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: e2e-deterministic-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   e2e:
     runs-on: ubuntu-latest
@@ -17,12 +21,21 @@ jobs:
       PLAYWRIGHT_HTML_REPORT: ./playwright-report
       # Frontend server origin used by runner script
       E2E_FRONTEND_URL: http://127.0.0.1:5174
-      # Backend origin used by runner script
-      E2E_BACKEND_URL: http://127.0.0.1:8090
-      E2E_BACKEND_PORT: 8090
+      # Backend origin used by runner script (docker-compose exposes 8084)
+      E2E_BACKEND_MODE: docker
+      E2E_BACKEND_URL: http://127.0.0.1:8084
+      E2E_BACKEND_PORT: 8084
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Detect act and use host backend
+        run: |
+          if [ -n "${ACT:-}" ]; then
+            echo "Detected act; will reuse host backend via host.docker.internal:8084";
+            echo "E2E_SKIP_BACKEND=1" >> "$GITHUB_ENV";
+            echo "E2E_BACKEND_URL=http://host.docker.internal:8084" >> "$GITHUB_ENV";
+            echo "E2E_BACKEND_PORT=8084" >> "$GITHUB_ENV";
+          fi
       - name: Repo guard (no ad-hoc generators)
         run: node scripts/guard-allowed-generators.js
 
@@ -31,11 +44,9 @@ jobs:
         with:
           node-version: 22
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
+      # Docker-backed backend avoids Java/Gradle on runner
+      - name: Verify Docker availability
+        run: docker version
 
       - name: Install frontend deps
         working-directory: frontend
@@ -54,24 +65,24 @@ jobs:
         run: node scripts/e2e-runner.js --project=real --grep @p0
 
       - name: Upload P0 report
-        if: always()
+        if: ${{ failure() && env.ACT != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: e2e-p0-report
           path: frontend/playwright-report
-          if-no-files-found: warn
+          if-no-files-found: ignore
 
       - name: Run Contract lane (required)
         id: contract
         run: node scripts/e2e-runner.js --project=real --grep contract
 
       - name: Upload Contract report
-        if: always()
+        if: ${{ failure() && env.ACT != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: e2e-contract-report
           path: frontend/playwright-report
-          if-no-files-found: warn
+          if-no-files-found: ignore
 
       - name: Run Full Real (non-blocking)
         id: full
@@ -79,9 +90,9 @@ jobs:
         run: node scripts/e2e-runner.js --project=real
 
       - name: Upload Full Real report
-        if: always()
+        if: ${{ failure() && env.ACT != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: e2e-full-report
           path: frontend/playwright-report
-          if-no-files-found: warn
+          if-no-files-found: ignore

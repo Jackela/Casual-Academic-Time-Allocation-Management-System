@@ -514,6 +514,7 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
       frontendOrigin = `${u.protocol}//${u.host}`;
     }
   } catch {}
+  const mockMode = isTruthy(process.env.E2E_SKIP_REAL_LOGIN);
   const env = {
     E2E_FRONTEND_PORT: String(frontendPort),
     E2E_BACKEND_PORT: String(backendPort),
@@ -524,6 +525,10 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
     E2E_FRONTEND_HOST: frontendHost,
     NODE_ENV: 'test',
   };
+  if (mockMode) {
+    delete env.E2E_BACKEND_URL;
+    delete env.VITE_API_PROXY_TARGET;
+  }
 
   const devArgs = ['run', 'dev', '--', '--mode', 'e2e', '--host', resolvedHost, '--port', String(resolvedPort)];
   const child = spawnBackground(npmCommand, devArgs, {
@@ -655,22 +660,28 @@ async function main() {
       backendProfile,
     });
 
-    if (!isTruthy(process.env.E2E_SKIP_BACKEND)) {
-      // Reset backend test data after backend is ready
-      await resetBackendData(backendUrl);
-      // Seed minimal lecturer resources for deterministic UI (id=2)
+    // For mock-mode runs (E2E_SKIP_REAL_LOGIN=1), skip contacting backend entirely.
+    if (!isTruthy(process.env.E2E_SKIP_REAL_LOGIN)) {
       try {
-        const token = process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset';
-        const seedUrl = new URL('/api/test-data/seed/lecturer-resources', backendUrl).toString();
-        await fetch(seedUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Test-Reset-Token': token },
-          body: JSON.stringify({ lecturerId: 2, seedTutors: true }),
-        }).catch(() => undefined);
-        logSuccess('Seeded lecturer resources (id=2)');
+        await resetBackendData(backendUrl);
+        // Seed minimal lecturer resources for deterministic UI (id=2)
+        try {
+          const token = process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset';
+          const seedUrl = new URL('/api/test-data/seed/lecturer-resources', backendUrl).toString();
+          await fetch(seedUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Test-Reset-Token': token },
+            body: JSON.stringify({ lecturerId: 2, seedTutors: true }),
+          }).catch(() => undefined);
+          logSuccess('Seeded lecturer resources (id=2)');
+        } catch (e) {
+          logWarning(`Seed step failed or skipped: ${e.message}`);
+        }
       } catch (e) {
-        logWarning(`Seed step failed or skipped: ${e.message}`);
+        logWarning(`Reset step failed or skipped: ${e.message}`);
       }
+    } else {
+      logWarning('Mock mode: skipping backend reset/seed (E2E_SKIP_REAL_LOGIN)');
     }
 
     await ensureFrontend({
