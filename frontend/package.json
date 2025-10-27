@@ -34,6 +34,7 @@
     "test:e2e:report": "playwright show-report",
     "lint:e2e:timeouts": "node scripts/check-no-waitfortimeout.js",
     "lint": "eslint .",
+    "lint:app": "eslint src",
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {

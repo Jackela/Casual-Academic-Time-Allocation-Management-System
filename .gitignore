@@ -202,6 +202,29 @@ tools/bin/
 *.cache
 .npm
 .eslintcache
+artifacts/
+logs/
+*.tsbuildinfo
+gh-job-*.log
+act-*.log
+tmp_*
+*.tmp
+*.temp
+
+# Backend build outputs
+build/
+.gradle/
+test-results/
+
+# Frontend generated assets and reports
+frontend/dist/
+frontend/coverage/
+frontend/playwright-report/
+frontend/playwright-screenshots/
+frontend/test-results/
+frontend/trace-inspect/
+frontend/.vite/
+frontend/src/contracts/generated/
 
 # ===========================
 # SECURITY & SENSITIVE DATA

@@ -4,6 +4,11 @@
   "type": "module",
   "description": "Repository-level metadata; enables ESM for canonical scripts under scripts/.",
   "license": "UNLICENSED",
+  "scripts": {
+    "clean": "bash scripts/clean.sh || powershell -ExecutionPolicy Bypass -File scripts/clean.ps1",
+    "clean:backend": "./gradlew clean || true",
+    "clean:frontend": "npm --prefix frontend run clean || true"
+  },
   "dependencies": {
     "@redocly/cli": "^2.8.0"
   },

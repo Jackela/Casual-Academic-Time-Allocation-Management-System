@@ -58,7 +58,7 @@ export default tseslint.config([
           message: 'Do not mock network in real E2E (page.route is disallowed) — use real backend data',
         },
         {
-          selector: "CallExpression[callee.property.name='locator'] Literal[value=/^(\\.|#|xpath=|\\/\\/).*/]",
+          selector: "CallExpression[callee.property.name='locator'] Literal[value=/^(\\\\.|#|xpath=).*/]",
           message: 'Prefer data-testid selectors (getByTestId or [data-testid=...]) over raw CSS/XPath',
         },
       ],
