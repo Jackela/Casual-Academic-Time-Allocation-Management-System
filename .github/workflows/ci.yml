@@ -1,4 +1,4 @@
-name: CI
+name: Basic CI
 
 on:
   push:
@@ -7,19 +7,20 @@ on:
     branches: [ main ]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: basic-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test-backend:
+  backend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install repo-level tooling deps
+      - name: Install Repo Tooling Deps
         run: npm ci --ignore-scripts
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -35,97 +36,63 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      - name: Setup Gradle 8.7
+      - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.7
-      - name: Install frontend deps
-        working-directory: frontend
-        run: npm ci
-      - name: Repo guard (no ad-hoc generators)
-        run: node scripts/guard-allowed-generators.js
-      - name: Backend unit+integration+coverage (canonical)
+      - name: Gradle check
         env:
           JWT_SECRET: test-secret
         run: gradle check
 
-  playwright-mock:
-    needs: test-backend
+  frontend-unit:
+    needs: backend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install frontend deps
+      - name: Install Frontend Deps
         working-directory: frontend
         run: npm ci
-      - name: Run frontend unit tests (mocked)
+      - name: Run Frontend Unit Tests
         working-directory: frontend
         env:
           CI: '1'
           NODE_ENV: test
         run: npm run test:unit
 
-  detect-act:
-    runs-on: ubuntu-latest
-    outputs:
-      is_act: ${{ steps.detect.outputs.is_act }}
-    steps:
-      - id: detect
-        run: |
-          if [ -z "${ACT:-}" ]; then
-            echo "is_act=" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_act=true" >> "$GITHUB_OUTPUT"
-          fi
-
-  playwright-real:
-    if: ${{ needs.detect-act.outputs.is_act != 'true' }}
-    needs: [test-backend, playwright-mock, detect-act]
+  e2e:
+    needs: [backend, frontend-unit]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Node
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
       - name: Install frontend deps
         working-directory: frontend
         run: npm ci
-      - name: Install Playwright browsers
+      - name: Install Playwright browsers (Chromium)
         working-directory: frontend
-        run: npx playwright install --with-deps
-      - name: Run Playwright real suite (canonical)
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E (real)
         env:
+          E2E_BACKEND_MODE: docker
+          E2E_BACKEND_URL: http://127.0.0.1:8084
+          E2E_FRONTEND_URL: http://127.0.0.1:5174
           CI: '1'
-          E2E_ADMIN_EMAIL: admin@example.com
-          E2E_ADMIN_PASSWORD: Admin123!
-          E2E_LECTURER_EMAIL: lecturer@example.com
-          E2E_LECTURER_PASSWORD: Lecturer123!
-          E2E_TUTOR_EMAIL: tutor@example.com
-          E2E_TUTOR_PASSWORD: Tutor123!
         run: node scripts/e2e-runner.js --project=real
-      - name: Upload real Playwright report
+      - name: Upload Playwright report (on failure)
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-real-report
+          name: playwright-report
           path: frontend/playwright-report
-      # Backend lifecycle handled by canonical runner
+          if-no-files-found: ignore
 

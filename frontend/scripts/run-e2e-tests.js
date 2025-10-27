@@ -444,6 +444,9 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
   const gradleArgs = [
     ...gradle.args,
     'bootRun',
+    '--no-daemon',
+    '--stacktrace',
+    '-i',
     '-x', 'test',
     `--args=${springArgs}`,
   ];
