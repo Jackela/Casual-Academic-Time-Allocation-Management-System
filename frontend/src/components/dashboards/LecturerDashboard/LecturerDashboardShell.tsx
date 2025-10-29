@@ -116,6 +116,9 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
     handleRejectionSubmit,
     handleRejectionCancel,
     rejectionModal,
+    handleModificationSubmit,
+    handleModificationCancel,
+    modificationModal,
     refreshPending,
     refetchDashboard,
     resetApproval,
@@ -129,6 +132,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
   }, [refreshPending, refetchDashboard]);
 
   const rejectionDialogRef = useRef<HTMLDivElement | null>(null);
+  const modificationDialogRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
 
@@ -160,7 +164,13 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
   }, [refreshPending, refetchDashboard]);
 
   useEffect(() => {
-    if (!rejectionModal.open) {
+    const activeModal = rejectionModal.open
+      ? { ref: rejectionDialogRef, onCancel: handleRejectionCancel }
+      : modificationModal.open
+        ? { ref: modificationDialogRef, onCancel: handleModificationCancel }
+        : null;
+
+    if (!activeModal) {
       if (previouslyFocusedElementRef.current) {
         previouslyFocusedElementRef.current.focus({ preventScroll: true });
         previouslyFocusedElementRef.current = null;
@@ -168,7 +178,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
       return;
     }
 
-    const dialog = rejectionDialogRef.current;
+    const dialog = activeModal.ref.current;
     if (!dialog) {
       return;
     }
@@ -190,13 +200,14 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
     const rafId = window.requestAnimationFrame(focusFirstElement);
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (!rejectionDialogRef.current) {
+      const modalElement = activeModal.ref.current;
+      if (!modalElement) {
         return;
       }
 
       if (event.key === 'Escape') {
         event.preventDefault();
-        handleRejectionCancel();
+        activeModal.onCancel();
         return;
       }
 
@@ -204,7 +215,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
         return;
       }
 
-      const focusableElements = getFocusableElements(rejectionDialogRef.current);
+      const focusableElements = getFocusableElements(modalElement);
       if (focusableElements.length === 0) {
         event.preventDefault();
         focusFirstElement();
@@ -233,7 +244,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
       window.cancelAnimationFrame(rafId);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [handleRejectionCancel, rejectionModal.open]);
+  }, [handleModificationCancel, handleRejectionCancel, modificationModal.open, rejectionModal.open]);
 
   if (pageLoading) {
     return (
@@ -428,6 +439,65 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
                     title={loading.approval ? 'Processing rejection request…' : undefined}
                   >
                     Reject Timesheet
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {modificationModal.open && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4 elevation-modal">
+          <Card
+            ref={modificationDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lecturer-modification-modal-title"
+            aria-describedby="lecturer-modification-modal-description"
+            tabIndex={-1}
+            className="w-full max-w-md focus:outline-none"
+          >
+            <CardHeader>
+              <CardTitle id="lecturer-modification-modal-title">Request Changes</CardTitle>
+              <CardDescription id="lecturer-modification-modal-description">
+                Describe what needs to be updated. The tutor will receive this feedback immediately.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const formData = new FormData(event.currentTarget);
+                  const reason = (formData.get('modificationReason') as string) ?? '';
+                  if (!loading.approval && reason.trim()) {
+                    handleModificationSubmit(reason);
+                  }
+                }}
+              >
+                <textarea
+                  id="modificationReason"
+                  name="modificationReason"
+                  required
+                  placeholder="e.g., Please include associated lab hours and resubmit."
+                  rows={4}
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (!loading.approval) {
+                        handleModificationCancel();
+                      }
+                    }}
+                    disabled={loading.approval}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading.approval}>
+                    Send Request
                   </Button>
                 </div>
               </form>

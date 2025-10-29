@@ -30,6 +30,7 @@ interface TimesheetActionsProps {
   onConfirm?: () => void;
   onApprove?: () => void;
   onReject?: () => void;
+  onRequestModification?: () => void;
 }
 
 interface ActionButton extends ActionConfig {
@@ -48,7 +49,8 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
   onSubmit,
   onConfirm,
   onApprove,
-  onReject
+  onReject,
+  onRequestModification
 }) => {
   const statusConfig = getStatusConfig(timesheet.status);
 
@@ -98,8 +100,10 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
       }
     } else if (mode === 'lecturer' || mode === 'admin') {
       // Lecturer/Admin actions
-      const canApprove = timesheet.status === 'TUTOR_CONFIRMED' || 
-                        (mode === 'admin' && timesheet.status === 'LECTURER_CONFIRMED');
+      const canApprove = timesheet.status === 'TUTOR_CONFIRMED' ||
+        (mode === 'admin' && (timesheet.status === 'LECTURER_CONFIRMED' || timesheet.status === 'TUTOR_CONFIRMED'));
+      const canRequestChanges = timesheet.status === 'TUTOR_CONFIRMED' ||
+        (mode === 'admin' && (timesheet.status === 'LECTURER_CONFIRMED' || timesheet.status === 'TUTOR_CONFIRMED'));
 
       // Primary action: Approve
       if (canApprove && onApprove) {
@@ -121,10 +125,20 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
           visible: true
         });
       }
+
+      if (canRequestChanges && onRequestModification) {
+        actions.push({
+          ...STANDARD_ACTIONS.REQUEST_CHANGES,
+          id: 'request-modification',
+          onClick: onRequestModification,
+          visible: true,
+          tooltip: 'Ask the tutor to revise this timesheet before it is approved.',
+        });
+      }
     }
 
     return actions.filter(action => action.visible);
-  }, [mode, timesheet.status, onEdit, onSubmit, onConfirm, onApprove, onReject]);
+  }, [mode, timesheet.status, onEdit, onSubmit, onConfirm, onApprove, onReject, onRequestModification]);
 
   // Validate that we follow the "one primary action per row" rule
   const validationResult = useMemo(() => {

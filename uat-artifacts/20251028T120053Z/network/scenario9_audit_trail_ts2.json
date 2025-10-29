@@ -1,0 +1,55 @@
+[
+    {
+        "timesheetId": 2,
+        "action": "SUBMIT_FOR_APPROVAL",
+        "newStatus": "PENDING_TUTOR_CONFIRMATION",
+        "approverId": 2,
+        "approverName": "Dr. Jane Smith",
+        "timestamp": "2025-10-28T23:54:42.889195",
+        "nextSteps": [
+            "Timesheet is now pending lecturer approval",
+            "Lecturer will review and may request changes",
+            "Tutor can monitor status from their dashboard"
+        ],
+        "submissionResponse": true,
+        "confirmationResponse": false,
+        "rejectionResponse": false,
+        "modificationRequestResponse": false,
+        "comment": null
+    },
+    {
+        "timesheetId": 2,
+        "action": "TUTOR_CONFIRM",
+        "newStatus": "TUTOR_CONFIRMED",
+        "approverId": 4,
+        "approverName": "E2E Tutor One",
+        "timestamp": "2025-10-28T23:55:28.396083",
+        "nextSteps": [
+            "Timesheet has been approved by tutor",
+            "Lecturer should now provide final approval"
+        ],
+        "submissionResponse": false,
+        "confirmationResponse": true,
+        "rejectionResponse": false,
+        "modificationRequestResponse": false,
+        "comment": null
+    },
+    {
+        "timesheetId": 2,
+        "action": "REJECT",
+        "newStatus": "REJECTED",
+        "approverId": 2,
+        "approverName": "Dr. Jane Smith",
+        "timestamp": "2025-10-28T23:56:06.033199",
+        "nextSteps": [
+            "Timesheet has been rejected",
+            "Review rejection reason and make necessary corrections",
+            "Can be edited and resubmitted"
+        ],
+        "submissionResponse": false,
+        "confirmationResponse": false,
+        "rejectionResponse": true,
+        "modificationRequestResponse": false,
+        "comment": "Hours appear incorrect for this tutorial session. Please verify actual delivery time and resubmit with accurate hours."
+    }
+]

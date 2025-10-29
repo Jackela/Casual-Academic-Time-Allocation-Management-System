@@ -193,6 +193,18 @@ describe('useTimesheetQuery', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('ignores axios canceled requests (ERR_CANCELED)', async () => {
+    const canceledError: any = new Error('canceled');
+    canceledError.name = 'CanceledError';
+    canceledError.code = 'ERR_CANCELED';
+    mockTimesheetService.getTimesheetsByTutor.mockRejectedValueOnce(canceledError);
+
+    const { result } = renderUseTimesheetQuery();
+
+    await waitForAsync(50);
+    expect(result.current.error).toBeNull();
+  });
+
   it('omits tutorId for non-tutor roles', async () => {
     mockUseAuth.mockReturnValue({
       user: { ...baseUser, role: 'ADMIN' },

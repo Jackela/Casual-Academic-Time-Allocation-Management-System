@@ -266,6 +266,21 @@ export const secureLogger = {
     };
 
     if (error) {
+      // Detect and skip noisy cancellation logs from axios/fetch
+      const name = (error as any)?.name?.toString?.() ?? '';
+      const code = (error as any)?.code?.toString?.() ?? '';
+      const message = (error as any)?.message?.toString?.() ?? '';
+      const isCancel =
+        name === 'CanceledError' ||
+        name === 'AbortError' ||
+        code === 'ERR_CANCELED' ||
+        code === 'ECONNABORTED' ||
+        message.toLowerCase() === 'canceled' ||
+        message.toLowerCase() === 'cancelled' ||
+        Boolean((error as any)?.__CANCEL__);
+      if (isCancel) {
+        return;
+      }
       const payload = isProductionMode() ? sanitizeValue(error) : error;
       secureLogger.error(`API ${method} ${sanitizedUrl} failed`, payload);
     } else if (ENV_CONFIG.features.enableDetailedLogging()) {

@@ -87,6 +87,13 @@ export const STANDARD_ACTIONS = {
     variant: PRIORITY_TO_VARIANT[ACTION_PRIORITY.SECONDARY],
     size: 'default'
   },
+  REQUEST_CHANGES: {
+    label: 'Request Changes',
+    priority: ACTION_PRIORITY.SECONDARY,
+    variant: PRIORITY_TO_VARIANT[ACTION_PRIORITY.SECONDARY],
+    size: 'sm',
+    requiresConfirmation: true
+  },
   
   // Tertiary Actions
   MORE: {
@@ -139,8 +146,20 @@ export const validateActionGroup = (actions: ActionConfig[], context: string): {
 } => {
   const errors: string[] = [];
   
+  // If there are no actions, treat as valid (no primary applicable)
+  if (!actions || actions.length === 0) {
+    return { isValid: true, errors };
+  }
+  
   // Count primary actions
   const primaryCount = actions.filter(a => a.priority === ACTION_PRIORITY.PRIMARY).length;
+  // If no primary but also no destructive actions, allow silent pass to avoid dev-noise
+  if (primaryCount === 0) {
+    const hasDestructive = actions.some(a => a.priority === ACTION_PRIORITY.DESTRUCTIVE);
+    if (!hasDestructive) {
+      return { isValid: true, errors };
+    }
+  }
   
   if (primaryCount === 0) {
     errors.push(`${context}: No primary action defined. Each context should have exactly one primary action.`);

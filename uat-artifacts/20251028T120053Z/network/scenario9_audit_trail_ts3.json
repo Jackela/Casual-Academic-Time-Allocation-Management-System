@@ -1,0 +1,90 @@
+[
+    {
+        "timesheetId": 3,
+        "action": "SUBMIT_FOR_APPROVAL",
+        "newStatus": "PENDING_TUTOR_CONFIRMATION",
+        "approverId": 2,
+        "approverName": "Dr. Jane Smith",
+        "timestamp": "2025-10-28T23:58:27.510206",
+        "nextSteps": [
+            "Timesheet is now pending lecturer approval",
+            "Lecturer will review and may request changes",
+            "Tutor can monitor status from their dashboard"
+        ],
+        "submissionResponse": true,
+        "confirmationResponse": false,
+        "rejectionResponse": false,
+        "modificationRequestResponse": false,
+        "comment": null
+    },
+    {
+        "timesheetId": 3,
+        "action": "TUTOR_CONFIRM",
+        "newStatus": "TUTOR_CONFIRMED",
+        "approverId": 4,
+        "approverName": "E2E Tutor One",
+        "timestamp": "2025-10-28T23:58:44.682892",
+        "nextSteps": [
+            "Timesheet has been approved by tutor",
+            "Lecturer should now provide final approval"
+        ],
+        "submissionResponse": false,
+        "confirmationResponse": true,
+        "rejectionResponse": false,
+        "modificationRequestResponse": false,
+        "comment": null
+    },
+    {
+        "timesheetId": 3,
+        "action": "REQUEST_MODIFICATION",
+        "newStatus": "MODIFICATION_REQUESTED",
+        "approverId": 2,
+        "approverName": "Dr. Jane Smith",
+        "timestamp": "2025-10-29T00:01:16.797034",
+        "nextSteps": [
+            "Modifications have been requested",
+            "Review the feedback and update the timesheet",
+            "Resubmit after making the requested changes"
+        ],
+        "submissionResponse": false,
+        "confirmationResponse": false,
+        "rejectionResponse": false,
+        "modificationRequestResponse": true,
+        "comment": "Please add more detail about the tutorial activities performed during this session, including specific topics covered and student interaction time."
+    },
+    {
+        "timesheetId": 3,
+        "action": "SUBMIT_FOR_APPROVAL",
+        "newStatus": "PENDING_TUTOR_CONFIRMATION",
+        "approverId": 4,
+        "approverName": "E2E Tutor One",
+        "timestamp": "2025-10-29T00:02:26.778662",
+        "nextSteps": [
+            "Timesheet is now pending lecturer approval",
+            "Lecturer will review and may request changes",
+            "Tutor can monitor status from their dashboard"
+        ],
+        "submissionResponse": true,
+        "confirmationResponse": false,
+        "rejectionResponse": false,
+        "modificationRequestResponse": false,
+        "comment": null
+    },
+    {
+        "timesheetId": 3,
+        "action": "TUTOR_CONFIRM",
+        "newStatus": "TUTOR_CONFIRMED",
+        "approverId": 4,
+        "approverName": "E2E Tutor One",
+        "timestamp": "2025-10-29T00:02:48.590794",
+        "nextSteps": [
+            "Timesheet has been approved by tutor",
+            "Lecturer should now provide final approval"
+        ],
+        "submissionResponse": false,
+        "confirmationResponse": true,
+        "rejectionResponse": false,
+        "modificationRequestResponse": false,
+        "comment": null
+    }
+]

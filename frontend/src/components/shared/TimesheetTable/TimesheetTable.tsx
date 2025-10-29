@@ -5,7 +5,7 @@
  * memoization, and advanced features.
  */
 
-import React, { Fragment, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Fragment, memo, useCallback, useEffect, useMemo, useState, useId } from 'react';
 import type { Timesheet, ApprovalAction } from '../../../types/api';
 import { formatters } from '../../../utils/formatting';
 import StatusBadge from '../StatusBadge/StatusBadge';
@@ -122,6 +122,8 @@ interface TimesheetRowProps {
   style?: React.CSSProperties;
   actionsDisabled?: boolean;
   actionsDisabledReason?: string;
+  // Enables ultra-light cell rendering for performance-critical scenarios
+  performanceMode?: boolean;
 }
 
 const TimesheetRow = memo<TimesheetRowProps>(({
@@ -139,10 +141,12 @@ const TimesheetRow = memo<TimesheetRowProps>(({
   style,
   actionsDisabled = false,
   actionsDisabledReason,
+  performanceMode = false,
 }) => {
   const uiConstraints = useUiConstraints();
   const [isExpanded, setIsExpanded] = useState(false);
   const detailsId = useMemo(() => `timesheet-${timesheet.id}-details`, [timesheet.id]);
+  const selectionId = useMemo(() => `timesheet-${timesheet.id}-select`, [timesheet.id]);
 
   const visibleColumns = useMemo(
     () => columns.filter(column => column.visible !== false),
@@ -194,6 +198,14 @@ const TimesheetRow = memo<TimesheetRowProps>(({
     onApprovalAction(timesheet.id, 'REJECT');
   }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
 
+  const handleRequestModification = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (actionLoading || actionsDisabled || !onApprovalAction) {
+      return;
+    }
+    onApprovalAction(timesheet.id, 'REQUEST_MODIFICATION');
+  }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
+
   const handleEdit = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
     if (actionLoading || actionsDisabled || !onApprovalAction) {
@@ -232,6 +244,7 @@ const TimesheetRow = memo<TimesheetRowProps>(({
   const baseCellProps: CellRendererProps = {
     onApprove: handleApprove,
     onReject: handleReject,
+    onRequestModification: handleRequestModification,
     onEdit: handleEdit,
     onSubmitDraft: handleSubmitDraft,
     onConfirm: handleConfirm,
@@ -246,6 +259,7 @@ const TimesheetRow = memo<TimesheetRowProps>(({
     detailsExpanded: isExpanded,
     detailsAvailable: hasDetailColumns,
     constraints: uiConstraints,
+    performanceMode,
   };
 
   const getCellContent = (column: Column): React.ReactNode => {
@@ -298,8 +312,10 @@ const TimesheetRow = memo<TimesheetRowProps>(({
       >
         {showSelection && (
           <td className={`cell selection-cell priority-high ${baseCellPaddingClass} ${selectionColumnLayoutClass}`}>
-            <label className="selection-input-wrapper">
+            <label className="selection-input-wrapper" htmlFor={selectionId}>
               <input
+                id={selectionId}
+                name="timesheet-selection"
                 type="checkbox"
                 checked={selected}
                 onChange={handleSelectionChange}
@@ -372,6 +388,7 @@ TimesheetRow.displayName = 'TimesheetRow';
 interface CellRendererProps {
   onApprove: (event: React.MouseEvent) => void;
   onReject: (event: React.MouseEvent) => void;
+  onRequestModification?: (event: React.MouseEvent) => void;
   onEdit?: (event: React.MouseEvent) => void;
   onSubmitDraft?: (event: React.MouseEvent) => void;
   onConfirm?: (event: React.MouseEvent) => void;
@@ -387,6 +404,7 @@ interface CellRendererProps {
   detailsAvailable?: boolean;
   isDetailContent?: boolean;
   constraints: UiConstraintSnapshot;
+  performanceMode?: boolean;
 }
 
 const APPROVE_ACTION_BY_ROLE: Record<ApprovalRole, ApprovalAction> = {
@@ -422,6 +440,7 @@ function renderDefaultCell(
     onEdit,
     onSubmitDraft,
     onConfirm,
+    onRequestModification,
     actionLoading,
     totalPay,
     actionMode,
@@ -433,6 +452,7 @@ function renderDefaultCell(
     detailsExpanded,
     detailsAvailable,
     constraints,
+    performanceMode,
   } = props;
 
   switch (key) {
@@ -462,7 +482,7 @@ function renderDefaultCell(
       );
 
     case 'weekStartDate':
-      return formatters.date(timesheet.weekStartDate);
+      return performanceMode ? (timesheet.weekStartDate ?? '') : formatters.date(timesheet.weekStartDate);
 
     case 'hours':
       if (props.isDetailContent) {
@@ -477,12 +497,12 @@ function renderDefaultCell(
       }
       return (
         <span className="hours-badge" data-testid={`hours-badge-${timesheet.id}`}>
-          {formatters.hours(timesheet.hours)}
+          {performanceMode ? timesheet.hours : formatters.hours(timesheet.hours)}
         </span>
       );
 
     case 'hourlyRate':
-      return formatters.currency(timesheet.hourlyRate);
+      return performanceMode ? timesheet.hourlyRate : formatters.currency(timesheet.hourlyRate);
 
     case 'totalPay':
       return (
@@ -490,11 +510,14 @@ function renderDefaultCell(
           className="total-pay-value"
           data-testid={`total-pay-${timesheet.id}`}
         >
-          {formatters.currency(totalPay)}
+          {performanceMode ? totalPay : formatters.currency(totalPay)}
         </strong>
       );
 
     case 'status':
+      if (performanceMode) {
+        return String(timesheet.status ?? '');
+      }
       return (
         <StatusBadge
           status={timesheet.status}
@@ -508,6 +531,13 @@ function renderDefaultCell(
 
     case 'lastUpdated': {
       const referenceTimestamp = timesheet.updatedAt ?? timesheet.createdAt;
+      if (performanceMode) {
+        return (
+          <span className="last-updated-cell" data-testid={`last-updated-${timesheet.id}`}>
+            {referenceTimestamp ?? '—'}
+          </span>
+        );
+      }
       return (
         <span className="last-updated-cell" data-testid={`last-updated-${timesheet.id}`}>
           {referenceTimestamp ? formatters.dateTime(referenceTimestamp) : '—'}
@@ -516,6 +546,12 @@ function renderDefaultCell(
     }
 
     case 'description':
+      if (performanceMode) {
+        const text = typeof timesheet.description === 'string' ? timesheet.description : '';
+        return (
+          <div className="description-cell" data-testid={`description-cell-${timesheet.id}`}>{text.slice(0, 40)}</div>
+        );
+      }
       return (
         <div
           className="description-cell" data-testid={`description-cell-${timesheet.id}`}
@@ -526,6 +562,21 @@ function renderDefaultCell(
       );
 
     case 'timeline': {
+      if (performanceMode) {
+        // Lightweight rendering path to improve throughput for large datasets
+        const created = timesheet.createdAt ?? '';
+        return (
+          <div className="timeline-cell" data-testid={`timesheet-activity-${timesheet.id}`}>
+            <div className="timeline-primary">
+              <span className="timeline-headline">Activity</span>
+            </div>
+            <div className="timeline-meta" aria-live="polite">
+              <span className="timeline-absolute">{created || '—'}</span>
+            </div>
+          </div>
+        );
+      }
+
       const activity = formatters.activity(timesheet.createdAt, timesheet.updatedAt);
 
       return (
@@ -548,6 +599,9 @@ function renderDefaultCell(
     }
 
     case 'actions': {
+      if (performanceMode) {
+        return null;
+      }
       // Determine the correct mode based on actionMode and approvalRole
       let mode: 'tutor' | 'lecturer' | 'admin' = 'tutor';
       
@@ -567,6 +621,7 @@ function renderDefaultCell(
           onConfirm={onConfirm}
           onApprove={onApprove}
           onReject={onReject}
+          onRequestModification={onRequestModification}
         />
       );
     }
@@ -626,7 +681,7 @@ interface TableHeaderProps {
   disabledReason?: string;
 }
 
-const TableHeader = memo<TableHeaderProps>(({
+const TableHeader = memo<TableHeaderProps>(({ 
   columns,
   showSelection = false,
   selectedCount = 0,
@@ -638,6 +693,7 @@ const TableHeader = memo<TableHeaderProps>(({
   disabled = false,
   disabledReason,
 }) => {
+  const selectAllId = useId();
   const handleSelectAll = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     if (disabled) {
       event.preventDefault();
@@ -666,8 +722,10 @@ const TableHeader = memo<TableHeaderProps>(({
             scope="col"
             className={`cell selection-cell header-cell ${baseCellPaddingClass} ${selectionColumnLayoutClass}`}
           >
-            <label className="selection-input-wrapper">
+            <label className="selection-input-wrapper" htmlFor={selectAllId}>
               <input
+                id={selectAllId}
+                name="timesheet-select-all"
                 type="checkbox"
                 checked={isAllSelected}
                 ref={input => {
@@ -1014,6 +1072,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
             aria-label="Rows per page"
             className="h-11 min-w-[4.5rem] rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={!onPageSizeChange}
+            name="rows-per-page"
           >
             {[...new Set([...pageSizeOptions, safePageSize])]
               .sort((a, b) => a - b)
@@ -1116,6 +1175,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
               approvalRole={approvalRole}
               actionsDisabled={actionsDisabled}
               actionsDisabledReason={actionsDisabledReason}
+              performanceMode={virtualizationEnabled}
             />
           ))}
         </tbody>

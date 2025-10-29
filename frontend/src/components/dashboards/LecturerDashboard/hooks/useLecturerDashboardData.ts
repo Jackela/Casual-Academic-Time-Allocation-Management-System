@@ -17,6 +17,7 @@ import type {
   LecturerDashboardFilters,
   LecturerDashboardLoading,
   LecturerDashboardMetrics,
+  LecturerModificationModalState,
   LecturerRejectionModalState,
 } from '../../../../types/dashboard/lecturer-dashboard';
 
@@ -49,6 +50,9 @@ export interface UseLecturerDashboardDataResult {
   handleRejectionSubmit: (reason: string) => Promise<void>;
   handleRejectionCancel: () => void;
   rejectionModal: LecturerRejectionModalState;
+  handleModificationSubmit: (reason: string) => Promise<void>;
+  handleModificationCancel: () => void;
+  modificationModal: LecturerModificationModalState;
   refreshPending: () => Promise<void>;
   refetchDashboard: () => Promise<void>;
   resetApproval: () => void;
@@ -61,6 +65,11 @@ const INITIAL_FILTERS: LecturerDashboardFilters = {
 };
 
 const INITIAL_REJECTION_MODAL: LecturerRejectionModalState = {
+  open: false,
+  timesheetId: null,
+};
+
+const INITIAL_MODIFICATION_MODAL: LecturerModificationModalState = {
   open: false,
   timesheetId: null,
 };
@@ -89,6 +98,7 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
   const [selectedTimesheetsState, setSelectedTimesheetsState] = useState<number[]>([]);
   const [filters, setFilters] = useState<LecturerDashboardFilters>(INITIAL_FILTERS);
   const [rejectionModal, setRejectionModal] = useState<LecturerRejectionModalState>(INITIAL_REJECTION_MODAL);
+  const [modificationModal, setModificationModal] = useState<LecturerModificationModalState>(INITIAL_MODIFICATION_MODAL);
   const actionLockRef = useRef(false);
 
   const setSelectedTimesheets = useCallback<Dispatch<SetStateAction<number[]>>>((nextValue) => {
@@ -263,12 +273,16 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
       return rejectionModal.timesheetId;
     }
 
+    if (modificationModal.open && modificationModal.timesheetId) {
+      return modificationModal.timesheetId;
+    }
+
     if (selectedTimesheetsState.length > 0) {
       return selectedTimesheetsState[0];
     }
 
     return pendingTimesheets[0]?.id ?? null;
-  }, [loading.approval, rejectionModal, selectedTimesheetsState, pendingTimesheets]);
+  }, [loading.approval, modificationModal, rejectionModal, selectedTimesheetsState, pendingTimesheets]);
 
   // Expose an E2E-only event hook to open the rejection modal programmatically
   useEffect(() => {
@@ -293,6 +307,11 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
     try {
       if (action === 'REJECT') {
         setRejectionModal({ open: true, timesheetId });
+        return;
+      }
+
+      if (action === 'REQUEST_MODIFICATION') {
+        setModificationModal({ open: true, timesheetId });
         return;
       }
 
@@ -401,6 +420,41 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
     setRejectionModal(INITIAL_REJECTION_MODAL);
   }, []);
 
+  const handleModificationSubmit = useCallback(async (reason: string) => {
+    if (!canPerformApprovals || !modificationModal.timesheetId || approvalLoading || actionLockRef.current) {
+      return;
+    }
+
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) {
+      return;
+    }
+
+    try {
+      actionLockRef.current = true;
+      await approveTimesheet({
+        timesheetId: modificationModal.timesheetId,
+        action: 'REQUEST_MODIFICATION',
+        comment: trimmedReason,
+      });
+
+      setModificationModal(INITIAL_MODIFICATION_MODAL);
+      await Promise.all([refetchPending(), refetchDashboard()]);
+      setSelectedTimesheets((previous) =>
+        previous.filter((id) => id !== modificationModal.timesheetId),
+      );
+    } catch (error) {
+      secureLogger.error('Failed to request modification', error);
+    } finally {
+      actionLockRef.current = false;
+    }
+  }, [approvalLoading, approveTimesheet, canPerformApprovals, modificationModal.timesheetId, refetchDashboard, refetchPending, setSelectedTimesheets]);
+
+  const handleModificationCancel = useCallback(() => {
+    setModificationModal(INITIAL_MODIFICATION_MODAL);
+    resetApproval();
+  }, [resetApproval]);
+
   const refreshPending = useCallback(async () => {
     await refetchPending();
   }, [refetchPending]);
@@ -431,6 +485,9 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
     handleRejectionSubmit,
     handleRejectionCancel,
     rejectionModal,
+    handleModificationSubmit,
+    handleModificationCancel,
+    modificationModal,
     refreshPending,
     refetchDashboard,
     resetApproval,

@@ -84,6 +84,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const paySummaryRef = useRef<HTMLDivElement | null>(null);
   const actionLockRef = useRef(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
 
   const {
@@ -320,7 +321,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const handleQuickAction = useCallback((action: string) => {
     clearActionFeedback();
 
-    if ((actionLockRef.current || isTimesheetActionInFlight) && (action === 'submitDrafts' || action === 'refresh')) {
+    if ((actionLockRef.current || isTimesheetActionInFlight || isRefreshing) && (action === 'submitDrafts' || action === 'refresh')) {
       setActionNotice(ACTION_LOCK_MESSAGE);
       return;
     }
@@ -330,7 +331,13 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
         handleSubmitAllDrafts();
         break;
       case 'refresh':
-        Promise.all([refetchTimesheets(), refetchDashboard()]).catch(console.error);
+        setIsRefreshing(true);
+        Promise.all([refetchTimesheets(), refetchDashboard()])
+          .catch((error) => {
+            console.error(error);
+            setActionNotice('Failed to refresh dashboard data.');
+          })
+          .finally(() => setIsRefreshing(false));
         break;
       case 'viewPay':
         if (paySummaryRef.current) {
@@ -351,7 +358,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       default:
         break;
     }
-  }, [ACTION_LOCK_MESSAGE, clearActionFeedback, handleSubmitAllDrafts, isTimesheetActionInFlight, refetchDashboard, refetchTimesheets, setActionNotice]);
+  }, [ACTION_LOCK_MESSAGE, clearActionFeedback, handleSubmitAllDrafts, isRefreshing, isTimesheetActionInFlight, refetchDashboard, refetchTimesheets, setActionNotice]);
 
   const handlePendingNotifications = useCallback(() => {
     const draftCount = allTimesheets.filter(
@@ -476,7 +483,8 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
                   icon={<RotateCw className="h-5 w-5" aria-hidden="true" />}
                   onClick={() => handleQuickAction('refresh')}
                   disabled={isTimesheetActionInFlight}
-                  disabledReason={actionInFlightMessage}
+                  disabledReason={isRefreshing ? 'Refreshing data…' : actionInFlightMessage}
+                  loading={isRefreshing}
                 />
 
                 <QuickAction
@@ -542,8 +550,10 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
 
                   {currentTab === 'drafts' && (
                     <div className="bulk-actions">
-                      <label>
+                      <label htmlFor="tutor-select-all-drafts">
                         <input
+                          id="tutor-select-all-drafts"
+                          name="tutor-select-all-drafts"
                           type="checkbox"
                           checked={filteredTimesheets.length > 0 && selectedTimesheets.length === filteredTimesheets.length}
                           onChange={(e) => {

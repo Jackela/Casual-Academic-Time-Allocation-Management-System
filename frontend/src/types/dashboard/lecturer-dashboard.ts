@@ -26,6 +26,11 @@ export interface LecturerRejectionModalState {
   timesheetId: number | null;
 }
 
+export interface LecturerModificationModalState {
+  open: boolean;
+  timesheetId: number | null;
+}
+
 export interface LecturerDashboardFilters {
   searchQuery: string;
   showOnlyUrgent: boolean;

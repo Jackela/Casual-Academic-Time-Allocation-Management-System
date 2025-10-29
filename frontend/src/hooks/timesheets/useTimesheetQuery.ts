@@ -135,7 +135,8 @@ export const useTimesheetQuery = (initialQuery: UseTimesheetQueryOptions = {}): 
       });
       setQuery(mergedQuery);
     } catch (error) {
-      if ((error as Error).name === 'AbortError') {
+      const err = error as unknown as { name?: string; code?: string; message?: string };
+      if (err?.name === 'AbortError' || err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') {
         return;
       }
       setState(prev => ({

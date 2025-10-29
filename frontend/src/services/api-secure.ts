@@ -232,6 +232,25 @@ export class SecureApiClient {
         return response;
       },
       (error) => {
+        // Treat canceled requests as benign (common with AbortController/StrictMode)
+        // Skip logging and transformation for these cases
+        const isCanceled = (() => {
+          try {
+            if (axios.isCancel?.(error)) return true;
+          } catch {}
+          const name = (error?.name || '').toString();
+          const code = (error?.code || '').toString();
+          const msg = (error?.message || '').toString();
+          const isAbort = name === 'AbortError';
+          const isCanceledName = name === 'CanceledError';
+          const isCanceledCode = code === 'ERR_CANCELED' || code === 'ECONNABORTED';
+          const isCanceledMsg = msg.toLowerCase() === 'canceled' || msg.toLowerCase() === 'cancelled';
+          const legacyFlag = Boolean((error as any)?.__CANCEL__);
+          return isAbort || isCanceledName || isCanceledCode || isCanceledMsg || legacyFlag;
+        })();
+        if (isCanceled) {
+          return Promise.reject(error);
+        }
         const requestConfig = error.config as InternalRequestConfigWithMeta | undefined;
         const duration = requestConfig?.metadata?.startTime
           ? Date.now() - requestConfig.metadata.startTime

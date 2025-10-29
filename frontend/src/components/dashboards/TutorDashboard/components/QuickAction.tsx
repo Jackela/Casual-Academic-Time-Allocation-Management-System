@@ -1,5 +1,6 @@
 import { memo, type ReactNode } from 'react';
 import { Button } from '../../../ui/button';
+import LoadingSpinner from '../../../shared/LoadingSpinner/LoadingSpinner';
 
 export interface QuickActionProps {
   label: string;
@@ -7,28 +8,32 @@ export interface QuickActionProps {
   icon: ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  loading?: boolean;
   shortcut?: string;
   disabledReason?: string;
 }
 
-const QuickAction = memo<QuickActionProps>(({ label, description, icon, onClick, disabled = false, shortcut, disabledReason }) => {
+const QuickAction = memo<QuickActionProps>(({ label, description, icon, onClick, disabled = false, loading = false, shortcut, disabledReason }) => {
   const baseTitle = `${description}${shortcut ? ` (${shortcut})` : ''}`;
-  const resolvedTitle = disabled ? (disabledReason ?? baseTitle) : baseTitle;
+  const resolvedTitle = (disabled || loading) ? (disabledReason ?? baseTitle) : baseTitle;
+  const isDisabled = disabled || loading;
+  const resolvedIcon = loading ? <LoadingSpinner size="small" /> : icon;
 
   return (
     <Button
       variant="outline"
       className="h-auto w-full justify-start p-4 text-left"
       onClick={() => {
-        if (!disabled) {
+        if (!isDisabled) {
           onClick();
         }
       }}
-      disabled={disabled}
+      disabled={isDisabled}
       title={resolvedTitle}
+      aria-busy={loading}
     >
       <span className="mr-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-        {icon}
+        {resolvedIcon}
       </span>
       <div className="flex flex-col">
         <span className="font-semibold">{label}</span>

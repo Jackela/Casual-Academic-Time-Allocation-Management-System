@@ -85,6 +85,14 @@ public class E2EDataInitializer {
                 UserRole.LECTURER
             );
             userRepository.save(lecturerUser);
+
+            User lecturerTwo = new User(
+                "lecturer2@example.com",
+                "Dr. Sam Lee",
+                passwordEncoder.encode("Lecturer123!"),
+                UserRole.LECTURER
+            );
+            userRepository.save(lecturerTwo);
             
             User tutorUser = new User(
                 "tutor@example.com",
@@ -111,6 +119,15 @@ public class E2EDataInitializer {
             course2.setBudgetAllocated(new java.math.BigDecimal("12000.00"));
             course2.setIsActive(true);
             courseRepository.save(course2);
+
+            Course course3 = new Course();
+            course3.setCode("COMP3001");
+            course3.setName("Advanced Algorithms");
+            course3.setSemester("Semester 2, 2025");
+            course3.setLecturerId(lecturerTwo.getId());
+            course3.setBudgetAllocated(new java.math.BigDecimal("15000.00"));
+            course3.setIsActive(true);
+            courseRepository.save(course3);
             
             LocalDate today = LocalDate.now();
             LocalDate lastMonday = today.minusDays((today.getDayOfWeek().getValue() + 6) % 7);
@@ -176,6 +193,18 @@ public class E2EDataInitializer {
             );
             rejectedTimesheet.setStatus(ApprovalStatus.REJECTED);
             upsert.apply(rejectedTimesheet);
+
+            Timesheet crossCourseTimesheet = new Timesheet(
+                tutorUser.getId(),
+                course3.getId(),
+                twoWeeksAgoMonday,
+                new BigDecimal("5.0"),
+                new BigDecimal("55.00"),
+                "Cross-course seeding for lecturer2",
+                lecturerTwo.getId()
+            );
+            crossCourseTimesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            upsert.apply(crossCourseTimesheet);
 
             Timesheet approvedByTutorTimesheet = new Timesheet(
                 tutorUser.getId(),

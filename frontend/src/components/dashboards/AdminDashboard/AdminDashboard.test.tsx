@@ -461,7 +461,7 @@ describe("AdminDashboard Component", () => {
 
     const reasonField = await screen.findByLabelText(/Reason for rejection/i);
     await user.type(reasonField, "Timesheet needs correction");
-    await user.click(screen.getByRole("button", { name: /Confirm Action/i }));
+    await user.click(screen.getByRole("button", { name: /Reject Timesheet/i }));
 
     expect(approveTimesheetMock).toHaveBeenCalledWith({
       timesheetId: rejectionTimesheets.timesheets[0].id,

@@ -111,6 +111,10 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  // Use stable, explicit ids to satisfy a11y and tests
+  const emailId = 'email';
+  const passwordId = 'password';
+
   return (
     <div
       className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-primary to-brand-secondary p-4"
@@ -136,37 +140,39 @@ const LoginPage: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form">
+          <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form" autoComplete="on">
             <div className="space-y-2" data-testid="email-form-group">
-              <label htmlFor="email" className="text-sm font-medium" data-testid="email-label">
+              <label htmlFor={emailId} className="text-sm font-medium" data-testid="email-label">
                 Email
               </label>
               <Input
                 type="email"
-                id="email"
+                id={emailId}
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
                 required
                 disabled={loading}
                 placeholder="Enter your email"
+                autoComplete="email"
                 data-testid="email-input"
               />
             </div>
 
             <div className="space-y-2" data-testid="password-form-group">
-              <label htmlFor="password" className="text-sm font-medium" data-testid="password-label">
+              <label htmlFor={passwordId} className="text-sm font-medium" data-testid="password-label">
                 Password
               </label>
               <Input
                 type="password"
-                id="password"
+                id={passwordId}
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
                 required
                 disabled={loading}
                 placeholder="Enter your password"
+                autoComplete="current-password"
                 data-testid="password-input"
               />
             </div>

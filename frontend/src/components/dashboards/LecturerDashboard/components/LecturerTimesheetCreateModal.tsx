@@ -123,7 +123,7 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
     const handleSubmit = useCallback(
       async (formData: TimesheetFormSubmitData) => {
         try {
-          await createTimesheet({
+          const created = await createTimesheet({
             tutorId: formData.tutorId,
             courseId: formData.courseId,
             weekStartDate: formData.weekStartDate,
@@ -138,11 +138,45 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
           const tutorLabel = tutorLookup.get(formData.tutorId);
           const courseLabel = courseLookup.get(formData.courseId);
 
+          // First, notify creation success
           dispatchNotification({
             type: 'TIMESHEET_CREATE_SUCCESS',
             tutorName: tutorLabel,
             courseName: courseLabel,
           });
+
+          // Auto-submit for tutor confirmation to move from DRAFT → PENDING_TUTOR_CONFIRMATION
+          // Fire-and-forget: do not block close flow on submission
+          (async () => {
+            const { TimesheetService } = await import('../../../../services/timesheets');
+            const submit = async () => {
+              await TimesheetService.approveTimesheet({
+                timesheetId: created.id,
+                action: 'SUBMIT_FOR_APPROVAL',
+              });
+            };
+            try {
+              await submit();
+              dispatchNotification({ type: 'TIMESHEET_SUBMIT_SUCCESS', count: 1 });
+            } catch (firstErr) {
+              // Quick transient retry once
+              try {
+                await submit();
+                dispatchNotification({ type: 'TIMESHEET_SUBMIT_SUCCESS', count: 1 });
+              } catch (secondErr) {
+                // Non-blocking: keep the draft and provide a retry CTA
+                secureLogger.warn('Auto-submit after creation failed', secondErr);
+                dispatchNotification({
+                  type: 'DRAFTS_PENDING',
+                  count: 1,
+                  onSubmitDrafts: async () => {
+                    await submit();
+                    dispatchNotification({ type: 'TIMESHEET_SUBMIT_SUCCESS', count: 1 });
+                  },
+                });
+              }
+            }
+          })();
 
           await onSuccess?.();
           reset();

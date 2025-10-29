@@ -15,6 +15,7 @@ interface AdminRejectionModalProps {
   onSubmit: () => void;
   onCommentChange: (value: string) => void;
   actionState: ActionState;
+  mode: 'reject' | 'request';
 }
 
 const focusableSelectors = [
@@ -37,6 +38,33 @@ function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
   );
 }
 
+const COPY = {
+  reject: {
+    title: 'Confirm Emergency Action',
+    description: 'Provide a brief justification before rejecting this timesheet. Your note will be shared with the tutor and lecturer.',
+    commentLabel: 'Reason for rejection:',
+    placeholder: 'e.g., Adjust the recorded hours to match the signed log sheet.',
+    confirmLabel: 'Reject Timesheet',
+    confirmTitle: 'Confirm rejection action',
+    confirmVariant: 'destructive' as const,
+    processingLabel: 'Processing…',
+    confirmProcessingMessage: 'Processing rejection. Please wait…',
+    confirmValidationMessage: 'Add at least a short justification before rejecting the timesheet.',
+  },
+  request: {
+    title: 'Request Changes',
+    description: 'Share specific guidance so the tutor can update this timesheet.',
+    commentLabel: 'Guidance for tutor:',
+    placeholder: 'e.g., Please include associated grading hours before resubmitting.',
+    confirmLabel: 'Send Request',
+    confirmTitle: 'Send modification request',
+    confirmVariant: 'default' as const,
+    processingLabel: 'Sending…',
+    confirmProcessingMessage: 'Sending request. Please wait…',
+    confirmValidationMessage: 'Add a short note before requesting changes.',
+  },
+} as const;
+
 const AdminRejectionModal = memo<AdminRejectionModalProps>(({
   open,
   timesheetId,
@@ -47,9 +75,11 @@ const AdminRejectionModal = memo<AdminRejectionModalProps>(({
   onSubmit,
   onCommentChange,
   actionState,
+  mode,
 }) => {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocusedElement = useRef<HTMLElement | null>(null);
+  const copy = COPY[mode];
 
   useEffect(() => {
     if (!open) {
@@ -130,21 +160,22 @@ const AdminRejectionModal = memo<AdminRejectionModalProps>(({
     return null;
   }
 
-  const modalTitleId = 'admin-rejection-modal-title';
-  const modalDescriptionId = 'admin-rejection-modal-description';
+  const modalTitleId = `admin-${mode}-modal-title`;
+  const modalDescriptionId = `admin-${mode}-modal-description`;
+  const textareaId = `admin-${mode}-comment`;
   const isSubmitting = actionState.loadingId === timesheetId || actionState.isSubmitting;
   const trimmedComment = comment.trim();
   const isCommentTooShort = trimmedComment.length < 3;
   const isConfirmDisabled = isSubmitting || isCommentTooShort || Boolean(validationError);
   const confirmDisabledReason = (() => {
     if (isSubmitting) {
-      return 'Processing rejection. Please wait…';
+      return copy.confirmProcessingMessage;
     }
     if (validationError) {
       return validationError;
     }
     if (isCommentTooShort) {
-      return 'Add at least a short justification before rejecting the timesheet.';
+      return copy.confirmValidationMessage;
     }
     return undefined;
   })();
@@ -165,9 +196,9 @@ const AdminRejectionModal = memo<AdminRejectionModalProps>(({
         className="w-full max-w-lg focus:outline-none"
       >
         <CardHeader>
-          <CardTitle id={modalTitleId}>Confirm Emergency Action</CardTitle>
+          <CardTitle id={modalTitleId}>{copy.title}</CardTitle>
           <CardDescription id={modalDescriptionId}>
-            Provide a brief justification before rejecting this timesheet. Your note will be shared with the tutor and lecturer.
+            {copy.description}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -179,15 +210,15 @@ const AdminRejectionModal = memo<AdminRejectionModalProps>(({
               </p>
             </div>
           )}
-          <label htmlFor="admin-rejection-comment" className="block text-sm font-medium text-foreground">
-            Reason for rejection:
+          <label htmlFor={textareaId} className="block text-sm font-medium text-foreground">
+            {copy.commentLabel}
           </label>
           <textarea
-            id="admin-rejection-comment"
-            name="admin-rejection-comment"
+            id={textareaId}
+            name={textareaId}
             rows={4}
             className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            placeholder="e.g., Adjust the recorded hours to match the signed log sheet."
+            placeholder={copy.placeholder}
             value={comment}
             onChange={(event) => onCommentChange(event.target.value)}
             disabled={isSubmitting}
@@ -196,30 +227,34 @@ const AdminRejectionModal = memo<AdminRejectionModalProps>(({
             <p className="mt-2 text-sm text-destructive">{validationError}</p>
           )}
           <div className="mt-6 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => {
-              if (!isSubmitting) {
-                onCancel();
-              }
-            }} disabled={isSubmitting}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!isSubmitting) {
+                  onCancel();
+                }
+              }}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
             <Button
-              variant="destructive"
+              variant={copy.confirmVariant}
               onClick={() => {
                 if (!isConfirmDisabled) {
                   onSubmit();
                 }
               }}
               disabled={isConfirmDisabled}
-              title={isConfirmDisabled ? confirmDisabledReason : 'Confirm rejection action'}
+              title={isConfirmDisabled ? confirmDisabledReason : copy.confirmTitle}
             >
               {isSubmitting ? (
                 <div className="flex items-center gap-2">
                   <LoadingSpinner size="small" />
-                  <span>Processing...</span>
+                  <span>{copy.processingLabel}</span>
                 </div>
               ) : (
-                'Confirm Action'
+                copy.confirmLabel
               )}
             </Button>
           </div>

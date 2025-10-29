@@ -48,6 +48,13 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
     rejectionComment,
     setRejectionComment,
     rejectionValidationError,
+    handleModificationSubmit,
+    handleModificationCancel,
+    modificationModal,
+    modificationTargetTimesheet,
+    modificationComment,
+    setModificationComment,
+    modificationValidationError,
     refreshTimesheets,
     refetchDashboard,
     resetApproval,
@@ -223,6 +230,19 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
               onSubmit={handleRejectionSubmit}
               onCommentChange={setRejectionComment}
               actionState={actionState}
+              mode="reject"
+            />
+            <AdminRejectionModal
+              open={modificationModal.open}
+              timesheetId={modificationModal.timesheetId}
+              targetTimesheet={modificationTargetTimesheet}
+              comment={modificationComment}
+              validationError={modificationValidationError}
+              onCancel={handleModificationCancel}
+              onSubmit={handleModificationSubmit}
+              onCommentChange={setModificationComment}
+              actionState={actionState}
+              mode="request"
             />
           </>
         </ErrorBoundary>

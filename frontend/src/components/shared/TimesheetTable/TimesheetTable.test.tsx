@@ -714,6 +714,27 @@ describe('TimesheetTable Component', () => {
     });
   });
 
+  describe('Approval actions', () => {
+    it('renders Request Changes for lecturer approvals and emits action', async () => {
+      const user = userEvent.setup();
+      const lecturerTimesheet = createMockTimesheet({ id: 321, status: 'TUTOR_CONFIRMED' });
+
+      render(
+        <TimesheetTable
+          timesheets={[lecturerTimesheet]}
+          approvalRole="LECTURER"
+          onApprovalAction={mockHandlers.onApprovalAction}
+          showActions
+        />
+      );
+
+      const requestButton = await screen.findByRole('button', { name: /request changes/i });
+      await user.click(requestButton);
+
+      expect(mockHandlers.onApprovalAction).toHaveBeenCalledWith(321, 'REQUEST_MODIFICATION');
+    });
+  });
+
   describe('Virtualization', () => {
     it('should render all rows without virtualization (virtualization disabled)', () => {
       const manyTimesheets = createMockTimesheets(150);

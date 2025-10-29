@@ -46,6 +46,9 @@ const AdminDashboardHeader = memo<AdminDashboardHeaderProps>(({
             value={searchQuery}
             onChange={(event) => onSearch(event.target.value)}
             className="w-64"
+            id="admin-search"
+            name="admin-search"
+            autoComplete="off"
           />
           <Button
             variant="outline"

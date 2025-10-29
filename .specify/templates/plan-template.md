@@ -31,35 +31,13 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- SSOT (Single Source of Truth):
-  - No client-sent monetary fields in submissions
-  - Quote flow present and exercised for input changes
-  - Server-side recompute enforced on create/update
-- Code Quality & Modularity:
-  - SOLID/DRY compliance; single responsibility per module
-  - DDD boundaries respected; prefer composition over inheritance
-- API Contract First:
-  - OpenAPI path(s) added/updated for the feature
-  - Contract tests cover request/response and errors
-- Tests:
-  - Follow docs/testing/strategy.md layer mapping
-  - Unit for calculator/policy; integration for controller/persist/migrations
-  - E2E for critical UI flows (quote, submission, approvals) as needed
-- Security & Workflow:
-  - Role/authorization checks verified
-  - State machine transitions/invariants asserted
-- Observability & Audit:
-  - Structured logs on key events
-  - Persisted rate metadata (rateCode, rateVersion, formula, clause)
-- Documentation:
-  - JavaDoc/JSDoc for public types and APIs
-  - OpenAPI updated with current behaviour
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
-```
+```text
 specs/[###-feature]/
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
@@ -77,7 +55,7 @@ specs/[###-feature]/
   not include Option labels.
 -->
 
-```
+```text
 # [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
 src/
 ├── models/
@@ -118,7 +96,7 @@ directories captured above]
 
 ## Complexity Tracking
 
-*Fill ONLY if Constitution Check has violations that must be justified*
+> **Fill ONLY if Constitution Check has violations that must be justified**
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|

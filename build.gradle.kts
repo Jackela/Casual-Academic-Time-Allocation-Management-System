@@ -37,6 +37,9 @@ val contractsOutputDir = layout.buildDirectory.dir("generated-contracts")
 val contractsLockFile = layout.projectDirectory.file("schema/contracts.lock")
 val frontendContractsDir = layout.projectDirectory.dir("frontend/src/contracts/generated")
 
+// Allow skipping contracts generation for faster feedback cycles
+val skipContracts = providers.gradleProperty("skipContracts").map { it.equals("true", ignoreCase = true) }.orElse(false)
+
 val generateContracts by tasks.registering(Exec::class) {
     group = "Contracts"
     description = "Generates Java and TypeScript contracts from JSON Schema sources."
@@ -54,6 +57,7 @@ val generateContracts by tasks.registering(Exec::class) {
     outputs.dir(contractsOutputDir)
     outputs.dir(frontendContractsDir)
     outputs.file(contractsLockFile)
+    onlyIf { !skipContracts.get() }
 }
 
 val verifyContracts by tasks.registering(Exec::class) {
@@ -73,6 +77,7 @@ val verifyContracts by tasks.registering(Exec::class) {
     })
     inputs.file(contractsLockFile)
     // Do not require frontend contracts directory to exist for verification; the script checks drift
+    onlyIf { !skipContracts.get() }
 }
 
 tasks.check {
@@ -100,6 +105,10 @@ tasks.withType<Test> {
         showStandardStreams = true
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
+    // Fail fast on first failure and keep tests responsive
+    failFast = true
+    // A conservative global timeout so hanging tests don't block CI/dev
+    systemProperty("junit.jupiter.execution.timeout.default", "60s")
 }
 
 repositories {
@@ -332,6 +341,12 @@ val integrationTest by tasks.registering(Test::class) {
     shouldRunAfter(tasks.test)
     include("**/integration/**", "**/*IntegrationTest.class", "**/*IT.class")
     systemProperty("spring.profiles.active", "integration-test")
+}
+
+// Ensure the unit test task excludes integration tests so we can iterate quickly
+tasks.named<Test>("test") {
+    // Exclude typical integration test patterns
+    exclude("**/integration/**", "**/*IntegrationTest.class", "**/*IT.class")
 }
 
 tasks.check {

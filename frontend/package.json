@@ -12,6 +12,7 @@
     "build:validate": "node scripts/validate-production-build.cjs",
     "preview": "vite preview",
     "test": "cross-env NODE_ENV=test vitest run --run",
+    "test:chunked": "node scripts/run-vitest-chunks.js",
     "test:watch": "cross-env NODE_ENV=test vitest",
     "test:ci": "cross-env NODE_ENV=test vitest run --reporter=verbose --coverage",
     "test:unit": "cross-env NODE_ENV=test vitest run --reporter=verbose src/utils/",

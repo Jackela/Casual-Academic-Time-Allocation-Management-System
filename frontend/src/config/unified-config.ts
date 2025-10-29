@@ -162,9 +162,15 @@ class ConfigurationBuilder {
     // Vite env for browser runtime
     try {
       if (typeof window !== 'undefined') {
-        const { VITE_API_BASE_URL } = import.meta.env;
-        if (typeof VITE_API_BASE_URL === 'string' && VITE_API_BASE_URL.length > 0) {
-          return VITE_API_BASE_URL;
+        const envs = import.meta.env as Record<string, string | undefined>;
+        const proxyTarget = envs.VITE_API_PROXY_TARGET;
+        const explicitBase = envs.VITE_API_BASE_URL;
+        // Prefer proxy pattern in browsers to ensure host-resolution works (SPA -> proxy -> API)
+        if (typeof proxyTarget === 'string' && proxyTarget.length > 0) {
+          return window.location.origin;
+        }
+        if (typeof explicitBase === 'string' && explicitBase.length > 0) {
+          return explicitBase;
         }
         if (!isE2EorTest) {
           return window.location.origin;

@@ -30,6 +30,11 @@ interface RejectionModalState {
   timesheetId: number | null;
 }
 
+interface ModificationModalState {
+  open: boolean;
+  timesheetId: number | null;
+}
+
 export interface UseAdminDashboardDataResult {
   sessionStatus: SessionStatus;
   welcomeMessage: string;
@@ -71,6 +76,13 @@ export interface UseAdminDashboardDataResult {
   rejectionComment: string;
   setRejectionComment: (value: string) => void;
   rejectionValidationError: string | null;
+  handleModificationSubmit: () => Promise<void>;
+  handleModificationCancel: () => void;
+  modificationModal: ModificationModalState;
+  modificationTargetTimesheet: Timesheet | null;
+  modificationComment: string;
+  setModificationComment: (value: string) => void;
+  modificationValidationError: string | null;
   refreshTimesheets: () => Promise<void>;
   refetchDashboard: () => Promise<void>;
   resetApproval: () => void;
@@ -126,6 +138,12 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
   const [rejectionComment, setRejectionComment] = useState('');
   const [rejectionValidationError, setRejectionValidationError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [modificationModal, setModificationModal] = useState<ModificationModalState>({
+    open: false,
+    timesheetId: null,
+  });
+  const [modificationComment, setModificationComment] = useState('');
+  const [modificationValidationError, setModificationValidationError] = useState<string | null>(null);
   const actionLockRef = useRef(false);
 
   const setSelectedTimesheets = useCallback<Dispatch<SetStateAction<number[]>>>((nextValue) => {
@@ -227,6 +245,14 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     return allTimesheets.find((timesheet) => timesheet.id === rejectionModal.timesheetId) ?? null;
   }, [allTimesheets, rejectionModal]);
 
+  const modificationTargetTimesheet = useMemo(() => {
+    if (!modificationModal.open || !modificationModal.timesheetId) {
+      return null;
+    }
+
+    return allTimesheets.find((timesheet) => timesheet.id === modificationModal.timesheetId) ?? null;
+  }, [allTimesheets, modificationModal]);
+
   const handleTabChange = useCallback((tab: AdminTabId) => {
     setCurrentTab((previous) => (previous === tab ? previous : tab));
     try {
@@ -296,6 +322,50 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     }
   }, [actionLoadingId, approvalLoading, approveTimesheet, refreshTimesheets, refetchDashboard, rejectionComment, rejectionModal, setSelectedTimesheets]);
 
+  const handleModificationCancel = useCallback(() => {
+    setModificationModal({ open: false, timesheetId: null });
+    setModificationComment('');
+    setModificationValidationError(null);
+    resetApproval();
+  }, [resetApproval]);
+
+  const handleModificationSubmit = useCallback(async () => {
+    if (!modificationModal.open || !modificationModal.timesheetId) {
+      return;
+    }
+
+    if (actionLockRef.current || approvalLoading || actionLoadingId !== null) {
+      return;
+    }
+
+    const trimmedComment = modificationComment.trim();
+    if (trimmedComment.length < 3) {
+      setModificationValidationError('Please provide guidance before requesting changes.');
+      return;
+    }
+
+    setModificationValidationError(null);
+    actionLockRef.current = true;
+    setActionLoadingId(modificationModal.timesheetId);
+
+    try {
+      await approveTimesheet({
+        timesheetId: modificationModal.timesheetId,
+        action: 'REQUEST_MODIFICATION',
+        comment: trimmedComment,
+      });
+      setSelectedTimesheets((previous) => previous.filter((id) => id !== modificationModal.timesheetId));
+      await Promise.all([refreshTimesheets(), refetchDashboard()]);
+      setModificationModal({ open: false, timesheetId: null });
+      setModificationComment('');
+    } catch (error) {
+      secureLogger.error('Admin dashboard modification request failed', error);
+    } finally {
+      actionLockRef.current = false;
+      setActionLoadingId(null);
+    }
+  }, [actionLoadingId, approvalLoading, approveTimesheet, modificationComment, modificationModal, refreshTimesheets, refetchDashboard, setSelectedTimesheets]);
+
   const handleApprovalAction = useCallback(async (timesheetId: number, action: ApprovalAction) => {
     if (actionLockRef.current || approvalLoading || actionLoadingId !== null) {
       return;
@@ -303,6 +373,17 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
 
     if (action === 'REJECT') {
       setRejectionModal({ open: true, timesheetId });
+      setRejectionComment('');
+      setRejectionValidationError(null);
+      resetApproval();
+      return;
+    }
+
+    if (action === 'REQUEST_MODIFICATION') {
+      setModificationModal({ open: true, timesheetId });
+      setModificationComment('');
+      setModificationValidationError(null);
+      resetApproval();
       return;
     }
 
@@ -323,7 +404,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
       actionLockRef.current = false;
       setActionLoadingId(null);
     }
-  }, [actionLoadingId, approvalLoading, approveTimesheet, refreshTimesheets, refetchDashboard, setSelectedTimesheets]);
+  }, [actionLoadingId, approvalLoading, approveTimesheet, refreshTimesheets, refetchDashboard, resetApproval, setModificationComment, setModificationValidationError, setRejectionComment, setRejectionValidationError, setSelectedTimesheets]);
 
   const tabs = useMemo<AdminTabSpec[]>(() => [
     { id: 'overview', label: 'Overview' },
@@ -434,6 +515,13 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     rejectionComment,
     setRejectionComment,
     rejectionValidationError,
+    handleModificationSubmit,
+    handleModificationCancel,
+    modificationModal,
+    modificationTargetTimesheet,
+    modificationComment,
+    setModificationComment,
+    modificationValidationError,
     refreshTimesheets,
     refetchDashboard,
     resetApproval,

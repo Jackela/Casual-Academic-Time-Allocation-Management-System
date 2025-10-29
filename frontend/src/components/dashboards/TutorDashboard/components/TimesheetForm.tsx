@@ -221,6 +221,7 @@ const WeekStartDatePicker = ({
     <div className="rounded-md border border-border bg-background p-3 shadow-sm" data-testid="week-start-picker">
       <input
         id="weekStartDate"
+        name="weekStartDate"
         type="date"
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -781,6 +782,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({
             <label htmlFor="tutor" className="text-sm font-medium">Tutor</label>
             <select
               id="tutor"
+              name="tutor"
               value={resolvedTutorId}
               onChange={handleTutorSelection}
               disabled={optionsLoading || loading || !tutorOptionsAvailable}
@@ -807,6 +809,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({
           <label htmlFor="course" className="text-sm font-medium">Course</label>
           <select
             id="course"
+            name="courseId"
             value={formData.courseId}
             onChange={(e) => handleFieldChange('courseId', parseInt(e.target.value, 10))}
             disabled={optionsLoading || loading || !hasCourseOptions}
@@ -854,6 +857,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({
             {isLecturerMode ? (
               <select
                 id="task-type"
+                name="taskType"
                 value={formData.taskType}
                 onChange={(e) => handleFieldChange('taskType', e.target.value as TimesheetTaskType)}
                 className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${validationErrors.taskType ? 'border-destructive ring-destructive/20' : ''}`}
@@ -870,6 +874,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({
             ) : (
               <Input
                 id="task-type"
+                name="taskType"
                 value={formatTaskTypeLabel(formData.taskType)}
                 readOnly
                 disabled
@@ -886,6 +891,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({
             <label htmlFor="qualification" className="text-sm font-medium">Tutor Qualification</label>
             <Input
               id="qualification"
+              name="qualification"
               value={formatQualificationLabel(formData.qualification)}
               readOnly
               disabled
@@ -903,6 +909,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({
         <div className="flex items-start gap-2">
           <input
             id="is-repeat"
+            name="isRepeat"
             type="checkbox"
             className="mt-1 h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-primary"
             checked={formData.isRepeat}
@@ -919,6 +926,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({
           <label htmlFor="delivery-hours" className="text-sm font-medium">Delivery Hours</label>
           <Input
             id="delivery-hours"
+            name="deliveryHours"
             type="number"
             step={HOURS_STEP}
             min={HOURS_MIN}
@@ -1000,6 +1008,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({
           <label htmlFor="description" className="text-sm font-medium">Description</label>
           <textarea
             id="description"
+            name="description"
             value={formData.description}
             onChange={(e) => handleFieldChange('description', e.target.value)}
             placeholder="Describe the work performed..."

@@ -112,7 +112,8 @@ test.describe('Page Object Model Examples', () => {
     await trackSession(lecturerPage, 'lecturer');
     const lecturerDashboard = new DashboardPage(lecturerPage);
     await lecturerPage.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-    await lecturerDashboard.expectUserInfo('Dr. Jane Smith', 'Lecturer');
+    // Use full session data for display name assertions (tokens only contain userId)
+    await lecturerDashboard.expectUserInfo(dataFactory.getAuthSessions().lecturer.user.name, 'Lecturer');
     await lecturerContext.close();
 
     const tutorContext = await browser.newContext();
@@ -120,7 +121,7 @@ test.describe('Page Object Model Examples', () => {
     await trackSession(tutorPage, 'tutor');
     const tutorDashboard = new DashboardPage(tutorPage);
     await tutorPage.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-    await tutorDashboard.expectUserInfo('John Doe', 'Tutor');
+    await tutorDashboard.expectUserInfo(dataFactory.getAuthSessions().tutor.user.name, 'Tutor');
     await tutorContext.close();
 
     const summaryResponse = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/dashboard/summary`, {

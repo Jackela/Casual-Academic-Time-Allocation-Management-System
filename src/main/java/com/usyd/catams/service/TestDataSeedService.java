@@ -39,10 +39,10 @@ public class TestDataSeedService {
         }
 
         // Idempotent upsert by globally-unique course code to avoid unique constraint conflicts
-        ensureCourseByCode("E2E101", "E2E Course 101", lecturerId, new BigDecimal("10000"));
-        ensureCourseByCode("E2E102", "E2E Course 102", lecturerId, new BigDecimal("5000"));
+        ensureCourseByCode("EDEV1001", "E2E Course 101", lecturerId, new BigDecimal("10000"));
+        ensureCourseByCode("EDEV1002", "E2E Course 102", lecturerId, new BigDecimal("5000"));
 
-        LOGGER.info("Ensured courses for lecturer {} exist and are active: E2E101, E2E102", lecturerId);
+        LOGGER.info("Ensured courses for lecturer {} exist and are active: EDEV1001, EDEV1002", lecturerId);
     }
 
     private void ensureCourseByCode(String code, String name, Long lecturerId, BigDecimal budgetAllocated) {

@@ -341,6 +341,64 @@ async function issueResetRequest(url, token) {
   });
 }
 
+async function issueSeedRequest(url, token, payload) {
+  const body = JSON.stringify(payload);
+  if (typeof fetch === 'function') {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-Test-Reset-Token': token,
+        'Content-Type': 'application/json',
+      },
+      body,
+    });
+    const responseBody = await response.text();
+    return {
+      status: response.status,
+      ok: response.ok,
+      body: responseBody,
+    };
+  }
+
+  return await new Promise((resolve, reject) => {
+    try {
+      const target = new URL(url);
+      const lib = target.protocol === 'https:' ? https : http;
+      const options = {
+        method: 'POST',
+        hostname: target.hostname,
+        port: target.port || (target.protocol === 'https:' ? 443 : 80),
+        path: `${target.pathname}${target.search}`,
+        headers: {
+          'X-Test-Reset-Token': token,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+        },
+      };
+
+      const req = lib.request(options, (res) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          const responseBody = Buffer.concat(chunks).toString('utf8');
+          const status = res.statusCode ?? 0;
+          resolve({
+            status,
+            ok: status >= 200 && status < 300,
+            body: responseBody,
+          });
+        });
+      });
+
+      req.on('error', reject);
+      req.write(body);
+      req.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 /**
  * Reset backend test data via API endpoint
  * @param {string} backendUrl - Base backend URL
@@ -367,6 +425,47 @@ async function resetBackendData(backendUrl, options = {}) {
     logSuccess('Test data reset completed');
   } catch (error) {
     throw new Error(`Failed to reset backend test data: ${error.message}`);
+  }
+}
+
+async function seedLecturerResources(backendUrl, options = {}) {
+  const seedPath = options.seedPath || process.env.E2E_SEED_PATH || '/api/test-data/seed/lecturer-resources';
+  const resetToken = options.resetToken || process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset';
+  const envLecturerIds = process.env.E2E_SEED_LECTURER_IDS
+    ? process.env.E2E_SEED_LECTURER_IDS.split(',').map((value) => Number(value.trim())).filter((value) => Number.isFinite(value))
+    : [];
+  const lecturerIdOverride = Number.isFinite(Number(options.lecturerId))
+    ? Number(options.lecturerId)
+    : Number(process.env.E2E_LECTURER_ID || 2);
+  const compiledLecturerIds = Array.isArray(options.lecturerIds) && options.lecturerIds.length > 0
+    ? options.lecturerIds
+    : envLecturerIds.length > 0
+      ? envLecturerIds
+      : [lecturerIdOverride];
+  const skipSeed = isTruthy(process.env.E2E_DISABLE_SEED) || options.noSeed;
+
+  if (skipSeed) {
+    logWarning('Skipping lecturer resource seeding (E2E_DISABLE_SEED flag or noSeed option).');
+    return;
+  }
+
+  const lecturerIds = compiledLecturerIds.filter((id) => Number.isFinite(id) && id > 0);
+  if (lecturerIds.length === 0) {
+    throw new Error('Invalid lecturerId list provided for seeding. Use E2E_LECTURER_ID or E2E_SEED_LECTURER_IDS.');
+  }
+
+  const seedUrl = new URL(seedPath, backendUrl).toString();
+  for (const lecturerId of lecturerIds) {
+    logStep('SEED', `Seeding lecturer resources via ${seedUrl} (lecturerId=${lecturerId})`);
+    try {
+      const response = await issueSeedRequest(seedUrl, resetToken, { lecturerId, seedTutors: true });
+      if (!response.ok) {
+        throw new Error(`status ${response.status}${response.body ? ` - ${response.body}` : ''}`);
+      }
+      logSuccess(`Lecturer resources seeded (lecturerId=${lecturerId})`);
+    } catch (error) {
+      throw new Error(`Failed to seed lecturer resources: ${error.message}`);
+    }
   }
 }
 
@@ -667,21 +766,9 @@ async function main() {
     if (!isTruthy(process.env.E2E_SKIP_REAL_LOGIN)) {
       try {
         await resetBackendData(backendUrl);
-        // Seed minimal lecturer resources for deterministic UI (id=2)
-        try {
-          const token = process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset';
-          const seedUrl = new URL('/api/test-data/seed/lecturer-resources', backendUrl).toString();
-          await fetch(seedUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Test-Reset-Token': token },
-            body: JSON.stringify({ lecturerId: 2, seedTutors: true }),
-          }).catch(() => undefined);
-          logSuccess('Seeded lecturer resources (id=2)');
-        } catch (e) {
-          logWarning(`Seed step failed or skipped: ${e.message}`);
-        }
+        await seedLecturerResources(backendUrl);
       } catch (e) {
-        logWarning(`Reset step failed or skipped: ${e.message}`);
+        logWarning(`Reset/seed step failed or skipped: ${e.message}`);
       }
     } else {
       logWarning('Mock mode: skipping backend reset/seed (E2E_SKIP_REAL_LOGIN)');

@@ -1,0 +1,71 @@
+[
+    {
+        "timesheetId": 1,
+        "action": "SUBMIT_FOR_APPROVAL",
+        "newStatus": "PENDING_TUTOR_CONFIRMATION",
+        "approverId": 2,
+        "approverName": "Dr. Jane Smith",
+        "timestamp": "2025-10-28T21:28:25.879398",
+        "nextSteps": [
+            "Timesheet is now pending lecturer approval",
+            "Lecturer will review and may request changes",
+            "Tutor can monitor status from their dashboard"
+        ],
+        "submissionResponse": true,
+        "confirmationResponse": false,
+        "rejectionResponse": false,
+        "modificationRequestResponse": false,
+        "comment": null
+    },
+    {
+        "timesheetId": 1,
+        "action": "TUTOR_CONFIRM",
+        "newStatus": "TUTOR_CONFIRMED",
+        "approverId": 4,
+        "approverName": "E2E Tutor One",
+        "timestamp": "2025-10-28T21:30:59.512159",
+        "nextSteps": [
+            "Timesheet has been approved by tutor",
+            "Lecturer should now provide final approval"
+        ],
+        "submissionResponse": false,
+        "confirmationResponse": true,
+        "rejectionResponse": false,
+        "modificationRequestResponse": false,
+        "comment": null
+    },
+    {
+        "timesheetId": 1,
+        "action": "LECTURER_CONFIRM",
+        "newStatus": "LECTURER_CONFIRMED",
+        "approverId": 2,
+        "approverName": "Dr. Jane Smith",
+        "timestamp": "2025-10-28T23:43:20.892128",
+        "nextSteps": [
+            "Status updated successfully"
+        ],
+        "submissionResponse": false,
+        "confirmationResponse": true,
+        "rejectionResponse": false,
+        "modificationRequestResponse": false,
+        "comment": "Approved for processing"
+    },
+    {
+        "timesheetId": 1,
+        "action": "HR_CONFIRM",
+        "newStatus": "FINAL_CONFIRMED",
+        "approverId": 1,
+        "approverName": "Admin User",
+        "timestamp": "2025-10-28T23:45:30.022232",
+        "nextSteps": [
+            "Timesheet has been fully approved",
+            "Ready for payroll processing",
+            "No further approvals required"
+        ],
+        "submissionResponse": false,
+        "confirmationResponse": true,
+        "rejectionResponse": false,
+        "modificationRequestResponse": false,
+        "comment": "Approved timesheet"
+    }
+]

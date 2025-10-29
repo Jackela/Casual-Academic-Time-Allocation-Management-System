@@ -39,6 +39,24 @@ Runner behavior:
 2) Starts the frontend dev server on the configured origin
 3) Resets/Seeds test data and executes Playwright specs
 
+### Full-chain E2E via Docker (recommended)
+
+For a hermetic, reproducible environment:
+
+- Start stack with Docker Compose:
+  - `docker-compose up --build -d`
+    - Backend: `http://localhost:8084`
+    - Frontend: `http://localhost:5174`
+- Point frontend tests to the Dockerized backend:
+  - Ensure `frontend/.env.e2e` or environment sets `VITE_API_BASE_URL=http://localhost:8084`
+- Run E2E:
+  - `cd frontend && npm ci && npm run test:e2e:real`
+
+Artifacts (reports/screenshots) are available in `frontend/playwright-report` unless configured otherwise.
+When running via Docker Compose, artifacts are bind-mounted to the host under:
+- `uat-artifacts/current/report/` (Playwright report)
+- `uat-artifacts/current/screenshots/` (workflow screenshots)
+
 ## CI (Basic)
 The pipeline is intentionally simple and reliable:
 - Backend job: `./gradlew check`

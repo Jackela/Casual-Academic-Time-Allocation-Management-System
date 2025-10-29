@@ -56,6 +56,7 @@ const LecturerFiltersPanel = memo<LecturerFiltersPanelProps>(({ filters, courseO
 
           <Input
             id="lecturer-search"
+            name="lecturer-search"
             placeholder="Search tutor or course"
             value={filters.searchQuery}
             onChange={(event) => onUpdateFilters({ searchQuery: event.target.value })}

@@ -10,14 +10,14 @@ import java.time.Duration;
  */
 public class PostgresTestContainer extends PostgreSQLContainer<PostgresTestContainer> {
 
-    private static final String IMAGE_VERSION = "postgres:15";
+    private static final String IMAGE_VERSION = "postgres:15-alpine";
     private static PostgresTestContainer container;
 
     private PostgresTestContainer() {
         super(IMAGE_VERSION);
         // Harden startup to reduce flakiness on Windows/Docker Desktop
-        this.withStartupAttempts(3)
-            .withStartupTimeout(Duration.ofMinutes(3))
+        this.withStartupAttempts(1)
+            .withStartupTimeout(Duration.ofSeconds(60))
             .waitingFor(Wait.forLogMessage(".*database system is ready to accept connections.*\\n", 1));
         // Allow reuse when enabled locally to speed up iterations
         try { this.withReuse(true); } catch (Throwable ignored) {}

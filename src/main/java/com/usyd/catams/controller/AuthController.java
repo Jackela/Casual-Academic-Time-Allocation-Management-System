@@ -43,4 +43,13 @@ public class AuthController {
         AuthResult result = userService.authenticate(request);
         return ResponseEntity.ok(result);
     }
+
+    /**
+     * Stateless logout endpoint.
+     * Returns 204 No Content; does not mutate server state for JWT.
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        return ResponseEntity.noContent().build();
+    }
 }

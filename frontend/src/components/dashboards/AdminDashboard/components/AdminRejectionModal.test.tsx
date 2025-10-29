@@ -44,12 +44,13 @@ describe('AdminRejectionModal accessibility', () => {
         onSubmit={vi.fn()}
         onCommentChange={vi.fn()}
         actionState={defaultActionState}
+        mode="reject"
       />,
     );
 
     const commentField = await screen.findByLabelText(/reason for rejection/i);
     const cancelButton = screen.getByRole('button', { name: /cancel/i });
-    const confirmButton = screen.getByRole('button', { name: /confirm action/i });
+    const confirmButton = screen.getByRole('button', { name: /reject timesheet/i });
     const focusableElements = [commentField, cancelButton, confirmButton];
 
     expect(commentField).toHaveFocus();
@@ -75,6 +76,7 @@ describe('AdminRejectionModal accessibility', () => {
         onSubmit={vi.fn()}
         onCommentChange={vi.fn()}
         actionState={defaultActionState}
+        mode="reject"
       />,
     );
 

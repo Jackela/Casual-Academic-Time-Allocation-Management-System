@@ -34,6 +34,7 @@ public abstract class IntegrationTestBase {
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
+        // Default to Testcontainers/Postgres. Allow explicit H2 opt-in via IT_DB_ENGINE=h2 or -Dcatams.it.db=h2
         String engineProp = System.getProperty("catams.it.db", System.getenv("IT_DB_ENGINE"));
         boolean useH2 = engineProp != null && engineProp.trim().equalsIgnoreCase("h2");
         if (useH2) {
@@ -55,12 +56,8 @@ public abstract class IntegrationTestBase {
                 registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
                 registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.PostgreSQLDialect");
             } catch (Throwable t) {
-                System.out.println("[IntegrationTestBase] Docker not available, falling back to H2 for integration tests: " + t.getMessage());
-                registry.add("spring.datasource.url", () -> "jdbc:h2:mem:catams_it_fallback;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;CASE_INSENSITIVE_IDENTIFIERS=TRUE");
-                registry.add("spring.datasource.username", () -> "sa");
-                registry.add("spring.datasource.password", () -> "");
-                registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
-                registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.H2Dialect");
+                // Fail fast: no fallback to H2 per project preference
+                throw new IllegalStateException("Docker/Testcontainers not available. Start Docker Desktop and retry integration tests.", t);
             }
         }
 

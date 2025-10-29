@@ -53,6 +53,9 @@ services:
     depends_on:
       - api
       - web
+    volumes:
+      - ./uat-artifacts/current/report:/app/playwright-report
+      - ./uat-artifacts/current/screenshots:/app/playwright-screenshots
 
 volumes:
   db_data:
