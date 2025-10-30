@@ -48,7 +48,6 @@ post:
                   email: "lecturer@university.edu.au"
                   name: "Dr. John Smith"
                   role: "LECTURER"
-                errorMessage: null
     '401':
       description: Authentication failed
       content:

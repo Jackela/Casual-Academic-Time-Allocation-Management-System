@@ -11,6 +11,7 @@ import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.exception.BusinessException;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.domain.service.TimesheetDomainService;
 import com.usyd.catams.mapper.TimesheetMapper;
@@ -70,6 +71,9 @@ class TimesheetServiceUnitTest {
     
     @Mock
     private TimesheetPermissionPolicy permissionPolicy;
+
+    @Mock
+    private TutorAssignmentRepository tutorAssignmentRepository;
     
     @InjectMocks
     private TimesheetApplicationService timesheetService;
@@ -106,7 +110,10 @@ class TimesheetServiceUnitTest {
             .withTutorId(tutor.getId())
             .withCourseId(course.getId())
             .build();
-            
+
+        lenient().when(tutorAssignmentRepository.existsByTutorIdAndCourseId(anyLong(), anyLong()))
+            .thenReturn(true);
+
         // No static hooks; using TestConfigurationLoader for expectation building only.
     }
 

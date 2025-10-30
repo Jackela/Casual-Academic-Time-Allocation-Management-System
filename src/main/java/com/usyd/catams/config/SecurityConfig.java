@@ -71,6 +71,7 @@ public class SecurityConfig {
                     .requestMatchers("/actuator/health").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/test-data/reset").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/test-data/seed/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/timesheets/config").permitAll()
                     .requestMatchers(HttpMethod.POST, "/actuator/shutdown").hasRole("ADMIN");
 
                 if (relaxedReadProfile) {

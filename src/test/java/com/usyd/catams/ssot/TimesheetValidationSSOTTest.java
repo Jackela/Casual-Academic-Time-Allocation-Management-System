@@ -12,6 +12,7 @@ import com.usyd.catams.enums.TutorQualification;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.service.Schedule1CalculationResult;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +42,8 @@ public class TimesheetValidationSSOTTest {
     @Autowired
     private CourseRepository courseRepository;
     @Autowired
+    private TutorAssignmentRepository tutorAssignmentRepository;
+    @Autowired
     private TimesheetDomainService domainService;
     @Autowired
     private TimesheetValidationService validationService;
@@ -62,6 +65,8 @@ public class TimesheetValidationSSOTTest {
         userRepository.save(tutor);
         course = new Course("COMP1010", "CS", "S1", lecturer.getId(), new BigDecimal("10000.00"));
         courseRepository.save(course);
+        tutorAssignmentRepository.deleteAll();
+        tutorAssignmentRepository.save(new com.usyd.catams.entity.TutorAssignment(tutor.getId(), course.getId()));
     }
 
     @Test

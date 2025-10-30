@@ -37,7 +37,8 @@ spring:
 
 logging:
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} %5p [traceId=%X{traceId:-} spanId=%X{spanId:-}] %logger{36} - %msg%n"
+    level: "%5p [traceId=%X{traceId:-} spanId=%X{spanId:-}]"
 
 # Timesheet business rules configuration (shared default)
 timesheet:
@@ -51,3 +52,9 @@ app:
 # Default server configuration
 server:
   port: 8080
+
+management:
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0

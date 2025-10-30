@@ -89,5 +89,8 @@
     "vitest": "^1.6.0",
     "wait-on": "^8.0.4",
     "why-is-node-running": "^2.3.0"
+  },
+  "overrides": {
+    "esbuild": "^0.25.11"
   }
 }

@@ -68,6 +68,16 @@ public class TestDataSeedService {
         upsertTutor("tutor2@example.com", "E2E Tutor Two", "Tutor123!");
     }
 
+    @Transactional
+    public void ensureBasicLecturer() {
+        upsertUserWithRole("lecturer@example.com", "E2E Lecturer", "Lecturer123!", UserRole.LECTURER);
+    }
+
+    @Transactional
+    public void ensureBasicAdmin() {
+        upsertUserWithRole("admin@example.com", "E2E Admin", "Admin123!", UserRole.ADMIN);
+    }
+
     private void upsertTutor(String email, String name, String rawPassword) {
         userRepository.findByEmail(email).ifPresentOrElse(existing -> {
             // Normalize to an active TUTOR for test determinism; keep existing password
@@ -81,6 +91,45 @@ public class TestDataSeedService {
             user.setActive(true);
             userRepository.save(user);
         });
+    }
+
+    private void upsertUserWithRole(String email, String name, String rawPassword, UserRole role) {
+        userRepository.findByEmail(email).ifPresentOrElse(existing -> {
+            existing.setName(name);
+            existing.setRole(role);
+            existing.setActive(true);
+            userRepository.save(existing);
+        }, () -> {
+            String hashed = passwordEncoder.encode(rawPassword);
+            User user = new User(email, name, hashed, role);
+            user.setActive(true);
+            userRepository.save(user);
+        });
+    }
+
+    /**
+     * Build a manifest of baseline test accounts for UAT documentation purposes.
+     * Only available in test/e2e profiles.
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<java.util.Map<String, Object>> buildAccountManifest() {
+        java.util.List<java.util.Map<String, Object>> out = new java.util.ArrayList<>();
+        java.util.function.BiConsumer<String, String> addIfExists = (email, passwordHint) -> {
+            userRepository.findByEmail(email).ifPresent(user -> {
+                java.util.Map<String, Object> item = new java.util.HashMap<>();
+                item.put("id", user.getId());
+                item.put("email", user.getEmail());
+                item.put("role", user.getRole().name());
+                item.put("active", user.getIsActive());
+                item.put("password", passwordHint);
+                out.add(item);
+            });
+        };
+        addIfExists.accept("admin@example.com", "Admin123!");
+        addIfExists.accept("lecturer@example.com", "Lecturer123!");
+        addIfExists.accept("tutor@example.com", "Tutor123!");
+        addIfExists.accept("tutor2@example.com", "Tutor123!");
+        return out;
     }
 
     private String currentSemester() {

@@ -8,7 +8,9 @@ io-jsonwebtoken-jjwt-api = "0.12.3"
 io-jsonwebtoken-jjwt-impl = "0.12.3"
 io-jsonwebtoken-jjwt-jackson = "0.12.3"
 io-micrometer-micrometer-core = "1.12.0"
+io-micrometer-micrometer-tracing-bridge-otel = "1.2.12"
 io-swagger-parser-v3-swagger-parser = "2.1.16"
+io-opentelemetry = "1.31.0"
 org-apache-httpcomponents-client5-httpclient5 = "5.2.1"
 org-junit-platform-junit-platform-launcher = "1.10.1"
 org-postgresql-postgresql = "42.6.0"
@@ -31,7 +33,12 @@ io-jsonwebtoken-jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = 
 io-jsonwebtoken-jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "io-jsonwebtoken-jjwt-impl" }
 io-jsonwebtoken-jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "io-jsonwebtoken-jjwt-jackson" }
 io-micrometer-micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "io-micrometer-micrometer-core" }
+io-micrometer-micrometer-tracing-bridge-otel = { module = "io.micrometer:micrometer-tracing-bridge-otel", version.ref = "io-micrometer-micrometer-tracing-bridge-otel" }
 io-swagger-parser-v3-swagger-parser = { module = "io.swagger.parser.v3:swagger-parser", version.ref = "io-swagger-parser-v3-swagger-parser" }
+io-opentelemetry-opentelemetry-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "io-opentelemetry" }
+io-opentelemetry-opentelemetry-sdk = { module = "io.opentelemetry:opentelemetry-sdk", version.ref = "io-opentelemetry" }
+io-opentelemetry-opentelemetry-sdk-extension-autoconfigure = { module = "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", version.ref = "io-opentelemetry" }
+io-opentelemetry-opentelemetry-exporter-otlp = { module = "io.opentelemetry:opentelemetry-exporter-otlp", version.ref = "io-opentelemetry" }
 org-apache-httpcomponents-client5-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "org-apache-httpcomponents-client5-httpclient5" }
 org-junit-platform-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "org-junit-platform-junit-platform-launcher" }
 org-postgresql-postgresql = { module = "org.postgresql:postgresql", version.ref = "org-postgresql-postgresql" }

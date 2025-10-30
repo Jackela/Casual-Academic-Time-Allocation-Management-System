@@ -105,6 +105,8 @@ npm run e2e:reset
 # Expected output includes lines like:
 #   Reset OK
 #   Seed OK (lecturerId=2)
+#   SEED_ACCOUNTS: wrote uat-artifacts/current/SEED_ACCOUNTS.json
+#   {"accounts":[{"id":1,"email":"admin@example.com","role":"ADMIN","password":"Admin123!"}, ...]}
 ```
 
 **Option 2: Docker Reset (Full)**
@@ -117,7 +119,16 @@ docker-compose up -d
 **Verification**:
 ```bash
 # Should see: Reset OK, Seed OK
+# And a SEED_ACCOUNTS JSON line. Use those credentials for UAT.
 ```
+
+### Multi‑tab Freshness (Manual)
+
+- Open two dashboards (e.g., Tutor and Lecturer) in separate tabs.
+- Approve/confirm a timesheet in one tab, then switch focus to the other.
+- Expect: counters refresh within 1s after focus; no need to reload.
+- Leave a dashboard tab visible for ~2 minutes; expect auto refresh every ~30s without storming requests.
+- Optional: in dev builds, open console and observe lines like `[dashboard] fetched summary (scope=...)` roughly once per 30s when visible.
 
 **TodoList Action**: Mark task `0.2` completed
 

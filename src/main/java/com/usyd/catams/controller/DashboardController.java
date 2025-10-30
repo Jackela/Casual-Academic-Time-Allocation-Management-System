@@ -42,7 +42,7 @@ public class DashboardController {
         this.clock = (clock != null ? clock : Clock.systemDefaultZone());
     }
 
-    // Backward-compatible constructor for tests that manually construct the controller
+    // Convenience constructor for tests that manually construct the controller
     public DashboardController(DashboardService dashboardService) {
         this(dashboardService, Clock.systemDefaultZone());
     }

@@ -29,7 +29,7 @@ test.describe('@p1 US4: Modification & Rejection (aligned to current UI)', () =>
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const tutorDashboard = new TutorDashboardPage(page);
     await tutorDashboard.expectToBeLoaded();
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
     await expect(tutorDashboard.getStatusBadge(seeded.id)).toContainText(
       statusLabel('MODIFICATION_REQUESTED'),
       { timeout: 15000 },
@@ -48,7 +48,7 @@ test.describe('@p1 US4: Modification & Rejection (aligned to current UI)', () =>
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const tutorDashboard = new TutorDashboardPage(page);
     await tutorDashboard.expectToBeLoaded();
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
     await expect(tutorDashboard.getStatusBadge(seeded.id)).toContainText(
       statusLabel('REJECTED'),
       { timeout: 15000 },

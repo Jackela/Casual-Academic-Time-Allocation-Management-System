@@ -29,7 +29,7 @@ test.describe('Real Backend Timesheet Operations', () => {
     const tutorDashboard = new TutorDashboardPage(page);
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await tutorDashboard.expectToBeLoaded();
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
     return tutorDashboard;
   };
 
@@ -64,7 +64,7 @@ test.describe('Real Backend Timesheet Operations', () => {
     const dashboard = await openTutorDashboard(page);
 
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await dashboard.waitForMyTimesheetData();
+    await dashboard.waitForDashboardReady();
     const row = dashboard.getTimesheetRow(seed.id, seed.description);
     await expect(row).toBeVisible({ timeout: 20000 });
     await expect(dashboard.getStatusBadge(seed.id)).toContainText(statusLabel('DRAFT'));
@@ -81,7 +81,7 @@ test.describe('Real Backend Timesheet Operations', () => {
     const dashboard = await openTutorDashboard(page);
 
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await dashboard.waitForMyTimesheetData();
+    await dashboard.waitForDashboardReady();
     const row = dashboard.getTimesheetRow(draft.id, draft.description);
     await expect(row).toBeVisible({ timeout: 20000 });
 

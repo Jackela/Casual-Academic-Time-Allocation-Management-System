@@ -22,7 +22,7 @@ public class Schedule1Calculator {
     }
 
     /**
-     * Legacy tutorial-specific calculation entry point retained for backwards compatibility.
+     * Legacy tutorial-specific calculation entry point retained temporarily while clients migrate.
      */
     public Schedule1CalculationResult calculateTutorial(TutorialInput input) {
         Objects.requireNonNull(input, "input");

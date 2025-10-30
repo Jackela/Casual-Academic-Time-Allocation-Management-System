@@ -207,8 +207,10 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         // Act & Assert
         performPostWithoutFinancialFields("/api/timesheets", request, lecturerToken)
             .andExpect(status().isBadRequest())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
             .andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.errorMessage").exists());
+            .andExpect(jsonPath("$.traceId").exists())
+            .andExpect(jsonPath("$.message").exists());
 
         // Verify no data was persisted
         var timesheets = timesheetRepository.findAll();

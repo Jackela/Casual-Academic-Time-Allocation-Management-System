@@ -16,7 +16,8 @@ Welcome to the Enterprise Agreement compliant documentation set for the Casual A
 
 ## Latest Updates
 - Schedule 1 calculator and policy data migrated to the backend SSOT.
-- Timesheet quote endpoint and UI refactor complete.
+- Timesheet quote endpoint and UI refactor complete; `/api/timesheets/config` now publishes the authoritative constraints (hours range, Monday guard, currency).
+- Tutor-course assignment enforcement now guards lecturer approvals (403) and drives frontend filtering.
 - Documentation reorganised to this structure (Phase 0). See `docs/product/release-notes.md` for history.
 
 ## Directory Map

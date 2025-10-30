@@ -77,12 +77,11 @@ describe('TimesheetService CRUD Operations', () => {
         weekStartDate: undefined,
         startDate: undefined,
         endDate: undefined,
-        sortBy: 'createdAt',
-        sortDirection: 'desc'
+        sort: 'createdAt,desc'
       });
 
       expect(mockApiClient.get).toHaveBeenCalledWith(
-        '/api/timesheets?page=0&size=20&sortBy=createdAt&sortDirection=desc',
+        '/api/timesheets?page=0&size=20&sort=createdAt%2Cdesc',
         undefined
       );
       expect(result).toEqual(mockTimesheetPage);
@@ -111,33 +110,8 @@ describe('TimesheetService CRUD Operations', () => {
         weekStartDate: undefined,
         startDate: undefined,
         endDate: undefined,
-        sortBy: 'hours',
-        sortDirection: 'asc'
+        sort: 'hours,asc'
       });
-    });
-
-    it('should normalize different response formats', async () => {
-      // Test with 'content' format (Spring Boot pagination)
-      const springBootResponse = {
-        content: mockTimesheetPage.timesheets,
-        page: {
-          currentPage: 0,
-          pageSize: 20,
-          totalElements: 100,
-          totalPages: 5,
-          first: true,
-          last: false,
-          numberOfElements: 20,
-          empty: false
-        }
-      };
-
-      mockApiClient.get.mockResolvedValue(createMockApiResponse(springBootResponse));
-
-      const result = await TimesheetService.getTimesheets();
-
-      expect(result.timesheets).toEqual(mockTimesheetPage.timesheets);
-      expect(result.pageInfo).toEqual(springBootResponse.page);
     });
 
     it('should handle missing pageInfo', async () => {
@@ -191,8 +165,7 @@ describe('TimesheetService CRUD Operations', () => {
         weekStartDate: undefined,
         startDate: undefined,
         endDate: undefined,
-        sortBy: 'createdAt',
-        sortDirection: 'desc'
+        sort: 'createdAt,desc'
       });
 
       const [url, options] = mockApiClient.get.mock.calls.at(-1)!;
@@ -200,8 +173,7 @@ describe('TimesheetService CRUD Operations', () => {
       expect(url).toContain('size=20');
       expect(url).toContain(`tutorId=${tutorId}`);
       expect(url).toContain('status=TUTOR_CONFIRMED');
-      expect(url).toContain('sortBy=createdAt');
-      expect(url).toContain('sortDirection=desc');
+      expect(url).toContain('sort=createdAt%2Cdesc');
       expect(options).toBeUndefined();
     });
   });

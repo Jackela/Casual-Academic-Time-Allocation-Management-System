@@ -5,12 +5,14 @@ import com.usyd.catams.dto.request.ApprovalActionRequest;
 import com.usyd.catams.entity.Approval;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.entity.TutorAssignment;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,6 +60,9 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
     @Autowired
     private TimesheetRepository timesheetRepository;
 
+    @Autowired
+    private TutorAssignmentRepository tutorAssignmentRepository;
+
     private User lecturer;
     private User tutor;
     private User admin;
@@ -68,6 +73,7 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
     @BeforeEach
     void setUp() {
         // Clean up existing data
+        tutorAssignmentRepository.deleteAll();
         timesheetRepository.deleteAll();
         courseRepository.deleteAll();
         userRepository.deleteAll();
@@ -106,6 +112,8 @@ public class ApprovalSubmissionIntegrationTest extends IntegrationTestBase {
         course.setIsActive(true);
         course.setBudgetAllocated(BigDecimal.valueOf(10000.00));
         course = courseRepository.save(course);
+
+        tutorAssignmentRepository.save(new TutorAssignment(tutor.getId(), course.getId()));
 
         // Create test timesheets
         LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);

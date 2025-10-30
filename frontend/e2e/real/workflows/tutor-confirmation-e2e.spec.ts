@@ -94,7 +94,7 @@ test.describe('Tutor Confirmation E2E Workflow - Bug #1 Coverage', () => {
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const tutorDashboard = new TutorDashboardPage(page);
     await tutorDashboard.expectToBeLoaded();
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
     const tutorRow = tutorDashboard.getTimesheetRow(timesheetId, seededTimesheet.description);
     await expect(tutorRow).toBeVisible({ timeout: 20000 });
 

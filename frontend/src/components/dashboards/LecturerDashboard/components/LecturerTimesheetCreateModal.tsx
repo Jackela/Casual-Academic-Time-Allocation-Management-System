@@ -72,10 +72,37 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
             label: course.code ? `${course.code} - ${course.name}` : course.name,
           }));
 
-          const mappedTutors: TimesheetFormTutorOption[] = tutors.map((tutor) => ({
-            id: tutor.id,
-            label: tutor.displayName ?? tutor.name ?? tutor.email,
-            qualification: tutor.qualification ?? null,
+          // Build assignment map: courseId -> Set<tutorId>
+          const courseToTutors = new Map<number, Set<number>>();
+          try {
+            const { getAssignmentsForCourses } = await import('../../../../services/users');
+            const ids = (courses || []).map(c => c.id);
+            const map = await getAssignmentsForCourses(ids);
+            Object.entries(map).forEach(([courseId, tutorIds]) => {
+              courseToTutors.set(Number(courseId), new Set(tutorIds));
+            });
+          } catch {
+            // Fallback: no filtering by assignment if bulk endpoint fails
+          }
+
+          // Optionally hydrate defaultQualification for tutors lacking qualification
+          const mappedTutors: TimesheetFormTutorOption[] = await Promise.all(tutors.map(async (tutor) => {
+            const courseIds: number[] = [];
+            courseToTutors.forEach((ids, cId) => { if (ids.has(tutor.id)) courseIds.push(cId); });
+            let qualification = tutor.qualification ?? null;
+            if (!qualification) {
+              try {
+                const { getTutorDefaults } = await import('../../../../services/users');
+                const defaults = await getTutorDefaults(tutor.id);
+                qualification = defaults.defaultQualification ?? null;
+              } catch {}
+            }
+            return {
+              id: tutor.id,
+              label: tutor.displayName ?? tutor.name ?? tutor.email,
+              qualification,
+              courseIds,
+            };
           }));
 
           setCourseOptions(mappedCourses);

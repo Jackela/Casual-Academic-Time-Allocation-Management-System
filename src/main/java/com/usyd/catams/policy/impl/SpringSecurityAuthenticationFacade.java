@@ -28,6 +28,10 @@ public class SpringSecurityAuthenticationFacade implements AuthenticationFacade 
         if (principal instanceof String s) {
             try { return Long.parseLong(s); } catch (NumberFormatException e) { /* fallthrough */ }
         }
+        if (principal instanceof org.springframework.security.core.userdetails.User userDetails) {
+            String username = userDetails.getUsername();
+            try { return Long.parseLong(username); } catch (NumberFormatException e) { /* fallthrough */ }
+        }
         throw new IllegalStateException("Unsupported principal type: " + principal.getClass().getName());
     }
 

@@ -75,7 +75,7 @@ public class Course {
         this.isActive = true;
     }
     
-    // Constructor with string code for backwards compatibility
+    // Convenience constructor for string course codes
     public Course(String codeString, String name, String semester, Long lecturerId, BigDecimal budgetAllocated) {
         this(new CourseCode(codeString), name, semester, lecturerId, new Money(budgetAllocated));
     }
@@ -137,7 +137,7 @@ public class Course {
     }
     
     /**
-     * Get course code as string (for backward compatibility)
+     * Expose the course code value as a string for API serialization.
      */
     public String getCode() {
         return code != null ? code.getValue() : null;
@@ -204,14 +204,14 @@ public class Course {
     }
     
     /**
-     * Get budget allocated as BigDecimal (for backward compatibility)
+     * Get budget allocated as BigDecimal for consumers that do not use Money type.
      */
     public BigDecimal getBudgetAllocated() {
         return budgetAllocated != null ? budgetAllocated.getAmount() : null;
     }
     
     /**
-     * Get budget used as BigDecimal (for backward compatibility)
+     * Get budget used as BigDecimal for consumers that do not use Money type.
      */
     public BigDecimal getBudgetUsed() {
         return budgetUsed != null ? budgetUsed.getAmount() : null;

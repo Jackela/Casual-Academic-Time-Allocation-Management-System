@@ -8,6 +8,7 @@ import com.usyd.catams.entity.PolicyVersion;
 import com.usyd.catams.entity.RateAmount;
 import com.usyd.catams.entity.RateCode;
 import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.entity.TutorAssignment;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.TimesheetTaskType;
@@ -19,6 +20,7 @@ import com.usyd.catams.repository.PolicyVersionRepository;
 import com.usyd.catams.repository.RateAmountRepository;
 import com.usyd.catams.repository.RateCodeRepository;
 import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.security.JwtTokenProvider;
 import com.usyd.catams.testdata.builder.TimesheetBuilder;
@@ -67,6 +69,9 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
+    @Autowired
+    private TutorAssignmentRepository tutorAssignmentRepository;
+
     private User lecturer;
     private User tutor;
     private User admin;
@@ -77,6 +82,7 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
     @BeforeEach
     void setUp() {
         timesheetRepository.deleteAll();
+        tutorAssignmentRepository.deleteAll();
         courseRepository.deleteAll();
         userRepository.deleteAll();
         rateAmountRepository.deleteAll();
@@ -89,6 +95,8 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         admin = userRepository.save(new User("admin@integration.test", "Admin API", "$2a$10$hashedAdmin", UserRole.ADMIN));
         course = courseRepository.save(new Course("COMP6000", "EA Compliance Engineering", "2024S2",
                 lecturer.getId(), BigDecimal.valueOf(20000)));
+
+        tutorAssignmentRepository.save(new TutorAssignment(tutor.getId(), course.getId()));
 
         lecturerAuthHeader = "Bearer " + jwtTokenProvider.generateToken(
                 lecturer.getId(),

@@ -170,6 +170,11 @@ dependencies {
 
     // Monitoring and Metrics
     implementation(libs.io.micrometer.micrometer.core)
+    implementation(libs.io.micrometer.micrometer.tracing.bridge.otel)
+    implementation(libs.io.opentelemetry.opentelemetry.api)
+    implementation(libs.io.opentelemetry.opentelemetry.sdk)
+    implementation(libs.io.opentelemetry.opentelemetry.sdk.extension.autoconfigure)
+    implementation(libs.io.opentelemetry.opentelemetry.exporter.otlp)
     
     // Testing
     testImplementation(libs.org.springframework.boot.spring.boot.starter.test)
@@ -347,6 +352,7 @@ val integrationTest by tasks.registering(Test::class) {
 tasks.named<Test>("test") {
     // Exclude typical integration test patterns
     exclude("**/integration/**", "**/*IntegrationTest.class", "**/*IT.class")
+    systemProperty("spring.profiles.active", "test")
 }
 
 tasks.check {

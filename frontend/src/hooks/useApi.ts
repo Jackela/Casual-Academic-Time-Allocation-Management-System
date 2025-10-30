@@ -19,11 +19,7 @@ import type {
   PageInfo,
   ApiErrorResponse,
 } from '../types/api';
-type RawTimesheetCollection = Partial<TimesheetPage> & {
-  content?: Timesheet[];
-  data?: Timesheet[];
-  page?: PageInfo;
-};
+type RawTimesheetCollection = Partial<TimesheetPage>;
 
 interface UseApiOptions<TResponse, TData> {
   immediate?: boolean;
@@ -129,7 +125,7 @@ function useApi<TResponse, TData = TResponse>(
       let errorMessage = 'An unexpected error occurred';
 
       if (isApiErrorResponse(error)) {
-        errorMessage = error.message || error.error.message || errorMessage;
+        errorMessage = error.error?.message ?? error.message ?? errorMessage;
       } else if (error instanceof Error && error.message) {
         errorMessage = error.message;
       }
@@ -177,7 +173,7 @@ function useApi<TResponse, TData = TResponse>(
 // =============================================================================
 
 const transformPendingTimesheets = (data: RawTimesheetCollection): TimesheetPage => {
-  const timesheets = data.timesheets ?? data.content ?? data.data ?? [];
+  const timesheets = data.timesheets ?? [];
   const fallbackPageInfo: PageInfo = {
     currentPage: 0,
     pageSize: 20,
@@ -189,7 +185,7 @@ const transformPendingTimesheets = (data: RawTimesheetCollection): TimesheetPage
     empty: timesheets.length === 0,
   };
 
-  const pageInfo = data.pageInfo ?? data.page ?? fallbackPageInfo;
+  const pageInfo = data.pageInfo ?? fallbackPageInfo;
 
   return {
     success: data.success ?? true,
@@ -223,7 +219,7 @@ export function useTimesheets(query: TimesheetQuery = {}) {
 
   const transformTimesheets = useMemo<(payload: RawTimesheetCollection) => TimesheetPage>(() => {
     return (data) => {
-      const timesheets = data.timesheets ?? data.content ?? data.data ?? [];
+      const timesheets = data.timesheets ?? [];
       const fallbackPageInfo: PageInfo = {
         currentPage: normalizedQuery.page ?? 0,
         pageSize: normalizedQuery.size ?? 20,
@@ -235,7 +231,7 @@ export function useTimesheets(query: TimesheetQuery = {}) {
         empty: timesheets.length === 0,
       };
 
-      const pageInfo = data.pageInfo ?? data.page ?? fallbackPageInfo;
+      const pageInfo = data.pageInfo ?? fallbackPageInfo;
 
       return {
         success: data.success ?? true,

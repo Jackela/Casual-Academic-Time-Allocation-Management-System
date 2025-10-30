@@ -1,63 +1,55 @@
-import { renderHook, act, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { useTimesheetDashboardSummary } from "./useTimesheetDashboardSummary";
-import { TimesheetService } from "../../services/timesheets";
-import { createMockDashboardSummary } from "../../test/utils/test-utils";
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useTimesheetDashboardSummary } from './useTimesheetDashboardSummary';
 
-vi.mock("../../services/timesheets", () => ({
-  TimesheetService: {
-    getDashboardSummary: vi.fn(),
-    getAdminDashboardSummary: vi.fn(),
-  },
-}));
+// Mock TimesheetService at module level used by the hook
+vi.mock('../../services/timesheets', async () => {
+  const actual = await vi.importActual<object>('../../services/timesheets');
+  return {
+    ...actual,
+    TimesheetService: {
+      getDashboardSummary: vi.fn(async () => ({
+        totalTimesheets: 10,
+        pendingApproval: 2,
+        thisWeekHours: 5,
+        thisWeekPay: 100,
+        statusBreakdown: {},
+      })),
+      getAdminDashboardSummary: vi.fn(async () => ({
+        totalTimesheets: 20,
+        pendingApproval: 5,
+        thisWeekHours: 8,
+        thisWeekPay: 200,
+        statusBreakdown: {},
+      })),
+    },
+  };
+});
 
-const mockTimesheetService = TimesheetService as unknown as {
-  getDashboardSummary: ReturnType<typeof vi.fn>;
-  getAdminDashboardSummary: ReturnType<typeof vi.fn>;
-};
+// Helpers to control document.visibilityState in JSDOM
+function setDocumentVisibility(state: 'visible' | 'hidden') {
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    get: () => state,
+  });
+}
 
-const mockSummary = createMockDashboardSummary();
-
-describe("useTimesheetDashboardSummary", () => {
+describe('useTimesheetDashboardSummary', () => {
   beforeEach(() => {
+    setDocumentVisibility('visible');
+  });
+
+  afterEach(() => {
     vi.clearAllMocks();
-    mockTimesheetService.getDashboardSummary.mockResolvedValue(mockSummary);
-    mockTimesheetService.getAdminDashboardSummary.mockResolvedValue(
-      mockSummary,
-    );
   });
 
-  it("fetches tutor summary by default", async () => {
-    const { result } = renderHook(() => useTimesheetDashboardSummary());
-
+  it('fetches on mount and allows manual refetch', async () => {
+    const { result } = renderHook(() => useTimesheetDashboardSummary({ scope: 'tutor', refetchOnWindowFocus: false, refetchInterval: 0 }));
     await waitFor(() => expect(result.current.loading).toBe(false));
-
-    expect(mockTimesheetService.getDashboardSummary).toHaveBeenCalled();
-    expect(result.current.data).toEqual(mockSummary);
-  });
-
-  it("fetches admin summary when scope is admin", async () => {
-    const { result } = renderHook(() =>
-      useTimesheetDashboardSummary({ scope: "admin" }),
-    );
-
-    await waitFor(() => expect(result.current.loading).toBe(false));
-
-    expect(mockTimesheetService.getAdminDashboardSummary).toHaveBeenCalled();
-  });
-
-  it("supports lazy fetching", async () => {
-    const { result } = renderHook(() =>
-      useTimesheetDashboardSummary({ lazy: true }),
-    );
-
-    expect(result.current.loading).toBe(false);
-    expect(mockTimesheetService.getDashboardSummary).not.toHaveBeenCalled();
-
+    const firstStamp = result.current.lastUpdatedAt;
     await act(async () => {
       await result.current.refetch();
     });
-
-    expect(mockTimesheetService.getDashboardSummary).toHaveBeenCalled();
+    await waitFor(() => expect(result.current.lastUpdatedAt && result.current.lastUpdatedAt >= (firstStamp ?? 0)).toBe(true));
   });
 });

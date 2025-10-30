@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { User } from '../../types/api';
-import { createUser, fetchUsers, updateUser } from '../../services/users';
+import { createUser, fetchUsers, updateUser, setTutorAssignments, setTutorDefaultQualification } from '../../services/users';
+import { fetchLecturerCourses } from '../../services/courses';
+import type { TutorQualification, User as ApiUser } from '../../types/api';
 
 type FormState = {
   firstName: string;
@@ -8,6 +10,9 @@ type FormState = {
   email: string;
   role: User['role'];
   password: string;
+  // New admin fields when role=TUTOR
+  assignedCourseIds?: number[];
+  defaultQualification?: TutorQualification;
 };
 
 type RequestState = 'idle' | 'loading' | 'submitting' | 'error';
@@ -24,6 +29,8 @@ const initialFormState: FormState = {
   email: '',
   role: 'TUTOR',
   password: '',
+  assignedCourseIds: [],
+  defaultQualification: 'STANDARD',
 };
 
 const PASSWORD_LENGTH = 16;
@@ -131,6 +138,7 @@ const visuallyHiddenStyle: CSSProperties = {
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [requestState, setRequestState] = useState<RequestState>('idle');
+  const [availableCourses, setAvailableCourses] = useState<Array<{ id: number; label: string }>>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [formState, setFormState] = useState<FormState>(initialFormState);
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
@@ -170,6 +178,23 @@ export default function AdminUsersPage() {
     }
   }, [fetchAndSetUsers]);
 
+  // Load courses for assignment when opening modal or when role is TUTOR
+  useEffect(() => {
+    if (!modalOpen && !editingUser) return;
+    const loadCourses = async () => {
+      try {
+        // Admins can assign for any lecturer; simplest is to fetch all active courses endpoint
+        // Reuse lecturer courses util with lecturerId omitted by backend or provide 0
+        const list = await fetchLecturerCourses(0 as unknown as number).catch(() => []);
+        const mapped = (list || []).map((c) => ({ id: c.id, label: `${c.code ?? c.id} ${c.name}` }));
+        setAvailableCourses(mapped);
+      } catch (e) {
+        setAvailableCourses([]);
+      }
+    };
+    void loadCourses();
+  }, [modalOpen, editingUser]);
+
   useEffect(() => {
     void loadUsers();
   }, [loadUsers]);
@@ -205,6 +230,20 @@ export default function AdminUsersPage() {
     setErrorMessage(null);
     try {
       const newUser = await createUser(formState);
+
+      // If user is TUTOR and assignments/defaults were selected, push them
+      if (newUser.role === 'TUTOR') {
+        try {
+          if (Array.isArray(formState.assignedCourseIds) && formState.assignedCourseIds.length > 0) {
+            await setTutorAssignments({ tutorId: newUser.id, courseIds: formState.assignedCourseIds });
+          }
+          if (formState.defaultQualification) {
+            await setTutorDefaultQualification({ tutorId: newUser.id, defaultQualification: formState.defaultQualification });
+          }
+        } catch (err) {
+          console.warn('Post-create tutor config failed', err);
+        }
+      }
 
       let updatedFromServer = false;
       try {
@@ -588,6 +627,49 @@ export default function AdminUsersPage() {
                   </button>
                 </div>
               </div>
+
+              {formState.role === 'TUTOR' && (
+                <div className="space-y-4 border-t border-slate-200 pt-4">
+                  <div className="flex flex-col">
+                    <label htmlFor="assigned-courses" className="text-sm font-medium text-slate-700">
+                      Visible Courses (assignments)
+                    </label>
+                    <select
+                      id="assigned-courses"
+                      multiple
+                      className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20 min-h-[6rem]"
+                      value={(formState.assignedCourseIds ?? []).map(String)}
+                      onChange={(e) => {
+                        const values = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
+                        setFormState((prev) => ({ ...prev, assignedCourseIds: values }));
+                      }}
+                      data-testid="admin-user-assigned-courses"
+                    >
+                      {availableCourses.map((c) => (
+                        <option key={c.id} value={c.id}>{c.label}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-slate-500">Lecturers will only see tutors in their assigned courses; tutors will only see assigned courses.</p>
+                  </div>
+                  <div className="flex flex-col">
+                    <label htmlFor="default-qualification" className="text-sm font-medium text-slate-700">
+                      Default Tutor Qualification
+                    </label>
+                    <select
+                      id="default-qualification"
+                      className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20"
+                      value={formState.defaultQualification ?? 'STANDARD'}
+                      onChange={(e) => setFormState((prev) => ({ ...prev, defaultQualification: e.target.value as TutorQualification }))}
+                      data-testid="admin-user-default-qualification"
+                    >
+                      <option value="STANDARD">Standard</option>
+                      <option value="COORDINATOR">Coordinator</option>
+                      <option value="PHD">PhD</option>
+                    </select>
+                    <p className="mt-1 text-xs text-slate-500">This default is applied in new timesheets; tutors can override per entry.</p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
                 <button

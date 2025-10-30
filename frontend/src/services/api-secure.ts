@@ -323,10 +323,17 @@ export class SecureApiClient {
         ? 'An error occurred. Please try again.'
         : payloadMessage ?? error.message ?? 'Request failed';
 
-      const code =
-        payload && typeof payload['code'] === 'string'
-          ? (payload['code'] as string)
-          : error.code ?? 'API_ERROR';
+      const code = (() => {
+        if (payload) {
+          if (typeof payload['error'] === 'string') {
+            return payload['error'] as string;
+          }
+          if (typeof payload['code'] === 'string') {
+            return payload['code'] as string;
+          }
+        }
+        return error.code ?? 'API_ERROR';
+      })();
 
       const envelope: ErrorEnvelope = {
         code,

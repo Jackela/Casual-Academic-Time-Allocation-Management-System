@@ -9,28 +9,32 @@ export interface AuthResponse {
     name: string;
     role: string;
   };
-  errorMessage: string | null;
+  message?: string | null;
 }
 
 export interface TimesheetResponse {
-  content: Array<{
+  success: boolean;
+  timesheets: Array<{
     id: number;
     tutorId: number;
     courseId: number;
+    courseCode: string;
+    courseName: string;
     weekStartDate: string;
+    sessionDate?: string | null;
     hours: number;
     hourlyRate: number;
+    deliveryHours?: number | null;
     description: string;
     status: string;
     tutorName: string;
-    courseName: string;
-    courseCode: string;
+    rejectionReason?: string | null;
   }>;
-  page: {
+  pageInfo: {
+    currentPage: number;
+    pageSize: number;
     totalElements: number;
     totalPages: number;
-    number: number;
-    size: number;
     first: boolean;
     last: boolean;
     numberOfElements: number;

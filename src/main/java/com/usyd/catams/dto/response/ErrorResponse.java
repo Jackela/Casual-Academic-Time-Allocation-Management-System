@@ -16,8 +16,8 @@ public class ErrorResponse {
     private int status;
     private String error;
     private String message;
-    private String errorMessage;
     private String path;
+    private String traceId;
     
     public ErrorResponse() {
     }
@@ -28,7 +28,6 @@ public class ErrorResponse {
         this.status = status;
         this.error = error;
         this.message = message;
-        this.errorMessage = message; // Set errorMessage same as message for backward compatibility
         this.path = path;
     }
     
@@ -47,8 +46,8 @@ public class ErrorResponse {
         private int status;
         private String error;
         private String message;
-        private String errorMessage;
         private String path;
+        private String traceId;
         
         public ErrorResponseBuilder timestamp(String timestamp) {
             this.timestamp = timestamp;
@@ -67,20 +66,16 @@ public class ErrorResponse {
         
         public ErrorResponseBuilder message(String message) {
             this.message = message;
-            this.errorMessage = message; // Keep them in sync
-            return this;
-        }
-        
-        public ErrorResponseBuilder errorMessage(String errorMessage) {
-            this.errorMessage = errorMessage;
-            if (this.message == null) {
-                this.message = errorMessage; // Keep them in sync
-            }
             return this;
         }
         
         public ErrorResponseBuilder path(String path) {
             this.path = path;
+            return this;
+        }
+
+        public ErrorResponseBuilder traceId(String traceId) {
+            this.traceId = traceId;
             return this;
         }
         
@@ -92,7 +87,7 @@ public class ErrorResponse {
         public ErrorResponse build() {
             ErrorResponse response = new ErrorResponse(timestamp, status, error, message, path);
             response.success = this.success;
-            response.errorMessage = this.errorMessage;
+            response.traceId = this.traceId;
             return response;
         }
     }
@@ -136,15 +131,6 @@ public class ErrorResponse {
     
     public void setMessage(String message) {
         this.message = message;
-        this.errorMessage = message; // Keep them in sync
-    }
-    
-    public String getErrorMessage() {
-        return errorMessage;
-    }
-    
-    public void setErrorMessage(String errorMessage) {
-        this.errorMessage = errorMessage;
     }
     
     public String getPath() {
@@ -153,5 +139,13 @@ public class ErrorResponse {
     
     public void setPath(String path) {
         this.path = path;
+    }
+
+    public String getTraceId() {
+        return traceId;
+    }
+
+    public void setTraceId(String traceId) {
+        this.traceId = traceId;
     }
 }

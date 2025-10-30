@@ -59,13 +59,6 @@ export class TutorDashboardPage {
     return this.page.evaluate(() => window.innerWidth || document.documentElement.clientWidth || 1280);
   }
 
-  /**
-   * Backwards-compatible wrapper for older tests.
-   */
-  async waitForMyTimesheetData(options: { timeout?: number } = {}) {
-    await this.waitForDashboardReady(options);
-  }
-
   async expectResponsiveColumns() {
     const width = await this.getViewportWidth();
     const rawHeaderTexts = await this.timesheetsTable
@@ -503,7 +496,7 @@ export class TutorDashboardPage {
         refreshButton.click()
       ]);
     }
-    await this.waitForMyTimesheetData();
+    await this.waitForDashboardReady();
   }
 
   getTimesheetRow(timesheetId: number, description?: string) {
@@ -552,7 +545,7 @@ export class TutorDashboardPage {
       throw new Error(`Timesheet creation failed: ${createResponse.status()} ${body ?? ''}`);
     }
 
-    await this.waitForMyTimesheetData();
+    await this.waitForDashboardReady();
     return createResponse;
   }
 
@@ -597,7 +590,7 @@ export class TutorDashboardPage {
       throw new Error(`Timesheet update failed: ${updateResponse.status()} ${body ?? ''}`);
     }
 
-    await this.waitForMyTimesheetData();
+    await this.waitForDashboardReady();
   }
 
   async submitDraft(timesheetId: number) {
@@ -609,7 +602,7 @@ export class TutorDashboardPage {
       ),
       submitButton.click()
     ]);
-    await this.waitForMyTimesheetData();
+    await this.waitForDashboardReady();
     return response;
   }
 
@@ -628,7 +621,7 @@ export class TutorDashboardPage {
       ),
       confirmButton.click()
     ]);
-    await this.waitForMyTimesheetData();
+    await this.waitForDashboardReady();
     return response;
   }
 
@@ -684,7 +677,7 @@ export class TutorDashboardPage {
     );
     
     // Wait for dashboard data to refresh after submission
-    await this.waitForMyTimesheetData();
+    await this.waitForDashboardReady();
   }
 
   /**
@@ -759,41 +752,4 @@ export class TutorDashboardPage {
     return await this.notificationBanner.getDebugInfo();
   }
 
-  // =============================================================================
-  // Legacy Support Methods (Backwards Compatibility)
-  // =============================================================================
-
-  /**
-   * @deprecated Use notificationBanner.expectVisible() instead
-   * Legacy method for page banner expectations during transition period
-   */
-  async expectPageBanner(): Promise<void> {
-    console.warn('expectPageBanner() is deprecated. Use notificationBanner.expectVisible() instead');
-    await this.notificationBanner.expectVisible();
-  }
-
-  /**
-   * @deprecated Use submitAllDraftsViaBanner() instead
-   * Legacy method for Submit All Drafts functionality
-   */
-  async clickSubmitAllDrafts(): Promise<void> {
-    console.warn('clickSubmitAllDrafts() is deprecated. Use submitAllDraftsViaBanner() instead');
-    
-    // Try new banner approach first
-    if (await this.hasNotificationBanner()) {
-      await this.submitAllDraftsViaBanner();
-      return;
-    }
-    
-    // Fallback to old QuickAction approach if banner not present
-    const submitAllButton = this.page.getByRole('button', { name: /Submit All Drafts/i });
-    await expect(submitAllButton).toBeVisible();
-    await expect(submitAllButton).toBeEnabled();
-    await submitAllButton.click();
-    
-    await this.page.waitForResponse((response) =>
-      response.url().includes('/api/approvals') && response.request().method() === 'POST'
-    );
-    await this.waitForMyTimesheetData();
-  }
 }

@@ -64,9 +64,9 @@ test.describe('Critical User Journeys', () => {
 
       await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
       await tutorDashboard.expectToBeLoaded();
-      await tutorDashboard.waitForMyTimesheetData();
+      await tutorDashboard.waitForDashboardReady();
       await page.reload({ waitUntil: 'domcontentloaded' });
-      await tutorDashboard.waitForMyTimesheetData();
+      await tutorDashboard.waitForDashboardReady();
       const row = tutorDashboard.getTimesheetRow(seed.id, seed.description);
       await expect(row).toBeVisible({ timeout: 20000 });
 

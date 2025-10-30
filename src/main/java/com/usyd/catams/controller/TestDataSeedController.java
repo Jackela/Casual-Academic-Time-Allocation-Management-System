@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -53,11 +54,36 @@ public class TestDataSeedController {
         if (body != null && body.seedTutors()) {
             seedService.ensureBasicTutors();
         }
+        // Ensure baseline admin/lecturer exist for UAT
+        seedService.ensureBasicAdmin();
+        seedService.ensureBasicLecturer();
+        List<Map<String, Object>> accounts = seedService.buildAccountManifest();
 
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "seeded", true,
-                "lecturerId", lecturerId
+                "lecturerId", lecturerId,
+                "accounts", accounts
+        ));
+    }
+
+    /**
+     * Returns a manifest of baseline test accounts (role, email, id, password hint).
+     */
+    @GetMapping("/accounts")
+    public ResponseEntity<Map<String, Object>> getAccounts(
+            @RequestHeader(name = "X-Test-Reset-Token", required = false) String providedToken
+    ) {
+        if (providedToken == null || !providedToken.equals(resetToken)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "success", false,
+                    "message", "Invalid or missing reset token"
+            ));
+        }
+        List<Map<String, Object>> accounts = seedService.buildAccountManifest();
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "accounts", accounts
         ));
     }
 }

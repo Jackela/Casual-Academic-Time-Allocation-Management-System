@@ -90,7 +90,6 @@ paths:
                       email: lecturer@university.edu.au
                       name: Dr. John Smith
                       role: LECTURER
-                    errorMessage: null
         '400':
           description: Invalid request format
           content:
@@ -867,9 +866,9 @@ components:
           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         user:
           $ref: '#/components/schemas/UserResponse'
-        errorMessage:
+        message:
           type: string
-          description: Error message (only present if success=false)
+          description: Optional diagnostic message (primarily used for non-success responses)
           example: null
           nullable: true
     UserCreateRequest:
@@ -1751,7 +1750,3 @@ components:
           type: boolean
           description: Indicates if the operation was successful (always false for errors)
           example: false
-        errorMessage:
-          type: string
-          description: Detailed error message (often same as 'message')
-          nullable: true

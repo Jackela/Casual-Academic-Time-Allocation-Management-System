@@ -515,7 +515,7 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
       } catch {}
 
       // Platform-specific cleanup by port (best-effort)
-      if (isWindows() || isWsl()) {
+      if (isWindows()) {
         // Prefer PowerShell for reliable PID capture and termination
         const ps = `Get-NetTCPConnection -LocalPort ${backendPort} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }`;
         await runCommand('cmd.exe', ['/d', '/s', '/c', `powershell -NoProfile -Command "${ps}"`], { stdio: 'ignore' });

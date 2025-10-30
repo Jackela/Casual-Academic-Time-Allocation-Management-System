@@ -18,6 +18,7 @@ export interface User {
   lastName?: string;
   displayName?: string;
   qualification?: TutorQualification;
+  defaultQualification?: TutorQualification;
   isActive?: boolean;
   active?: boolean;
 }
@@ -160,16 +161,6 @@ export interface TimesheetPage {
   timesheets: Timesheet[];
   pageInfo: PageInfo;
 }
-
-// Legacy response formats for backward compatibility
-export interface TimesheetsResponse extends TimesheetPage {
-  // Alias for backward compatibility
-  content?: Timesheet[];
-  data?: Timesheet[];
-  page?: PageInfo;
-}
-
-export type PendingTimesheetsResponse = TimesheetsResponse;
 
 // =============================================================================
 // Dashboard & Summary Types  
@@ -424,7 +415,11 @@ export const API_ENDPOINTS = {
   USERS: {
     BASE: '/api/users',
     BY_ROLE: (role: string) => `/api/users/role/${role}`,
-    PROFILE: '/api/users/profile'
+    PROFILE: '/api/users/profile',
+    ADMIN: {
+      TUTOR_ASSIGNMENTS: '/api/admin/tutors/assignments',
+      TUTOR_DEFAULTS: '/api/admin/tutors/defaults'
+    }
   },
   COURSES: {
     BASE: '/api/courses',

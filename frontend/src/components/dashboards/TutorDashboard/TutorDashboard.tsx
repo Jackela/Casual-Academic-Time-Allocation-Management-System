@@ -102,6 +102,23 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     refetch: refetchDashboard
   } = dashboardQuery;
 
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  useEffect(() => {
+    try {
+      const stamp = (window as any).__tutor_dashboard_last_updated_at as number | undefined;
+      if (stamp && stamp !== lastUpdatedAt) setLastUpdatedAt(stamp);
+    } catch {}
+  });
+
+  const formatClock = (ts: number | null) => {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  };
+
   const {
     loading: updateLoading,
     error: updateError,
@@ -469,6 +486,11 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
             title="Tutor Dashboard"
             description="Here's an overview of your timesheets and earnings. Let's get started."
           />
+          {lastUpdatedAt && (
+            <p className="mt-1 text-xs text-muted-foreground" data-testid="dashboard-live-stamp">
+              Live • {formatClock(lastUpdatedAt)}
+            </p>
+          )}
           {feedbackStack}
         </header>
 

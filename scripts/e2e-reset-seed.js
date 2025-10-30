@@ -83,7 +83,7 @@ async function main() {
     }
     for (const lecturerId of lecturerIds) {
       const seedBody = JSON.stringify({ lecturerId, seedTutors: true });
-      await execRequest(seedUrl, {
+      const seedResultRaw = await execRequest(seedUrl, {
         method: 'POST',
         headers: {
           'X-Test-Reset-Token': token,
@@ -92,6 +92,16 @@ async function main() {
         body: seedBody,
       });
       console.log(`Seed OK (lecturerId=${lecturerId})`);
+      try {
+        const seedResult = JSON.parse(seedResultRaw);
+        if (seedResult && seedResult.accounts) {
+          const manifestPath = 'uat-artifacts/current/SEED_ACCOUNTS.json';
+          fs.mkdirSync('uat-artifacts/current', { recursive: true });
+          fs.writeFileSync(manifestPath, JSON.stringify(seedResult.accounts, null, 2));
+          console.log(`SEED_ACCOUNTS: wrote ${manifestPath}`);
+          console.log(JSON.stringify({ accounts: seedResult.accounts }));
+        }
+      } catch {}
     }
   }
 }
