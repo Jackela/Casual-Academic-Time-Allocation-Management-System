@@ -204,6 +204,7 @@ tools/bin/
 .eslintcache
 artifacts/
 logs/
+tools/scripts/logs/
 *.tsbuildinfo
 gh-job-*.log
 act-*.log

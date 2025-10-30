@@ -124,11 +124,6 @@ export function resolveGradleCommand(cwd = process.cwd()) {
   if (['1', 'true', 'yes', 'y'].includes(preferSystem)) {
     return 'gradle';
   }
-  if (isWsl()) {
-    // Convert POSIX path (/mnt/d/dir) to Windows path (D:\dir) for cmd.exe
-    const winGradle = toWindowsPath(path.join(cwd, 'gradlew.bat'));
-    return winGradle;
-  }
   const wrapperName = isWindows() ? 'gradlew.bat' : 'gradlew';
   return path.join(cwd, wrapperName);
 }
@@ -136,7 +131,7 @@ export function resolveGradleCommand(cwd = process.cwd()) {
 export function resolveCmdShim(command) {
   // Only wrap Windows batch/cmd shims. On Linux (including Docker under Windows),
   // spawning cmd.exe will fail. Keep raw command unless it clearly needs cmd.
-  if (!(isWindows() || isWsl())) {
+  if (!isWindows()) {
     return { command, args: [] };
   }
   const lower = String(command || '').toLowerCase();
@@ -148,7 +143,7 @@ export function resolveCmdShim(command) {
 }
 
 export function toPlatformCommand(binary, args = []) {
-  if (!(isWindows() || isWsl())) {
+  if (!isWindows()) {
     return { command: binary, args: [...args] };
   }
 

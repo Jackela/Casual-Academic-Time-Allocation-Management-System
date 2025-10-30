@@ -279,11 +279,11 @@ test.describe('Tutor dashboard workflow', () => {
     // Real backend only: no approvals interception
 
     await gotoTutorDashboard(page);
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
   });
 
   test('shows tutor dashboard overview', async () => {
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
     await tutorDashboard.expectTutorDashboardTitle();
     const hasTable = await tutorDashboard.timesheetsTable.isVisible().catch(() => false);
     const hasEmpty = await tutorDashboard.emptyState.isVisible().catch(() => false);
@@ -300,7 +300,7 @@ test.describe('Tutor dashboard workflow', () => {
   });
 
 test('allows editing a modification-requested timesheet (if present)', async ({ page }) => {
-  await tutorDashboard.waitForMyTimesheetData();
+  await tutorDashboard.waitForDashboardReady();
   // Switch to Needs Attention tab if available to surface rejected rows
   const needsAttention = page.getByRole('button', { name: /Needs Attention/i });
   if (await needsAttention.isVisible().catch(() => false)) {
@@ -322,7 +322,7 @@ test('allows editing a modification-requested timesheet (if present)', async ({ 
 });
 
   test('restricts tutor from creating or submitting timesheets', async ({ page }) => {
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
 
     // No create timesheet entry points
     await expect(page.getByRole('button', { name: /Create Timesheet/i })).toHaveCount(0);
@@ -335,7 +335,7 @@ test('allows editing a modification-requested timesheet (if present)', async ({ 
   });
 
   test.skip('allows confirming a pending timesheet (if present)', async () => {
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
     // Find first row with a confirm action
     const confirmBtn = tutorDashboard.timesheetsTable.getByRole('button', { name: /Confirm/i }).first();
     const hasConfirm = await confirmBtn.isVisible().catch(() => false);
@@ -359,7 +359,7 @@ test('allows editing a modification-requested timesheet (if present)', async ({ 
 
     await page.reload();
     await tutorDashboard.expectToBeLoaded();
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
 
     const row = page.getByTestId(`timesheet-row-${seeded.id}`);
     await expect(row).toBeVisible({ timeout: 20000 });
@@ -381,7 +381,7 @@ test('allows editing a modification-requested timesheet (if present)', async ({ 
     const seeded = await factory.createTimesheetForTest({ targetStatus: 'DRAFT' });
     await page.reload();
     await tutorDashboard.expectToBeLoaded();
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
     // If Drafts tab exists, switch to surface draft rows deterministically
     const draftsTab = page.getByRole('button', { name: /Drafts/i });
     if (await draftsTab.isVisible().catch(() => false)) {
@@ -417,7 +417,7 @@ test('rejected timesheets are not editable and show rejected status', async ({ p
 
   await page.reload();
   await tutorDashboard.expectToBeLoaded();
-  await tutorDashboard.waitForMyTimesheetData();
+  await tutorDashboard.waitForDashboardReady();
 
   // Assert rejected row is present and not editable
   const tableRow = page.getByTestId(`timesheet-row-${seeded.id}`);
@@ -429,7 +429,7 @@ test('rejected timesheets are not editable and show rejected status', async ({ p
   test.skip('renders list or empty state', async ({ page }) => {
     await page.reload();
     await tutorDashboard.expectToBeLoaded();
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
     const hasTable = await tutorDashboard.timesheetsTable.isVisible().catch(() => false);
     const hasEmpty = await tutorDashboard.emptyState.isVisible().catch(() => false);
     expect(hasTable || hasEmpty).toBeTruthy();
@@ -443,7 +443,7 @@ test('rejected timesheets are not editable and show rejected status', async ({ p
       if (canRetry) {
         await tutorDashboard.retryButton.click();
       }
-      await tutorDashboard.waitForMyTimesheetData();
+      await tutorDashboard.waitForDashboardReady();
       await expect
         .poll(async () => (await tutorDashboard.timesheetsTable.isVisible().catch(() => false)) || (await tutorDashboard.emptyState.isVisible().catch(() => false)), { timeout: 4000 })
         .toBeTruthy();
@@ -453,7 +453,7 @@ test('rejected timesheets are not editable and show rejected status', async ({ p
   test('shows loading state briefly then data or empty', async ({ page }) => {
     await page.reload();
     await tutorDashboard.expectLoadingState();
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
     const hasTable = await tutorDashboard.timesheetsTable.isVisible().catch(() => false);
     const hasEmpty = await tutorDashboard.emptyState.isVisible().catch(() => false);
     expect(hasTable || hasEmpty).toBeTruthy();

@@ -164,7 +164,7 @@ public class Timesheet {
                 : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
     }
     
-    // Constructor with primitives for backwards compatibility
+    // Convenience constructor for primitive primitives used in tests
     public Timesheet(Long tutorId, Long courseId, LocalDate weekStartDate, 
                     BigDecimal hours, BigDecimal hourlyRate, String description, Long createdBy) {
         this(tutorId, courseId, new WeekPeriod(weekStartDate), hours, new Money(hourlyRate), description, createdBy);
@@ -264,7 +264,7 @@ public class Timesheet {
     }
     
     /**
-     * Get hourly rate as BigDecimal (for backward compatibility).
+     * Get hourly rate as a BigDecimal helper for serialization.
      * DbC: returns null only if Money is null.
      */
     public BigDecimal getHourlyRate() {

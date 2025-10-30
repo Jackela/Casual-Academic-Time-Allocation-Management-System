@@ -45,13 +45,13 @@ test.describe('Visual Workflow Audit', () => {
       await signInAsRole(page, 'tutor');
       await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
       const tutorDashboard = new TutorDashboardPage(page);
-      await tutorDashboard.waitForMyTimesheetData();
+      await tutorDashboard.waitForDashboardReady();
       const waitsTutor = await import('../../shared/utils/waits');
       await waitsTutor.waitForAppReady(page, 'TUTOR', 20000);
       await capture('01-tutor-dashboard.png');
 
       await tutorDashboard.submitDraft(seed.id);
-      await tutorDashboard.waitForMyTimesheetData();
+      await tutorDashboard.waitForDashboardReady();
       await expect(tutorDashboard.getStatusBadge(seed.id)).toContainText(statusLabel('PENDING_TUTOR_CONFIRMATION'));
       await capture('02-tutor-submitted.png');
 

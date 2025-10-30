@@ -55,7 +55,7 @@ test.describe('Exception workflow guard-rails', () => {
 
     await test.step('Tutor sees pending confirmation timesheet (WF Golden Path step 2)', async () => {
       await tutorDashboard.expectToBeLoaded();
-      await tutorDashboard.waitForMyTimesheetData();
+      await tutorDashboard.waitForDashboardReady();
       await expect(tutorDashboard.getStatusBadge(timesheetId)).toContainText(
         statusLabel('PENDING_TUTOR_CONFIRMATION'),
         { timeout: 10000 },
@@ -192,7 +192,7 @@ test.describe('Exception workflow guard-rails', () => {
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const tutorDashboard = new TutorDashboardPage(page);
     await tutorDashboard.expectToBeLoaded();
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
 
     await expect(tutorDashboard.getStatusBadge(timesheetId)).toContainText(
       statusLabel('MODIFICATION_REQUESTED'),
@@ -265,7 +265,7 @@ test.describe('Exception workflow guard-rails', () => {
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const tutorDashboard = new TutorDashboardPage(page);
     await tutorDashboard.expectToBeLoaded();
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
 
     await expect(tutorDashboard.getStatusBadge(timesheetId)).toContainText(
       statusLabel('REJECTED'),

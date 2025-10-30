@@ -206,6 +206,32 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
                                    Pageable pageable);
 
     /**
+     * Lecturer-scoped listing with optional status filter, restricted to lecturer's courses and
+     * tutors assigned to those courses.
+     */
+    @EntityGraph(attributePaths = {"approvals"})
+    @Query("SELECT t FROM Timesheet t WHERE " +
+           "t.courseId IN (SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId) AND " +
+           "EXISTS (SELECT 1 FROM TutorAssignment a WHERE a.tutorId = t.tutorId AND a.courseId = t.courseId) AND " +
+           "(:status IS NULL OR t.status = :status)")
+    Page<Timesheet> findWithLecturerScope(@Param("lecturerId") Long lecturerId,
+                                          @Param("status") ApprovalStatus status,
+                                          Pageable pageable);
+
+    /**
+     * Lecturer-scoped listing for a specific course with optional status filter and assignment check.
+     */
+    @EntityGraph(attributePaths = {"approvals"})
+    @Query("SELECT t FROM Timesheet t WHERE " +
+           "t.courseId = :courseId AND EXISTS (SELECT 1 FROM TutorAssignment a WHERE a.tutorId = t.tutorId AND a.courseId = t.courseId) AND " +
+           "t.courseId IN (SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId) AND " +
+           "(:status IS NULL OR t.status = :status)")
+    Page<Timesheet> findWithLecturerScopeByCourse(@Param("lecturerId") Long lecturerId,
+                                                  @Param("courseId") Long courseId,
+                                                  @Param("status") ApprovalStatus status,
+                                                  Pageable pageable);
+
+    /**
      * Get total hours worked by a tutor for a specific course.
      *
      * @param tutorId the tutor's ID
@@ -300,6 +326,14 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     @Query("SELECT t FROM Timesheet t WHERE t.status = 'TUTOR_CONFIRMED' AND t.courseId IN " +
            "(SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId)")
     Page<Timesheet> findApprovedByTutorByCourses(@Param("lecturerId") Long lecturerId, Pageable pageable);
+
+    /**
+     * Same as findApprovedByTutorByCourses but ensures the tutor is assigned to the course via TutorAssignment.
+     */
+    @Query("SELECT t FROM Timesheet t WHERE t.status = 'TUTOR_CONFIRMED' AND t.courseId IN " +
+           "(SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId) AND EXISTS (" +
+           "SELECT 1 FROM TutorAssignment a WHERE a.tutorId = t.tutorId AND a.courseId = t.courseId)")
+    Page<Timesheet> findApprovedByTutorByCoursesWithAssignment(@Param("lecturerId") Long lecturerId, Pageable pageable);
     
     /**
      * Load a timesheet with its approvals using fetch join to avoid N+1 when history is required.

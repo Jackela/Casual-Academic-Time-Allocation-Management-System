@@ -338,7 +338,7 @@ public class OpenAPISpecGenerator {
         
         ObjectNode expected = unauthorizedTest.putObject("expected");
         expected.put("statusCode", 403);
-        expected.put("errorMessage", "Action not allowed for current user and timesheet status");
+        expected.put("message", "Action not allowed for current user and timesheet status");
         
         testCases.add(unauthorizedTest);
     }

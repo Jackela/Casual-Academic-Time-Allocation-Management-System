@@ -9,7 +9,6 @@ import { secureApiClient } from './api-secure';
 import type {
   Timesheet,
   TimesheetPage,
-  PageInfo,
   TimesheetQuery,
   TimesheetCreateRequest,
   TimesheetUpdateRequest,
@@ -27,12 +26,6 @@ type ApiApprovalAction =
   | 'HR_CONFIRM'
   | 'REJECT'
   | 'REQUEST_MODIFICATION';
-
-type TimesheetPagePayload = Partial<TimesheetPage> & {
-  content?: Timesheet[];
-  data?: Timesheet[];
-  page?: PageInfo;
-};
 
 const APPROVAL_ACTION_MAP: Record<string, ApiApprovalAction> = {
   SUBMIT_DRAFT: 'SUBMIT_FOR_APPROVAL',
@@ -77,6 +70,9 @@ export class TimesheetService {
    * Get paginated timesheets with filtering
    */
   static async getTimesheets(query: TimesheetQuery = {}, signal?: AbortSignal): Promise<TimesheetPage> {
+    const sortField = query.sortBy || 'createdAt';
+    const sortDir = (query.sortDirection || 'desc').toLowerCase();
+    const sort = `${sortField},${sortDir}`;
     const queryString = secureApiClient.createQueryString({
       page: query.page || 0,
       size: query.size || 20,
@@ -86,25 +82,23 @@ export class TimesheetService {
       weekStartDate: query.weekStartDate,
       startDate: query.startDate,
       endDate: query.endDate,
-      sortBy: query.sortBy || 'createdAt',
-      sortDirection: query.sortDirection || 'desc'
+      sort,
     });
 
-    const response = await secureApiClient.get<TimesheetPagePayload>(
+    const response = await secureApiClient.get<TimesheetPage>(
       `/api/timesheets?${queryString}`,
       signal ? { signal } : undefined,
     );
 
-    // Normalize response format for backward compatibility
-    return this.normalizeTimesheetPage(response.data);
+    return this.ensureTimesheetPage(response.data);
   }
 
   /**
    * Get pending timesheets for lecturer approval
    */
   static async getPendingTimesheets(signal?: AbortSignal): Promise<TimesheetPage> {
-    const response = await secureApiClient.get<TimesheetPagePayload>('/api/timesheets/pending-final-approval', { signal });
-    return this.normalizeTimesheetPage(response.data);
+    const response = await secureApiClient.get<TimesheetPage>('/api/timesheets/pending-final-approval', { signal });
+    return this.ensureTimesheetPage(response.data);
   }
 
   /**
@@ -284,13 +278,11 @@ export class TimesheetService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Normalize timesheet page response for backward compatibility
+   * Ensure we always return a fully populated timesheet page structure
    */
-  private static normalizeTimesheetPage(payload: TimesheetPagePayload | undefined): TimesheetPage {
-    const timesheets =
-      payload?.timesheets ?? payload?.content ?? payload?.data ?? [];
-
-    const fallbackPageInfo: PageInfo = {
+  private static ensureTimesheetPage(payload: TimesheetPage | undefined): TimesheetPage {
+    const timesheets = payload?.timesheets ?? [];
+    const pageInfo = payload?.pageInfo ?? {
       currentPage: 0,
       pageSize: timesheets.length,
       totalElements: timesheets.length,
@@ -301,12 +293,10 @@ export class TimesheetService {
       empty: timesheets.length === 0,
     };
 
-    const resolvedPageInfo = payload?.pageInfo ?? payload?.page ?? fallbackPageInfo;
-
     return {
       success: payload?.success ?? true,
       timesheets,
-      pageInfo: resolvedPageInfo,
+      pageInfo,
     };
   }
 

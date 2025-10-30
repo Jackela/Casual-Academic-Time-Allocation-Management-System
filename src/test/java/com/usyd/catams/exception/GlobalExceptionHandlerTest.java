@@ -3,6 +3,7 @@ package com.usyd.catams.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 
@@ -22,12 +23,14 @@ class GlobalExceptionHandlerTest {
         HttpServletRequest req = new MockHttpServletRequest("GET", "/api/test");
 
         BusinessException ex = new BusinessException("VALIDATION_FAILED", "bad state");
-        ResponseEntity<com.usyd.catams.dto.response.ErrorResponse> resp = handler.handleBusinessException(ex, req);
+        ResponseEntity<ProblemDetail> resp = handler.handleBusinessException(ex, req);
 
         assertThat(resp.getStatusCode().is4xxClientError()).isTrue();
         assertThat(resp.getBody()).isNotNull();
-        assertThat(resp.getBody().getTimestamp()).isEqualTo("2025-08-12T00:00:00Z");
-        assertThat(resp.getBody().getPath()).isEqualTo("/api/test");
+        assertThat(resp.getBody().getProperties().get("timestamp")).isEqualTo("2025-08-12T00:00:00Z");
+        assertThat(resp.getBody().getProperties().get("path")).isEqualTo("/api/test");
+        assertThat(resp.getBody().getProperties().get("error")).isEqualTo("VALIDATION_FAILED");
+        assertThat(resp.getBody().getDetail()).isEqualTo("bad state");
     }
 }
 

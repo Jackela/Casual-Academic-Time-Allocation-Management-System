@@ -16,7 +16,11 @@ login_api() {
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$email\",\"password\":\"$password\"}")
   
-  CURRENT_TOKEN=$(echo "$response" | jq -r '.token // empty')
+  if command -v jq >/dev/null 2>&1; then
+    CURRENT_TOKEN=$(echo "$response" | jq -r '.token // empty')
+  else
+    CURRENT_TOKEN=$(echo "$response" | node scripts/json_get.js --path token 2>/dev/null || echo "")
+  fi
   
   if [ -z "$CURRENT_TOKEN" ]; then
     echo "❌ Login failed for $email"
@@ -30,8 +34,13 @@ login_api() {
 # Get timesheet status from backend
 get_timesheet_status() {
   local timesheet_id="$1"
-  curl -s "$API_BASE/timesheets/$timesheet_id" \
-    -H "Authorization: Bearer $CURRENT_TOKEN" | jq -r '.status // "ERROR"'
+  if command -v jq >/dev/null 2>&1; then
+    curl -s "$API_BASE/timesheets/$timesheet_id" \
+      -H "Authorization: Bearer $CURRENT_TOKEN" | jq -r '.status // "ERROR"'
+  else
+    curl -s "$API_BASE/timesheets/$timesheet_id" \
+      -H "Authorization: Bearer $CURRENT_TOKEN" | node scripts/json_get.js --path status 2>/dev/null || echo "ERROR"
+  fi
 }
 
 # Poll backend until expected status or timeout
@@ -72,7 +81,11 @@ tap_not_ok() {
 save_api_response() {
   local filename="$1"
   local response="$2"
-  echo "$response" | jq '.' > "$ARTIFACT_DIR/$filename"
+  if command -v jq >/dev/null 2>&1; then
+    echo "$response" | jq '.' > "$ARTIFACT_DIR/$filename"
+  else
+    echo "$response" > "$ARTIFACT_DIR/$filename"
+  fi
 }
 
 # Create timesheet via API (for test setup)
@@ -112,7 +125,7 @@ approve_timesheet_api() {
   curl -s -X POST "$API_BASE/approvals" \
     -H "Authorization: Bearer $CURRENT_TOKEN" \
     -H "Content-Type: application/json" \
-    -d "$body?timesheetId=$timesheet_id"
+    -d "{\"timesheetId\": $timesheet_id, \"action\": \"$action\"${comment:+, \"comment\": \"$comment\"}}"
 }
 
 # Quote API helper (captures success and error payloads)

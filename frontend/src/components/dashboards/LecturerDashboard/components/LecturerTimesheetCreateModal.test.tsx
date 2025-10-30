@@ -99,7 +99,7 @@ describe('LecturerTimesheetCreateModal', () => {
       const latestProps = TimesheetFormMock.mock.calls.at(-1)?.[0];
       expect(latestProps?.optionsLoading).toBe(false);
       expect(latestProps?.tutorOptions).toEqual([
-        { id: 34, label: 'Jordan Lee', qualification: 'STANDARD' },
+        expect.objectContaining({ id: 34, label: 'Jordan Lee', qualification: 'STANDARD' }),
       ]);
       expect(latestProps?.courseOptions).toEqual([
         { id: 12, label: 'CS101 - Computer Science 101' },

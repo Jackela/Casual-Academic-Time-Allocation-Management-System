@@ -142,8 +142,13 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
     data: dashboardData,
     loading: dashboardLoading,
     error: dashboardError,
+    lastUpdatedAt,
     refetch: refetchDashboard,
-  } = useTimesheetDashboardSummary({ scope: 'lecturer' });
+  } = useTimesheetDashboardSummary({ scope: 'lecturer', refetchOnWindowFocus: true, refetchInterval: 30000 });
+  // Expose last updated stamp globally for shell (dev-friendly)
+  useEffect(() => {
+    (window as any).__dashboard_last_updated_at = lastUpdatedAt ?? (window as any).__dashboard_last_updated_at ?? null;
+  }, [lastUpdatedAt]);
 
   const {
     loading: approvalLoading,

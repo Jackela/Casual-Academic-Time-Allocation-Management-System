@@ -106,7 +106,8 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
                                      TimesheetDomainService timesheetDomainService,
                                      TimesheetValidationService timesheetValidationService,
                                      TimesheetMapper timesheetMapper,
-                                     TimesheetPermissionPolicy permissionPolicy) {
+                                     TimesheetPermissionPolicy permissionPolicy,
+                                     com.usyd.catams.repository.TutorAssignmentRepository tutorAssignmentRepository) {
         this.timesheetRepository = timesheetRepository;
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
@@ -115,7 +116,10 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         this.timesheetValidationService = timesheetValidationService;
         this.timesheetMapper = timesheetMapper;
         this.permissionPolicy = permissionPolicy;
+        this.tutorAssignmentRepository = tutorAssignmentRepository;
     }
+
+    private final com.usyd.catams.repository.TutorAssignmentRepository tutorAssignmentRepository;
 
     @Override
     @Transactional
@@ -144,6 +148,15 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         validateTutorRole(tutor);
         validateWeekStartDate(weekStartDate);
         validateTimesheetUniqueness(tutorId, courseId, weekStartDate);
+
+        // Enforce tutor-course assignment for visibility/authorization (ADMIN bypass)
+        if (creator.getRole() != com.usyd.catams.enums.UserRole.ADMIN) {
+            boolean assigned = tutorAssignmentRepository.existsByTutorIdAndCourseId(tutorId, courseId);
+            if (!assigned) {
+                throw new com.usyd.catams.exception.AuthorizationException(
+                    "Tutor " + tutorId + " is not assigned to course " + courseId + ". Please assign via admin.");
+            }
+        }
 
         // SSOT validation: thresholds via TimesheetValidationService
         timesheetValidationService.validateInputs(payableHours, hourlyRate);
@@ -231,9 +244,10 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
                 return timesheetRepository.findWithFilters(tutorId, courseId, status, pageable);
                 
             case LECTURER:
-                // For LECTURER, if no courseId filter specified, they get all their courses
-                // If courseId specified, policy already validated they have authority
-                return timesheetRepository.findWithFilters(tutorId, courseId, status, pageable);
+                if (courseId != null) {
+                    return timesheetRepository.findWithLecturerScopeByCourse(requester.getId(), courseId, status, pageable);
+                }
+                return timesheetRepository.findWithLecturerScope(requester.getId(), status, pageable);
                 
             case TUTOR:
                 // TUTOR can only see their own timesheets, so force tutorId to be their own
@@ -591,7 +605,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
 
         switch (requester.getRole()) {
             case LECTURER:
-                return timesheetRepository.findApprovedByTutorByCourses(requester.getId(), pageable);
+                return timesheetRepository.findApprovedByTutorByCoursesWithAssignment(requester.getId(), pageable);
             case ADMIN:
                 return timesheetRepository.findByStatus(ApprovalStatus.LECTURER_CONFIRMED, pageable);
             default:

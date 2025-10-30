@@ -162,14 +162,18 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     timesheets: allTimesheets,
     updateQuery,
     refresh: refreshTimesheets,
-  } = useTimesheetQuery({ size: 50 });
+  } = useTimesheetQuery({ size: 50, staleTimeMs: 0 });
 
   const {
     data: dashboardData,
     loading: dashboardLoading,
     error: dashboardError,
+    lastUpdatedAt,
     refetch: refetchDashboard,
-  } = useTimesheetDashboardSummary({ scope: 'admin' });
+  } = useTimesheetDashboardSummary({ scope: 'admin', refetchOnWindowFocus: true, refetchInterval: 30000 });
+  useEffect(() => {
+    (window as any).__admin_dashboard_last_updated_at = lastUpdatedAt ?? (window as any).__admin_dashboard_last_updated_at ?? null;
+  }, [lastUpdatedAt]);
 
   const {
     loading: approvalLoading,

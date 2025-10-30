@@ -226,9 +226,11 @@ public abstract class IntegrationTestBase {
 
     protected void assertErrorResponse(ResultActions result, int expectedStatus) throws Exception {
         result.andExpect(status().is(expectedStatus))
-              .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+              .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
               .andExpect(jsonPath("$.success").value(false))
-              .andExpect(jsonPath("$.errorMessage").exists());
+              .andExpect(jsonPath("$.error").exists())
+              .andExpect(jsonPath("$.traceId").exists())
+              .andExpect(jsonPath("$.message").exists());
     }
 
     protected void assertSuccessResponse(ResultActions result) throws Exception {

@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import org.springframework.http.MediaType;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -47,9 +49,10 @@ public class AuthenticationIntegrationTest extends IntegrationTestBase {
     void shouldRejectUnauthenticatedRequests() throws Exception {
         mockMvc.perform(get("/api/dashboard/summary"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(content().contentType("application/json"))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorMessage").exists());
+                .andExpect(jsonPath("$.traceId").exists())
+                .andExpect(jsonPath("$.message").exists());
     }
 
     @Test
@@ -58,9 +61,10 @@ public class AuthenticationIntegrationTest extends IntegrationTestBase {
         mockMvc.perform(get("/api/dashboard/summary")
                 .with(TestAuthenticationHelper.withInvalidToken()))
                 .andExpect(status().isUnauthorized())
-                .andExpect(content().contentType("application/json"))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorMessage").exists());
+                .andExpect(jsonPath("$.traceId").exists())
+                .andExpect(jsonPath("$.message").exists());
     }
 
     @Test

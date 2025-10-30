@@ -1,5 +1,5 @@
 import { secureApiClient } from './api-secure';
-import type { User, CreateUserRequest, UpdateUserRequest } from '../types/api';
+import type { User, CreateUserRequest, UpdateUserRequest, TutorAssignmentPayload, TutorDefaultsPayload, TutorQualification } from '../types/api';
 import { API_ENDPOINTS } from '../types/api';
 
 export interface AdminCreateUserForm {
@@ -47,4 +47,36 @@ export async function fetchTutorsForLecturer(lecturerId: number): Promise<User[]
   const endpoint = `${API_ENDPOINTS.USERS.BASE}?${query}`;
   const response = await secureApiClient.get<User[]>(endpoint);
   return response.data;
+}
+
+// Admin: set tutor-course assignments
+export async function setTutorAssignments(payload: TutorAssignmentPayload): Promise<void> {
+  await secureApiClient.post(API_ENDPOINTS.USERS.ADMIN.TUTOR_ASSIGNMENTS, payload);
+}
+
+// Admin: set tutor default qualification
+export async function setTutorDefaultQualification(payload: TutorDefaultsPayload): Promise<void> {
+  await secureApiClient.put(API_ENDPOINTS.USERS.ADMIN.TUTOR_DEFAULTS, payload);
+}
+
+export async function getTutorAssignments(tutorId: number): Promise<number[]> {
+  const response = await secureApiClient.get<{ courseIds: number[] }>(`${API_ENDPOINTS.USERS.ADMIN.TUTOR_ASSIGNMENTS}/${tutorId}`);
+  return response.data.courseIds ?? [];
+}
+
+export async function getTutorDefaults(tutorId: number): Promise<{ defaultQualification: TutorQualification | null }> {
+  const response = await secureApiClient.get<{ defaultQualification: TutorQualification | null }>(`${API_ENDPOINTS.USERS.ADMIN.TUTOR_DEFAULTS.replace('/defaults', '')}/${tutorId}/defaults`);
+  return response.data;
+}
+
+export async function getAssignmentsForCourses(courseIds: number[]): Promise<Record<number, number[]>> {
+  const query = secureApiClient.createQueryString({ courseIds: courseIds.join(',') });
+  const url = `/api/admin/tutors/courses/assignments?${query}`;
+  const response = await secureApiClient.get<{ assignments: Record<string, number[]> }>(url);
+  const out: Record<number, number[]> = {};
+  const src = response.data?.assignments ?? {};
+  for (const [k, v] of Object.entries(src)) {
+    out[Number(k)] = Array.isArray(v) ? v.map(Number) : [];
+  }
+  return out;
 }

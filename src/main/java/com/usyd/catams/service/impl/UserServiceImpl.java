@@ -88,7 +88,7 @@ public class UserServiceImpl implements UserService {
             user.getRole().name()
         );
 
-        return new AuthResult(true, token, userResponse, null);
+        return new AuthResult(true, token, userResponse);
     }
 
     /**

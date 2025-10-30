@@ -40,14 +40,16 @@ export interface AuthResult {
   success: boolean;
   token?: string;
   user?: User;
-  message?: string;
+  message?: string | null;
 }
 
 export interface AuthResponse {
+  success: boolean;
   token: string;
   refreshToken?: string | null;
   expiresAt?: number | null;
   user: User;
+  message?: string | null;
 }
 
 export type SessionStatus =

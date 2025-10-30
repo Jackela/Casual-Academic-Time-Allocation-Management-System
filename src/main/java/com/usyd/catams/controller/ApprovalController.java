@@ -8,6 +8,7 @@ import com.usyd.catams.mapper.TimesheetMapper;
 import com.usyd.catams.policy.AuthenticationFacade;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.service.ApprovalService;
 import com.usyd.catams.enums.ApprovalStatus;
 import jakarta.validation.Valid;
@@ -35,6 +36,7 @@ public class ApprovalController {
     private final TimesheetRepository timesheetRepository;
     private final CourseRepository courseRepository;
     private final TimesheetMapper timesheetMapper;
+    private final TutorAssignmentRepository tutorAssignmentRepository;
     private static final Logger logger = LoggerFactory.getLogger(ApprovalController.class);
 
     @Autowired
@@ -43,13 +45,15 @@ public class ApprovalController {
                               ApprovalMapper approvalMapper,
                               TimesheetRepository timesheetRepository,
                               CourseRepository courseRepository,
-                              TimesheetMapper timesheetMapper) {
+                              TimesheetMapper timesheetMapper,
+                              TutorAssignmentRepository tutorAssignmentRepository) {
         this.approvalService = approvalService;
         this.authenticationFacade = authenticationFacade;
         this.approvalMapper = approvalMapper;
         this.timesheetRepository = timesheetRepository;
         this.courseRepository = courseRepository;
         this.timesheetMapper = timesheetMapper;
+        this.tutorAssignmentRepository = tutorAssignmentRepository;
     }
 
     @PostMapping
@@ -58,6 +62,16 @@ public class ApprovalController {
             @Valid @RequestBody ApprovalActionRequest request) {
         Long requesterId = authenticationFacade.getCurrentUserId();
         logger.info("HTTP approve: action={}, timesheetId={}, requesterId={}", request.getAction(), request.getTimesheetId(), requesterId);
+        // If requester is LECTURER, ensure tutor is assigned to course for the target timesheet
+        java.util.Collection<String> roles = authenticationFacade.getCurrentUserRoles();
+        if (roles.contains("ROLE_LECTURER")) {
+            var timesheet = timesheetRepository.findById(request.getTimesheetId())
+                    .orElseThrow(() -> new com.usyd.catams.exception.ResourceNotFoundException("Timesheet", String.valueOf(request.getTimesheetId())));
+            boolean assigned = tutorAssignmentRepository.existsByTutorIdAndCourseId(timesheet.getTutorId(), timesheet.getCourseId());
+            if (!assigned) {
+                throw new com.usyd.catams.exception.AuthorizationException("Tutor " + timesheet.getTutorId() + " is not assigned to course " + timesheet.getCourseId());
+            }
+        }
         var approval = approvalService.performApprovalAction(
                 request.getTimesheetId(), request.getAction(), request.getComment(), requesterId);
         logger.info("HTTP approve OK: action={}, timesheetId={}, fromStatus={}, toStatus={}",

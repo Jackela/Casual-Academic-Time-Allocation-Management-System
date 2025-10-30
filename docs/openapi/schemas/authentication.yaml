@@ -33,8 +33,8 @@ AuthResult:
       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     user:
       $ref: './users.yaml#/UserResponse'
-    errorMessage:
+    message:
       type: string
-      description: Error message (only present if success=false)
+      description: Optional diagnostic message (primarily used for non-success responses)
       example: null
       nullable: true

@@ -5,7 +5,7 @@
  * analytics, and administrative controls with advanced filtering and monitoring.
  */
 
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import GlobalErrorBanner from '../../shared/feedback/GlobalErrorBanner';
 import PageLoadingIndicator from '../../shared/feedback/PageLoadingIndicator';
 import { useAdminDashboardData } from './hooks/useAdminDashboardData';
@@ -20,6 +20,15 @@ import '../../../styles/dashboard-shell.css';
 export interface AdminDashboardProps {
   className?: string;
 }
+
+const devLog = (message: string, data?: Record<string, unknown>) => {
+  if (!import.meta.env.DEV) return;
+  if (data) {
+    console.info(message, data);
+  } else {
+    console.info(message);
+  }
+};
 
 const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
   const {
@@ -60,7 +69,7 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
     resetApproval,
   } = useAdminDashboardData();
 
-  console.info('[AdminDashboardShell] render start', {
+  devLog('[AdminDashboardShell] render start', {
     sessionStatus,
     pageLoading,
     pageErrors,
@@ -92,6 +101,23 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
     refetchDashboard();
   }, [actionState.isSubmitting, loading.dashboard, loading.timesheets, refreshTimesheets, refetchDashboard]);
 
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  useEffect(() => {
+    try {
+      const stamp = (window as any).__admin_dashboard_last_updated_at as number | undefined;
+      if (stamp && stamp !== lastUpdatedAt) setLastUpdatedAt(stamp);
+    } catch {}
+  });
+
+  const formatClock = (ts: number | null) => {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  };
+
   if (pageLoading) {
     return (
       <div className="layout-container">
@@ -118,7 +144,7 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
 
   const shouldShowSidebar = false; // No sidebar - each tab shows its own content
 
-  console.info('[AdminDashboardShell] render body ready', {
+  devLog('[AdminDashboardShell] render body ready', {
     currentTab,
     isRefreshingData,
     refreshDisabledReason,
@@ -147,6 +173,12 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
                 urgentCount={urgentCount}
                 pendingApprovals={metrics.pendingApprovals}
               />
+
+              {lastUpdatedAt && (
+                <p className="mt-1 text-xs text-muted-foreground" data-testid="dashboard-live-stamp">
+                  Live • {formatClock(lastUpdatedAt)}
+                </p>
+              )}
 
               <AdminNavTabs
                 tabs={tabs}

@@ -2,6 +2,7 @@ import {
   useMemo,
   useState,
   useCallback,
+  useEffect,
 } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
@@ -66,12 +67,20 @@ export const useTutorDashboardViewModel = (): TutorDashboardViewModel => {
   const timesheetsQuery = useTimesheetQuery({
     tutorId: user?.id,
     size: 50,
+    // Dashboard view: always fetch fresh list; keep cache only for non-dashboard consumers
+    staleTimeMs: 0,
   });
 
   const dashboardQuery = useTimesheetDashboardSummary({
     scope: "tutor",
     lazy: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: 30000,
   });
+  // Expose dashboard lastUpdatedAt globally for optional UI badges
+  useEffect(() => {
+    (window as any).__tutor_dashboard_last_updated_at = dashboardQuery.lastUpdatedAt ?? (window as any).__tutor_dashboard_last_updated_at ?? null;
+  }, [dashboardQuery.lastUpdatedAt]);
   const updateMutation = useUpdateTimesheet();
   const tutorStats = useTimesheetStats(timesheetsQuery.timesheets);
 

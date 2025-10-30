@@ -3,7 +3,7 @@ package com.usyd.catams.dto.response;
 /**
  * Authentication result response DTO
  * 
- * Contains authentication success status, JWT token, user information and error message
+ * Contains authentication success status, JWT token, user information and optional message
  * 
  * @author Development Team
  * @since 1.0
@@ -13,16 +13,15 @@ public class AuthResult {
     private boolean success;
     private String token;
     private UserResponse user;
-    private String errorMessage;
+    private String message;
 
     public AuthResult() {
     }
 
-    public AuthResult(boolean success, String token, UserResponse user, String errorMessage) {
+    public AuthResult(boolean success, String token, UserResponse user) {
         this.success = success;
         this.token = token;
         this.user = user;
-        this.errorMessage = errorMessage;
     }
 
     public boolean isSuccess() {
@@ -49,11 +48,11 @@ public class AuthResult {
         this.user = user;
     }
 
-    public String getErrorMessage() {
-        return errorMessage;
+    public String getMessage() {
+        return message;
     }
 
-    public void setErrorMessage(String errorMessage) {
-        this.errorMessage = errorMessage;
+    public void setMessage(String message) {
+        this.message = message;
     }
 }

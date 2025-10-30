@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties(TimesheetValidationProperties.class)
 public class ApplicationConfig {
     public ApplicationConfig(TimesheetValidationProperties props) {
-        // Bridge DI properties to entity static setter for legacy compatibility
+        // Bridge DI properties to entity static setter so existing domain helpers can access limits
         Timesheet.setValidationProperties(props);
         // Provide SSOT to validators that are not Spring-managed in tests
         com.usyd.catams.common.validation.ValidationSSOT.set(props);

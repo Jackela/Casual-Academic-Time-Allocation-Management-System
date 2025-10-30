@@ -104,8 +104,8 @@ public class User {
     }
     
     /**
-     * Constructor for creating a new user with string email (for backwards compatibility)
-     * 
+     * Convenience constructor for creating a new user from a raw email string.
+     *
      * @param emailString User email address as string
      * @param name User full name
      * @param hashedPassword BCrypt hashed password
@@ -156,8 +156,8 @@ public class User {
     }
     
     /**
-     * Check if user is active (simplified method name for test compatibility)
-     * 
+     * Check if user is active (shorthand method used by tests and views)
+     *
      * @return true if user is active, false otherwise
      */
     public boolean isActive() {
@@ -194,7 +194,7 @@ public class User {
     }
     
     /**
-     * Get email as string (for backward compatibility)
+     * Expose the email value object as a raw string when required by downstream consumers.
      */
     public String getEmail() {
         return email != null ? email.getValue() : null;

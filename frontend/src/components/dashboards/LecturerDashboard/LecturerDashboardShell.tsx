@@ -151,9 +151,29 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
     refetchDashboard();
   }, [refreshPending, refetchDashboard]);
 
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  useEffect(() => {
+    // Observe dashboard hook state via a quick polling of lastUpdatedAt exposed by hook
+    // (accessed in useLecturerDashboardData returning dashboardQuery)
+    try {
+      const anyWindow: any = window as any;
+      const stamp = (anyWindow.__dashboard_last_updated_at as number) || null;
+      if (stamp && stamp !== lastUpdatedAt) setLastUpdatedAt(stamp);
+    } catch {}
+  });
+
   const handleClearFilters = useCallback(() => {
     clearFilters();
   }, [clearFilters]);
+
+  const formatClock = (ts: number | null) => {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  };
 
   const handlePageErrorRetry = useCallback((source: 'pending' | 'dashboard') => {
     if (source === 'pending') {
@@ -280,6 +300,12 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
             urgentCount={urgentCount}
             metrics={metrics}
           />
+
+          {lastUpdatedAt && (
+            <p className="mt-1 text-xs text-muted-foreground" data-testid="dashboard-live-stamp">
+              Live • {formatClock(lastUpdatedAt)}
+            </p>
+          )}
 
           <div className="mt-4 flex flex-wrap items-center gap-3" data-testid="lecturer-create-entry">
             <Button

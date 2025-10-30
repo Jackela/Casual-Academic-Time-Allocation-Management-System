@@ -64,6 +64,10 @@ public class TimesheetController {
     @PreAuthorize("hasAnyRole('LECTURER','TUTOR','ADMIN')")
     public ResponseEntity<TimesheetQuoteResponse> quoteTimesheet(
             @Valid @RequestBody TimesheetQuoteRequest request) {
+        // Enforce Monday session date policy (SSOT) for quotes
+        if (request.getSessionDate() == null || request.getSessionDate().getDayOfWeek().getValue() != 1) {
+            throw new IllegalArgumentException("Session date must be a Monday");
+        }
         Schedule1CalculationResult calculation = calculateSchedule1(
                 request.getTaskType(),
                 request.getSessionDate(),
@@ -79,6 +83,9 @@ public class TimesheetController {
     public ResponseEntity<TimesheetResponse> createTimesheet(
             @Valid @RequestBody TimesheetCreateRequest request,
             Authentication authentication) {
+        if (!request.isWeekStartDateMonday()) {
+            throw new IllegalArgumentException("Week start date must be a Monday");
+        }
         Long creatorId = authenticationFacade.getCurrentUserId();
         Schedule1CalculationResult calculation = calculateSchedule1(
                 request.getTaskType(),
@@ -161,6 +168,9 @@ public class TimesheetController {
         TutorQualification qualification = request.getQualification() != null ? request.getQualification() : existing.getQualification();
         BigDecimal deliveryHours = request.getDeliveryHours() != null ? request.getDeliveryHours() : existing.getDeliveryHours();
         LocalDate sessionDate = request.getSessionDate() != null ? request.getSessionDate() : existing.getSessionDate();
+        if (sessionDate == null || sessionDate.getDayOfWeek().getValue() != 1) {
+            throw new IllegalArgumentException("Session date must be a Monday");
+        }
 
         Schedule1CalculationResult calculation = calculateSchedule1(
                 taskType,

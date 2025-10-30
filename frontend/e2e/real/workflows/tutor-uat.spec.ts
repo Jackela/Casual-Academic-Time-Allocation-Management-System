@@ -22,7 +22,7 @@ test.describe('Tutor UAT - Core Workflow', () => {
     const dashboard = new TutorDashboardPage(page);
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await dashboard.expectToBeLoaded();
-    await dashboard.waitForMyTimesheetData();
+    await dashboard.waitForDashboardReady();
     return dashboard;
   };
 
@@ -37,7 +37,7 @@ test.describe('Tutor UAT - Core Workflow', () => {
     const tutorDashboard = await openTutorDashboard(page);
 
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await tutorDashboard.waitForMyTimesheetData();
+    await tutorDashboard.waitForDashboardReady();
     const row = tutorDashboard.getTimesheetRow(seeded.id, seeded.description);
     await expect(row).toBeVisible({ timeout: 20000 });
 

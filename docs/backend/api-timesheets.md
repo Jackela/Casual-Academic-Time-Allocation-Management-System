@@ -46,6 +46,24 @@ Notes:
 - Validation errors (HTTP 400) include calculator rule breaches (e.g., negative hours, repeat tutorial outside seven-day window).
 - HTTP 404 indicates no policy coverage for the supplied inputs.
 
+## Configuration Endpoint
+
+### GET `/timesheets/config`
+Publishes the server-side source of truth for UI validation. The response mirrors `TimesheetsConfigResponse`:
+
+```json
+{
+  "hours": { "min": 0.1, "max": 10.0, "step": 0.1 },
+  "weekStart": { "mondayOnly": true },
+  "currency": "AUD"
+}
+```
+
+Notes:
+- Clients must always consult this endpoint on load; hard-coded ranges or currency strings drift quickly with policy updates.
+- `weekStart.mondayOnly` enforces the Monday guard for both quotes and persistence.
+- Consumers should tolerate new fields added under `hours`, `weekStart`, or top-level keys.
+
 ## Persistence Endpoints
 
 ### POST `/timesheets`
@@ -91,16 +109,17 @@ Updates an existing entry using the same rules as `POST`. The payload excludes c
 
 ## Retrieval
 
+- `GET /timesheets/config` shares SSOT validation rules for UI clients.
 - `GET /timesheets` supports filtering by tutor, course, date range, and status. Responses include calculator outputs for transparency.
 - `GET /timesheets/{id}` returns a single entry with all SSOT fields.
-- `GET /timesheets/pending-final-approval` returns the lecturer-confirmed queue awaiting administrator (HR) action.
+- `GET /timesheets/pending-final-approval` returns the lecturer-confirmed queue awaiting administrator (HR) action. Lecturers only receive rows for tutors assigned to their courses; unassigned combinations trigger `403` ProblemDetails.
 
 ## Error Handling
 
 | Code | Scenario |
 |------|----------|
 | 400  | Validation failure (missing fields, delivery hour limits, tutorial repeat outside window) |
-| 403  | Role lacks permission (e.g., Tutor attempting to create or update a timesheet, or fetching another tutor's record) |
+| 403  | Permission failure (tutor-course assignment missing, role mismatch, or lecturer accessing another course's queue). ProblemDetails payload always includes `traceId` for correlation. |
 | 404  | Timesheet not found or no policy coverage |
 | 409  | Approval workflow conflict |
 

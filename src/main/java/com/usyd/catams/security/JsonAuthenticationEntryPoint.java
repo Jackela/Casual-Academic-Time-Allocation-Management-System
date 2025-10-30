@@ -31,13 +31,15 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         
+        String traceId = request.getHeader("X-Request-Id");
+        if (traceId == null || traceId.isBlank()) traceId = java.util.UUID.randomUUID().toString();
         ErrorResponse errorResponse = ErrorResponse.builder()
             .timestamp(Instant.now().toString())
             .status(401)
             .error("Unauthorized")
             .message("Authentication required")
-            .errorMessage("Authentication required")
             .path(request.getRequestURI())
+            .traceId(traceId)
             .build();
         
         response.getWriter().write(objectMapper.writeValueAsString(errorResponse));

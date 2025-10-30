@@ -7,6 +7,7 @@ import type {
   TutorQualification,
 } from '../../../../types/api';
 import { secureLogger } from '../../../../utils/secure-logger';
+import { hasAtMostDecimalPlaces } from '../../../../utils/number';
 import { Card, CardHeader, CardTitle } from '../../../ui/card';
 import { Button } from '../../../ui/button';
 import { Input } from '../../../ui/input';
@@ -355,6 +356,15 @@ const TimesheetForm = memo<TimesheetFormProps>(({
   const isLecturerEditMode = mode === 'lecturer-edit';
   const isLecturerMode = isLecturerCreateMode || isLecturerEditMode;
   const tutorOptionsAvailable = Array.isArray(tutorOptions) && tutorOptions.length > 0;
+  const visibleTutorOptions = useMemo(() => {
+    if (!tutorOptionsAvailable) return [] as TimesheetFormTutorOption[];
+    if (!isLecturerMode) return tutorOptions!;
+    const courseId = formData.courseId;
+    if (!courseId || courseId <= 0) return tutorOptions!;
+    // Filter tutors by assignment to selected course when courseIds metadata present; otherwise show all
+    const filtered = tutorOptions!.filter((t) => Array.isArray(t.courseIds) ? t.courseIds.includes(courseId) : true);
+    return filtered.length > 0 ? filtered : tutorOptions!;
+  }, [formData.courseId, isLecturerMode, tutorOptions, tutorOptionsAvailable]);
   const [internalTutorId, setInternalTutorId] = useState<number>(() => {
     if (isLecturerCreateMode) {
       if (selectedTutorId) {
@@ -407,12 +417,13 @@ const TimesheetForm = memo<TimesheetFormProps>(({
     }
 
     if (tutorOptionsAvailable) {
-      const firstTutor = tutorOptions![0]?.id ?? 0;
+      const list = visibleTutorOptions;
+      const firstTutor = list[0]?.id ?? 0;
       setInternalTutorId(firstTutor);
     } else {
       setInternalTutorId(0);
     }
-  }, [isLecturerCreateMode, selectedTutorId, tutorId, tutorOptions, tutorOptionsAvailable]);
+  }, [isLecturerCreateMode, selectedTutorId, tutorId, tutorOptions, tutorOptionsAvailable, visibleTutorOptions]);
 
   const resolvedTutorId = isLecturerCreateMode ? internalTutorId : tutorId;
   const resolvedCourseOptions = useMemo(
@@ -426,7 +437,8 @@ const TimesheetForm = memo<TimesheetFormProps>(({
       return;
     }
 
-    const selectedTutor = tutorOptions?.find((option) => option.id === resolvedTutorId);
+    const selectedTutor = visibleTutorOptions.find((option) => option.id === resolvedTutorId)
+      ?? tutorOptions?.find((option) => option.id === resolvedTutorId);
     if (!selectedTutor) {
       return;
     }
@@ -438,7 +450,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({
       }
       return { ...previous, qualification: nextQualification };
     });
-  }, [isLecturerMode, resolvedTutorId, tutorOptions]);
+  }, [isLecturerMode, resolvedTutorId, tutorOptions, visibleTutorOptions]);
 
   useEffect(() => {
     setFormData((previous) => {
@@ -545,6 +557,8 @@ const TimesheetForm = memo<TimesheetFormProps>(({
       errors.deliveryHours = `Delivery hours must be at least ${HOURS_MIN}`;
     } else if (formData.deliveryHours > HOURS_MAX) {
       errors.deliveryHours = `Delivery hours must be between ${HOURS_MIN} and ${HOURS_MAX}`;
+    } else if (!hasAtMostDecimalPlaces(formData.deliveryHours, 1)) {
+      errors.deliveryHours = 'Delivery hours must have at most 1 decimal place';
     }
 
     if (!formData.weekStartDate) {
@@ -790,7 +804,7 @@ const TimesheetForm = memo<TimesheetFormProps>(({
               aria-describedby={validationErrors.tutorId ? 'tutor-error' : undefined}
             >
               <option value={0}>Select a tutor</option>
-              {tutorOptions?.map((option) => (
+              {visibleTutorOptions.map((option) => (
                 <option key={option.id} value={option.id}>{option.label}</option>
               ))}
             </select>
@@ -989,6 +1003,11 @@ const TimesheetForm = memo<TimesheetFormProps>(({
                   {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(quoteState.data.amount)}
                 </p>
               </div>
+              {formData.isRepeat && formData.taskType === 'TUTORIAL' && quoteState.data.payableHours < quoteState.data.associatedHours && (
+                <div className="md:col-span-2 text-xs text-muted-foreground" data-testid="repeat-note" aria-live="polite">
+                  Note: For repeat tutorials, payable hours may be capped per EA Schedule 1 rules. The preview shows payable hours after capping.
+                </div>
+              )}
               <div className="md:col-span-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Formula</p>
                 <p className="text-sm font-medium">{quoteState.data.formula}</p>

@@ -1,326 +1,205 @@
 package com.usyd.catams.exception;
 
-import com.usyd.catams.dto.response.ErrorResponse;
+import com.usyd.catams.config.TelemetryConfig;
 import com.usyd.catams.service.Schedule1PolicyProvider;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 
-import java.time.Instant;
+import java.net.URI;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Global exception handler for centralized error handling
- * 
- * Handles all application exceptions and converts them to standardized error responses
- * 
- * @author Development Team
- * @since 1.0
+ * Global exception handler for centralized error handling.
+ *
+ * Produces RFC-7807 compliant Problem Details responses with CATAMS-specific metadata.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-    
+
     private final Clock clock;
 
     public GlobalExceptionHandler(Clock clock) {
         this.clock = (clock != null ? clock : Clock.systemUTC());
     }
 
-    /**
-     * Handle business exceptions
-     */
+    private record TraceContextIds(String traceId, String spanId) {}
+
+    private TraceContextIds resolveTraceContext(HttpServletRequest request) {
+        String header = request.getHeader("X-Request-Id");
+        Object requestTrace = request.getAttribute(TelemetryConfig.TRACE_ID_REQUEST_ATTRIBUTE);
+        Object requestSpan = request.getAttribute(TelemetryConfig.SPAN_ID_REQUEST_ATTRIBUTE);
+        SpanContext context = Span.current().getSpanContext();
+
+        String spanId = null;
+        if (requestSpan instanceof String s && !s.isBlank()) {
+            spanId = s;
+        } else if (context != null && context.isValid()) {
+            spanId = context.getSpanId();
+        }
+
+        if (header != null && !header.isBlank()) {
+            return new TraceContextIds(header, spanId);
+        }
+
+        if (requestTrace instanceof String trace && !trace.isBlank()) {
+            return new TraceContextIds(trace, spanId);
+        }
+
+        if (context != null && context.isValid()) {
+            return new TraceContextIds(context.getTraceId(), context.getSpanId());
+        }
+
+        return new TraceContextIds(UUID.randomUUID().toString(), spanId);
+    }
+
+    private ProblemDetail buildProblemDetail(HttpStatus status, String errorCode, String detail, HttpServletRequest request) {
+        TraceContextIds traceIds = resolveTraceContext(request);
+        String resolvedDetail = (detail == null || detail.isBlank()) ? status.getReasonPhrase() : detail;
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, resolvedDetail);
+        problem.setTitle(status.getReasonPhrase());
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setType(URI.create("urn:catams:error:" + errorCode.toLowerCase()));
+        problem.setProperty("timestamp", Instant.now(clock).toString());
+        problem.setProperty("path", request.getRequestURI());
+        problem.setProperty("error", errorCode);
+        problem.setProperty("success", false);
+        problem.setProperty("traceId", traceIds.traceId());
+        if (traceIds.spanId() != null && !traceIds.spanId().isBlank()) {
+            problem.setProperty("spanId", traceIds.spanId());
+        }
+        problem.setProperty("message", resolvedDetail);
+        return problem;
+    }
+
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException e, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleBusinessException(BusinessException e, HttpServletRequest request) {
         logger.warn("Business exception: {} - {}", e.getErrorCode(), e.getMessage());
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now(clock).toString())
-            .status(HttpStatus.BAD_REQUEST.value())
-            .error(e.getErrorCode())
-            .message(e.getMessage())
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.badRequest().body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, e.getErrorCode(), e.getMessage(), request);
+        return ResponseEntity.badRequest().body(problem);
     }
-    
-    /**
-     * Handle authentication exceptions
-     */
+
     @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException e, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleAuthenticationException(AuthenticationException e, HttpServletRequest request) {
         logger.warn("Authentication exception: {}", e.getMessage());
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now(clock).toString())
-            .status(HttpStatus.UNAUTHORIZED.value())
-            .error(ErrorCodes.AUTH_FAILED)
-            .message("Authentication failed")
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.UNAUTHORIZED, ErrorCodes.AUTH_FAILED, "Authentication failed", request);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problem);
     }
-    
-    /**
-     * Handle Spring Security access denied exceptions
-     */
+
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException e, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleAccessDeniedException(AccessDeniedException e, HttpServletRequest request) {
         logger.warn("Access denied exception: {}", e.getMessage());
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now(clock).toString())
-            .status(HttpStatus.FORBIDDEN.value())
-            .error(ErrorCodes.ACCESS_DENIED)
-            .message("Access denied")
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.FORBIDDEN, ErrorCodes.ACCESS_DENIED, "Access denied", request);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
     }
 
-    /**
-     * Handle business conflict exceptions (HTTP 409)
-     */
     @ExceptionHandler(BusinessConflictException.class)
-    public ResponseEntity<ErrorResponse> handleBusinessConflict(BusinessConflictException e, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleBusinessConflict(BusinessConflictException e, HttpServletRequest request) {
         logger.warn("Business conflict: {}", e.getMessage());
-
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now(clock).toString())
-            .status(HttpStatus.CONFLICT.value())
-            .error(e.getErrorCode())
-            .message(e.getMessage())
-            .path(request.getRequestURI())
-            .build();
-
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.CONFLICT, e.getErrorCode(), e.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }
 
-    /**
-     * Handle authorization failures - returns 403 Forbidden
-     */
     @ExceptionHandler(AuthorizationException.class)
-    public ResponseEntity<ErrorResponse> handleAuthorizationException(AuthorizationException e, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleAuthorizationException(AuthorizationException e, HttpServletRequest request) {
         logger.warn("Authorization failure: {}", e.getMessage());
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now(clock).toString())
-            .status(HttpStatus.FORBIDDEN.value())
-            .error(e.getErrorCode())
-            .message(e.getMessage())
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.FORBIDDEN, e.getErrorCode(), e.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
     }
 
-    /**
-     * Handle SecurityException - business layer security violations
-     */
     @ExceptionHandler(SecurityException.class)
-    public ResponseEntity<ErrorResponse> handleSecurityException(SecurityException e, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleSecurityException(SecurityException e, HttpServletRequest request) {
         logger.warn("Security exception: {}", e.getMessage());
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
-            .status(HttpStatus.FORBIDDEN.value())
-            .error(ErrorCodes.ACCESS_DENIED)
-            .message(e.getMessage())
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.FORBIDDEN, ErrorCodes.ACCESS_DENIED, e.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
     }
 
-    /**
-     * Handle IllegalArgumentException - business rule violations
-     */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleIllegalArgumentException(IllegalArgumentException e, HttpServletRequest request) {
         logger.warn("Illegal argument exception: {}", e.getMessage());
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
-            .status(HttpStatus.BAD_REQUEST.value())
-            .error(ErrorCodes.VALIDATION_FAILED)
-            .message(e.getMessage())
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-    }
-    
-    /**
-     * Handle business rule violations - returns 400 Bad Request
-     */
-    @ExceptionHandler(BusinessRuleException.class)
-    public ResponseEntity<ErrorResponse> handleBusinessRuleException(BusinessRuleException e, HttpServletRequest request) {
-        logger.warn("Business rule violation: {}", e.getMessage());
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
-            .status(HttpStatus.BAD_REQUEST.value())
-            .error(e.getErrorCode())
-            .message(e.getMessage())
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, e.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
-    /**
-     * Map IllegalStateException to 400 Bad Request for business precondition failures
-     */
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException e, HttpServletRequest request) {
-        logger.warn("Illegal state exception: {}", e.getMessage());
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now().toString())
-            .status(HttpStatus.BAD_REQUEST.value())
-            .error(ErrorCodes.VALIDATION_FAILED)
-            .message(e.getMessage())
-            .path(request.getRequestURI())
-            .build();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    @ExceptionHandler(BusinessRuleException.class)
+    public ResponseEntity<ProblemDetail> handleBusinessRuleException(BusinessRuleException e, HttpServletRequest request) {
+        logger.warn("Business rule violation: {}", e.getMessage());
+        ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, e.getErrorCode(), e.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
-    
-    /**
-     * Handle validation exceptions from @Valid annotations
-     */
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ProblemDetail> handleIllegalStateException(IllegalStateException e, HttpServletRequest request) {
+        logger.warn("Illegal state exception: {}", e.getMessage());
+        ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, e.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(
-            MethodArgumentNotValidException e, HttpServletRequest request) {
-        
+    public ResponseEntity<ProblemDetail> handleValidationException(MethodArgumentNotValidException e, HttpServletRequest request) {
         List<String> errors = e.getBindingResult()
             .getFieldErrors()
             .stream()
             .map(error -> error.getField() + ": " + error.getDefaultMessage())
             .collect(Collectors.toList());
-            
+
         String message = "Validation failed: " + String.join(", ", errors);
         logger.warn("Validation exception: {}", message);
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now(clock).toString())
-            .status(HttpStatus.BAD_REQUEST.value())
-            .error(ErrorCodes.VALIDATION_FAILED)
-            .message(message)
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.badRequest().body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, message, request);
+        return ResponseEntity.badRequest().body(problem);
     }
-    
-    /**
-     * Handle constraint violation exceptions
-     */
+
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolationException(
-            ConstraintViolationException e, HttpServletRequest request) {
-        
+    public ResponseEntity<ProblemDetail> handleConstraintViolationException(ConstraintViolationException e, HttpServletRequest request) {
         String message = "Validation failed: " + e.getMessage();
         logger.warn("Constraint violation: {}", message);
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now(clock).toString())
-            .status(HttpStatus.BAD_REQUEST.value())
-            .error(ErrorCodes.VALIDATION_FAILED)
-            .message(message)
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.badRequest().body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, message, request);
+        return ResponseEntity.badRequest().body(problem);
     }
-    
-    /**
-     * Handle missing or malformed request body
-     */
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(
-            HttpMessageNotReadableException e, HttpServletRequest request) {
-        
+    public ResponseEntity<ProblemDetail> handleHttpMessageNotReadableException(HttpMessageNotReadableException e, HttpServletRequest request) {
         String message = "Invalid request body";
         logger.warn("Message not readable: {}", message);
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now(clock).toString())
-            .status(HttpStatus.BAD_REQUEST.value())
-            .error(ErrorCodes.VALIDATION_FAILED)
-            .message(message)
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.badRequest().body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, message, request);
+        return ResponseEntity.badRequest().body(problem);
     }
-    
-    
-    /**
-     * Handle resource not found exceptions
-     */
+
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException e, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleResourceNotFoundException(ResourceNotFoundException e, HttpServletRequest request) {
         logger.warn("Resource not found: {}", e.getMessage());
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now(clock).toString())
-            .status(HttpStatus.NOT_FOUND.value())
-            .error(ErrorCodes.RESOURCE_NOT_FOUND)
-            .message(e.getMessage())
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.NOT_FOUND, ErrorCodes.RESOURCE_NOT_FOUND, e.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
     }
-    
-    /**
-     * Handle Schedule 1 policy resolution failures to surface actionable feedback.
-     */
+
     @ExceptionHandler(Schedule1PolicyProvider.RatePolicyNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleRatePolicyMissing(
-            Schedule1PolicyProvider.RatePolicyNotFoundException e,
-            HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleRatePolicyMissing(Schedule1PolicyProvider.RatePolicyNotFoundException e, HttpServletRequest request) {
         logger.error("Schedule 1 policy lookup failed: {}", e.getMessage());
-
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now(clock).toString())
-            .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-            .error(ErrorCodes.INTERNAL_ERROR)
-            .message(e.getMessage())
-            .path(request.getRequestURI())
-            .build();
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCodes.INTERNAL_ERROR, e.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
     }
-    
-    /**
-     * Handle unexpected runtime exceptions
-     */
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(Exception e, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleGenericException(Exception e, HttpServletRequest request) {
         logger.error("System exception: {}", e.getMessage(), e);
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now(clock).toString())
-            .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-            .error(ErrorCodes.INTERNAL_ERROR)
-            .message("Internal server error, please try again later")
-            .path(request.getRequestURI())
-            .build();
-            
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCodes.INTERNAL_ERROR, "Internal server error, please try again later", request);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
     }
 }

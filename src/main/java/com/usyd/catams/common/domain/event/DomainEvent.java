@@ -70,7 +70,7 @@ public interface DomainEvent extends Serializable {
     
     /**
      * Get the version of this event schema
-     * Important for backwards compatibility in distributed systems
+     * Important for stable event contracts in distributed systems
      * 
      * @return Version number (e.g., "1.0", "2.1")
      */

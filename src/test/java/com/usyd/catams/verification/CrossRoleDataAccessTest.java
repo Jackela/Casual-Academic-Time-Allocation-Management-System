@@ -10,6 +10,7 @@ import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.exception.AuthorizationException;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.service.TimesheetService;
 import com.usyd.catams.service.Schedule1CalculationResult;
@@ -57,6 +58,9 @@ public class CrossRoleDataAccessTest {
     @Autowired
     private TimesheetPermissionPolicy permissionPolicy;
 
+    @Autowired
+    private TutorAssignmentRepository tutorAssignmentRepository;
+
     private User tutorA;
     private User tutorB;
     private User lecturerA;
@@ -79,6 +83,10 @@ public class CrossRoleDataAccessTest {
         // 创建课程
         courseA = createCourse("COURSE_A", "Course A", lecturerA.getId());
         courseB = createCourse("COURSE_B", "Course B", lecturerB.getId());
+
+        tutorAssignmentRepository.deleteAll();
+        tutorAssignmentRepository.save(new com.usyd.catams.entity.TutorAssignment(tutorA.getId(), courseA.getId()));
+        tutorAssignmentRepository.save(new com.usyd.catams.entity.TutorAssignment(tutorB.getId(), courseB.getId()));
 
         // 创建timesheet
         timesheetA1 = createTimesheet(tutorA.getId(), courseA.getId(), lecturerA.getId());

@@ -5744,3 +5744,10 @@ REPEAT by Asking the user if they would like to perform another Reflective, Elic
 
 <!-- END: BMAD-AGENTS -->
 
+
+## Active Technologies
+- Backend Java 17+ (Spring), Frontend TypeScript (React) + Spring Boot, Spring Security, Flyway; React 19, React Router, Vitest/Playwright (001-fix-uat-gaps)
+- PostgreSQL (via Spring Data JPA) (001-fix-uat-gaps)
+
+## Recent Changes
+- 001-fix-uat-gaps: Added Backend Java 17+ (Spring), Frontend TypeScript (React) + Spring Boot, Spring Security, Flyway; React 19, React Router, Vitest/Playwright
