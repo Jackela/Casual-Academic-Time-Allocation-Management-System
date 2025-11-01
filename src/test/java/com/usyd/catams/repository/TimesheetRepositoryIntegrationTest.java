@@ -110,4 +110,34 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
         Page<Timesheet> filtered = timesheetRepository.findWithFilters(1L, 1L, ApprovalStatus.PENDING_TUTOR_CONFIRMATION, pageable);
         assertThat(filtered.getTotalElements()).isEqualTo(1);
     }
+
+    @Test
+    void countTutorialsForRepeatRule_inclusiveSevenDayWindow_countsPriorTutorial() {
+        // Arrange: create a TUTORIAL entry on 2024-06-17 for course 1
+        Timesheet tutorial = new Timesheet(
+            3L,
+            1L,
+            new WeekPeriod(com.usyd.catams.testutils.TestDates.mondayOf(LocalDate.of(2024, 6, 17))),
+            new BigDecimal("1.0"),
+            new Money(new BigDecimal("42.00")),
+            "EA Tutorial",
+            10L
+        );
+        tutorial.setTaskType(com.usyd.catams.enums.TimesheetTaskType.TUTORIAL);
+        tutorial.setStatus(ApprovalStatus.DRAFT);
+        tutorial.setSessionDate(LocalDate.of(2024, 6, 17));
+        entityManager.persist(tutorial);
+        entityManager.flush();
+
+        // Act: count between 2024-06-17 and 2024-06-24 inclusive
+        long count = timesheetRepository.countTutorialsForRepeatRule(
+            1L,
+            LocalDate.of(2024, 6, 17),
+            LocalDate.of(2024, 6, 24),
+            null
+        );
+
+        // Assert
+        assertThat(count).isGreaterThanOrEqualTo(1L);
+    }
 }

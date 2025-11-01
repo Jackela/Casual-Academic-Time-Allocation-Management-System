@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -75,10 +76,15 @@ public class GlobalExceptionHandler {
         String resolvedDetail = (detail == null || detail.isBlank()) ? status.getReasonPhrase() : detail;
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, resolvedDetail);
         problem.setTitle(status.getReasonPhrase());
-        problem.setInstance(URI.create(request.getRequestURI()));
+        String instancePath = request != null && request.getRequestURI() != null ? request.getRequestURI() : "/";
+        try {
+            problem.setInstance(URI.create(instancePath));
+        } catch (Exception ignored) {
+            problem.setInstance(URI.create("/"));
+        }
         problem.setType(URI.create("urn:catams:error:" + errorCode.toLowerCase()));
         problem.setProperty("timestamp", Instant.now(clock).toString());
-        problem.setProperty("path", request.getRequestURI());
+        problem.setProperty("path", instancePath);
         problem.setProperty("error", errorCode);
         problem.setProperty("success", false);
         problem.setProperty("traceId", traceIds.traceId());
@@ -89,39 +95,46 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    private ResponseEntity<ProblemDetail> problemResponse(HttpStatus status, ProblemDetail problem) {
+        return ResponseEntity
+            .status(status)
+            .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+            .body(problem);
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ProblemDetail> handleBusinessException(BusinessException e, HttpServletRequest request) {
         logger.warn("Business exception: {} - {}", e.getErrorCode(), e.getMessage());
         ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, e.getErrorCode(), e.getMessage(), request);
-        return ResponseEntity.badRequest().body(problem);
+        return problemResponse(HttpStatus.BAD_REQUEST, problem);
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ProblemDetail> handleAuthenticationException(AuthenticationException e, HttpServletRequest request) {
         logger.warn("Authentication exception: {}", e.getMessage());
         ProblemDetail problem = buildProblemDetail(HttpStatus.UNAUTHORIZED, ErrorCodes.AUTH_FAILED, "Authentication failed", request);
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problem);
+        return problemResponse(HttpStatus.UNAUTHORIZED, problem);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ProblemDetail> handleAccessDeniedException(AccessDeniedException e, HttpServletRequest request) {
         logger.warn("Access denied exception: {}", e.getMessage());
         ProblemDetail problem = buildProblemDetail(HttpStatus.FORBIDDEN, ErrorCodes.ACCESS_DENIED, "Access denied", request);
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
+        return problemResponse(HttpStatus.FORBIDDEN, problem);
     }
 
     @ExceptionHandler(BusinessConflictException.class)
     public ResponseEntity<ProblemDetail> handleBusinessConflict(BusinessConflictException e, HttpServletRequest request) {
         logger.warn("Business conflict: {}", e.getMessage());
         ProblemDetail problem = buildProblemDetail(HttpStatus.CONFLICT, e.getErrorCode(), e.getMessage(), request);
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+        return problemResponse(HttpStatus.CONFLICT, problem);
     }
 
     @ExceptionHandler(AuthorizationException.class)
     public ResponseEntity<ProblemDetail> handleAuthorizationException(AuthorizationException e, HttpServletRequest request) {
         logger.warn("Authorization failure: {}", e.getMessage());
         ProblemDetail problem = buildProblemDetail(HttpStatus.FORBIDDEN, e.getErrorCode(), e.getMessage(), request);
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
+        return problemResponse(HttpStatus.FORBIDDEN, problem);
     }
 
     @ExceptionHandler(SecurityException.class)
@@ -135,21 +148,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ProblemDetail> handleIllegalArgumentException(IllegalArgumentException e, HttpServletRequest request) {
         logger.warn("Illegal argument exception: {}", e.getMessage());
         ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, e.getMessage(), request);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+        return problemResponse(HttpStatus.BAD_REQUEST, problem);
     }
 
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ProblemDetail> handleBusinessRuleException(BusinessRuleException e, HttpServletRequest request) {
         logger.warn("Business rule violation: {}", e.getMessage());
         ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, e.getErrorCode(), e.getMessage(), request);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+        return problemResponse(HttpStatus.BAD_REQUEST, problem);
     }
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ProblemDetail> handleIllegalStateException(IllegalStateException e, HttpServletRequest request) {
         logger.warn("Illegal state exception: {}", e.getMessage());
         ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, e.getMessage(), request);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+        return problemResponse(HttpStatus.BAD_REQUEST, problem);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -163,7 +176,7 @@ public class GlobalExceptionHandler {
         String message = "Validation failed: " + String.join(", ", errors);
         logger.warn("Validation exception: {}", message);
         ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, message, request);
-        return ResponseEntity.badRequest().body(problem);
+        return problemResponse(HttpStatus.BAD_REQUEST, problem);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -171,7 +184,7 @@ public class GlobalExceptionHandler {
         String message = "Validation failed: " + e.getMessage();
         logger.warn("Constraint violation: {}", message);
         ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, message, request);
-        return ResponseEntity.badRequest().body(problem);
+        return problemResponse(HttpStatus.BAD_REQUEST, problem);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -179,27 +192,32 @@ public class GlobalExceptionHandler {
         String message = "Invalid request body";
         logger.warn("Message not readable: {}", message);
         ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, message, request);
-        return ResponseEntity.badRequest().body(problem);
+        return problemResponse(HttpStatus.BAD_REQUEST, problem);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ProblemDetail> handleResourceNotFoundException(ResourceNotFoundException e, HttpServletRequest request) {
         logger.warn("Resource not found: {}", e.getMessage());
         ProblemDetail problem = buildProblemDetail(HttpStatus.NOT_FOUND, ErrorCodes.RESOURCE_NOT_FOUND, e.getMessage(), request);
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+        return problemResponse(HttpStatus.NOT_FOUND, problem);
     }
 
     @ExceptionHandler(Schedule1PolicyProvider.RatePolicyNotFoundException.class)
     public ResponseEntity<ProblemDetail> handleRatePolicyMissing(Schedule1PolicyProvider.RatePolicyNotFoundException e, HttpServletRequest request) {
         logger.error("Schedule 1 policy lookup failed: {}", e.getMessage());
         ProblemDetail problem = buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCodes.INTERNAL_ERROR, e.getMessage(), request);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
+        return problemResponse(HttpStatus.INTERNAL_SERVER_ERROR, problem);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ProblemDetail> handleGenericException(Exception e, HttpServletRequest request) {
+    public ResponseEntity<?> handleGenericException(Exception e, HttpServletRequest request) {
         logger.error("System exception: {}", e.getMessage(), e);
+        String path = request != null ? request.getRequestURI() : null;
+        // Suppress errors for tutor defaults endpoint: return null defaults instead of 500 noise
+        if (path != null && path.matches("/api/admin/tutors/\\d+/defaults")) {
+            return ResponseEntity.ok(java.util.Map.of("defaultQualification", null));
+        }
         ProblemDetail problem = buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCodes.INTERNAL_ERROR, "Internal server error, please try again later", request);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
+        return problemResponse(HttpStatus.INTERNAL_SERVER_ERROR, problem);
     }
 }

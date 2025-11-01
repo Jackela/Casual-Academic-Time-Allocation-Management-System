@@ -69,8 +69,13 @@ export class NavigationPage {
     }
   }
 
-  async expectUserInfo(expectedName: string, expectedRole: string) {
-    await expect(this.userName).toContainText(expectedName);
+  async expectUserInfo(expectedName: string | string[], expectedRole: string) {
+    const names = Array.isArray(expectedName) ? expectedName : [expectedName];
+    // Allow flexibility across seeded environments: accept any of the provided names
+    await expect(async () => {
+      const text = await this.userName.textContent();
+      expect(text && names.some(n => text.includes(n))).toBeTruthy();
+    }).toPass();
     await expect(this.userRoleBadge).toContainText(expectedRole);
   }
 

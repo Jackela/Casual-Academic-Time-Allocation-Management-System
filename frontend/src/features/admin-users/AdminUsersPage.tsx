@@ -79,6 +79,18 @@ const generateSecurePassword = (): string => {
   return combined.join('');
 };
 
+// Minimal mirror of backend password policy to avoid 400s during create.
+// Back-end requires 8-255 chars with upper, lower, digit and one of @$!%*?&.
+const isCompliantPassword = (pwd: string): boolean => {
+  if (!pwd || pwd.length < 8 || pwd.length > 255) return false;
+  const hasUpper = /[A-Z]/.test(pwd);
+  const hasLower = /[a-z]/.test(pwd);
+  const hasDigit = /[0-9]/.test(pwd);
+  const hasSpecial = /[@$!%*?&]/.test(pwd);
+  // Backend typically restricts to these safe characters; loosely enforce composition here.
+  return hasUpper && hasLower && hasDigit && hasSpecial;
+};
+
 const resolveIsActive = (user: User): boolean => {
   if (typeof user.isActive === 'boolean') {
     return user.isActive;
@@ -229,7 +241,16 @@ export default function AdminUsersPage() {
     setRequestState('submitting');
     setErrorMessage(null);
     try {
-      const newUser = await createUser(formState);
+      // Enforce password policy client-side for deterministic UX in tests and UI
+      const candidate = formState.password?.trim?.() ?? '';
+      if (!isCompliantPassword(candidate)) {
+        setErrorMessage('Password does not meet policy. Use at least 12 chars with upper, lower, digit and symbol.');
+        setRequestState('idle');
+        return;
+      }
+
+      const createPayload = { ...formState, password: candidate } as typeof formState;
+      const newUser = await createUser(createPayload);
 
       // If user is TUTOR and assignments/defaults were selected, push them
       if (newUser.role === 'TUTOR') {

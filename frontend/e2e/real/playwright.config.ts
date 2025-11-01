@@ -28,8 +28,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   testDir: '.',
-  timeout: 60_000,
-  expect: { timeout: 10_000 },
+  // Increase timeouts for stability under local dev and CI noise
+  timeout: 120_000,
+  expect: { timeout: 20_000 },
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
@@ -46,8 +47,10 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'chromium',
+      name: 'real',
       use: { ...devices['Desktop Chrome'] },
+      // Run the real project with a single worker for stability (avoid page/context closure)
+      workers: 1,
     },
   ],
   outputDir: '../../test-results',

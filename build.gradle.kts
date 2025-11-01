@@ -43,6 +43,7 @@ val skipContracts = providers.gradleProperty("skipContracts").map { it.equals("t
 val generateContracts by tasks.registering(Exec::class) {
     group = "Contracts"
     description = "Generates Java and TypeScript contracts from JSON Schema sources."
+    notCompatibleWithConfigurationCache("Shells out to node and uses environment wiring not CC-safe")
     workingDir = layout.projectDirectory.asFile
     commandLine("node", contractsScript.asFile.absolutePath)
     environment(
@@ -63,6 +64,7 @@ val generateContracts by tasks.registering(Exec::class) {
 val verifyContracts by tasks.registering(Exec::class) {
     group = "Verification"
     description = "Verifies that schema fingerprints and generated TypeScript contracts are up-to-date."
+    notCompatibleWithConfigurationCache("Shells out to node and uses environment wiring not CC-safe")
     workingDir = layout.projectDirectory.asFile
     commandLine("node", contractsScript.asFile.absolutePath, "--verify")
     environment(

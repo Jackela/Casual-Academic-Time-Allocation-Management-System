@@ -159,7 +159,7 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
             description: formData.description,
             taskType: formData.taskType,
             qualification: formData.qualification,
-            repeat: formData.repeat,
+            isRepeat: formData.isRepeat,
           });
 
           const tutorLabel = tutorLookup.get(formData.tutorId);
@@ -218,19 +218,23 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
       [createTimesheet, courseLookup, onClose, onSuccess, reset, tutorLookup],
     );
 
-    if (!isOpen) {
-      return null;
-    }
+    const overlayClasses = isOpen
+      ? 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 elevation-modal'
+      : 'fixed inset-0 z-50 hidden bg-black/50 p-4 elevation-modal';
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 elevation-modal">
+      <div
+        className={overlayClasses}
+        data-testid="lecturer-create-modal"
+        tabIndex={-1}
+        aria-hidden={isOpen ? 'false' : 'true'}
+      >
         <Card
           id="lecturer-create-timesheet-modal"
           className="w-full max-w-2xl focus:outline-none"
           role="dialog"
           aria-modal="true"
           aria-labelledby="lecturer-create-timesheet-title"
-          data-testid="lecturer-create-modal"
         >
           <CardHeader>
             <div className="flex items-start justify-between gap-3">

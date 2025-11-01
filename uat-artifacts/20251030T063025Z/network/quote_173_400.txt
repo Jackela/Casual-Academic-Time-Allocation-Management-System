@@ -1,0 +1,4 @@
+REQ 173 (Quote 400)
+URL: /api/timesheets/quote
+REQ: {"tutorId":4,"courseId":1,"sessionDate":"2025-10-30","taskType":"TUTORIAL","qualification":"STANDARD","repeat":false,"deliveryHours":1}
+RESP: {"status":400, "detail":"Session date must be a Monday"}

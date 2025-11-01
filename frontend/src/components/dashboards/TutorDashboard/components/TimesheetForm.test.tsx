@@ -18,7 +18,7 @@ const mockQuote = vi.fn(() =>
     taskType: 'TUTORIAL',
     rateCode: 'TU1',
     qualification: 'STANDARD',
-    repeat: false,
+    isRepeat: false,
     deliveryHours: 1,
     associatedHours: 2,
     payableHours: 3,
@@ -341,7 +341,7 @@ describe('TimesheetForm', () => {
         initialData={{
           courseId: 12,
           weekStartDate: '2025-01-06',
-          deliveryHours: 1.5,
+          deliveryHours: 1.0,
           description: 'Existing tutorial',
           taskType: 'TUTORIAL',
           qualification: 'STANDARD',
@@ -368,15 +368,262 @@ describe('TimesheetForm', () => {
       courseId: 12,
       weekStartDate: '2025-01-06',
       sessionDate: '2025-03-03',
-      deliveryHours: 1.5,
+      deliveryHours: 1.0,
       description: 'Existing tutorial',
       taskType: 'TUTORIAL',
       qualification: 'STANDARD',
-      repeat: false,
+      isRepeat: false,
     });
     expect(payload).not.toHaveProperty('quote');
     expect(payload).not.toHaveProperty('payableHours');
     expect(payload).not.toHaveProperty('hourlyRate');
     expect(payload).not.toHaveProperty('amount');
+  });
+
+  it('provides a Previous Monday quick action that updates the selected date', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    render(
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const weekStartInput = await screen.findByLabelText(/Week Starting/i) as HTMLInputElement;
+    const initial = weekStartInput.value; // whatever today/next Monday is
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Previous Monday/i }));
+
+    await waitFor(() => {
+      expect(weekStartInput.value).not.toBe(initial);
+    });
+
+    // New value should be a Monday
+    expect(new Date(weekStartInput.value).getDay()).toBe(1);
+  });
+
+  it('blocks submission when week start date is in the future (client-side)', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    const onSubmit = vi.fn();
+    render(
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+        courseOptions={[{ id: 10, label: 'COMP1001 - Intro' }]}
+      />,
+    );
+
+    // Set course
+    await userEvent.selectOptions(await screen.findByLabelText(/^Course$/i), '10');
+    // Set delivery hours
+    const hoursInput = await screen.findByLabelText(/Delivery Hours/i);
+    await userEvent.clear(hoursInput);
+    await userEvent.type(hoursInput, '1.0');
+    // Description
+    const desc = await screen.findByLabelText(/Description/i);
+    await userEvent.type(desc, 'Future week should be blocked');
+
+    // Force a future Monday by clicking Next Monday repeatedly (2x)
+    const nextBtn = screen.getByRole('button', { name: /Next Monday/i });
+    await userEvent.click(nextBtn);
+    await userEvent.click(nextBtn);
+
+    // Quote will still be invoked for completeness
+    await waitFor(() => expect(mockQuote).toHaveBeenCalled());
+
+    // Try to submit
+    const submit = await screen.findByRole('button', { name: /Create Timesheet|Update Timesheet/i });
+    await userEvent.click(submit);
+
+    // Expect a validation message about future date
+    expect(await screen.findByText(/Week start date cannot be in the future/i)).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('preserves Course and Hours during transient options reloads in lecturer-create mode', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    const onSubmit = vi.fn();
+
+    const tutorOptions = [{ id: 1, label: 'John Doe', qualification: 'STANDARD' }];
+    const initialCourses = [
+      { id: 10, label: 'COMP1001 - Introduction to Programming' },
+      { id: 20, label: 'COMP2001 - Data Structures and Algorithms' },
+    ];
+
+    const { rerender } = render(
+      <TimesheetForm
+        mode="lecturer-create"
+        tutorId={1}
+        selectedTutorId={1}
+        tutorOptions={tutorOptions}
+        courseOptions={initialCourses}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const courseSelect = await screen.findByLabelText(/^Course$/i) as HTMLSelectElement;
+    const hoursInput = await screen.findByLabelText(/Delivery Hours/i) as HTMLInputElement;
+    const descInput = await screen.findByLabelText(/Description/i) as HTMLTextAreaElement;
+
+    // Choose COMP1001 and enter hours + description
+    await userEvent.selectOptions(courseSelect, '10');
+    await userEvent.clear(hoursInput);
+    await userEvent.type(hoursInput, '1.0');
+    await userEvent.type(descInput, 'Tutorial for COMP1001');
+
+    // Wait for quote to load based on inputs
+    await waitFor(() => expect(mockQuote).toHaveBeenCalled());
+
+    // Simulate options reload phases and ensure inputs persist
+    rerender(
+      <TimesheetForm
+        mode="lecturer-create"
+        tutorId={1}
+        selectedTutorId={1}
+        tutorOptions={tutorOptions}
+        courseOptions={initialCourses}
+        optionsLoading={true}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    rerender(
+      <TimesheetForm
+        mode="lecturer-create"
+        tutorId={1}
+        selectedTutorId={1}
+        tutorOptions={tutorOptions}
+        courseOptions={[]}
+        optionsLoading={true}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    rerender(
+      <TimesheetForm
+        mode="lecturer-create"
+        tutorId={1}
+        selectedTutorId={1}
+        tutorOptions={tutorOptions}
+        courseOptions={[...initialCourses]}
+        optionsLoading={false}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    // Validate the selection and inputs persisted
+    expect((await screen.findByLabelText(/^Course$/i)) as HTMLSelectElement).toHaveValue('10');
+    expect((await screen.findByLabelText(/Delivery Hours/i)) as HTMLInputElement).toHaveValue(1);
+    // Quote requests were made; submit enablement depends on date validity, which is tested elsewhere
+  });
+
+  it('preserves a user-selected past Monday after course changes and rerenders (lecturer-create)', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    const tutorOptions = [{ id: 1, label: 'John Doe', qualification: 'STANDARD' }];
+    const coursesPhase1 = [
+      { id: 10, label: 'COMP1001 - Introduction to Programming' },
+      { id: 20, label: 'COMP2001 - Data Structures' },
+    ];
+
+    const { rerender } = render(
+      <TimesheetForm
+        mode="lecturer-create"
+        tutorId={1}
+        selectedTutorId={1}
+        tutorOptions={tutorOptions}
+        courseOptions={coursesPhase1}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    // Choose a past Monday via quick action
+    const weekStartInput = (await screen.findByLabelText(/Week Starting/i)) as HTMLInputElement;
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Previous Monday/i }));
+    const selectedMonday = weekStartInput.value;
+    expect(new Date(selectedMonday).getDay()).toBe(1);
+
+    // Change course, input hours and description
+    await userEvent.selectOptions(await screen.findByLabelText(/^Course$/i), '10');
+    const hoursInput = (await screen.findByLabelText(/Delivery Hours/i)) as HTMLInputElement;
+    await userEvent.clear(hoursInput);
+    await userEvent.type(hoursInput, '1.0');
+    const desc = (await screen.findByLabelText(/Description/i)) as HTMLTextAreaElement;
+    await userEvent.type(desc, 'Tutorial for COMP1001');
+
+    // Trigger quote
+    await waitFor(() => expect(mockQuote).toHaveBeenCalled());
+
+    // Simulate options loading flicker and list changes
+    rerender(
+      <TimesheetForm
+        mode="lecturer-create"
+        tutorId={1}
+        selectedTutorId={1}
+        tutorOptions={tutorOptions}
+        courseOptions={coursesPhase1}
+        optionsLoading={true}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    rerender(
+      <TimesheetForm
+        mode="lecturer-create"
+        tutorId={1}
+        selectedTutorId={1}
+        tutorOptions={tutorOptions}
+        courseOptions={[{ id: 20, label: 'COMP2001 - Data Structures' }]}
+        optionsLoading={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    // Ensure the week start date remains the explicitly chosen past Monday
+    const currentWeekStart = (await screen.findByLabelText(/Week Starting/i)) as HTMLInputElement;
+    expect(currentWeekStart.value).toBe(selectedMonday);
+    expect(new Date(currentWeekStart.value).getDay()).toBe(1);
+  });
+
+  it('updates Selected label and hidden input when navigating months and choosing a Monday', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    render(
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    // Record initial month label
+    const monthLabelBefore = (await screen.findByTestId('calendar-month-label')).textContent;
+    // Navigate to previous month
+    await userEvent.click(await screen.findByRole('button', { name: /Show previous month/i }));
+    const monthLabelAfter = (await screen.findByTestId('calendar-month-label')).textContent;
+    expect(monthLabelAfter).not.toBe(monthLabelBefore);
+    // Hidden input remains a Monday
+    const weekStartInput = await screen.findByLabelText(/Week Starting/i) as HTMLInputElement;
+    expect(weekStartInput.value).toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(new Date(weekStartInput.value).getDay()).toBe(1);
   });
 });

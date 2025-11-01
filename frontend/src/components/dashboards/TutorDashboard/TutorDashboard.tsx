@@ -148,7 +148,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
       description: data.description,
       taskType: data.taskType,
       qualification: data.qualification,
-      repeat: data.repeat,
+      isRepeat: data.isRepeat ?? false,
     } as const;
 
     try {
@@ -185,7 +185,7 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
         description: basePayload.description,
         taskType: basePayload.taskType,
         qualification: basePayload.qualification,
-        repeat: basePayload.repeat,
+        isRepeat: basePayload.isRepeat,
       });
 
       await Promise.all([refetchTimesheets(), refetchDashboard()]);

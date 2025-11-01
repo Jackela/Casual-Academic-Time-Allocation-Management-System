@@ -383,7 +383,7 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
 
         request.setQualification(TutorQualification.STANDARD);
 
-        request.setRepeat(Boolean.FALSE);
+        request.setIsRepeat(Boolean.FALSE);
 
         request.setDeliveryHours(deliveryHours != null ? deliveryHours : BigDecimal.ONE);
 

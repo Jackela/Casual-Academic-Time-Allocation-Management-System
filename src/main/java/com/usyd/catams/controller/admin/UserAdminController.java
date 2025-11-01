@@ -74,9 +74,18 @@ public class UserAdminController {
     @GetMapping("/{tutorId}/defaults")
     @PreAuthorize("hasRole('ADMIN') or hasRole('LECTURER') or hasRole('TUTOR')")
     public ResponseEntity<Map<String, Object>> getDefaults(@PathVariable("tutorId") Long tutorId) {
-        var opt = defaultsRepository.findById(tutorId);
-        TutorQualification q = opt.map(TutorProfileDefaults::getDefaultQualification).orElse(null);
-        return ResponseEntity.ok(Map.of("defaultQualification", q));
+        try {
+            var opt = defaultsRepository.findById(tutorId);
+            TutorQualification q = opt.map(TutorProfileDefaults::getDefaultQualification).orElse(null);
+            java.util.Map<String, Object> body = new java.util.HashMap<>();
+            body.put("defaultQualification", q);
+            return ResponseEntity.ok(body);
+        } catch (Exception ex) {
+            // Defensive: never surface repository errors to clients; return null defaults
+            java.util.Map<String, Object> body = new java.util.HashMap<>();
+            body.put("defaultQualification", null);
+            return ResponseEntity.ok(body);
+        }
     }
 
     public static class CourseAssignmentsRequest {

@@ -1,0 +1,1 @@
+{"type":"urn:catams:error:access_denied","title":"Forbidden","status":403,"detail":"Access denied","instance":"/api/users","timestamp":"2025-10-30T06:35:41.032572728Z","path":"/api/users","error":"ACCESS_DENIED","success":false,"traceId":"e156ee8e58e419f13830ad8e2988070e","spanId":"7848ad303abb22d3","message":"Access denied"}

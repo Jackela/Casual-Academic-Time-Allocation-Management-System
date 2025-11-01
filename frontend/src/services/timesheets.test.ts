@@ -194,7 +194,7 @@ describe('TimesheetService CRUD Operations', () => {
       taskType: 'TUTORIAL',
       rateCode: 'TU1',
       qualification: 'STANDARD',
-      repeat: false,
+      isRepeat: false,
       deliveryHours: 1,
       associatedHours: 2,
       payableHours: 3,
@@ -212,7 +212,7 @@ describe('TimesheetService CRUD Operations', () => {
         sessionDate: '2025-03-03',
         taskType: 'TUTORIAL',
         qualification: 'STANDARD',
-        repeat: false,
+        isRepeat: false,
         deliveryHours: 1.2,
       } as const;
 
@@ -231,7 +231,7 @@ describe('TimesheetService CRUD Operations', () => {
         sessionDate: '2025-03-10',
         taskType: 'TUTORIAL',
         qualification: 'STANDARD',
-        repeat: false,
+        isRepeat: false,
         deliveryHours: 1.0,
       } as const;
       const controller = new AbortController();
@@ -259,7 +259,7 @@ describe('TimesheetService CRUD Operations', () => {
         description: 'New timesheet',
         taskType: 'TUTORIAL',
         qualification: 'STANDARD',
-        repeat: false,
+        isRepeat: false,
       };
 
       mockApiClient.post.mockResolvedValue(createMockApiResponse(mockTimesheet));
@@ -280,7 +280,7 @@ describe('TimesheetService CRUD Operations', () => {
         description: 'Updated description',
         taskType: 'TUTORIAL',
         qualification: 'STANDARD',
-        repeat: false,
+        isRepeat: false,
       };
 
       mockApiClient.put.mockResolvedValue(createMockApiResponse(mockTimesheet));
@@ -566,7 +566,7 @@ describe('TimesheetService Validation', () => {
       description: 'Valid timesheet description',
       taskType: 'TUTORIAL',
       qualification: 'STANDARD',
-      repeat: false,
+      isRepeat: false,
     };
 
     it('should pass validation for valid timesheet', () => {
@@ -628,7 +628,7 @@ describe('TimesheetService Validation', () => {
         description: '',
         taskType: undefined,
         qualification: undefined,
-        repeat: false,
+        isRepeat: false,
       } as Partial<TimesheetCreateRequest>);
       expect(errors).toContain('Valid tutor ID is required');
       expect(errors).toContain('Valid course ID is required');
@@ -694,7 +694,7 @@ describe('TimesheetService Integration', () => {
       description: 'Weekly tutoring session',
       taskType: 'TUTORIAL',
       qualification: 'STANDARD',
-      repeat: false,
+      isRepeat: false,
     };
 
     mockApiClient.post.mockResolvedValue(createMockApiResponse(mockTimesheet));
@@ -710,7 +710,7 @@ describe('TimesheetService Integration', () => {
       description: 'Updated description',
       taskType: 'TUTORIAL',
       qualification: 'STANDARD',
-      repeat: true,
+      isRepeat: true,
     };
 
     mockApiClient.put.mockResolvedValue(createMockApiResponse({ ...mockTimesheet, ...updateRequest }));

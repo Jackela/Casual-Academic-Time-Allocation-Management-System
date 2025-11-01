@@ -1,63 +1,35 @@
-# Local E2E Test Profile Configuration
-# Uses in-memory H2 (PostgreSQL compatibility) for environments without Docker
-
 spring:
   datasource:
-    url: jdbc:h2:mem:catams-e2e;MODE=PostgreSQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:e2e;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: sa
-    password: 
+    password: ""
+    driver-class-name: org.h2.Driver
   jpa:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-  sql:
-    init:
-      mode: never
   flyway:
     enabled: false
-  
-  # Security Configuration (use default JWT from application.yml)
-  security:
-    jwt:
-      secret: ${JWT_SECRET:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
-      expiration: 86400000
 
-# CORS Configuration (E2E frontend port)
+# Use a deterministic JWT secret and shorter expiry if needed
+security:
+  jwt:
+    secret: ${JWT_SECRET:test-e2e-secret}
+    expiration: ${JWT_EXPIRATION:3600000}
+
 app:
-  cors:
-    allowed-origins: "http://localhost:5174"
   testing:
+    # Must match the E2E runner default header value
     reset-token: ${TEST_DATA_RESET_TOKEN:local-e2e-reset}
+  cors:
+    # Allow local vite dev server origins used during E2E
+    allowed-origins: "http://localhost:5174,http://127.0.0.1:5174"
 
-# Server Configuration (E2E port)
 server:
-  port: 8084
-  servlet:
-    context-path: ""
+  port: ${SERVER_PORT:8080}
 
-# Logging Configuration (local E2E-appropriate)
 logging:
   level:
     com.usyd.catams: INFO
+    com.usyd.catams.controller: DEBUG
     org.springframework.security: INFO
-    org.springframework.web: INFO
-  pattern:
-    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,shutdown
-  endpoint:
-    shutdown:
-      enabled: true
-

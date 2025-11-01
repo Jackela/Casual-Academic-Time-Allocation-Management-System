@@ -36,7 +36,7 @@ test.describe('Critical User Journeys', () => {
       await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 
       await dashboardPage.expectToBeLoaded('LECTURER');
-      await navigationPage.expectUserInfo('Dr. Jane Smith', 'Lecturer');
+      await navigationPage.expectUserInfo(['Dr. Jane Smith', 'E2E Lecturer'], 'Lecturer');
       await dashboardPage.waitForTimesheetData();
 
       const hasData = await dashboardPage.hasTimesheetData();

@@ -1,80 +1,98 @@
 # CATAMS (Casual Academic Time Allocation Management System)
 
-CATAMS is a full‑stack application for managing casual academic timesheets and approvals. The repository is organized as a Java Spring Boot backend and a React + Vite frontend, with Playwright for end‑to‑end testing.
+CATAMS is a full‑stack system for managing casual academic timesheets and approvals. It is aligned with both “Individual‑Casual Academic Time Allocation Management System (CATAMS).pdf” and “University‑of‑Sydney‑Enterprise‑Agreement‑2023‑2026”. The system provides:
+- Timesheet create/edit/quote (EA rules: Tutorial fixed 1.0h delivery; associated caps for standard/repeat)
+- Approval workflow (Tutor submit, Lecturer approval, HR final confirmation)
+- Lecturer dashboard (hours by tutor, budget used/remaining, status breakdown)
+- Unified error responses (problem+json) and end‑to‑end tests running under Docker
 
-This README focuses on the essentials: how to run locally, how to test (backend, frontend unit, and E2E), and how the simplified CI pipeline is structured.
+## Tech Stack
+- Backend: Java, Spring Boot, Spring Security (JWT), JPA/Hibernate, Flyway, Testcontainers (PostgreSQL)
+- Frontend: React (Vite), TypeScript, Tailwind UI
+- Testing: JUnit 5, Testcontainers, Vitest, Playwright
+- DB: PostgreSQL (runtime / test containers)
 
-## Prerequisites
+## Running Locally (with Docker Testcontainers)
+
+### Prerequisites
+- Java 17+ (or 21)
 - Node.js 20+
-- Java 21 (Temurin recommended)
-- Docker (required for real E2E backend)
+- Docker Desktop (for Testcontainers and E2E)
 
-## Quick start
-Clone and install dependencies where needed.
+### 1) Install dependencies
+```bash
+git clone <repo-url>
+cd Casual-Academic-Time-Allocation-Management-System
+npm --prefix frontend install
+```
 
-Backend (Spring Boot):
-- Build and test: `./gradlew check`
-- Run locally (example): `./gradlew bootRun`
+### 2) Start backend (Testcontainers PostgreSQL)
+```bash
+./gradlew bootRun --args="--spring.profiles.active=e2e-local --server.port=8084"
+```
+Notes: the e2e/e2e-local profiles enable Testcontainers (or equivalent Postgres) and run Flyway migrations.
 
-Frontend (React + Vite):
-- Install: `cd frontend && npm ci`
-- Dev server: `npm run dev`
+### 3) Start frontend (fixed 5174 for E2E)
+```bash
+npm --prefix frontend run dev:e2e
+# open http://127.0.0.1:5174
+```
 
-## Testing
+## Testing (all on Docker)
 
-Backend tests:
-- `./gradlew check`
+### Backend (unit/integration, Testcontainers)
+```bash
+./gradlew cleanTest test
+```
 
-Frontend unit tests (Vitest):
-- `cd frontend && npm ci`
-- `npm run test:unit`
+### Frontend (Vitest unit/component)
+```bash
+npm --prefix frontend test -- --reporter=verbose
+```
 
-E2E tests (Playwright, real backend):
-- Install browsers once: `cd frontend && npx playwright install --with-deps chromium`
-- Run canonical suite: `node scripts/e2e-runner.js --project=real`
-- Faster subset: add `--grep @p0`
+### End‑to‑End (Playwright + Docker backend)
+```bash
+# Install browsers once
+npm --prefix frontend exec playwright install --with-deps chromium
 
-Runner behavior:
-1) Ensures a backend is available (Docker compose mode by default)
-2) Starts the frontend dev server on the configured origin
-3) Resets/Seeds test data and executes Playwright specs
+# Run full suite (auto check/reuse backend, start frontend, reset/seed data, execute specs)
+node frontend/scripts/run-e2e-tests.js --project=real
 
-### Full-chain E2E via Docker (recommended)
+# Run a subset
+node frontend/scripts/run-e2e-tests.js --project=real --grep "@p0|@p1"
+```
+Reports/screenshots: `frontend/playwright-report` (or test-results per runner output).
 
-For a hermetic, reproducible environment:
+## API Overview (brief)
+- Auth: `POST /api/auth/login`, `GET /api/auth/whoami`
+- Timesheets: `GET /api/timesheets`, `GET /api/timesheets/{id}`, `POST /api/timesheets`, `PUT /api/timesheets/{id}`, `DELETE /api/timesheets/{id}`
+- My Timesheets: `GET /api/timesheets/me`
+- Pending for Lecturer: `GET /api/timesheets/pending-final-approval`
+- Quote: `POST /api/timesheets/quote`
+- Approvals: `POST /api/approvals` (actions: SUBMIT_FOR_APPROVAL / TUTOR_CONFIRM / LECTURER_CONFIRM / HR_CONFIRM / REJECT / REQUEST_MODIFICATION)
+- Lecturer Dashboard: `GET /api/lecturer/dashboard-summary?courseId=...&from=...&to=...`
+- HR Pending: `GET /api/hr/pending`
 
-- Start stack with Docker Compose:
-  - `docker-compose up --build -d`
-    - Backend: `http://localhost:8084`
-    - Frontend: `http://localhost:5174`
-- Point frontend tests to the Dockerized backend:
-  - Ensure `frontend/.env.e2e` or environment sets `VITE_API_BASE_URL=http://localhost:8084`
-- Run E2E:
-  - `cd frontend && npm ci && npm run test:e2e:real`
+> For the full OpenAPI specification, see the API documentation section or internal docs. All errors use problem+json (success=false, message, error, traceId).
 
-Artifacts (reports/screenshots) are available in `frontend/playwright-report` unless configured otherwise.
-When running via Docker Compose, artifacts are bind-mounted to the host under:
-- `uat-artifacts/current/report/` (Playwright report)
-- `uat-artifacts/current/screenshots/` (workflow screenshots)
+## Key Business Rules (summary)
+- Tutorial: fixed 1.0h delivery; associated caps standard ≤2.0h, repeat ≤1.0h; Rate Codes TU1/TU2 (non‑repeat), TU3/TU4 (repeat)
+- ORAA/DEMO: hourly; high band (AO1/DE1) vs standard (AO2/DE2); educational delivery includes set up/pack down
+- Marking: hourly for non‑contemporaneous only; contemporaneous goes into Tutorial associated
+- Quote/Create rely on Schedule1Calculator + PolicyProvider for consistent EA rules
 
-## CI (Basic)
-The pipeline is intentionally simple and reliable:
-- Backend job: `./gradlew check`
-- Frontend unit job: `npm run test:unit`
-- E2E job: `node scripts/e2e-runner.js --project=real` (uploads Playwright report on failure)
+## Design & Error Handling
+- DDD layering: Controller (thin validation and orchestration) → Service/Calculator/PolicyProvider (core rules)
+- Fail‑fast: validate at API boundary (Monday session date, Tutorial=1.0h) to avoid downstream misuse
+- Errors: problem+json (success=false, message, error, traceId); frontend shows Banner/Toast
 
-You can run CI locally with `act` (see `docs/testing.md`).
-
-## Cleaning generated files
-Use the provided scripts or NPM targets to clean all generated content. See `docs/cleaning.md` for details.
-
-Common commands:
-- `npm run clean` (cross‑platform)
-- `npm run clean:backend`
-- `npm run clean:frontend`
+## CI (basic)
+- Backend: `./gradlew cleanTest test`
+- Frontend unit: `npm --prefix frontend test -- --reporter=verbose`
+- E2E: `node frontend/scripts/run-e2e-tests.js --project=real`
 
 ## Troubleshooting
-- Missing Playwright browsers: `cd frontend && npx playwright install --with-deps chromium`
-- Port conflicts (8084/5174): stop conflicting processes or adjust env
-- Docker permissions: add your user to docker group or run elevated
+- Playwright browsers: `npm --prefix frontend exec playwright install --with-deps chromium`
+- Port conflicts (8084/5174): stop conflicting processes or change ports
+- Docker permissions: ensure your user can access Docker
 

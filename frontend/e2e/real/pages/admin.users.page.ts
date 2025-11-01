@@ -61,13 +61,58 @@ export class AdminUsersPage extends BasePage {
     }
     // Choose password entry strategy
     const useGenerator = !!opts.useGenerator;
+    const pwdField = this.byTestId('admin-user-password');
     if (useGenerator) {
       const genBtn = this.page.getByRole('button', { name: /Generate Secure Password/i });
       await genBtn.click({ timeout: 5000 }).catch(() => undefined);
+      // Fallback: if generator not present or failed to populate, fill provided password
+      try {
+        const current = await pwdField.inputValue({ timeout: 2000 }).catch(() => '');
+        if (!current || current.length < 8) {
+          await pwdField.fill(password);
+        }
+      } catch {
+        await pwdField.fill(password);
+      }
     } else {
-      await this.byTestId('admin-user-password').fill(password);
+      await pwdField.fill(password);
     }
-    await this.byTestId('admin-user-submit').click();
+    const submit = this.byTestId('admin-user-submit');
+    // Try scrolling the dialog and window to ensure the footer actions are in view
+    try {
+      const dialog = this.page.getByRole('dialog', { name: /Create User/i }).first();
+      await dialog.evaluate((el) => {
+        try { (el as HTMLElement).scrollTo({ top: (el as HTMLElement).scrollHeight, behavior: 'instant' as any }); } catch {}
+      });
+    } catch {}
+    await this.page.evaluate(() => { try { window.scrollTo(0, document.body.scrollHeight); } catch {} });
+    await this.page.mouse.wheel(0, 1200).catch(() => undefined);
+    await submit.evaluate((el) => { try { (el as HTMLElement).scrollIntoView({ block: 'center' }); } catch {} });
+    // Try a normal click first; if Playwright reports out-of-viewport, retry with force
+    let clicked = false;
+    try {
+      await submit.click({ timeout: 10000, trial: true });
+      await submit.click({ timeout: 10000 });
+      clicked = true;
+    } catch {
+      try {
+        await submit.click({ timeout: 10000, force: true });
+        clicked = true;
+      } catch {}
+    }
+    if (!clicked) {
+      // Fallback: submit the form programmatically to avoid viewport issues
+      try {
+        const form = submit.locator('xpath=ancestor::form').first();
+        await form.evaluate((el) => {
+          const f = el as HTMLFormElement;
+          if (typeof f.requestSubmit === 'function') f.requestSubmit();
+          else f.submit();
+        });
+      } catch {}
+      // As an additional guard, send Enter key which triggers submit on focused inputs
+      try { await this.page.keyboard.press('Enter'); } catch {}
+    }
   }
 
   async activate(email: string) {

@@ -26,7 +26,7 @@ const baseRequest: TimesheetCreateRequest = {
   description: "Tutorial",
   taskType: "TUTORIAL",
   qualification: "STANDARD",
-  repeat: false,
+  isRepeat: false,
 };
 
 const mockTimesheet = createMockTimesheet({ id: 99 });
@@ -82,6 +82,28 @@ describe("useTimesheetCreate", () => {
 
     await waitFor(() =>
       expect(result.current.error).toBe("Network down"),
+    );
+  });
+
+  it("maps 409 RESOURCE_CONFLICT to friendly message", async () => {
+    const conflict = {
+      success: false,
+      status: 409,
+      message: 'Business rule violated: Timesheet already exists',
+      error: { code: 'RESOURCE_CONFLICT', message: 'exists' },
+      timestamp: new Date().toISOString(),
+      path: '/api/timesheets',
+    } as any;
+    mockService.createTimesheet.mockRejectedValueOnce(conflict);
+
+    const { result } = renderHook(() => useTimesheetCreate());
+    await act(async () => {
+      await expect(result.current.createTimesheet(baseRequest)).rejects.toThrow(
+        /already exists for this tutor, course, and week/i,
+      );
+    });
+    await waitFor(() =>
+      expect(result.current.error).toMatch(/already exists for this tutor, course, and week/i),
     );
   });
 

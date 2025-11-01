@@ -23,7 +23,7 @@ const updateRequest: TimesheetUpdateRequest = {
   description: "Updated hours",
   taskType: "TUTORIAL",
   qualification: "STANDARD",
-  repeat: false,
+  isRepeat: false,
 };
 
 describe("useTimesheetUpdate", () => {

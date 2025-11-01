@@ -43,6 +43,7 @@ public class TimesheetCreateRequest {
     @NotNull(message = "Task type is required")
     private TimesheetTaskType taskType = TimesheetTaskType.TUTORIAL;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("isRepeat")
     private Boolean isRepeat = Boolean.FALSE;
 
     @NotNull(message = "Qualification is required")
@@ -117,8 +118,8 @@ public class TimesheetCreateRequest {
         return Boolean.TRUE.equals(isRepeat);
     }
 
-    public void setRepeat(Boolean repeat) {
-        this.isRepeat = repeat;
+    public void setIsRepeat(Boolean isRepeat) {
+        this.isRepeat = isRepeat;
     }
 
     public TutorQualification getQualification() {

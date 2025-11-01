@@ -30,7 +30,8 @@ public class TimesheetQuoteRequest {
 
     private TutorQualification qualification = TutorQualification.STANDARD;
 
-    private Boolean repeat = Boolean.FALSE;
+    @com.fasterxml.jackson.annotation.JsonProperty("isRepeat")
+    private Boolean isRepeat = Boolean.FALSE;
 
     @NotNull
     @DecimalMin(value = "0.1", message = "Delivery hours must be at least 0.1")
@@ -79,11 +80,11 @@ public class TimesheetQuoteRequest {
     }
 
     public boolean isRepeat() {
-        return Boolean.TRUE.equals(repeat);
+        return Boolean.TRUE.equals(isRepeat);
     }
 
-    public void setRepeat(Boolean repeat) {
-        this.repeat = repeat;
+    public void setIsRepeat(Boolean isRepeat) {
+        this.isRepeat = isRepeat;
     }
 
     public BigDecimal getDeliveryHours() {

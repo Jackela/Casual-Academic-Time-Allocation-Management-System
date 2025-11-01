@@ -92,7 +92,7 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         seedTutorialPolicySnapshot();
         lecturer = userRepository.save(new User("lecturer.api@test", "Lecturer API", "$2a$10$hashedLecturer", UserRole.LECTURER));
         tutor = userRepository.save(new User("tutor.api@test", "Tutor API", "$2a$10$hashedTutor", UserRole.TUTOR));
-        admin = userRepository.save(new User("admin@integration.test", "Admin API", "$2a$10$hashedAdmin", UserRole.ADMIN));
+        admin = userRepository.save(new User("admin.api@test", "Admin API", "$2a$10$hashedAdmin", UserRole.ADMIN));
         course = courseRepository.save(new Course("COMP6000", "EA Compliance Engineering", "2024S2",
                 lecturer.getId(), BigDecimal.valueOf(20000)));
 
@@ -291,6 +291,53 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         assertThat(response.getTimesheets())
                 .extracting(TimesheetResponse::getStatus)
                 .containsOnly(ApprovalStatus.LECTURER_CONFIRMED);
+    }
+
+    @Test
+    @DisplayName("Repeat Tutorial without prior within 7 days should be rejected")
+    void repeatTutorialWithoutPriorShouldFail() throws Exception {
+        Map<String, Object> request = new HashMap<>();
+        request.put("tutorId", tutor.getId());
+        request.put("courseId", course.getId());
+        request.put("weekStartDate", "2024-07-22");
+        request.put("taskType", "TUTORIAL");
+        request.put("qualification", "STANDARD");
+        request.put("isRepeat", true);
+        request.put("deliveryHours", 1.0);
+        request.put("sessionDate", "2024-07-22");
+        request.put("description", "Tutorial content A");
+
+        performPost("/api/timesheets", request, lecturerAuthHeader)
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Repeat Tutorial with prior within 7 days should succeed")
+    void repeatTutorialWithPriorShouldSucceed() throws Exception {
+        // First, create an initial tutorial entry
+        Map<String, Object> base = new HashMap<>();
+        base.put("tutorId", tutor.getId());
+        base.put("courseId", course.getId());
+        base.put("weekStartDate", "2024-07-08");
+        base.put("taskType", "TUTORIAL");
+        base.put("qualification", "STANDARD");
+        base.put("isRepeat", false);
+        base.put("deliveryHours", 1.0);
+        base.put("sessionDate", "2024-07-08");
+        base.put("description", "Tutorial content A");
+
+        performPost("/api/timesheets", base, lecturerAuthHeader)
+                .andExpect(status().isCreated());
+
+        // Now create a repeat within 7 days (next week)
+        Map<String, Object> repeat = new HashMap<>();
+        repeat.putAll(base);
+        repeat.put("weekStartDate", "2024-07-15");
+        repeat.put("sessionDate", "2024-07-15");
+        repeat.put("isRepeat", true);
+
+        performPost("/api/timesheets", repeat, lecturerAuthHeader)
+                .andExpect(status().isCreated());
     }
 
     @Test

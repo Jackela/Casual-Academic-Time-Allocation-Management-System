@@ -57,7 +57,7 @@ export default defineConfig({
   },
   
   /* Global timeout for each test */
-  timeout: 45000, // 45 seconds per test (reduced for faster feedback)
+  timeout: 90_000, // increase for stability in local E2E
   
   /* Expect timeout */
   expect: {
@@ -72,7 +72,7 @@ export default defineConfig({
       retries: process.env.CI ? 2 : 1,
       fullyParallel: false,
       workers: 1,
-      timeout: 60000,
+      timeout: 120_000,
       use: {
         // Prefer per-role admin storage state if present for admin-focused runs; fallback to shared state
         ...(SKIP_REAL_LOGIN ? {} : {

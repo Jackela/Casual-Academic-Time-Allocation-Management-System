@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
+import com.usyd.catams.entity.TutorAssignment;
 import com.usyd.catams.testdata.TestDataBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -57,6 +59,8 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     private User testLecturer;
     private User testTutor;
     private Course testCourse;
+    @Autowired
+    private TutorAssignmentRepository tutorAssignmentRepository;
 
     @BeforeEach
     void setupTestData() {
@@ -89,6 +93,9 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .withName("Integration Testing Course")
             .withLecturer(testLecturer)            .build();
         testCourse = courseRepository.save(testCourse);
+
+        // Link tutor to course (authorization requirement for lecturer-created timesheets)
+        tutorAssignmentRepository.save(new TutorAssignment(testTutor.getId(), testCourse.getId()));
 
         // Update auth tokens with real user IDs
         lecturerToken = "Bearer " + jwtTokenProvider.generateToken(
@@ -246,20 +253,10 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .withWeekStartDate(nextMonday)
             .build();
 
-        // Ensure clean security context and set authenticated lecturer directly
-        SecurityContextHolder.clearContext();
-        UsernamePasswordAuthenticationToken lecturerAuth = new UsernamePasswordAuthenticationToken(
-            testLecturer, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_LECTURER"))
-        );
-        SecurityContextHolder.getContext().setAuthentication(lecturerAuth);
-
-        MvcResult createResponse = mockMvc.perform(
-                post("/api/timesheets")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(toJsonWithoutFinancialFields(createRequest))
-            )
-            .andExpect(status().isCreated())
-            .andReturn();
+        // Create with proper JWT auth header (consistent with other tests)
+        MvcResult createResponse = performPostWithoutFinancialFields("/api/timesheets", createRequest, lecturerToken)
+                .andExpect(status().isCreated())
+                .andReturn();
 
         // Extract timesheet ID from response
         String responseContent = createResponse.getResponse().getContentAsString();
@@ -267,14 +264,14 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         Long timesheetId = responseNode.get("id").asLong();
 
         // Act & Assert - Retrieve the created timesheet
-        performGet("/api/timesheets/" + timesheetId, null)
+        performGet("/api/timesheets/" + timesheetId, lecturerToken)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(timesheetId))
             .andExpect(jsonPath("$.tutorId").value(testTutor.getId()))
             .andExpect(jsonPath("$.courseId").value(testCourse.getId()));
 
         // Test list endpoint
-        performGet("/api/timesheets", null)
+        performGet("/api/timesheets", lecturerToken)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.timesheets").isArray())
             .andExpect(jsonPath("$.timesheets[0].id").value(timesheetId))

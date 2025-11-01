@@ -563,7 +563,7 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
 
   child.stdout?.on('data', (chunk) => {
     const line = chunk.toString();
-    if (line.includes('Started') || line.toLowerCase().includes('error')) {
+    if (line.includes('Started') || line.toLowerCase().includes('error') || line.includes('[QUOTE]')) {
       log(`  [backend] ${line.trim()}`, colors.blue);
     }
   });

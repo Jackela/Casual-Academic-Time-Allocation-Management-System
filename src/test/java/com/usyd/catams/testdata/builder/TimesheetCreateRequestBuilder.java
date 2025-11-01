@@ -95,7 +95,7 @@ public class TimesheetCreateRequestBuilder {
         request.setDescription(description);
         request.setTaskType(taskType);
         request.setQualification(qualification);
-        request.setRepeat(repeat);
+        request.setIsRepeat(repeat);
         BigDecimal effectiveDeliveryHours = deliveryHours != null ? deliveryHours : hours;
         request.setDeliveryHours(effectiveDeliveryHours);
         request.setSessionDate(sessionDate != null ? sessionDate : weekStartDate);

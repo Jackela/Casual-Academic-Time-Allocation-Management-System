@@ -97,17 +97,19 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     private final TimesheetDomainService timesheetDomainService;
     private final TimesheetValidationService timesheetValidationService;
     private final TimesheetMapper timesheetMapper;
+    private final com.usyd.catams.service.Schedule1PolicyProvider policyProvider;
     private final TimesheetPermissionPolicy permissionPolicy;
 
     @Autowired
     public TimesheetApplicationService(TimesheetRepository timesheetRepository,
                                      UserRepository userRepository,
-                                     CourseRepository courseRepository,
-                                     TimesheetDomainService timesheetDomainService,
-                                     TimesheetValidationService timesheetValidationService,
-                                     TimesheetMapper timesheetMapper,
-                                     TimesheetPermissionPolicy permissionPolicy,
-                                     com.usyd.catams.repository.TutorAssignmentRepository tutorAssignmentRepository) {
+                                          CourseRepository courseRepository,
+                                          TimesheetDomainService timesheetDomainService,
+                                          TimesheetValidationService timesheetValidationService,
+                                          TimesheetMapper timesheetMapper,
+                                          TimesheetPermissionPolicy permissionPolicy,
+                                          com.usyd.catams.repository.TutorAssignmentRepository tutorAssignmentRepository,
+                                          com.usyd.catams.service.Schedule1PolicyProvider policyProvider) {
         this.timesheetRepository = timesheetRepository;
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
@@ -117,6 +119,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         this.timesheetMapper = timesheetMapper;
         this.permissionPolicy = permissionPolicy;
         this.tutorAssignmentRepository = tutorAssignmentRepository;
+        this.policyProvider = policyProvider;
     }
 
     private final com.usyd.catams.repository.TutorAssignmentRepository tutorAssignmentRepository;
@@ -148,6 +151,26 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         validateTutorRole(tutor);
         validateWeekStartDate(weekStartDate);
         validateTimesheetUniqueness(tutorId, courseId, weekStartDate);
+
+        // Enforce repeat tutorial eligibility window and same-content approximation
+        if (taskType == TimesheetTaskType.TUTORIAL && calculation.isRepeat()) {
+            LocalDate session = calculation.getSessionDate();
+            int windowDays = policyProvider != null ? policyProvider.getRepeatEligibilityWindowDays() : 7;
+            LocalDate from = session.minusDays(windowDays);
+            LocalDate to = session.minusDays(1);
+            long priorCount = timesheetRepository.countTutorialsForRepeatRule(
+                courseId,
+                from,
+                to,
+                null // Allow any prior tutorial within window; UI conveys "same content" guidance
+            );
+            if (priorCount == 0) {
+                throw new com.usyd.catams.exception.BusinessRuleException(
+                    "Repeat Tutorial requires same content delivered within the last " + windowDays + " days to a different group.",
+                    com.usyd.catams.exception.ErrorCodes.VALIDATION_FAILED
+                );
+            }
+        }
 
         // Enforce tutor-course assignment for visibility/authorization (ADMIN bypass)
         if (creator.getRole() != com.usyd.catams.enums.UserRole.ADMIN) {
@@ -217,8 +240,11 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         }
 
         if (timesheetRepository.existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(tutorId, courseId, weekStartDate)) {
-            throw new IllegalArgumentException("Timesheet already exists for this tutor, course, and week. " +
-                "Tutor ID: " + tutorId + ", Course ID: " + courseId + ", Week: " + weekStartDate);
+            throw new com.usyd.catams.exception.BusinessConflictException(
+                com.usyd.catams.exception.ErrorCodes.RESOURCE_CONFLICT,
+                "Timesheet already exists for this tutor, course, and week. " +
+                "Tutor ID: " + tutorId + ", Course ID: " + courseId + ", Week: " + weekStartDate
+            );
         }
 
         return timesheetDomainService.validateTimesheetCreation(
@@ -673,8 +699,11 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
 
     private void validateTimesheetUniqueness(Long tutorId, Long courseId, LocalDate weekStartDate) {
         if (timesheetRepository.existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(tutorId, courseId, weekStartDate)) {
-            throw new IllegalArgumentException("Business rule violated: Timesheet already exists for this tutor, course, and week. " +
-                "Tutor ID: " + tutorId + ", Course ID: " + courseId + ", Week: " + weekStartDate);
+            throw new com.usyd.catams.exception.BusinessConflictException(
+                com.usyd.catams.exception.ErrorCodes.RESOURCE_CONFLICT,
+                "Business rule violated: Timesheet already exists for this tutor, course, and week. " +
+                "Tutor ID: " + tutorId + ", Course ID: " + courseId + ", Week: " + weekStartDate
+            );
         }
     }
 

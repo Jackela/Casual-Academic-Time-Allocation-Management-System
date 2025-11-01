@@ -54,6 +54,12 @@ const performLoginAndPersist = async () => {
     }, { keys: STORAGE_KEYS, sessionData: session });
 
     await page.goto(E2E_CONFIG.FRONTEND.URL, { waitUntil: 'domcontentloaded' });
+    // Persist an E2E flag to force-open the create modal on dashboard mounts
+    try {
+      await page.evaluate(() => {
+        try { localStorage.setItem('__E2E_OPEN_CREATE__', '1'); } catch {}
+      });
+    } catch {}
 
     await ensureStorageDirectory();
     await context.storageState({ path: STORAGE_STATE_FILE });
@@ -65,7 +71,7 @@ const performLoginAndPersist = async () => {
     try {
       validationContext = await browser.newContext({ storageState: STORAGE_STATE_FILE });
       validationPage = await validationContext.newPage();
-      await validationPage.goto(E2E_CONFIG.FRONTEND.URL, { waitUntil: 'domcontentloaded' });
+      await validationPage.goto(`${E2E_CONFIG.FRONTEND.URL}/dashboard?openCreate=1`, { waitUntil: 'domcontentloaded' });
       // Ensure root exists before polling for E2E hooks
       await validationPage.waitForSelector('#root', { timeout: 10000 }).catch(() => undefined);
       // Wait up to 30s for the SPA to expose the E2E auth hook

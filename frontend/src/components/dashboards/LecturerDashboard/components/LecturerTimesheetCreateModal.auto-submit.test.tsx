@@ -18,7 +18,7 @@ const TimesheetFormMock = vi.hoisted(() =>
             description: 'Guest tutorial',
             taskType: 'TUTORIAL',
             qualification: 'STANDARD',
-            repeat: false,
+            isRepeat: false,
           })
         }
       >
@@ -130,4 +130,3 @@ describe('LecturerTimesheetCreateModal - auto submit', () => {
     });
   });
 });
-

@@ -1,0 +1,354 @@
+*** Begin Patch
+*** Update File: frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
+@@
+-  const quoteRequest = useMemo(() => {
+-    if (
+-      resolvedTutorId <= 0 ||
+-      formData.courseId <= 0 ||
+-      !formData.weekStartDate ||
+-      formData.deliveryHours <= 0
+-    ) {
+-      return null;
+-    }
+-    return {
+-      tutorId: resolvedTutorId,
+-      courseId: formData.courseId,
+-      sessionDate: formData.weekStartDate,
+-      taskType: formData.taskType,
+-      qualification: formData.qualification,
+-      isRepeat: formData.isRepeat,
+-      deliveryHours: formData.deliveryHours,
+-    };
+-  }, [
+-    resolvedTutorId,
+-    formData.courseId,
+-    formData.weekStartDate,
+-    formData.taskType,
+-    formData.qualification,
+-    formData.isRepeat,
+-    formData.deliveryHours,
+-  ]);
+-
+-  useEffect(() => {
+-    if (!quoteRequest) {
+-      if (quoteDebounceRef.current) {
+-        clearTimeout(quoteDebounceRef.current);
+-        quoteDebounceRef.current = null;
+-      }
+-      setQuoteState(prev => (prev.status === 'idle' && prev.data === null && prev.error === null
+-        ? prev
+-        : { status: 'idle', data: null, error: null }));
+-      return;
+-    }
+-
+-    const controller = new AbortController();
+-    effectQuoteControllerRef.current = controller;
+-    setQuoteState(prev => (prev.status === 'loading' ? prev : { status: 'loading', data: prev.data, error: null }));
+-    setValidationErrors(prev => {
+-      if (!prev.quote) {
+-        return prev;
+-      }
+-      const { quote: _ignored, ...rest } = prev;
+-      return rest;
+-    });
+-
+-    const debounceMs = process.env.NODE_ENV === 'test' ? 0 : 200;
+-    if (quoteDebounceRef.current) {
+-      clearTimeout(quoteDebounceRef.current);
+-      quoteDebounceRef.current = null;
+-    }
+-    quoteDebounceRef.current = setTimeout(() => {
+-      TimesheetService.quoteTimesheet(quoteRequest, controller.signal)
+-        .then(response => {
+-          if (controller.signal.aborted) {
+-            return;
+-          }
+-          setQuoteState({ status: 'loaded', data: response, error: null });
+-        })
+-        .catch(error => {
+-          if (controller.signal.aborted) {
+-            return;
+-          }
+-          const message = error instanceof Error ? error.message : 'Unable to calculate pay with EA rules.';
+-          setQuoteState(prev => ({
+-            status: 'error',
+-            data: prev.data,
+-            error: message,
+-          }));
+-          setValidationErrors(prev => ({ ...prev, quote: message }));
+-        });
+-    }, debounceMs);
+-
+-    return () => {
+-      if (quoteDebounceRef.current) {
+-        clearTimeout(quoteDebounceRef.current);
+-        quoteDebounceRef.current = null;
+-      }
+-      try { controller.abort(); } catch {}
+-      if (effectQuoteControllerRef.current === controller) {
+-        effectQuoteControllerRef.current = null;
+-      }
+-    };
+-  }, [quoteRequest]);
++  // Deterministic quote emission via a single effect driven by RHF watch() fields
++  const quoteControllerRef = useRef<AbortController | null>(null);
++  const quoteSeqRef = useRef(0);
++
++  const watchedCourseId = watch('courseId');
++  const watchedWeekStart = watch('weekStartDate');
++  const watchedTaskType = watch('taskType');
++  const watchedQualification = watch('qualification');
++  const watchedIsRepeat = watch('isRepeat');
++  const watchedHours = watch('deliveryHours');
++
++  useEffect(() => {
++    const ready =
++      resolvedTutorId > 0 &&
++      watchedCourseId > 0 &&
++      !!watchedWeekStart &&
++      (watchedHours || 0) > 0;
++
++    if (!ready) {
++      // Abort any in-flight and reset state to idle when not ready
++      try { quoteControllerRef.current?.abort(); } catch {}
++      quoteControllerRef.current = null;
++      setQuoteState(prev => (prev.status === 'idle' && prev.data === null && prev.error === null
++        ? prev
++        : { status: 'idle', data: null, error: null }));
++      return;
++    }
++
++    // Abort previous and issue a new request with a sequence token
++    try { quoteControllerRef.current?.abort(); } catch {}
++    const controller = new AbortController();
++    quoteControllerRef.current = controller;
++    const mySeq = ++quoteSeqRef.current;
++
++    setQuoteState(prev => (prev.status === 'loading' ? prev : { status: 'loading', data: prev.data, error: null }));
++    setValidationErrors(prev => {
++      if (!prev.quote) return prev;
++      const { quote: _ignored, ...rest } = prev;
++      return rest;
++    });
++
++    TimesheetService.quoteTimesheet({
++      tutorId: resolvedTutorId,
++      courseId: watchedCourseId,
++      sessionDate: watchedWeekStart,
++      taskType: watchedTaskType,
++      qualification: watchedQualification,
++      isRepeat: watchedIsRepeat,
++      deliveryHours: watchedHours,
++    }, controller.signal)
++      .then(response => {
++        if (controller.signal.aborted || mySeq !== quoteSeqRef.current) return;
++        setQuoteState({ status: 'loaded', data: response, error: null });
++      })
++      .catch(error => {
++        if (controller.signal.aborted || mySeq !== quoteSeqRef.current) return;
++        const message = error instanceof Error ? error.message : 'Unable to calculate pay with EA rules.';
++        setQuoteState(prev => ({ status: 'error', data: prev.data, error: message }));
++        setValidationErrors(prev => ({ ...prev, quote: message }));
++      });
++
++    return () => {
++      try { controller.abort(); } catch {}
++      if (quoteControllerRef.current === controller) {
++        quoteControllerRef.current = null;
++      }
++    };
++  }, [resolvedTutorId, watchedCourseId, watchedWeekStart, watchedTaskType, watchedQualification, watchedIsRepeat, watchedHours]);
+@@
+-  // Ensure an initial quote is computed once all required fields are ready in lecturer mode,
+-  // to avoid missing the first request due to races (small, E2E-friendly safety net).
+-  useEffect(() => {
+-    const ready =
+-      resolvedTutorId > 0 &&
+-      formData.courseId > 0 &&
+-      !!formData.weekStartDate &&
+-      (formData.deliveryHours || 0) > 0;
+-    if (!ready) return;
+-    if (quoteState.status === 'loaded' && quoteState.data) return;
+-    const controller = new AbortController();
+-    effectQuoteControllerRef.current = controller;
+-    TimesheetService.quoteTimesheet({
+-      tutorId: resolvedTutorId,
+-      courseId: formData.courseId,
+-      sessionDate: formData.weekStartDate,
+-      taskType: formData.taskType,
+-      qualification: formData.qualification,
+-      isRepeat: formData.isRepeat,
+-      deliveryHours: formData.deliveryHours,
+-    }, controller.signal)
+-      .then(resp => setQuoteState({ status: 'loaded', data: resp, error: null }))
+-      .catch(() => undefined);
+-    return () => {
+-      try { controller.abort(); } catch {}
+-      if (effectQuoteControllerRef.current === controller) {
+-        effectQuoteControllerRef.current = null;
+-      }
+-    };
+-  }, [resolvedTutorId, formData.courseId, formData.weekStartDate, formData.deliveryHours, formData.taskType, formData.qualification, formData.isRepeat, quoteState.status, quoteState.data]);
+-
+-  // Guard-rail to ensure a quote materializes promptly after key toggles under E2E
+-  useEffect(() => {
+-    if (!isLecturerMode) return;
+-    const ready =
+-      resolvedTutorId > 0 &&
+-      formData.courseId > 0 &&
+-      !!formData.weekStartDate &&
+-      (formData.deliveryHours || 0) > 0;
+-    if (!ready) return;
+-    const delay = process.env.NODE_ENV === 'test' ? 50 : 150;
+-    const timer = setTimeout(() => {
+-      if (!(quoteState.status === 'loaded' && quoteState.data)) {
+-        try { triggerQuoteNow(); } catch {}
+-      }
+-    }, delay);
+-    return () => clearTimeout(timer);
+-  }, [isLecturerMode, resolvedTutorId, formData.courseId, formData.weekStartDate, formData.deliveryHours, formData.isRepeat, formData.taskType, formData.qualification, quoteState.status, quoteState.data]);
++  // Removed initial-quote and guard-rail effects: single effect above is the only emitter
+@@
+-  const handleSubmit = useCallback((e: FormEvent) => {
+-    e.preventDefault();
+-
+-    if (loading) {
+-      return;
+-    }
+-
+-    if (!validateForm()) {
+-      return;
+-    }
+-
+-    if (quoteState.status !== 'loaded' || !quoteState.data) {
+-      setValidationErrors(prev => ({
+-        ...prev,
+-        quote: 'Unable to calculate pay. Please review the input fields.',
+-      }));
+-      return;
+-    }
+-
+-    const submission: TimesheetFormSubmitData = {
+-      tutorId: resolvedTutorId,
+-      courseId: formData.courseId,
+-      weekStartDate: formData.weekStartDate,
+-      sessionDate: quoteState.data.sessionDate ?? formData.weekStartDate,
+-      deliveryHours: formData.deliveryHours,
+-      description: formData.description,
+-      taskType: formData.taskType,
+-      qualification: formData.qualification,
+-      isRepeat: formData.isRepeat,
+-    };
+-
+-    secureLogger.debug('submitting form', submission);
+-    onSubmit(submission);
+-  }, [formData.courseId, formData.deliveryHours, formData.description, formData.isRepeat, formData.qualification, formData.taskType, formData.weekStartDate, loading, onSubmit, quoteState, resolvedTutorId, validateForm]);
++  const handleSubmit = rhfHandleSubmit(() => {
++    if (loading) return;
++    if (!validateForm()) return;
++    if (quoteState.status !== 'loaded' || !quoteState.data) {
++      setValidationErrors(prev => ({ ...prev, quote: 'Unable to calculate pay. Please review the input fields.' }));
++      return;
++    }
++    const v = getValues();
++    const submission: TimesheetFormSubmitData = {
++      tutorId: resolvedTutorId,
++      courseId: v.courseId,
++      weekStartDate: v.weekStartDate,
++      sessionDate: quoteState.data.sessionDate ?? v.weekStartDate,
++      deliveryHours: v.deliveryHours,
++      description: v.description,
++      taskType: v.taskType,
++      qualification: v.qualification,
++      isRepeat: v.isRepeat,
++    };
++    secureLogger.debug('submitting form', submission);
++    onSubmit(submission);
++  });
+@@
+-  const handleFieldChange = useCallback((field: keyof TimesheetFormState, value: string | number | boolean) => {
++  const handleFieldChange = useCallback((field: keyof TimesheetFormState, value: string | number | boolean) => {
+     secureLogger.debug('field change', { field, value });
+     if (field === 'weekStartDate') {
+       const stringValue = typeof value === 'string' ? value : String(value);
+       // Mark explicit user selection so effects won't override it
+       lastUserWeekStartRef.current = stringValue;
+       if (stringValue && !isWeekStartOnAllowedDay(stringValue)) {
+         // Record validation error but still reflect the user's intent; a coercion effect will normalise to Monday.
+         setValidationErrors(prev => ({
+           ...prev,
+           weekStartDate: MONDAY_ERROR_MESSAGE
+         }));
+       }
+     }
+-
+-    setFormData(prev => ({ ...prev, [field]: value as never }));
++    setValue(field, value as never, { shouldDirty: true, shouldTouch: true, shouldValidate: false });
+     setValidationErrors(prev => {
+       if (!prev[field]) {
+         return prev;
+       }
+       const next = { ...prev, [field]: '' };
+       if (field === 'weekStartDate') {
+         next.weekStartDate = '';
+       }
+       return next;
+     });
+-
+-    // Deterministic quote emission: single authoritative POST
+-    try {
+-      const nextState = { ...formData, [field]: value as never } as TimesheetFormState;
+-      const ready =
+-        resolvedTutorId > 0 &&
+-        nextState.courseId > 0 &&
+-        !!nextState.weekStartDate &&
+-        (nextState.deliveryHours || 0) > 0;
+-
+-      const isKeyField =
+-        field === 'taskType' ||
+-        field === 'isRepeat' ||
+-        field === 'deliveryHours' ||
+-        field === 'courseId' ||
+-        field === 'weekStartDate' ||
+-        field === 'qualification';
+-
+-      if (ready && isKeyField) {
+-        if (quoteDebounceRef.current) {
+-          clearTimeout(quoteDebounceRef.current);
+-          quoteDebounceRef.current = null;
+-        }
+-        // For repeat/taskType we schedule a single rAF-queued quote to ensure latest composed state
+-        const emitQuote = () => {
+-          try { immediateQuoteControllerRef.current?.abort(); } catch {}
+-          try { effectQuoteControllerRef.current?.abort(); } catch {}
+-          const controller = new AbortController();
+-          immediateQuoteControllerRef.current = controller;
+-          TimesheetService.quoteTimesheet({
+-            tutorId: resolvedTutorId,
+-            courseId: nextState.courseId,
+-            sessionDate: nextState.weekStartDate,
+-            taskType: nextState.taskType,
+-            qualification: nextState.qualification,
+-            isRepeat: nextState.isRepeat,
+-            deliveryHours: nextState.deliveryHours,
+-          }, controller.signal)
+-            .then(resp => { if (!controller.signal.aborted) setQuoteState({ status: 'loaded', data: resp, error: null }); })
+-            .catch(() => undefined)
+-            .finally(() => { if (immediateQuoteControllerRef.current === controller) immediateQuoteControllerRef.current = null; });
+-        };
+-
+-        if (field === 'isRepeat' || field === 'taskType') {
+-          // queue via rAF to run after DOM/state commit
+-          if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+-            window.requestAnimationFrame(() => emitQuote());
+-          } else {
+-            setTimeout(emitQuote, 0);
+-          }
+-        } else {
+-          emitQuote();
+-        }
+-      }
+-    } catch {}
+-  }, [MONDAY_ERROR_MESSAGE, isWeekStartOnAllowedDay, resolvedTutorId, /* formData removed */, setValue]);
++  }, [MONDAY_ERROR_MESSAGE, isWeekStartOnAllowedDay, setValue]);
+*** End Patch

@@ -106,7 +106,7 @@ export interface TimesheetQuoteRequest {
   sessionDate: string;
   taskType: TimesheetTaskType;
   qualification: TutorQualification;
-  repeat: boolean;
+  isRepeat: boolean;
   deliveryHours: number;
 }
 
@@ -114,7 +114,7 @@ export interface TimesheetQuoteResponse {
   taskType: TimesheetTaskType;
   rateCode: string;
   qualification: TutorQualification;
-  repeat: boolean;
+  isRepeat: boolean;
   deliveryHours: number;
   associatedHours: number;
   payableHours: number;
@@ -134,7 +134,7 @@ export interface TimesheetCreateRequest {
   description: string;
   taskType: TimesheetTaskType;
   qualification: TutorQualification;
-  repeat: boolean;
+  isRepeat: boolean;
 }
 
 export interface TimesheetUpdateRequest extends Partial<Omit<TimesheetCreateRequest, 'tutorId' | 'courseId'>> {

@@ -40,7 +40,14 @@ export class AdminUsersPage {
       (r) => r.url().includes('/api/users') && r.request().method() === 'POST',
       { timeout: 15000 }
     ).catch(() => null);
-    await this.page.getByRole('button', { name: /Create User/i }).click();
+    const createBtn = this.page.getByRole('button', { name: /Create User/i });
+    await createBtn.scrollIntoViewIfNeeded().catch(() => undefined);
+    try {
+      await createBtn.click();
+    } catch {
+      // Fallback for off-viewport or nested scroll containers
+      await createBtn.evaluate((el: any) => (el as HTMLElement).click());
+    }
     const postResp = await postUsers;
     if (postResp && !postResp.ok()) {
       // Surface server validation to test for visibility next

@@ -25,9 +25,10 @@ export interface TimesheetSeedOptions {
   targetStatus?: TimesheetStatus;
   taskType?: 'TUTORIAL' | 'LECTURE' | 'ORAA' | 'DEMO' | 'MARKING' | 'OTHER';
   qualification?: 'STANDARD' | 'PHD' | 'COORDINATOR';
-  repeat?: boolean;
+  isRepeat?: boolean;
   sessionDate?: string;
   deliveryHours?: number;
+  tutorId?: number;
 }
 
 export interface SeededTimesheet {
@@ -343,7 +344,7 @@ export async function createTimesheetWithStatus(
     // Align with backend expectations: include intrinsic fields (hours, hourlyRate), 
     // exclude calculated fields (totalPay, associatedHours)
     const payload = {
-      tutorId: tokens.tutor.userId,
+      tutorId: options.tutorId ?? tokens.tutor.userId,
       courseId: selectedCourse,
       weekStartDate: selectedWeek,
       sessionDate: options.sessionDate ?? selectedWeek,
@@ -353,7 +354,7 @@ export async function createTimesheetWithStatus(
       description,
       taskType: options.taskType ?? 'TUTORIAL',
       qualification: options.qualification ?? 'STANDARD',
-      repeat: options.repeat ?? false,
+      isRepeat: options.isRepeat ?? false,
     };
 
     try {
@@ -436,6 +437,26 @@ export async function createTimesheetWithStatus(
   const timesheetId = created?.id ?? created?.timesheet?.id;
   if (!timesheetId) {
     throw new Error('Timesheet creation response missing id');
+  }
+
+  // Ensure tutor is assigned to the selected course before applying approval transitions
+  try {
+    const doAssign = async () => request.post(
+      `${backendUrl}/api/admin/tutors/assignments`,
+      {
+        headers: toHeaders(tokens.admin.token),
+        data: { tutorId: tokens.tutor.userId, courseIds: [selectedCourse] },
+      }
+    );
+    let assignmentResp = await doAssign();
+    if (!assignmentResp.ok() && assignmentResp.status() !== 409) {
+      // One gentle retry for transient states; then proceed without failing
+      await delay(200);
+      assignmentResp = await doAssign();
+    }
+    // Swallow any non-fatal status to keep seed pipeline resilient
+  } catch {
+    // Intentionally ignore; quoting and UI flows do not require assignment
   }
 
   const target = (options.targetStatus ?? 'DRAFT') as TimesheetStatus;

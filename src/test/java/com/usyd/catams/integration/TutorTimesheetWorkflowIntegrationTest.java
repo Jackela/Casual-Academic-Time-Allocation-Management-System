@@ -17,6 +17,8 @@ import static org.hamcrest.Matchers.closeTo;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
+import com.usyd.catams.entity.TutorAssignment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +58,9 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private CourseRepository courseRepository;
+    
+    @Autowired
+    private TutorAssignmentRepository tutorAssignmentRepository;
 
     private User lecturer;
     private User tutor;
@@ -80,6 +85,9 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
         // Create test course
         course = createCourse("TEST3001", "Test Course", lecturer.getId());
+
+        // Link tutor to course for authorization requirements
+        tutorAssignmentRepository.save(new TutorAssignment(tutor.getId(), course.getId()));
 
         // Use current or previous Monday for testing to avoid future-date rule violations
         mondayDate = LocalDate.now().with(DayOfWeek.MONDAY);
@@ -184,7 +192,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         updateRequest.setDescription("Updated work description after rejection feedback");
         updateRequest.setTaskType(TimesheetTaskType.TUTORIAL);
         updateRequest.setQualification(TutorQualification.STANDARD);
-        updateRequest.setRepeat(Boolean.FALSE);
+        updateRequest.setIsRepeat(Boolean.FALSE);
         updateRequest.setSessionDate(mondayDate);
 
         mockMvc.perform(put("/api/timesheets/" + rejectedTimesheet.getId())
@@ -217,7 +225,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         updateRequest.setDescription("Tutor updates draft before confirmation");
         updateRequest.setTaskType(TimesheetTaskType.TUTORIAL);
         updateRequest.setQualification(TutorQualification.STANDARD);
-        updateRequest.setRepeat(Boolean.FALSE);
+        updateRequest.setIsRepeat(Boolean.FALSE);
         updateRequest.setSessionDate(mondayDate);
 
         mockMvc.perform(put("/api/timesheets/" + draftTimesheet.getId())
@@ -281,7 +289,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         updateRequest.setDescription("Updated after feedback");
         updateRequest.setTaskType(TimesheetTaskType.TUTORIAL);
         updateRequest.setQualification(TutorQualification.STANDARD);
-        updateRequest.setRepeat(Boolean.FALSE);
+        updateRequest.setIsRepeat(Boolean.FALSE);
         updateRequest.setSessionDate(mondayDate);
 
         mockMvc.perform(put("/api/timesheets/" + rejectedTimesheet.getId())
@@ -321,7 +329,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         createRequest.setDescription("Initial timesheet");
         createRequest.setTaskType(com.usyd.catams.enums.TimesheetTaskType.TUTORIAL);
         createRequest.setQualification(com.usyd.catams.enums.TutorQualification.STANDARD);
-        createRequest.setRepeat(Boolean.FALSE);
+        createRequest.setIsRepeat(Boolean.FALSE);
         createRequest.setDeliveryHours(BigDecimal.ONE);
         createRequest.setSessionDate(mondayDate);
 
@@ -376,7 +384,7 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         updateRequest.setDescription("Updated timesheet with more detail and increased hours as requested");
         updateRequest.setTaskType(TimesheetTaskType.TUTORIAL);
         updateRequest.setQualification(TutorQualification.STANDARD);
-        updateRequest.setRepeat(Boolean.FALSE);
+        updateRequest.setIsRepeat(Boolean.FALSE);
         updateRequest.setSessionDate(mondayDate);
 
         mockMvc.perform(put("/api/timesheets/" + createdTimesheet.getId())
@@ -450,5 +458,3 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
     
 }
-
-

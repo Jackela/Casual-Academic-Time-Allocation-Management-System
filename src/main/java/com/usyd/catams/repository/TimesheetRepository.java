@@ -316,6 +316,25 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     Page<Timesheet> findByStatusOrderByCreatedAtAsc(ApprovalStatus status, Pageable pageable);
 
     /**
+     * Counts tutorial entries for the same course within a date window. Optionally
+     * matches on description (case-insensitive) when provided to approximate
+     * "same content" semantics for repeat tutorials.
+     */
+    @Query("SELECT COUNT(t) FROM Timesheet t " +
+           "WHERE t.taskType = com.usyd.catams.enums.TimesheetTaskType.TUTORIAL " +
+           "AND t.courseId = :courseId " +
+           "AND (t.weekPeriod.weekStartDate BETWEEN :from AND :to OR t.sessionDate BETWEEN :from AND :to) " +
+           "AND (:description IS NULL OR LOWER(t.description) = LOWER(:description))")
+    long countTutorialsForRepeatRule(@Param("courseId") Long courseId,
+                                     @Param("from") LocalDate from,
+                                     @Param("to") LocalDate to,
+                                     @Param("description") String description);
+
+    boolean existsByCourseIdAndWeekPeriod_WeekStartDate(Long courseId, LocalDate weekStartDate);
+
+    
+
+    /**
      * Find timesheets with TUTOR_CONFIRMED status for courses taught by a specific lecturer.
      * Used for the GET /api/timesheets/pending-final-approval endpoint.
      *

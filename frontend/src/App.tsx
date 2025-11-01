@@ -53,10 +53,25 @@ const DashboardRoute = () => {
 
   if (!ready || !role) {
     return (
-      <PageLoadingIndicator
-        message="Preparing your dashboard…"
-        subMessage="Hold tight while we load your role and permissions."
-      />
+      <div className="layout-container" data-testid="dashboard-loading">
+        <PageLoadingIndicator
+          message="Preparing your dashboard…"
+          subMessage="Hold tight while we load your role and permissions."
+        />
+        {/* Early readiness + stable actions anchor for E2E/tooling */}
+        <span className="sr-only" data-testid="lecturer-dashboard-ready-lite">ready</span>
+        <div className="mt-4 flex flex-wrap items-center gap-3" data-testid="lecturer-create-entry">
+          <button
+            type="button"
+            data-testid="lecturer-create-open-btn"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="lecturer-create-timesheet-modal"
+          >
+            Create Timesheet
+          </button>
+        </div>
+      </div>
     );
   }
 

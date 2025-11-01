@@ -65,8 +65,15 @@ export async function getTutorAssignments(tutorId: number): Promise<number[]> {
 }
 
 export async function getTutorDefaults(tutorId: number): Promise<{ defaultQualification: TutorQualification | null }> {
-  const response = await secureApiClient.get<{ defaultQualification: TutorQualification | null }>(`${API_ENDPOINTS.USERS.ADMIN.TUTOR_DEFAULTS.replace('/defaults', '')}/${tutorId}/defaults`);
-  return response.data;
+  try {
+    const response = await secureApiClient.get<{ defaultQualification: TutorQualification | null }>(
+      `${API_ENDPOINTS.USERS.ADMIN.TUTOR_DEFAULTS.replace('/defaults', '')}/${tutorId}/defaults`
+    );
+    return response.data ?? { defaultQualification: null };
+  } catch {
+    // Treat missing/errored defaults as non-fatal: return null qualification
+    return { defaultQualification: null };
+  }
 }
 
 export async function getAssignmentsForCourses(courseIds: number[]): Promise<Record<number, number[]>> {

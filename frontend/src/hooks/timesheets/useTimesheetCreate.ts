@@ -40,8 +40,21 @@ export const useTimesheetCreate = (): UseTimesheetCreateResult => {
       });
       return timesheet;
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to create timesheet";
+      // Map secureApiClient ApiErrorResponse to friendly messages
+      let message = "Failed to create timesheet";
+      const errObj = error as any;
+      const status = errObj?.status;
+      const code = errObj?.error?.code ?? errObj?.code;
+      const payloadMessage = typeof errObj?.message === 'string' ? errObj.message : undefined;
+      // Normalize duplicate-week across environments that might return 400 with duplicate phrasing
+      const duplicateHint = /already exists/i.test(String(payloadMessage ?? ''));
+      if (status === 409 || code === 'RESOURCE_CONFLICT' || duplicateHint) {
+        message = "A timesheet already exists for this tutor, course, and week. Please choose a different week or edit the existing one.";
+      } else if (status === 400 && (code === 'VALIDATION_FAILED' || payloadMessage)) {
+        message = payloadMessage ?? message;
+      } else if (error instanceof Error && error.message) {
+        message = error.message;
+      }
       safeSetMutationState(setState, {
         data: null,
         loading: false,

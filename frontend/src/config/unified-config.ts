@@ -207,7 +207,8 @@ class ConfigurationBuilder {
    */
   private getTimeoutConfig(): number {
     if (ENV_CONFIG.isE2E()) {
-      return 15000; // Longer timeout for E2E tests
+      // Allow more time for local dev servers and proxy to respond during E2E
+      return 30000; // 30s for E2E tests
     }
     
     if (ENV_CONFIG.isProduction()) {

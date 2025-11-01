@@ -1,6 +1,7 @@
 package com.usyd.catams.controller;
 
 import com.usyd.catams.service.TimesheetApplicationFacade;
+import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.dto.request.TimesheetCreateRequest;
 import com.usyd.catams.dto.request.TimesheetQuoteRequest;
 import com.usyd.catams.dto.request.TimesheetUpdateRequest;
@@ -20,6 +21,8 @@ import com.usyd.catams.service.Schedule1CalculationResult;
 import com.usyd.catams.service.Schedule1Calculator;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -41,23 +44,28 @@ import java.util.Optional;
 @RequestMapping("/api/timesheets")
 public class TimesheetController {
 
+    private static final Logger log = LoggerFactory.getLogger(TimesheetController.class);
+
     private final TimesheetApplicationFacade timesheetService;
     private final AuthenticationFacade authenticationFacade;
     private final Schedule1Calculator schedule1Calculator;
     private final ApprovalService approvalService;
     private final ApprovalMapper approvalMapper;
+    private final TimesheetRepository timesheetRepository;
 
     @Autowired
     public TimesheetController(TimesheetApplicationFacade timesheetService,
                                AuthenticationFacade authenticationFacade,
                                Schedule1Calculator schedule1Calculator,
                                ApprovalService approvalService,
-                               ApprovalMapper approvalMapper) {
+                               ApprovalMapper approvalMapper,
+                               TimesheetRepository timesheetRepository) {
         this.timesheetService = timesheetService;
         this.authenticationFacade = authenticationFacade;
         this.schedule1Calculator = schedule1Calculator;
         this.approvalService = approvalService;
         this.approvalMapper = approvalMapper;
+        this.timesheetRepository = timesheetRepository;
     }
 
     @PostMapping("/quote")
@@ -68,11 +76,23 @@ public class TimesheetController {
         if (request.getSessionDate() == null || request.getSessionDate().getDayOfWeek().getValue() != 1) {
             throw new IllegalArgumentException("Session date must be a Monday");
         }
+        boolean effectiveRepeat = request.isRepeat();
+        if (request.getTaskType() == TimesheetTaskType.TUTORIAL && effectiveRepeat) {
+            // Enforce 7-day eligibility window for repeat tutorials at quote time
+            LocalDate sessionDate = request.getSessionDate();
+            LocalDate from = sessionDate.minusDays(7);
+            LocalDate to = sessionDate;
+            long prior = timesheetRepository.countTutorialsForRepeatRule(
+                    request.getCourseId(), from, to, null);
+            effectiveRepeat = prior > 0;
+            log.info("[QUOTE] repeat-window check: courseId={}, sessionDate={}, from={}, to={}, priorCount={}, effectiveRepeat={}",
+                    request.getCourseId(), sessionDate, from, to, prior, effectiveRepeat);
+        }
         Schedule1CalculationResult calculation = calculateSchedule1(
                 request.getTaskType(),
                 request.getSessionDate(),
                 request.getDeliveryHours(),
-                request.isRepeat(),
+                effectiveRepeat,
                 request.getQualification()
         );
         return ResponseEntity.ok(TimesheetQuoteResponse.from(request.getTaskType(), calculation));
@@ -253,6 +273,13 @@ public class TimesheetController {
         Objects.requireNonNull(sessionDate, "sessionDate");
         Objects.requireNonNull(deliveryHours, "deliveryHours");
         TutorQualification resolvedQualification = qualification != null ? qualification : TutorQualification.STANDARD;
+
+        if (taskType == TimesheetTaskType.TUTORIAL) {
+            BigDecimal normalised = deliveryHours.setScale(1, java.math.RoundingMode.HALF_UP);
+            if (normalised.compareTo(BigDecimal.ONE.setScale(1)) != 0) {
+                throw new IllegalArgumentException("Delivery hours for Tutorial must be exactly 1.0");
+            }
+        }
         return schedule1Calculator.calculate(
                 new Schedule1Calculator.CalculationInput(
                         taskType,

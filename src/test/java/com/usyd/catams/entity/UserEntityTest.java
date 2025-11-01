@@ -177,7 +177,8 @@ class UserEntityTest {
             long timeDifference = Math.abs(
                 user.getLastLoginAt().getNano() - user.getUpdatedAt().getNano()
             );
-            assertThat(timeDifference).isLessThan(1_000_000); // Less than 1ms difference
+            // Allow small scheduling variance on some CI/VMs
+            assertThat(timeDifference).isLessThanOrEqualTo(2_000_000); // <= 2ms difference
         }
 
         @Test

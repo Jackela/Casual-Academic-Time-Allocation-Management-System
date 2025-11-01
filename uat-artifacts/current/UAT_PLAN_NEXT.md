@@ -1,95 +1,152 @@
-# UAT Plan Addendum: Issue Remediation & Freshness Validation
+# UAT Plan – CATAMS MCP Validation Run
 
-Date: 2025-10-29
-Scope: Validate critical/open issues from UAT and newly logged design gaps without changing business rules. Focus on: credentials SSOT (Issue #008), dashboard freshness (Issue #009), quote 400s due to constraints mismatch (Issue #012/#018), Calculated Pay Summary explanation (Issue #013), and Admin tutor scoping/qualification (Issue #014/#015).
+**Author**: Codex (GPT-5)  
+**Execution Window**: 2025-10-30  
+**Environment Targets**: Frontend `http://localhost:5174`, Backend `http://localhost:8084`  
+**Artifacts Root**: `uat-artifacts/current` (subfolders created per scenario)
 
-## Preconditions
-- Clean reset using a single entry point: `npm run e2e:reset`
-- Load seed users printed by reset script; do not hardcode passwords in docs
-- Backend/API running at `http://localhost:8084`; UI at `http://localhost:5174`
+## 0. Objectives & Scope
+- Re-validate core CATAMS approval workflows end-to-end with real data.
+- Confirm previously logged gaps (ISSUE-008 → ISSUE-020) remain addressed or document outstanding behaviour.
+- Capture console/network/a11y evidence using Chrome DevTools MCP tools only.
+- Produce execution log suitable for audit of frontend/backend alignment.
 
-## S1 — Credentials Single Source of Truth (Issue #008)
-- Goal: Guide credentials match seed; machine-checkable.
-- Steps:
-  1. Run `npm run e2e:reset` and capture emitted test users.
-  2. Open `E2E_UAT_EXECUTION_GUIDE.md` “Accounts” section and follow login with printed credentials.
-  3. Run verification script (to be added in CI) that diffs guide vs seed manifest.
-- Acceptance:
-  - Guide logins succeed for Tutor, Lecturer, Admin without edits.
-  - CI check passes (guide ↔ seed sync); any drift fails the gate.
+## 1. Preconditions
+1. Run database reset (deterministic seed):
+   - `npm run e2e:reset > uat-artifacts/current/setup/reset-output.txt`
+   - Capture emitted accounts and tokens.
+2. Launch stack (Dockerised preferred):
+   - `docker-compose up --build -d`
+   - Verify health with `curl http://localhost:8084/actuator/health` and `curl http://localhost:5174` (optional).
+3. Start Chrome DevTools MCP session with Chromium, ensure command channel responsive.
+4. Clear previous MCP pages; each role will use its own tab to avoid auth clashes.
 
-## S2 — Dashboard Freshness <1s on focus / 30s auto (Issue #009)
-- Goal: Counters update promptly and at interval without request storms.
-- Steps:
-  1. Open a dashboard tab and a separate role tab (e.g., Tutor + Lecturer).
-  2. Approve/reject on role tab, then switch focus back to dashboard.
-  3. Observe update occurs within 1 second; leave tab visible for 2 minutes.
-- Acceptance:
-  - Focus switch triggers refresh <1s when tab is visible.
-  - Auto refresh occurs every ~30s while visible, no duplicate timers.
-  - Dev counters show ≤1 summary request/30s/dashboard page.
+## 2. Evidence & Logging Standards
+- **Screenshots**: `uat-artifacts/current/screens/<scenario>-<step>.png` via `mcp__chrome-devtools__take_screenshot` (use `fullPage:true` when necessary).
+- **Snapshots (a11y/DOM)**: `uat-artifacts/current/snapshots/<scenario>-<step>.json` saved from `take_snapshot(verbose=true)` output.
+- **Network Logs**: For each scenario export relevant entries to `uat-artifacts/current/network/<scenario>-<req>.json` using `mcp__chrome-devtools__get_network_request`.
+- **Console Logs**: `mcp__chrome-devtools__list_console_messages` at start/end of each scenario, append to `uat-artifacts/current/logs/<scenario>-console.json`.
+- **Result Tracking**: Populate `uat-artifacts/current/UAT_RESULTS.md` with step outcomes, referencing stored artifacts.
 
-## S3 — Quote 400 Bad Request Prevention (Issues #012, #018; error logs)
-- Goal: No 400s in normal use; UI aligns with server constraints.
-- Steps:
-  1. Load Timesheet form and read help text for Delivery Hours (min/max/step).
-  2. Enter values exactly at min, max, and one invalid (below min, above max, >precision).
-  3. Trigger quote; observe client-side validation for invalids; valid values return 200.
-- Acceptance:
-  - Help text matches server-published constraints.
-  - Invalid inputs are blocked client-side with specific error text.
-  - Valid inputs produce a successful quote and render the pay preview.
+## 3. MCP Command Playbook
+| Action | Preferred Command(s) | Notes |
+|--------|----------------------|-------|
+| Open role session | `mcp__chrome-devtools__new_page({url})` | One tab per role (Tutor, Lecturer, Admin) |
+| Switch tab | `mcp__chrome-devtools__select_page({pageIdx})` | Maintain index map in run notes |
+| Discover elements | `mcp__chrome-devtools__take_snapshot({verbose:true})` | Extract UIDs for subsequent actions |
+| Fill inputs | `mcp__chrome-devtools__fill` / `fill_form` | For select menus use snapshot UID for option |
+| Trigger buttons/links | `mcp__chrome-devtools__click` | Set `dblClick:true` if needed |
+| Await DOM text | `mcp__chrome-devtools__wait_for({text})` | Validate navigation or state change |
+| Inspect network | `mcp__chrome-devtools__list_network_requests`, `get_network_request` | Run before/after key actions |
+| Evaluate backend | `mcp__chrome-devtools__evaluate_script` | Use stored JWT to fetch protected APIs |
+| Performance sampling | `mcp__chrome-devtools__performance_start_trace`, `performance_analyze_insight` | Optional for dashboard refresh |
 
-## S4 — Calculated Pay Summary Explanation (Issue #013)
-- Goal: Repeat Tutorial preview explains capped payable hours clearly.
-- Steps:
-  1. Create quote: Task=Tutorial, Repeat=ON, Hours=10.0.
-  2. Inspect Calculated Pay Summary for TUx line items and capped payable hours.
-  3. Locate explanatory text or info link with clause reference.
-- Acceptance:
-  - An inline note explains the cap rule and rationale.
-  - Screen reader announces update (aria-live) when preview re-renders.
+## 4. Scenario Matrix
 
-## S5 — Admin Create Tutor: Course/Lecturer Visibility (Issue #014)
-- Goal: Admin can bind tutor to one or more courses at creation or edit.
-- Steps:
-  1. In Admin → Users → Create Tutor, select courses (multi-select) and save.
-  2. Log in as that Tutor; verify visibility limited to assigned courses.
-  3. Attempt to access unassigned course: list/details/approval endpoints.
-- Acceptance:
-  - Tutor creation persists course bindings and UI reflects scope.
-  - API returns 403 for unassigned accesses; UI filters lists accordingly.
+### Scenario 1 – Lecturer Timesheet Creation & Quote SSOT (ISSUE-012/018/017)
+**Goal**: Validate quote endpoint constraints, ensure create request excludes financial fields, check Monday enforcement.  
+**Setup**: Lecturer tab (Page 0) logged in, baseline network/console cleared.  
+**Steps**:
+1. Open “Create Timesheet” modal; capture snapshot before inputs.
+2. Exercise delivery hours at boundary values (0.05, 0.1, 10.0, 10.1) observing client validation.
+3. Submit valid quote (0.1h) and capture `/api/timesheets/quote` request/response.
+4. Attempt non-Monday week start; capture UI/server response.
+5. Submit valid timesheet (Monday) and confirm auto-submit action.
+**Acceptance**:
+- Client prevents invalid hours; only valid request reaches backend.
+- Quote response includes rateCode/hourlyRate/payableHours; request body lacks financial fields.
+- Create endpoint returns 201; auto-submit transitions to PENDING_TUTOR_CONFIRMATION.
+- Monday enforcement consistent (UI and server).  
+**Evidence**: Screenshots (`S1-form`, `S1-quote`, `S1-success`), network JSON (`S1-quote`, `S1-create`, `S1-submit`), console logs.
 
-## S6 — Admin Create Tutor: Default Qualification (Issue #015)
-- Goal: If default qualification is added, Timesheet defaults accordingly.
-- Steps:
-  1. In Admin, set default qualification for a Tutor profile (if supported).
-  2. Start a new timesheet as that Tutor; verify default is pre-selected, but can be changed.
-- Acceptance:
-  - Default qualification appears automatically and is overrideable.
-  - If not supported by design, guide explicitly documents per-timesheet-only behavior.
+### Scenario 2 – Tutor Confirmation & Dashboard Freshness (ISSUE-009)
+**Goal**: Ensure tutor can confirm pending item and dashboards refresh on focus ≤1s; polling every ~30s without duplication.  
+**Setup**: Tutor tab (Page 1) logged in; Lecturer tab kept open for focus swap.  
+**Steps**:
+1. Record dashboard counts before action.
+2. Confirm timesheet via button; capture approval request.
+3. Immediately switch to Lecturer tab, log time between focus and refreshed counts.
+4. Keep Lecturer dashboard visible for 2 minutes; record network intervals and ensure single polling schedule.
+**Acceptance**:
+- `POST /api/approvals` action `TUTOR_CONFIRM` → 200.  
+- Lecturer dashboard updates ≤1s after focus.  
+- Polling occurs once every ~30s; no request storms.  
+**Evidence**: Screens (`S2-tutor-before`, `S2-tutor-after`, `S2-lecturer-refresh`), network timing table, console logs.
 
-## S7 — Regression: Three-tier Approval & Audit Trail (Reference)
-- Goal: Ensure core flow remains 100% pass.
-- Steps:
-  1. Tutor create → Lecturer approve → Admin final approve across two timesheets.
-  2. Verify 12+ audit entries across three timesheets as before.
-- Acceptance:
-  - No regression in approvals; audit trail intact and complete.
+### Scenario 3 – Lecturer Approval Progression
+**Goal**: Validate lecturer approval path and dashboard counters after tutor confirmation.  
+**Steps**:
+1. Approve the tutor-confirmed entry; capture `LECTURER_CONFIRM` request.  
+2. Confirm status badge updates and counts adjust.  
+3. Record console/network logs post-action.  
+**Acceptance**: 200 OK with `action=LECTURER_CONFIRM`; UI reflects LECTURER_CONFIRMED state.  
+**Evidence**: Screenshots, network JSON, console log.
 
-## Negative Tests (Targeted)
-- Submit non-Monday date if UI allows (should be blocked or 4xx); verify consistency with guide.
-- Attempt quote with hours > server max and > client precision; verify consistent error messaging.
-- Rapid tab switching across multiple dashboards; ensure no request storm.
+### Scenario 4 – Admin Final Approval & Audit Trail Integrity
+**Goal**: Validate final approval and audit history.  
+**Steps**:
+1. In Admin tab (Page 2), approve lecturer-confirmed timesheet; capture `HR_CONFIRM`.  
+2. Open approval history/audit view; capture DOM snapshot.  
+3. Use admin token with `evaluate_script` to GET `/api/approvals/history/{id}` and save response.  
+**Acceptance**: Final status `FINAL_CONFIRMED`; audit history includes each transition with actor/timestamp/comment.  
+**Evidence**: Screens (`S4-admin-action`, `S4-audit`), network JSON (`S4-hr-confirm`, `S4-audit-api`).  
 
-## Evidence to Capture
-- Screenshots for S2 focus <1s and 30s auto refresh.
-- Network HAR or console logs showing no 400s during S3 valid paths.
-- Screenshot of Calculated Pay Summary with the explanation in S4.
-- Admin Create Tutor form with course bindings (S5) and default qualification (S6).
+### Scenario 5 – Rejection Workflow Regression
+**Goal**: Confirm rejection retains reason, blocks further approvals.  
+**Steps**:
+1. Create new timesheet (Scenario 1 steps abbreviated).  
+2. Tutor confirms; Lecturer rejects with comment “Hours incorrect”.  
+3. Tutor view shows rejection banner, no confirm button.  
+**Acceptance**: `REJECT` action 200; tutor UI displays message, item locked.  
+**Evidence**: Screens, network JSON, console logs for both roles.
 
-## Exit Criteria
-- All acceptances above met with evidence.
-- ISSUE-008 and ISSUE-009 downgraded to RESOLVED in ISSUE_LOG.md.
-- ISSUE-012/013/014/015 validated per acceptance and reclassified accordingly (OPEN→RESOLVED or left OPEN with agreed rationale).
+### Scenario 6 – Modification Request Loop
+**Goal**: Validate REQUEST_MODIFICATION path, tutor re-edit, and final completion.  
+**Steps**:
+1. Create/confirm new timesheet.  
+2. Lecturer issues modification request with reason.  
+3. Tutor edits description, resubmits (quote + create + auto-submit).  
+4. Complete approvals through lecturer/admin again.  
+**Acceptance**: Status transitions: `TUTOR_CONFIRMED → MODIFICATION_REQUESTED → PENDING_TUTOR_CONFIRMATION → … → FINAL_CONFIRMED`.  
+**Evidence**: Snapshots of editable form, network logs for modification action, resubmission, final approvals.
 
+### Scenario 7 – Admin Tutor Creation Gaps (ISSUE-014/015)
+**Goal**: Document current behaviour for course binding and default qualification.  
+**Steps**:
+1. Admin → Users → Create Tutor; attempt multi-course selection (capture UI).  
+2. Submit tutor; capture payload (expect missing course/qualification).  
+3. Login as new tutor; verify dashboards show unrestricted courses, qualification defaults absent.  
+**Acceptance**: If gaps persist, record as OPEN with evidence; if resolved, note behaviour.  
+**Evidence**: Screenshots of creation form, network payload, tutor dashboard.
+
+### Scenario 8 – Config & Constraint Publication (ISSUE-016/017/018/020/019)
+**Goal**: Assess support endpoints and parameter handling.  
+**Steps**:
+1. Trigger dashboard sorts; inspect requests (`sortBy` vs `sort`).  
+2. Call `/api/timesheets/config` via `evaluate_script`; record response or 404.  
+3. Attempt POST `/api/timesheets` with tutor role (should 403).  
+4. Review `uat-helpers.sh` output (`./uat-helpers.sh --dry-run approve ...`) for payload format (record).  
+5. Inspect timesheet detail JSON to confirm `hours` semantics.  
+**Acceptance**: Document actual behaviour; highlight mismatches.  
+**Evidence**: Network logs, command outputs, notes.
+
+### Scenario 9 – Credential SSOT Verification (ISSUE-008)
+**Goal**: Ensure credentials from reset manifest align with login behaviour.  
+**Steps**:
+1. Compare `reset-output.txt` accounts with actual login success.  
+2. Attempt invalid credentials; confirm 401 and user-facing error message.  
+3. Record console errors (if any).  
+**Evidence**: Login screenshots, console logs, manifest snippet.
+
+### Scenario 10 – Resilience & Offline Handling
+**Goal**: Validate UI responses to network interruption and measure dashboard performance.  
+**Steps**:
+1. Start performance trace during dashboard refresh; analyse insight.  
+2. With modal open, set `mcp__chrome-devtools__emulate_network("Offline")`, trigger quote; observe UI messaging, then restore `No emulation`.  
+**Acceptance**: UI surfaces retry/error; no silent failures.  
+**Evidence**: Trace analysis output, screenshots/console logs of offline message.
+
+## 5. Post-Execution Tasks
+- Update `UAT_RESULTS.md` with per-scenario status, referencing stored artifacts.
+- Append new findings to ISSUE_LOG.md manually after review (no direct code fix).  
+- Share residual risks and recommended follow-up actions in run summary.
