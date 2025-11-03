@@ -26,6 +26,11 @@ Actors
 - Tutor (views/acts on own timesheets; not primary creator here)
 - Admin/HR (approval flows; unaffected by create mechanics)
 
+## Clarifications
+
+### Session 2025-11-03
+- Q: How should the form prevent 403 authorization errors when choosing Tutor/Course? → A: Limit selections to assigned Tutors/Courses fetched from backend; disable submit if none available.
+
 ## User Scenarios & Testing (mandatory)
 
 <!--
@@ -83,8 +88,8 @@ Actors
   Fill them out with the right edge cases.
 -->
 
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
+- No assignments available for lecturer: show guidance “You are not assigned to any tutor/course; contact admin” and disable Submit.
+- Quote service latency/high churn: debounce quote by ~300ms and cancel inflight requests on change.
 
 ## Requirements *(mandatory)*
 
@@ -100,6 +105,7 @@ Actors
 - FR‑004: Submit only with EA‑consistent values; re‑quote on submit if critical fields changed.
 - FR‑005: 403 maps to role‑aware guidance; 400 maps to inline, field‑specific messages.
 - FR‑006: Add endpoint constants for ME, CONFIRM, PENDING_APPROVAL, APPROVALS.HISTORY, APPROVALS.PENDING and use them in services.
+- FR‑007: Restrict Tutor/Course pickers to lecturer‑assigned entities fetched on modal open; if none are available, show empty‑state guidance and disable Submit.
 
 ### Key Entities *(include if feature involves data)*
 - TimesheetCreateRequest, QuoteResponse (EA‑derived)
