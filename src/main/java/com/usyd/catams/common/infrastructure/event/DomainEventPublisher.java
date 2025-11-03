@@ -179,17 +179,20 @@ public class DomainEventPublisher {
     }
     
     /**
-     * Publish event to external message queue (microservices mode)
-     * This is a placeholder for future microservices implementation
+     * Publish event to an external message queue (microservices mode).
+     *
+     * Note: External message queue integration is intentionally not implemented
+     * in the current release. When configured for microservices mode, we log a
+     * warning and fall back to the Spring in‑process event bus to preserve
+     * functional behaviour. This avoids partial or stubbed integrations.
      */
     private void publishToMessageQueue(DomainEvent event) {
-        // TODO: Implement message queue publishing (RabbitMQ, Kafka, etc.)
-        // This would include:
-        // 1. Serialize event to JSON
-        // 2. Determine routing key based on event type
-        // 3. Publish to appropriate exchange/topic
-        // 4. Handle publishing confirmation
-        
+        // Future implementation outline:
+        // 1) Serialize event to JSON
+        // 2) Determine routing key based on event type
+        // 3) Publish to appropriate exchange/topic
+        // 4) Handle publishing confirmation and retries
+
         logger.warn("Message queue publishing not yet implemented for event: {} {}", 
             event.getEventType(), event.getEventId());
             

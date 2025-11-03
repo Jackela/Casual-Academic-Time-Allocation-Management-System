@@ -13,6 +13,8 @@ import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.service.DashboardService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,15 +45,26 @@ public class DashboardServiceImpl implements DashboardService {
 
     private final TimesheetRepository timesheetRepository;
     private final CourseRepository courseRepository;
+    private final com.usyd.catams.repository.LecturerAssignmentRepository lecturerAssignmentRepository;
     private final Clock clock;
+    private static final Logger LOGGER = LoggerFactory.getLogger(DashboardServiceImpl.class);
 
     @Autowired
     public DashboardServiceImpl(TimesheetRepository timesheetRepository,
                                CourseRepository courseRepository,
+                               com.usyd.catams.repository.LecturerAssignmentRepository lecturerAssignmentRepository,
                                Clock clock) {
         this.timesheetRepository = timesheetRepository;
         this.courseRepository = courseRepository;
+        this.lecturerAssignmentRepository = lecturerAssignmentRepository;
         this.clock = (clock != null ? clock : Clock.systemDefaultZone());
+    }
+
+    // Backward-compatible constructor used by certain tests
+    public DashboardServiceImpl(TimesheetRepository timesheetRepository,
+                               CourseRepository courseRepository,
+                               Clock clock) {
+        this(timesheetRepository, courseRepository, null, clock);
     }
 
     @Override
@@ -123,13 +136,18 @@ public class DashboardServiceImpl implements DashboardService {
             summaryData = timesheetRepository.findTimesheetSummaryByCourse(
                 courseId.get(), startDate, endDate);
         } else {
-            // Get all courses managed by this lecturer
-            managedCourses = courseRepository.findByLecturerIdAndIsActive(lecturerId, true);
-            System.out.println("DEBUG: Lecturer " + lecturerId + " has " + managedCourses.size() + " courses");
-            List<Long> courseIds = managedCourses.stream()
-                .map(Course::getId)
-                .collect(Collectors.toList());
-            System.out.println("DEBUG: Course IDs: " + courseIds);
+            // Get all courses assigned to this lecturer via assignments (SSOT)
+            java.util.List<Long> courseIds;
+            if (lecturerAssignmentRepository != null) {
+                var assigned = lecturerAssignmentRepository.findByLecturerId(lecturerId);
+                courseIds = assigned.stream().map(a -> a.getCourseId()).toList();
+                managedCourses = courseRepository.findAllById(courseIds).stream().filter(Course::getIsActive).toList();
+            } else {
+                // Fallback for tests that don't inject the assignment repository
+                managedCourses = courseRepository.findByLecturerIdAndIsActive(lecturerId, true);
+                courseIds = managedCourses.stream().map(Course::getId).toList();
+            }
+            LOGGER.debug("Lecturer {} has {} assigned courses (ids={})", lecturerId, managedCourses.size(), courseIds);
             
             if (courseIds.isEmpty()) {
                 // Lecturer has no active courses
@@ -137,7 +155,7 @@ public class DashboardServiceImpl implements DashboardService {
             } else {
                 summaryData = timesheetRepository.findTimesheetSummaryByCourses(
                     courseIds, startDate, endDate);
-                System.out.println("DEBUG: Summary data: " + summaryData.getTotalTimesheets() + " timesheets");
+                LOGGER.debug("Summary data for lecturer {}: {} timesheets", lecturerId, summaryData.getTotalTimesheets());
             }
         }
 
@@ -186,7 +204,9 @@ public class DashboardServiceImpl implements DashboardService {
      */
     private void validateLecturerAccess(Long lecturerId, Optional<Long> courseId) {
         if (courseId.isPresent()) {
-            boolean hasAccess = courseRepository.existsByIdAndLecturerId(courseId.get(), lecturerId);
+            boolean hasAccess = lecturerAssignmentRepository != null
+                ? lecturerAssignmentRepository.existsByLecturerIdAndCourseId(lecturerId, courseId.get())
+                : courseRepository.existsByIdAndLecturerId(courseId.get(), lecturerId);
             if (!hasAccess) {
                 throw new BusinessException("ACCESS_DENIED", 
                     "Lecturer does not have access to this course");

@@ -19,6 +19,34 @@ This guide provides **realistic, executable** UAT steps using Chrome DevTools MC
 
 ---
 
+## 🚀 E2E Batch Execution (Performance & Stability)
+
+To keep long E2E runs reliable and under time targets without parallelizing browser workers, use batch execution. The runner resets and reseeds the backend between batches to avoid state accumulation and cross-test interference.
+
+- Run full suite in batches of ~12 specs:
+  - `E2E_BATCH_SIZE=12 npm --prefix frontend run test:e2e:full`
+- Alternative CLI flag form:
+  - `npm --prefix frontend run test:e2e:full -- --batch-size 12`
+- Notes:
+  - The runner performs reset + lecturer resource seeding before each batch.
+  - Passing explicit file paths disables batching (runs exactly those files).
+  - CI keeps Playwright workers at 1 for stability.
+
+## 🧠 Vitest Memory Reliability (No 6GB Heap)
+
+Vitest is configured to avoid process-wide memory growth without large heap settings:
+
+- Changes:
+  - Removed `NODE_OPTIONS=--max-old-space-size=6144` from `frontend/package.json` test scripts.
+  - Switched to `pool: 'threads'` with isolation and constrained workers.
+- Typical runs:
+  - Unit utils: `npm --prefix frontend run test:unit`
+  - Component tests: `npm --prefix frontend run test:component`
+- If you observe a leak:
+  - Prefer smaller targeted scopes and check for module-level caches or large fixtures.
+  - Use the existing handle-monitor in `src/test-setup.ts` for leak hints.
+
+
 ## 📋 TodoList Integration Points
 
 **IMPORTANT**: Use `TodoWrite` tool to track progress at these milestones:

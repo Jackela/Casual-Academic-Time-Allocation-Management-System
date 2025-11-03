@@ -275,7 +275,7 @@ describe("AdminDashboard Component", () => {
     ).toBeInTheDocument();
   });
 
-  it.skip("displays system health metrics with status badge context", () => {
+  it("displays system health metrics with status badge context", () => {
     renderWithRouter(<AdminDashboard />);
 
     const systemHealth = screen.getByTestId("system-health-indicator");
@@ -288,7 +288,7 @@ describe("AdminDashboard Component", () => {
     expect(metrics.getByText(/2\.5/)).toBeInTheDocument();
   });
 
-  it.skip("renders status distribution chart with non-zero buckets", () => {
+  it("renders status distribution chart with non-zero buckets", () => {
     renderWithRouter(<AdminDashboard />);
 
     const distributionChart = screen.getByTestId("status-distribution-chart");

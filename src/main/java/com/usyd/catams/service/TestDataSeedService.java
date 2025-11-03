@@ -6,6 +6,7 @@ import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
+import com.usyd.catams.repository.LecturerAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,12 +25,14 @@ public class TestDataSeedService {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestDataSeedService.class);
 
     private final CourseRepository courseRepository;
+    private final LecturerAssignmentRepository lecturerAssignmentRepository;
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public TestDataSeedService(CourseRepository courseRepository, UserRepository userRepository) {
+    public TestDataSeedService(CourseRepository courseRepository, UserRepository userRepository, LecturerAssignmentRepository lecturerAssignmentRepository) {
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
+        this.lecturerAssignmentRepository = lecturerAssignmentRepository;
     }
 
     @Transactional
@@ -43,6 +46,14 @@ public class TestDataSeedService {
         ensureCourseByCode("EDEV1002", "E2E Course 102", lecturerId, new BigDecimal("5000"));
 
         LOGGER.info("Ensured courses for lecturer {} exist and are active: EDEV1001, EDEV1002", lecturerId);
+
+        // Ensure lecturer assignments match courses for test determinism
+        var courses = courseRepository.findByLecturerIdAndIsActive(lecturerId, true);
+        for (var c : courses) {
+            if (!lecturerAssignmentRepository.existsByLecturerIdAndCourseId(lecturerId, c.getId())) {
+                lecturerAssignmentRepository.save(new com.usyd.catams.entity.LecturerAssignment(lecturerId, c.getId()));
+            }
+        }
     }
 
     private void ensureCourseByCode(String code, String name, Long lecturerId, BigDecimal budgetAllocated) {

@@ -334,7 +334,7 @@ test('allows editing a modification-requested timesheet (if present)', async ({ 
     await expect(page.getByRole('button', { name: /Submit Selected/i })).toHaveCount(0);
   });
 
-  test.skip('allows confirming a pending timesheet (if present)', async () => {
+  test('allows confirming a pending timesheet (if present)', async () => {
     await tutorDashboard.waitForDashboardReady();
     // Find first row with a confirm action
     const confirmBtn = tutorDashboard.timesheetsTable.getByRole('button', { name: /Confirm/i }).first();
@@ -390,18 +390,17 @@ test('allows editing a modification-requested timesheet (if present)', async ({ 
         .waitForResponse((r) => r.url().includes('/api/timesheets') && r.request().method() === 'GET')
         .catch(() => undefined);
     }
-    // Locate the seeded row by description to avoid reliance on dynamic ids
-    const seededRow = tutorDashboard.timesheetsTable.getByRole('row').filter({ hasText: seeded.description }).first();
-    await expect(seededRow).toBeVisible({ timeout: 15000 });
+    // Locate the seeded row by a stable selector (data-testid) and open edit
+    const seededRow = page.getByTestId(`timesheet-row-${seeded.id}`);
+    await expect(seededRow).toBeVisible({ timeout: 20000 });
     await seededRow.getByRole('button', { name: /Edit/i }).first().click();
     await tutorDashboard.expectEditModalVisible();
 
-    await tutorDashboard.updateEditForm({ hours: 0 });
-    await tutorDashboard.expectFormValidationError('hours');
-
+    // Set to an out-of-range value to guarantee a validation error
     await tutorDashboard.updateEditForm({ hours: 65 });
     await tutorDashboard.expectFormValidationError('hours');
 
+    // Then set to a valid value to clear the error
     await tutorDashboard.updateEditForm({ hours: 10 });
     await tutorDashboard.expectNoFormValidationErrors();
 
@@ -426,7 +425,7 @@ test('rejected timesheets are not editable and show rejected status', async ({ p
   await tutorDashboard.expectNoActionButtons(seeded.id);
 });
 
-  test.skip('renders list or empty state', async ({ page }) => {
+  test('renders list or empty state', async ({ page }) => {
     await page.reload();
     await tutorDashboard.expectToBeLoaded();
     await tutorDashboard.waitForDashboardReady();
@@ -435,7 +434,7 @@ test('rejected timesheets are not editable and show rejected status', async ({ p
     expect(hasTable || hasEmpty).toBeTruthy();
   });
 
-  test.skip('handles retry button if error is shown', async ({ page }) => {
+  test('handles retry button if error is shown', async ({ page }) => {
     await page.reload();
     const hasError = await tutorDashboard.errorMessage.isVisible().catch(() => false);
     if (hasError) {

@@ -117,6 +117,54 @@ function parseArgList(raw) {
   return matches.map((token) => token.replace(/^("|')|("|')$/g, ''));
 }
 
+function parseBatchOptions(argv) {
+  const out = { batchSize: 0, args: [] };
+  const args = Array.from(argv);
+  for (let i = 0; i < args.length; i += 1) {
+    const a = args[i];
+    if (a === '--batch-size') {
+      const v = Number.parseInt(args[i + 1] || '', 10);
+      if (Number.isFinite(v) && v > 0) out.batchSize = v;
+      i += 1;
+      continue;
+    }
+    if (a.startsWith('--batch-size=')) {
+      const v = Number.parseInt(a.split('=')[1] || '', 10);
+      if (Number.isFinite(v) && v > 0) out.batchSize = v;
+      continue;
+    }
+    out.args.push(a);
+  }
+  if (!out.batchSize) {
+    const envVal = Number.parseInt(process.env.E2E_BATCH_SIZE || '', 10);
+    if (Number.isFinite(envVal) && envVal > 0) out.batchSize = envVal;
+  }
+  return out;
+}
+
+async function collectSpecFiles(rootDir) {
+  const results = [];
+  async function walk(dir) {
+    const entries = await fsPromises.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(full);
+      } else if (TEST_FILE_REGEX.test(entry.name)) {
+        results.push(full);
+      }
+    }
+  }
+  await walk(rootDir);
+  return results;
+}
+
+function chunkArray(arr, size) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+  return chunks;
+}
+
 function spawnBackground(command, args = [], options = {}) {
   const { command: binary, args: finalArgs } = toPlatformCommand(command, args);
   const child = spawn(binary, finalArgs, {
@@ -668,7 +716,7 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
   logSuccess('Frontend is serving requests.');
 }
 
-async function runPlaywright(frontendUrl, backendPort, frontendPort) {
+async function runPlaywright(frontendUrl, backendPort, frontendPort, backendUrl) {
   logStep('STEP 4', 'Executing Playwright test suite...');
 
   const hasTests = await hasPlaywrightTests(join(frontendDir, 'e2e'));
@@ -677,7 +725,10 @@ async function runPlaywright(frontendUrl, backendPort, frontendPort) {
     return 0;
   }
 
-  const args = collectPlaywrightArgs();
+  // Parse args with optional batch-size and rebuild arg list without it
+  const collected = collectPlaywrightArgs();
+  const { batchSize, args } = parseBatchOptions(collected);
+
   const env = {
     E2E_EXTERNAL_WEBSERVER: '1',
     E2E_FRONTEND_URL: frontendUrl,
@@ -686,21 +737,72 @@ async function runPlaywright(frontendUrl, backendPort, frontendPort) {
     NODE_ENV: 'test',
   };
 
-  log(`  ▶️  node ${playwrightCli} ${args.join(' ')}`, colors.cyan);
+  const includesExplicitFiles = args.some((a) => !a.startsWith('-') && a !== 'test');
+  const effectiveBatchSize = includesExplicitFiles ? 0 : Math.max(0, Number(batchSize || 0));
 
-  try {
-    const result = await runCommand(process.execPath, [playwrightCli, ...args], {
-      cwd: frontendDir,
-      env,
-    });
-    return result.code ?? 0;
-  } catch (error) {
-    if (typeof error.code === 'number') {
-      logWarning(`Playwright exited with code ${error.code}`);
-      return error.code;
+  if (!effectiveBatchSize) {
+    log(`  ▶️  node ${playwrightCli} ${args.join(' ')}`, colors.cyan);
+    try {
+      const result = await runCommand(process.execPath, [playwrightCli, ...args], {
+        cwd: frontendDir,
+        env,
+      });
+      return result.code ?? 0;
+    } catch (error) {
+      if (typeof error.code === 'number') {
+        logWarning(`Playwright exited with code ${error.code}`);
+        return error.code;
+      }
+      throw error;
     }
-    throw error;
   }
+
+  // Batch execution: split discovered spec files and run each batch separately with DB reset
+  const specRoot = join(frontendDir, 'e2e', 'real');
+  const allSpecsAbs = (await collectSpecFiles(specRoot)).sort((a, b) => a.localeCompare(b));
+  // Convert to paths relative to frontend dir for Playwright and normalize to POSIX separators
+  const allSpecsRel = allSpecsAbs
+    .map((p) => p.replace(frontendDir + (p.includes('/') ? '/' : '\\'), ''))
+    .map((rel) => rel.replace(/\\/g, '/'));
+  const batches = chunkArray(allSpecsRel, effectiveBatchSize);
+
+  logStep('BATCH', `Executing ${allSpecsRel.length} specs in ${batches.length} batch(es) of ~${effectiveBatchSize}.`);
+  for (let i = 0; i < batches.length; i += 1) {
+    const batch = batches[i];
+    log(`  ▶️  Batch ${i + 1}/${batches.length}: ${batch.length} file(s)`, colors.cyan);
+
+    // Reset data between batches for isolation
+    try {
+      if (!isTruthy(process.env.E2E_SKIP_REAL_LOGIN)) {
+        await resetBackendData(backendUrl);
+        await seedLecturerResources(backendUrl);
+      } else {
+        logWarning('Mock mode: skipping backend reset/seed before batch (E2E_SKIP_REAL_LOGIN)');
+      }
+    } catch (e) {
+      logWarning(`Batch ${i + 1}: reset/seed step failed or skipped: ${e.message}`);
+    }
+
+    const cmdArgs = [...args, ...batch];
+    log(`    node ${playwrightCli} ${cmdArgs.join(' ')}`, colors.cyan);
+    try {
+      const result = await runCommand(process.execPath, [playwrightCli, ...cmdArgs], {
+        cwd: frontendDir,
+        env,
+      });
+      const code = result.code ?? 0;
+      if (code !== 0) {
+        logWarning(`Batch ${i + 1} exited with code ${code}. Aborting.`);
+        return code;
+      }
+    } catch (error) {
+      const code = typeof error.code === 'number' ? error.code : 1;
+      logWarning(`Batch ${i + 1} failed with code ${code}. Aborting.`);
+      return code;
+    }
+  }
+
+  return 0;
 }
 
 async function main() {
@@ -782,7 +884,7 @@ async function main() {
       backendUrl,
     });
 
-    const exitCode = await runPlaywright(frontendUrl, backendPort, frontendPort);
+    const exitCode = await runPlaywright(frontendUrl, backendPort, frontendPort, backendUrl);
     return exitCode;
   } finally {
     await cleanupAll();

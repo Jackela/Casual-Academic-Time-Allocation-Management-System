@@ -437,6 +437,9 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
       totalHours: summary.totalHours ?? 0,
       totalPay,
       tutorCount,
+      // propagate optional fields if present (used by Admin metrics tests)
+      statusBreakdown: (summary as any)?.statusBreakdown ?? null,
+      systemMetrics: (summary as any)?.systemMetrics ?? null,
     };
   }, [dashboardData]);
 

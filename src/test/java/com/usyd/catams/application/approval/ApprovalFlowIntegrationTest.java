@@ -10,6 +10,7 @@ import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.repository.LecturerAssignmentRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,9 @@ public class ApprovalFlowIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private CourseRepository courseRepository;
+
+    @Autowired
+    private LecturerAssignmentRepository lecturerAssignmentRepository;
 
     private static LocalDate mondayWeeksAgo(int weeks) {
         LocalDate today = LocalDate.now();
@@ -63,6 +67,8 @@ public class ApprovalFlowIntegrationTest extends IntegrationTestBase {
         course.setBudgetAllocated(new BigDecimal("10000.00"));
         course.setIsActive(true);
         courseRepository.save(course);
+        // ensure lecturer assignment SSOT for scoping
+        lecturerAssignmentRepository.save(new com.usyd.catams.entity.LecturerAssignment(lecturer.getId(), course.getId()));
 
         LocalDate weekStart = mondayWeeksAgo(12);
         Timesheet ts = new Timesheet(
@@ -107,6 +113,8 @@ public class ApprovalFlowIntegrationTest extends IntegrationTestBase {
         course.setBudgetAllocated(new BigDecimal("12000.00"));
         course.setIsActive(true);
         courseRepository.save(course);
+        // ensure lecturer assignment SSOT for scoping
+        lecturerAssignmentRepository.save(new com.usyd.catams.entity.LecturerAssignment(lecturer.getId(), course.getId()));
 
         Timesheet timesheet = new Timesheet(
             tutor.getId(),

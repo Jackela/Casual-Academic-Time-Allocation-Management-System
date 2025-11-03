@@ -349,3 +349,6 @@ playwright/
 playwright-report/
 test-results/
 .pnpm-store/
+/.claude
+/specs
+/.specify

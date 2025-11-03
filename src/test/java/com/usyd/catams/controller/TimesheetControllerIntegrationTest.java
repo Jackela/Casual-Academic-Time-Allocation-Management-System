@@ -17,6 +17,7 @@ import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.integration.IntegrationTestBase;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.PolicyVersionRepository;
+import com.usyd.catams.repository.LecturerAssignmentRepository;
 import com.usyd.catams.repository.RateAmountRepository;
 import com.usyd.catams.repository.RateCodeRepository;
 import com.usyd.catams.repository.TimesheetRepository;
@@ -72,6 +73,9 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
     @Autowired
     private TutorAssignmentRepository tutorAssignmentRepository;
 
+    @Autowired
+    private LecturerAssignmentRepository lecturerAssignmentRepository;
+
     private User lecturer;
     private User tutor;
     private User admin;
@@ -97,6 +101,9 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
                 lecturer.getId(), BigDecimal.valueOf(20000)));
 
         tutorAssignmentRepository.save(new TutorAssignment(tutor.getId(), course.getId()));
+        // SSOT: ensure lecturer assignments exist for scoping
+        lecturerAssignmentRepository.deleteAll();
+        lecturerAssignmentRepository.save(new com.usyd.catams.entity.LecturerAssignment(lecturer.getId(), course.getId()));
 
         lecturerAuthHeader = "Bearer " + jwtTokenProvider.generateToken(
                 lecturer.getId(),

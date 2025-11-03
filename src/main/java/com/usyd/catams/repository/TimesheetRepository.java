@@ -211,7 +211,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      */
     @EntityGraph(attributePaths = {"approvals"})
     @Query("SELECT t FROM Timesheet t WHERE " +
-           "t.courseId IN (SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId) AND " +
+           "t.courseId IN (SELECT la.courseId FROM LecturerAssignment la WHERE la.lecturerId = :lecturerId) AND " +
            "EXISTS (SELECT 1 FROM TutorAssignment a WHERE a.tutorId = t.tutorId AND a.courseId = t.courseId) AND " +
            "(:status IS NULL OR t.status = :status)")
     Page<Timesheet> findWithLecturerScope(@Param("lecturerId") Long lecturerId,
@@ -224,7 +224,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     @EntityGraph(attributePaths = {"approvals"})
     @Query("SELECT t FROM Timesheet t WHERE " +
            "t.courseId = :courseId AND EXISTS (SELECT 1 FROM TutorAssignment a WHERE a.tutorId = t.tutorId AND a.courseId = t.courseId) AND " +
-           "t.courseId IN (SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId) AND " +
+           "t.courseId IN (SELECT la.courseId FROM LecturerAssignment la WHERE la.lecturerId = :lecturerId) AND " +
            "(:status IS NULL OR t.status = :status)")
     Page<Timesheet> findWithLecturerScopeByCourse(@Param("lecturerId") Long lecturerId,
                                                   @Param("courseId") Long courseId,
@@ -301,8 +301,9 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param pageable paging and sorting information
      * @return page of timesheets pending tutor confirmation for the lecturer's courses
      */
-    @Query("SELECT t FROM Timesheet t WHERE t.status = 'PENDING_TUTOR_CONFIRMATION' AND t.courseId IN " +
-           "(SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId)")
+    @Query("SELECT t FROM Timesheet t WHERE t.status = 'PENDING_TUTOR_CONFIRMATION' AND (" +
+           "t.courseId IN (SELECT la.courseId FROM LecturerAssignment la WHERE la.lecturerId = :lecturerId) OR " +
+           "t.courseId IN (SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId))")
     Page<Timesheet> findPendingLecturerApprovalByCourses(@Param("lecturerId") Long lecturerId, Pageable pageable);
     
     /**
@@ -342,15 +343,16 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param pageable paging and sorting information
      * @return page of timesheets confirmed by tutor, awaiting lecturer final confirmation
      */
-    @Query("SELECT t FROM Timesheet t WHERE t.status = 'TUTOR_CONFIRMED' AND t.courseId IN " +
-           "(SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId)")
+    @Query("SELECT t FROM Timesheet t WHERE t.status = 'TUTOR_CONFIRMED' AND (" +
+           "t.courseId IN (SELECT la.courseId FROM LecturerAssignment la WHERE la.lecturerId = :lecturerId) OR " +
+           "t.courseId IN (SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId))")
     Page<Timesheet> findApprovedByTutorByCourses(@Param("lecturerId") Long lecturerId, Pageable pageable);
 
     /**
      * Same as findApprovedByTutorByCourses but ensures the tutor is assigned to the course via TutorAssignment.
      */
     @Query("SELECT t FROM Timesheet t WHERE t.status = 'TUTOR_CONFIRMED' AND t.courseId IN " +
-           "(SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId) AND EXISTS (" +
+           "(SELECT la.courseId FROM LecturerAssignment la WHERE la.lecturerId = :lecturerId) AND EXISTS (" +
            "SELECT 1 FROM TutorAssignment a WHERE a.tutorId = t.tutorId AND a.courseId = t.courseId)")
     Page<Timesheet> findApprovedByTutorByCoursesWithAssignment(@Param("lecturerId") Long lecturerId, Pageable pageable);
     

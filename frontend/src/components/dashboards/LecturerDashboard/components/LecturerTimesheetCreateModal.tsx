@@ -58,10 +58,14 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
 
       const loadResources = async () => {
         try {
-          const [courses, tutors] = await Promise.all([
+          const [coursesRaw, tutorsRaw] = await Promise.all([
             fetchLecturerCourses(lecturerId),
             fetchTutorsForLecturer(lecturerId),
           ]);
+
+          // Be resilient to unexpected shapes to avoid runtime crashes
+          const courses = Array.isArray(coursesRaw) ? coursesRaw : [];
+          const tutors = Array.isArray(tutorsRaw) ? tutorsRaw : [];
 
           if (cancelled) {
             return;

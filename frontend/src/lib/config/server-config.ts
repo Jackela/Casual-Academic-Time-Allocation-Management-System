@@ -61,15 +61,8 @@ const validateServerConstraints: ValidateFunction<TimesheetConstraintPayload> =
   ajv.compile(serverConstraintSchema);
 
 const resolveTimesheetConfigEndpoints = (): string[] => {
-  if (
-    (typeof __E2E_GLOBALS__ !== 'undefined' && __E2E_GLOBALS__) ||
-    ENV_CONFIG.isE2E() ||
-    ENV_CONFIG.getMode() === 'test'
-  ) {
-    return [];
-  }
-
-  const endpoints = new Set<string>(['/api/config']);
+  // Always attempt dedicated endpoint even in E2E/test so UAT uses server SSOT
+  const endpoints = new Set<string>();
 
   try {
     const config = getConfig();
@@ -84,6 +77,7 @@ const resolveTimesheetConfigEndpoints = (): string[] => {
     );
   }
 
+  // Dedicated timesheet config endpoint is authoritative
   endpoints.add('/api/timesheets/config');
 
   return Array.from(endpoints);
@@ -100,7 +94,7 @@ export async function fetchTimesheetConstraints(
 
   for (const endpoint of endpoints) {
     try {
-      const response = await secureApiClient.get<unknown>(endpoint, { signal });
+      const response = await secureApiClient.get<unknown>(endpoint, { signal, headers: { 'Cache-Control': 'no-cache' } });
       const payload = response.data;
 
       if (!validateServerConstraints(payload)) {
