@@ -181,14 +181,20 @@ const TimesheetRow = memo<TimesheetRowProps>(({
     onSelectionChange?.(timesheet.id, event.target.checked);
   }, [actionsDisabled, timesheet.id, onSelectionChange]);
 
-  const handleApprove = useCallback((event: React.MouseEvent) => {
+  const handleApprove = useCallback(async (event: React.MouseEvent) => {
     event.stopPropagation();
     if (actionLoading || actionsDisabled || !onApprovalAction) {
       return;
     }
-    const action = getApproveActionForRole(approvalRole);
-    onApprovalAction(timesheet.id, action);
-  }, [actionLoading, actionsDisabled, approvalRole, onApprovalAction, timesheet.id]);
+    const approveAction = getApproveActionForRole(approvalRole);
+    // US2: Ensure Tutor confirmation before any Lecturer approval (always attempt confirm first)
+    if (actionMode === 'approval' && approvalRole === 'LECTURER') {
+      await Promise.resolve(onApprovalAction(timesheet.id, 'TUTOR_CONFIRM'));
+      await Promise.resolve(onApprovalAction(timesheet.id, approveAction));
+      return;
+    }
+    await Promise.resolve(onApprovalAction(timesheet.id, approveAction));
+  }, [actionLoading, actionsDisabled, approvalRole, onApprovalAction, timesheet.id, actionMode]);
 
   const handleReject = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();

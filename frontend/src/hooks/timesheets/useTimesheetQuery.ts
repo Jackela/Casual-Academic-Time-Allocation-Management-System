@@ -118,10 +118,7 @@ export const useTimesheetQuery = (initialQuery: UseTimesheetQueryOptions = {}): 
 
     try {
       const response = isTutor
-        ? await TimesheetService.getTimesheetsByTutor(
-            tutorId!,
-            (({ tutorId: _omit, ...rest }) => rest)(mergedQuery),
-          )
+        ? await TimesheetService.getMyTimesheets(controller.signal)
         : await TimesheetService.getTimesheets(mergedQuery, controller.signal);
       cacheRef.current.set(cacheKey, { data: response, timestamp: Date.now() });
       const meta = derivePaginationMeta(response);

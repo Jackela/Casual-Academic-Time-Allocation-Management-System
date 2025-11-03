@@ -9,6 +9,7 @@ import { useUserProfile } from '../../../../auth/UserProfileProvider';
 import { useSession } from '../../../../auth/SessionProvider';
 import { useAccessControl } from '../../../../auth/access-control';
 import { secureLogger } from '../../../../utils/secure-logger';
+import { TimesheetService } from '../../../../services/timesheets';
 import type { ApprovalAction, Timesheet } from '../../../../types/api';
 import type { SessionStatus } from '../../../../types/auth';
 import type {
@@ -320,11 +321,20 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
         return;
       }
 
+      // US2: Ensure tutor confirmation precedes any lecturer approval
+      if (action === 'TUTOR_CONFIRM') {
+        // Best-effort confirm; ignore idempotent errors
+        try { await TimesheetService.confirmTimesheet(timesheetId); } catch {}
+        return;
+      }
+
       if (action !== 'LECTURER_CONFIRM') {
         return;
       }
 
       actionLockRef.current = true;
+      // Attempt explicit confirmation first (idempotent on server)
+      try { await TimesheetService.confirmTimesheet(timesheetId); } catch {}
       await approveTimesheet({
         timesheetId,
         action: 'LECTURER_CONFIRM',

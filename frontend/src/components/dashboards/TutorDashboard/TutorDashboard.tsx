@@ -283,10 +283,11 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
     setActionLoadingId(timesheetId);
     clearActionFeedback();
   try {
-      await TimesheetService.approveTimesheet({
-        timesheetId,
-        action: 'TUTOR_CONFIRM'
-      });
+      const prior = allTimesheets.find(t => t.id === timesheetId);
+      if (prior?.status === 'TUTOR_CONFIRMED') {
+        setActionNotice('Already confirmed');
+      }
+      await TimesheetService.confirmTimesheet(timesheetId);
       await Promise.all([refetchTimesheets(), refetchDashboard()]);
       routeNotification({ type: 'TIMESHEET_SUBMIT_SUCCESS', count: 1 });
     } catch (error) {

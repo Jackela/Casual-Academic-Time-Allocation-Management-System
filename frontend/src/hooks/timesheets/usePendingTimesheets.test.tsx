@@ -12,7 +12,7 @@ import type { TimesheetPage } from "../../types/api";
 
 vi.mock("../../services/timesheets", () => ({
   TimesheetService: {
-    getPendingTimesheets: vi.fn(),
+    getMyPendingTimesheets: vi.fn(),
   },
 }));
 
@@ -27,7 +27,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 type PendingTimesheetMock = ReturnType<typeof vi.fn<[AbortSignal?], Promise<TimesheetPage>>>;
 
 const mockTimesheetService = TimesheetService as unknown as {
-  getPendingTimesheets: PendingTimesheetMock;
+  getMyPendingTimesheets: PendingTimesheetMock;
 };
 const mockUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
 
@@ -45,7 +45,7 @@ describe("usePendingTimesheets", () => {
       loading: false,
       error: null,
     });
-    mockTimesheetService.getPendingTimesheets.mockResolvedValue(
+    mockTimesheetService.getMyPendingTimesheets.mockResolvedValue(
       mockTimesheetPage,
     );
   });
@@ -55,8 +55,8 @@ describe("usePendingTimesheets", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(mockTimesheetService.getPendingTimesheets).toHaveBeenCalled();
-    expect(mockTimesheetService.getPendingTimesheets.mock.calls[0][0]).toBeInstanceOf(AbortSignal);
+    expect(mockTimesheetService.getMyPendingTimesheets).toHaveBeenCalled();
+    expect(mockTimesheetService.getMyPendingTimesheets.mock.calls[0][0]).toBeInstanceOf(AbortSignal);
     expect(result.current.timesheets).toEqual(mockTimesheetPage.timesheets);
     expect(result.current.pageInfo).toEqual(mockTimesheetPage.pageInfo);
     expect(result.current.isEmpty).toBe(false);
@@ -66,14 +66,14 @@ describe("usePendingTimesheets", () => {
     const { result } = renderHook(() => usePendingTimesheets(), { wrapper });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    mockTimesheetService.getPendingTimesheets.mockClear();
+    mockTimesheetService.getMyPendingTimesheets.mockClear();
 
     await act(async () => {
       await result.current.refetch();
     });
 
-    expect(mockTimesheetService.getPendingTimesheets).toHaveBeenCalled();
-    const { calls } = mockTimesheetService.getPendingTimesheets.mock;
+    expect(mockTimesheetService.getMyPendingTimesheets).toHaveBeenCalled();
+    const { calls } = mockTimesheetService.getMyPendingTimesheets.mock;
     const lastCall = calls[calls.length - 1];
     expect(lastCall?.[0]).toBeInstanceOf(AbortSignal);
   });
@@ -91,7 +91,7 @@ describe("usePendingTimesheets", () => {
     const { result } = renderHook(() => usePendingTimesheets(), { wrapper });
 
     await waitFor(() =>
-      expect(mockTimesheetService.getPendingTimesheets).not.toHaveBeenCalled(),
+      expect(mockTimesheetService.getMyPendingTimesheets).not.toHaveBeenCalled(),
     );
     await waitFor(() => expect(result.current.error).toBe("Not authenticated"));
     await waitFor(() => expect(result.current.isEmpty).toBe(true));

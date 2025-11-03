@@ -360,6 +360,18 @@ describe("TutorDashboard Component", () => {
       ]);
     });
 
+    it("should request tutor-scoped timesheets (calls hook with tutorId)", async () => {
+      render(<TutorDashboard />, { wrapper });
+      await waitFor(() => {
+        expect(mockReadHooks.useTimesheetQuery).toHaveBeenCalled();
+      });
+
+      const call = mockReadHooks.useTimesheetQuery.mock.calls.at(-1)?.[0] as Record<string, unknown> | undefined;
+      expect(call && typeof call === 'object').toBe(true);
+      expect(call?.['tutorId']).toBe(1);
+      expect(call?.['staleTimeMs']).toBe(0);
+    });
+
     it("should show timesheets in table with tutor-specific columns", async () => {
       setViewportWidth(1024);
       render(<TutorDashboard />, { wrapper });
