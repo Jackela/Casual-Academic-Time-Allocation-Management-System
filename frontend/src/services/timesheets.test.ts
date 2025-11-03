@@ -399,6 +399,62 @@ describe('TimesheetService Approval Operations', () => {
 });
 
 // =============================================================================
+// EA-compliant Endpoints Tests (New)
+// =============================================================================
+
+describe('TimesheetService EA-compliant endpoints', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('getMyTimesheets should call /api/timesheets/me and normalize array', async () => {
+    const timesheets = [createMockTimesheet(), createMockTimesheet()];
+    mockApiClient.get.mockResolvedValue(createMockApiResponse(timesheets));
+
+    const result = await TimesheetService.getMyTimesheets();
+    expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets/me', { signal: undefined });
+    expect(result.timesheets).toHaveLength(2);
+    expect(result.success).toBe(true);
+  });
+
+  it('getMyPendingTimesheets should call /api/timesheets/pending-approval and normalize array', async () => {
+    const page = createMockTimesheetPage(3);
+    mockApiClient.get.mockResolvedValue(createMockApiResponse(page.timesheets));
+
+    const result = await TimesheetService.getMyPendingTimesheets();
+    expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets/pending-approval', { signal: undefined });
+    expect(Array.isArray(result.timesheets)).toBe(true);
+  });
+
+  it('confirmTimesheet should PUT to /api/timesheets/{id}/confirm', async () => {
+    const ts = createMockTimesheet();
+    mockApiClient.put.mockResolvedValue(createMockApiResponse(ts));
+
+    const result = await TimesheetService.confirmTimesheet(42);
+    expect(mockApiClient.put).toHaveBeenCalledWith('/api/timesheets/42/confirm', {});
+    expect(result).toEqual(ts);
+  });
+
+  it('getApprovalHistory should call /api/approvals/history/{id}', async () => {
+    const history = [{ actor: 'Tutor', action: 'CONFIRM' }];
+    mockApiClient.get.mockResolvedValue(createMockApiResponse(history));
+
+    const result = await TimesheetService.getApprovalHistory(7);
+    expect(mockApiClient.get).toHaveBeenCalledWith('/api/approvals/history/7');
+    expect(result).toEqual(history);
+  });
+
+  it('getPendingApprovals should call /api/approvals/pending and normalize payload', async () => {
+    const list = [createMockTimesheet(), createMockTimesheet()];
+    mockApiClient.get.mockResolvedValue(createMockApiResponse(list));
+
+    const result = await TimesheetService.getPendingApprovals();
+    expect(mockApiClient.get).toHaveBeenCalledWith('/api/approvals/pending', { signal: undefined });
+    expect(result.timesheets.length).toBe(2);
+  });
+});
+
+// =============================================================================
 // Dashboard Operations Tests
 // =============================================================================
 

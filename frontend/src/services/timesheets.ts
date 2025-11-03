@@ -102,6 +102,32 @@ export class TimesheetService {
   }
 
   /**
+   * Get current user's timesheets (EA-compliant endpoint)
+   * Maps array or paginated payloads into TimesheetPage
+   */
+  static async getMyTimesheets(signal?: AbortSignal): Promise<TimesheetPage> {
+    const response = await secureApiClient.get<unknown>('/api/timesheets/me', { signal });
+    const data = (response as any)?.data;
+    if (Array.isArray(data)) {
+      return this.ensureTimesheetPage({ success: true, timesheets: data });
+    }
+    return this.ensureTimesheetPage(data as TimesheetPage | undefined);
+  }
+
+  /**
+   * Get timesheets pending for the current approver (Lecturer scope)
+   * New EA-compliant endpoint
+   */
+  static async getMyPendingTimesheets(signal?: AbortSignal): Promise<TimesheetPage> {
+    const response = await secureApiClient.get<unknown>('/api/timesheets/pending-approval', { signal });
+    const data = (response as any)?.data;
+    if (Array.isArray(data)) {
+      return this.ensureTimesheetPage({ success: true, timesheets: data });
+    }
+    return this.ensureTimesheetPage(data as TimesheetPage | undefined);
+  }
+
+  /**
    * Get timesheets by tutor ID
    */
   static async getTimesheetsByTutor(
@@ -176,6 +202,34 @@ export class TimesheetService {
     };
     const response = await secureApiClient.post<ApprovalResponse>('/api/approvals', payload);
     return response.data;
+  }
+
+  /**
+   * Explicit Tutor confirmation before approvals (EA-compliant)
+   */
+  static async confirmTimesheet(id: number): Promise<Timesheet> {
+    const response = await secureApiClient.put<Timesheet>(`/api/timesheets/${id}/confirm`, {});
+    return response.data;
+  }
+
+  /**
+   * Get approval history entries for a timesheet
+   */
+  static async getApprovalHistory(timesheetId: number): Promise<readonly unknown[]> {
+    const response = await secureApiClient.get<readonly unknown[]>(`/api/approvals/history/${timesheetId}`);
+    return response.data ?? [];
+  }
+
+  /**
+   * Admin/HR pending approvals queue
+   */
+  static async getPendingApprovals(signal?: AbortSignal): Promise<TimesheetPage> {
+    const response = await secureApiClient.get<unknown>('/api/approvals/pending', { signal });
+    const data = (response as any)?.data;
+    if (Array.isArray(data)) {
+      return this.ensureTimesheetPage({ success: true, timesheets: data });
+    }
+    return this.ensureTimesheetPage(data as TimesheetPage | undefined);
   }
 
   /**

@@ -42,3 +42,6 @@ export {
   useTimesheetUpdate as useUpdateTimesheet,
 } from "./useTimesheetUpdate";
 export type { UseTimesheetUpdateResult } from "./useTimesheetUpdate";
+
+export { useAdminPendingApprovals } from "./useAdminPendingApprovals";
+export type { UseAdminPendingApprovalsResult } from "./useAdminPendingApprovals";

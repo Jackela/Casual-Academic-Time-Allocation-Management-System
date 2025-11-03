@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Dispatch, SetStateAction } from 'react';
 import {
-  useTimesheetQuery,
+  useAdminPendingApprovals,
   useTimesheetDashboardSummary,
   useApprovalAction,
   useTimesheetStats,
@@ -160,9 +160,8 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     loading: timesheetsLoading,
     error: timesheetsError,
     timesheets: allTimesheets,
-    updateQuery,
-    refresh: refreshTimesheets,
-  } = useTimesheetQuery({ size: 50, staleTimeMs: 0 });
+    refetch: refreshTimesheets,
+  } = useAdminPendingApprovals();
 
   const {
     data: dashboardData,
@@ -280,6 +279,15 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
+  }, []);
+
+  // Backwards-compatible filter setter for callers expecting a TimesheetQuery-style updater
+  const setFilterQuery = useCallback((update: Partial<TimesheetQuery>) => {
+    if (typeof update?.search === 'string') {
+      setSearchQuery(update.search);
+    }
+    // Other fields (status, tutorId, courseId) are not currently represented
+    // in Admin pending view filters; safely ignore without side effects.
   }, []);
 
   const handleRejectionCancel = useCallback(() => {
@@ -533,6 +541,6 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     refetchDashboard,
     resetApproval,
     adminStats,
-    setFilterQuery: updateQuery,
+    setFilterQuery,
   };
 }

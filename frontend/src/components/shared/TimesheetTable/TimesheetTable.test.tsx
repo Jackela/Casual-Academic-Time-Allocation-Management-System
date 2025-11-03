@@ -337,6 +337,31 @@ describe('TimesheetTable Component', () => {
       expect(mockHandlers.onRowClick).not.toHaveBeenCalled();
     });
 
+    it('chains tutor confirm before lecturer approval when approving (US2)', async () => {
+      const user = userEvent.setup();
+      const confirmed = createMockTimesheet({ id: 7002, status: 'TUTOR_CONFIRMED' });
+      const onApproval = vi.fn(async () => {});
+
+      render(
+        <TimesheetTable
+          {...defaultProps}
+          timesheets={[confirmed]}
+          approvalRole="LECTURER"
+          onApprovalAction={onApproval}
+          actionMode="approval"
+        />
+      );
+
+      const row = screen.getByTestId(`timesheet-row-${confirmed.id}`);
+      const approveButton = Array.from(row.querySelectorAll('button')).find(btn => btn.textContent === 'Approve');
+      if (!approveButton) throw new Error('Approve button not found');
+
+      await user.click(approveButton);
+
+      expect(onApproval).toHaveBeenNthCalledWith(1, confirmed.id, 'TUTOR_CONFIRM');
+      expect(onApproval).toHaveBeenNthCalledWith(2, confirmed.id, 'LECTURER_CONFIRM');
+    });
+
     it('should handle row hover states', async () => {
       const user = userEvent.setup();
       const timesheet = defaultProps.timesheets[0];

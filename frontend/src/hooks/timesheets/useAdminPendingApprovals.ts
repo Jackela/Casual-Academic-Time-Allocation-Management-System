@@ -3,13 +3,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { TimesheetService } from '../../services/timesheets';
 import type { TimesheetPage, ApiErrorResponse } from '../../types/api';
 
-interface PendingTimesheetsState {
+interface PendingApprovalsState {
   data: TimesheetPage | null;
   loading: boolean;
   error: string | null;
 }
 
-export interface UsePendingTimesheetsResult extends PendingTimesheetsState {
+export interface UseAdminPendingApprovalsResult extends PendingApprovalsState {
   refetch: () => Promise<void>;
   timesheets: TimesheetPage['timesheets'];
   pageInfo: TimesheetPage['pageInfo'] | null;
@@ -18,13 +18,13 @@ export interface UsePendingTimesheetsResult extends PendingTimesheetsState {
 
 const NOT_AUTHENTICATED_ERROR = 'Not authenticated';
 
-const createInitialState = (): PendingTimesheetsState => ({
+const createInitialState = (): PendingApprovalsState => ({
   data: null,
   loading: false,
   error: null,
 });
 
-const createAuthErrorState = (): PendingTimesheetsState => ({
+const createAuthErrorState = (): PendingApprovalsState => ({
   data: null,
   loading: false,
   error: NOT_AUTHENTICATED_ERROR,
@@ -47,20 +47,20 @@ const isApiErrorResponse = (error: unknown): error is ApiErrorResponse => {
 
 const resolveErrorMessage = (error: unknown): string => {
   if (isApiErrorResponse(error)) {
-    return error.message || error.error.message || 'Failed to fetch pending timesheets';
+    return error.message || error.error.message || 'Failed to fetch pending approvals';
   }
   if (error instanceof Error && error.message) {
     return error.message;
   }
-  return 'Failed to fetch pending timesheets';
+  return 'Failed to fetch pending approvals';
 };
 
-export const usePendingTimesheets = (): UsePendingTimesheetsResult => {
+export const useAdminPendingApprovals = (): UseAdminPendingApprovalsResult => {
   const { isAuthenticated } = useAuth();
-  const [state, setState] = useState<PendingTimesheetsState>(createInitialState);
+  const [state, setState] = useState<PendingApprovalsState>(createInitialState);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchPendingTimesheets = useCallback(async () => {
+  const fetchPending = useCallback(async () => {
     if (!isAuthenticated) {
       setState(createAuthErrorState());
       return;
@@ -73,25 +73,16 @@ export const usePendingTimesheets = (): UsePendingTimesheetsResult => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    setState((previous) => ({
-      ...previous,
-      loading: true,
-      error: null,
-    }));
+    setState((previous) => ({ ...previous, loading: true, error: null }));
 
     try {
-      const data = await TimesheetService.getMyPendingTimesheets(controller.signal);
+      const data = await TimesheetService.getPendingApprovals(controller.signal);
       setState({ data, loading: false, error: null });
     } catch (error) {
       if (isAbortError(error)) {
         return;
       }
-
-      setState((previous) => ({
-        ...previous,
-        loading: false,
-        error: resolveErrorMessage(error),
-      }));
+      setState((previous) => ({ ...previous, loading: false, error: resolveErrorMessage(error) }));
     }
   }, [isAuthenticated]);
 
@@ -100,26 +91,23 @@ export const usePendingTimesheets = (): UsePendingTimesheetsResult => {
       setState(createAuthErrorState());
       return;
     }
-
-    fetchPendingTimesheets().catch(() => {
-      /* error handled in state */
-    });
-
+    fetchPending().catch(() => {});
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [fetchPendingTimesheets, isAuthenticated]);
+  }, [fetchPending, isAuthenticated]);
 
   const timesheets = state.data?.timesheets ?? [];
   const pageInfo = state.data?.pageInfo ?? null;
 
   return {
     ...state,
-    refetch: fetchPendingTimesheets,
+    refetch: fetchPending,
     timesheets,
     pageInfo,
     isEmpty: !state.loading && timesheets.length === 0,
   };
 };
+

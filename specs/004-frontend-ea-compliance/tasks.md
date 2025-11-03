@@ -7,44 +7,45 @@
 
 ## Phase 2 — Foundational
 
-- [ ] T003 Implement service `getMyTimesheets()` in frontend/src/services/timesheets.ts
-- [ ] T004 Implement service `getMyPendingTimesheets()` in frontend/src/services/timesheets.ts
-- [ ] T005 Implement service `confirmTimesheet(id: number)` in frontend/src/services/timesheets.ts
-- [ ] T006 Implement service `getApprovalHistory(timesheetId: number)` in frontend/src/services/timesheets.ts
-- [ ] T007 Implement service `getPendingApprovals()` in frontend/src/services/timesheets.ts
-- [ ] T008 [P] Add unit tests for services in frontend/src/services/timesheets.test.ts
+- [x] T003 Implement service `getMyTimesheets()` in frontend/src/services/timesheets.ts
+- [x] T004 Implement service `getMyPendingTimesheets()` in frontend/src/services/timesheets.ts
+- [x] T005 Implement service `confirmTimesheet(id: number)` in frontend/src/services/timesheets.ts
+- [x] T006 Implement service `getApprovalHistory(timesheetId: number)` in frontend/src/services/timesheets.ts
+- [x] T007 Implement service `getPendingApprovals()` in frontend/src/services/timesheets.ts
+- [x] T008 [P] Add unit tests for services in frontend/src/services/timesheets.test.ts
 
 ## Phase 3 — US1: Tutor sees only own timesheets (P1)
 
-- [ ] T009 [US1] Wire TutorDashboard to use `getMyTimesheets()` in frontend/src/components/dashboards/TutorDashboard/hooks/useTutorDashboardViewModel.ts
-- [ ] T010 [P] [US1] Add/adjust tests asserting dashboard calls /api/timesheets/me in frontend/src/components/dashboards/TutorDashboard/TutorDashboard.test.tsx
+- [x] T009 [US1] Wire TutorDashboard to use `getMyTimesheets()` in frontend/src/components/dashboards/TutorDashboard/hooks/useTutorDashboardViewModel.ts
+- [x] T010 [P] [US1] Add/adjust tests asserting dashboard calls /api/timesheets/me in frontend/src/components/dashboards/TutorDashboard/TutorDashboard.test.tsx
 
 ## Phase 4 — US2: Explicit Tutor confirmation before approval (P1)
 
-- [ ] T011 [US2] Centralize confirm→approve in shared handler in frontend/src/components/shared/TimesheetTable/TimesheetTable.tsx
-- [ ] T012 [US2] Use `confirmTimesheet(id)` prior to any Lecturer approval action in the shared handler
-- [ ] T013 [P] [US2] Update/extend tests to verify PUT /api/timesheets/{id}/confirm precedes any approval request in frontend/src/components/shared/TimesheetTable/TimesheetTable.test.tsx
+- [x] T011 [US2] Centralize confirm→approve in shared handler in frontend/src/components/shared/TimesheetTable/TimesheetTable.tsx
+- [x] T012 [US2] Use `confirmTimesheet(id)` prior to any Lecturer approval action in the shared handler
+- [x] T013 [P] [US2] Update/extend tests to verify PUT /api/timesheets/{id}/confirm precedes any approval request in frontend/src/components/shared/TimesheetTable/TimesheetTable.test.tsx
 
 ## Phase 5 — US3: Approval History in Timesheet Detail (P2)
 
-- [ ] T014 [US3] Create ApprovalHistory section component in frontend/src/components/shared/TimesheetDetail/ApprovalHistory.tsx
-- [ ] T015 [US3] Integrate ApprovalHistory into Timesheet detail view in frontend/src/components/shared/TimesheetDetail/TimesheetDetailView.tsx
-- [ ] T016 [US3] Wire `getApprovalHistory(timesheetId)` to render audit entries (actor, action, comment, timestamp)
-- [ ] T017 [P] [US3] Add component tests for history rendering in frontend/src/components/shared/TimesheetDetail/ApprovalHistory.test.tsx
+- [x] T014 [US3] Create ApprovalHistory section component in frontend/src/components/shared/TimesheetDetail/ApprovalHistory.tsx
+- [x] T015 [US3] Integrate ApprovalHistory into Timesheet detail view in frontend/src/components/shared/TimesheetDetail/TimesheetDetailView.tsx
+- [x] T016 [US3] Wire `getApprovalHistory(timesheetId)` to render audit entries (actor, action, comment, timestamp)
+- [x] T017 [P] [US3] Add component tests for history rendering in frontend/src/components/shared/TimesheetDetail/ApprovalHistory.test.tsx
 
 ## Phase 6 — US4: Approver pending queues (P2)
 
 - [ ] T018 [US4] Lecturer pending list uses `getMyPendingTimesheets()` in frontend/src/components/dashboards/LecturerDashboard/hooks/useLecturerDashboardData.ts
-- [ ] T019 [US4] Admin/HR pending list uses `getPendingApprovals()` in frontend/src/components/dashboards/AdminDashboard/hooks/useAdminDashboardData.ts
-- [ ] T020 [P] [US4] Add/adjust tests asserting correct pending endpoints per role in frontend/src/components/dashboards/AdminDashboard/AdminDashboard.test.tsx and Lecturer equivalents
+- [x] T018 [US4] Lecturer pending list uses `getMyPendingTimesheets()` in frontend/src/components/dashboards/LecturerDashboard/hooks/useLecturerDashboardData.ts
+- [x] T019 [US4] Admin/HR pending list uses `getPendingApprovals()` in frontend/src/components/dashboards/AdminDashboard/hooks/useAdminDashboardData.ts
+- [x] T020 [P] [US4] Add/adjust tests asserting correct pending endpoints per role in frontend/src/components/dashboards/AdminDashboard/AdminDashboard.test.tsx and Lecturer equivalents
  - [ ] T024 [P] [US4] Verify pending empty-states and role labels for Lecturer and Admin/HR in frontend/src/components/dashboards/LecturerDashboard/components/__tests__/PendingList.test.tsx and frontend/src/components/dashboards/AdminDashboard/AdminDashboard.test.tsx (assert no cross-role leakage)
 
 ## Final Phase — Polish & Cross-Cutting
 
-- [ ] T021 Review error/empty/loading states for new calls across updated components
-- [ ] T022 Update documentation quickstart at specs/004-frontend-ea-compliance/quickstart.md
+- [x] T021 Review error/empty/loading states for new calls across updated components
+- [x] T022 Update documentation quickstart at specs/004-frontend-ea-compliance/quickstart.md
 - [ ] T023 Run unit/E2E suites and attach artifacts to PR
- - [ ] T025 [P] Add UX copy check for “Already confirmed” toast and pending empty-state messages to ensure consistency across roles
+ - [x] T025 [P] Add UX copy check for “Already confirmed” toast and pending empty-state messages to ensure consistency across roles
 
 ## Dependencies & Order
 
