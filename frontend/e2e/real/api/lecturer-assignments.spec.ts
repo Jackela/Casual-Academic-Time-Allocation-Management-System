@@ -25,6 +25,7 @@ test.describe('@api Lecturer assignments admin API', () => {
   });
 
   test('Admin can POST and GET lecturer assignments @api', async ({ request }) => {
+  test('Admin can POST and GET lecturer assignments @api', async ({ request }) => {
     const tokens = dataFactory.getAuthTokens();
     const sessions = dataFactory.getAuthSessions();
     const lecturerId = sessions.lecturer.user.id;
@@ -69,5 +70,3 @@ test.describe('@api Lecturer assignments admin API', () => {
       expect([404]).toContain(status);
     }
   });
-});
-

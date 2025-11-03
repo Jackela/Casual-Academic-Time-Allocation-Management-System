@@ -87,3 +87,13 @@ export async function getAssignmentsForCourses(courseIds: number[]): Promise<Rec
   }
   return out;
 }
+
+// Lecturer assignments API
+export async function setLecturerAssignments(payload: { lecturerId: number; courseIds: number[] }): Promise<void> {
+  await secureApiClient.post('/api/admin/lecturers/assignments', payload);
+}
+
+export async function getLecturerAssignments(lecturerId: number): Promise<number[]> {
+  const response = await secureApiClient.get<{ courseIds: number[] }>(`/api/admin/lecturers/${lecturerId}/assignments`);
+  return response.data.courseIds ?? [];
+}

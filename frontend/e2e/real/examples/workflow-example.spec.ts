@@ -71,22 +71,20 @@ test.describe('Page Object Model Examples', () => {
       await navigationPage.expectLoggedOut();
     });
 
-    test('can approve a timesheet via page objects', async ({ page }) => {
+    test('can approve a timesheet via page objects', async ({ page, request }) => {
+      // Seed a timesheet that is ready for lecturer approval
+      const factory = await createTestDataFactory(request);
+      const seeded = await factory.createTimesheetForTest({ targetStatus: 'TUTOR_CONFIRMED' });
+
       await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
       await dashboardPage.waitForTimesheetData();
-
-      const hasData = await dashboardPage.hasTimesheetData();
-      test.skip(!hasData, 'No timesheet data available for approval testing');
-
       await dashboardPage.expectTimesheetsTable();
-      const rows = await dashboardPage.getTimesheetRows();
-      const firstRow = rows.first();
-      const timesheetIdAttr = await firstRow.getAttribute('data-testid');
-      const timesheetId = Number.parseInt(timesheetIdAttr?.replace('timesheet-row-', '') ?? 'NaN', 10);
-      test.skip(Number.isNaN(timesheetId), 'Unable to determine timesheet id');
 
-      await timesheetPage.expectTimesheetActionButtonsEnabled(timesheetId);
-      const response = await dashboardPage.approveTimesheet(timesheetId);
+      const targetRow = page.getByTestId(`timesheet-row-${seeded.id}`);
+      await expect(targetRow).toBeVisible({ timeout: 20000 });
+
+      await timesheetPage.expectTimesheetActionButtonsEnabled(seeded.id);
+      const response = await dashboardPage.approveTimesheet(seeded.id);
       expect(response.status()).toBe(200);
 
       await dashboardPage.waitForTimesheetData();

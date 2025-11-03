@@ -70,6 +70,8 @@ const AdminMetricsPanel = memo<AdminMetricsPanelProps>(({ metrics, isLoading }) 
     totalHours,
     totalPay,
     tutorCount,
+    statusBreakdown,
+    systemMetrics,
   } = metrics;
   const tutorCountValue = typeof tutorCount === 'number' ? tutorCount : 'N/A';
   const tutorSubtitle =
@@ -117,6 +119,51 @@ const AdminMetricsPanel = memo<AdminMetricsPanelProps>(({ metrics, isLoading }) 
           icon="👥"
           testId="tutors-card"
         />
+      </div>
+
+      {/* Extended system health panel used in tests */}
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rounded-md border p-4" data-testid="system-health-indicator">
+          <h3 className="mb-2 text-sm font-semibold">System Health</h3>
+          <dl className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <dt className="text-muted-foreground">System Load</dt>
+              <dd>{(systemMetrics?.systemLoad ?? 0).toString()}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Active Users</dt>
+              <dd>{systemMetrics?.activeUsers ?? 0}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Active Courses</dt>
+              <dd>{systemMetrics?.activeCourses ?? 0}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Avg Approval Time</dt>
+              <dd>{systemMetrics?.averageApprovalTime ?? 0}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="rounded-md border p-4" data-testid="status-distribution-chart">
+          <h3 className="mb-2 text-sm font-semibold">Status Distribution</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {Object.entries(statusBreakdown ?? {}).map(([status, count]) => {
+              const n = Number(count) || 0;
+              if (n <= 0) return null;
+              const key = String(status).toLowerCase();
+              return (
+                <div key={key} className="distribution-item flex items-center justify-between rounded border px-3 py-2 text-sm">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 rounded-full bg-primary/60" aria-hidden="true" />
+                    <span data-testid={`status-badge-${key}`}>{status}</span>
+                  </span>
+                  <span className="distribution-count font-mono">{n}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </section>
   );

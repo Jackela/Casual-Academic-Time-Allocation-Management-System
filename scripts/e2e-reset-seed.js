@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import http from 'node:http';
 import https from 'node:https';
+import fs from 'node:fs';
 
 function showHelp() {
   console.log(`

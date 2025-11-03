@@ -52,7 +52,7 @@ test.describe('Authentication Integration Tests', { tag: '@auth' }, () => {
     }
   });
 
-  test.describe.skip('stored lecturer session', () => {
+test.describe('stored lecturer session', () => {
     test.beforeEach(async ({ page }) => {
       await trackSession(page, 'lecturer');
     });
@@ -62,12 +62,12 @@ test.describe('Authentication Integration Tests', { tag: '@auth' }, () => {
 
       await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
       await dashboardPage.expectToBeLoaded('LECTURER');
-      await dashboardPage.expectUserInfo('Dr. Jane Smith', 'Lecturer');
+      await dashboardPage.expectUserInfo(dataFactory.getAuthSessions().lecturer.user.name, 'Lecturer');
 
       await page.reload();
       await page.waitForLoadState('networkidle');
       await dashboardPage.expectToBeLoaded('LECTURER');
-      await dashboardPage.expectUserInfo('Dr. Jane Smith', 'Lecturer');
+      await dashboardPage.expectUserInfo(dataFactory.getAuthSessions().lecturer.user.name, 'Lecturer');
     });
   });
 });

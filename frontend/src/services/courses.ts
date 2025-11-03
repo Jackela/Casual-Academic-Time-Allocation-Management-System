@@ -23,3 +23,11 @@ export async function fetchCourseTutors(courseId: number): Promise<number[]> {
   const response = await secureApiClient.get<{ tutorIds: number[] }>(endpoint);
   return response.data.tutorIds ?? [];
 }
+
+// Admin: fetch all courses (active or otherwise depending on backend configuration)
+export async function fetchAllCourses(): Promise<CourseWithContext[]> {
+  const response = await secureApiClient.get<CourseWithContext[]>(API_ENDPOINTS.COURSES.BASE, {
+    headers: { 'Cache-Control': 'no-cache' },
+  });
+  return response.data;
+}

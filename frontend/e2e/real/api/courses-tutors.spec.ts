@@ -83,4 +83,3 @@ test.describe('@api Courses → Tutors endpoint alignment', () => {
     expect([401, 403]).toContain(res.status());
   });
 });
-

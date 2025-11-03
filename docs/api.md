@@ -8,9 +8,8 @@ Auth
   - 200: { token: string, user: { id, role, name, email } }
   - 401: problem+json (invalid credentials)
 
-- GET /api/auth/whoami
-  - 200: { id, role, name, email }
-  - 401: problem+json
+- POST /api/auth/logout
+  - 204 No Content (stateless JWT)
 
 Timesheet Quote
 - POST /api/timesheets/quote
@@ -21,7 +20,7 @@ Timesheet Quote
 
 Timesheets
 - GET /api/timesheets
-  - Query: courseId?, from?, to?, status?
+  - Query: tutorId?, courseId?, status?, page=0, size=20, sort="createdAt,desc"
   - 200: [{ id, courseId, tutorId, taskType, weekStartDate, status, rateCode, deliveryHours, associatedHours, payableHours, amount }]
 - GET /api/timesheets/{id}
   - 200: detailed timesheet
@@ -39,29 +38,41 @@ Timesheets
   - 401/403/404: problem+json
 
 Tutor Convenience
-- GET /api/timesheets/mine
+- GET /api/timesheets/me
   - 200: current user’s timesheets (Draft, Pending Approval, Approved, Rejected)
 
 Approvals
-- POST /api/timesheets/submit/{id}
-  - Effect: DRAFT → PENDING_LECTURER_APPROVAL
-- GET /api/lecturer/pending
-  - 200: items awaiting lecturer action
-- POST /api/lecturer/approve/{id}
-  - Effect: PENDING_LECTURER_APPROVAL → APPROVED_BY_LECTURER (triggers HR notification)
-- POST /api/lecturer/reject/{id}
-  - Body: { reason }
-  - Effect: PENDING_LECTURER_APPROVAL → REJECTED
-- POST /api/timesheets/request-change/{id}
-  - Tutor requests modification post-feedback
+- POST /api/approvals
+  - Body: { timesheetId, action: one of [SUBMIT_FOR_APPROVAL, TUTOR_CONFIRM, LECTURER_CONFIRM, HR_CONFIRM, REJECT, REQUEST_MODIFICATION], comment? }
+  - 200: ApprovalActionResponse (previousStatus, newStatus, actor, timestamp)
+- GET /api/approvals/pending
+  - 200: items pending action for the current role (Admin/Lecturer/Tutor)
+ - GET /api/approvals/history/{timesheetId}
+  - 200: array of approval actions for a timesheet
 
-Lecturer Dashboard
-- GET /api/lecturer/dashboard-summary?courseId={id}&from={date}&to={date}
+Dashboard
+- GET /api/dashboard/summary?courseId={id}&startDate={date}&endDate={date}
   - 200: { tutors: [{ tutorId, hours, amount }], budget: { total, used, remaining }, statuses: { draft, pending, approved, rejected } }
+ - GET /api/dashboard
+  - 200: default summary (delegates to /summary)
 
-Admin/HR
-- GET /api/hr/pending
-  - 200: pending after lecturer approval
+Timesheet Queues
+- GET /api/timesheets/pending-approval
+  - Tutor/Admin: items awaiting first-level approval
+- GET /api/timesheets/pending-final-approval
+  - Lecturer/Admin: items awaiting final approval by lecturer
+
+Timesheets Config
+- GET /api/timesheets/config
+  - 200: UI constraints used by the SPA to validate forms
+
+Users (Admin)
+- GET /api/users?role={role}&active={true|false}
+  - 200: filtered users (admin always; lecturers in e2e profile for tutor lists)
+- POST /api/users
+  - 201: created user
+- PATCH /api/users/{id}
+  - 200: updated user
 
 Error Format (problem+json)
 - Content-Type: application/problem+json
@@ -73,4 +84,3 @@ Error Format (problem+json)
     "detail": "Tutorial delivery hours must be exactly 1.0",
     "traceId": "..."
   }
-

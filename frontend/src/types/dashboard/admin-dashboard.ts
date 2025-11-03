@@ -6,6 +6,14 @@ export interface AdminSummaryMetrics {
   totalHours: number;
   totalPay: number;
   tutorCount: number | null;
+  // Optional enhanced metrics used by tests and extended UI
+  statusBreakdown?: Record<string, number> | null;
+  systemMetrics?: {
+    activeUsers?: number;
+    activeCourses?: number;
+    averageApprovalTime?: number;
+    systemLoad?: number;
+  } | null;
 }
 
 export interface AdminTabSpec {

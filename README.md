@@ -64,14 +64,16 @@ node frontend/scripts/run-e2e-tests.js --project=real --grep "@p0|@p1"
 Reports/screenshots: `frontend/playwright-report` (or test-results per runner output).
 
 ## API Overview (brief)
-- Auth: `POST /api/auth/login`, `GET /api/auth/whoami`
+- Auth: `POST /api/auth/login`, `POST /api/auth/logout` (204)
 - Timesheets: `GET /api/timesheets`, `GET /api/timesheets/{id}`, `POST /api/timesheets`, `PUT /api/timesheets/{id}`, `DELETE /api/timesheets/{id}`
 - My Timesheets: `GET /api/timesheets/me`
-- Pending for Lecturer: `GET /api/timesheets/pending-final-approval`
+- Timesheet Queues: `GET /api/timesheets/pending-approval` (Tutor/Admin), `GET /api/timesheets/pending-final-approval` (Lecturer/Admin)
 - Quote: `POST /api/timesheets/quote`
+- Timesheets Config (UI constraints): `GET /api/timesheets/config`
 - Approvals: `POST /api/approvals` (actions: SUBMIT_FOR_APPROVAL / TUTOR_CONFIRM / LECTURER_CONFIRM / HR_CONFIRM / REJECT / REQUEST_MODIFICATION)
-- Lecturer Dashboard: `GET /api/lecturer/dashboard-summary?courseId=...&from=...&to=...`
-- HR Pending: `GET /api/hr/pending`
+- Approvals Pending: `GET /api/approvals/pending` (role‑aware)
+- Approvals History: `GET /api/approvals/history/{timesheetId}`
+- Dashboard: `GET /api/dashboard/summary?courseId=...&startDate=...&endDate=...` (also `GET /api/dashboard`)
 
 > For the full OpenAPI specification, see the API documentation section or internal docs. All errors use problem+json (success=false, message, error, traceId).
 
