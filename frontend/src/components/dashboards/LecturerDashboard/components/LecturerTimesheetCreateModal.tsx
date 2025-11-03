@@ -47,6 +47,8 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
       }
     }, [isOpen]);
 
+    const [reloadTick, setReloadTick] = useState(0);
+
     useEffect(() => {
       if (!isOpen || !lecturerId) {
         return;
@@ -137,7 +139,64 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
       return () => {
         cancelled = true;
       };
-    }, [isOpen, lecturerId]);
+    }, [isOpen, lecturerId, reloadTick]);
+
+    // Focus management & keyboard support
+    const dialogRef = useRef<HTMLDivElement | null>(null);
+    const prevFocusedRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+      if (isOpen) {
+        try {
+          prevFocusedRef.current = (document.activeElement as HTMLElement) ?? null;
+        } catch {}
+        // Focus the dialog
+        const id = requestAnimationFrame(() => {
+          dialogRef.current?.focus();
+        });
+        return () => cancelAnimationFrame(id);
+      }
+      return;
+    }, [isOpen]);
+
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
+      if (!isOpen) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        // call close
+        try {
+          (handleClose as any)();
+        } catch {}
+      } else if (e.key === 'Tab') {
+        // focus trap within dialog content
+        const container = dialogRef.current;
+        if (!container) return;
+        const focusable = container.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey) {
+          if (active === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (active === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    }, [isOpen]);
+
+    useEffect(() => {
+      document.addEventListener('keydown', handleKeyDown, true);
+      return () => document.removeEventListener('keydown', handleKeyDown, true);
+    }, [handleKeyDown]);
 
     const handleClose = useCallback(() => {
       if (createLoading) {
@@ -146,6 +205,10 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
       reset();
       setResourceError(null);
       onClose();
+      // attempt to restore focus to the element that opened the dialog
+      try {
+        prevFocusedRef.current?.focus();
+      } catch {}
     }, [createLoading, onClose, reset]);
 
     const courseLookup = useMemo(() => new Map(courseOptions.map((course) => [course.id, course.label])), [courseOptions]);
@@ -239,6 +302,8 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
           role="dialog"
           aria-modal="true"
           aria-labelledby="lecturer-create-timesheet-title"
+          tabIndex={-1}
+          ref={dialogRef as any}
         >
           <CardHeader>
             <div className="flex items-start justify-between gap-3">
@@ -255,8 +320,9 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
           </CardHeader>
           <CardContent>
             {resourceError && (
-              <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-destructive" role="alert">
-                {resourceError}
+              <div className="mb-4 flex items-center justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-destructive" role="alert">
+                <span>{resourceError}</span>
+                <Button variant="outline" size="sm" onClick={() => setReloadTick((t) => t + 1)}>Retry</Button>
               </div>
             )}
 

@@ -106,7 +106,8 @@ export class TimesheetService {
    * Maps array or paginated payloads into TimesheetPage
    */
   static async getMyTimesheets(signal?: AbortSignal): Promise<TimesheetPage> {
-    const response = await secureApiClient.get<unknown>('/api/timesheets/me', { signal });
+    const { API_ENDPOINTS } = await import('../types/api');
+    const response = await secureApiClient.get<unknown>(API_ENDPOINTS.TIMESHEETS.ME, { signal });
     const data = (response as any)?.data;
     if (Array.isArray(data)) {
       return this.ensureTimesheetPage({ success: true, timesheets: data });
@@ -119,7 +120,8 @@ export class TimesheetService {
    * New EA-compliant endpoint
    */
   static async getMyPendingTimesheets(signal?: AbortSignal): Promise<TimesheetPage> {
-    const response = await secureApiClient.get<unknown>('/api/timesheets/pending-approval', { signal });
+    const { API_ENDPOINTS } = await import('../types/api');
+    const response = await secureApiClient.get<unknown>(API_ENDPOINTS.TIMESHEETS.PENDING_APPROVAL, { signal });
     const data = (response as any)?.data;
     if (Array.isArray(data)) {
       return this.ensureTimesheetPage({ success: true, timesheets: data });
@@ -208,7 +210,8 @@ export class TimesheetService {
    * Explicit Tutor confirmation before approvals (EA-compliant)
    */
   static async confirmTimesheet(id: number): Promise<Timesheet> {
-    const response = await secureApiClient.put<Timesheet>(`/api/timesheets/${id}/confirm`, {});
+    const { API_ENDPOINTS } = await import('../types/api');
+    const response = await secureApiClient.put<Timesheet>(API_ENDPOINTS.TIMESHEETS.CONFIRM(id), {});
     return response.data;
   }
 
@@ -216,7 +219,8 @@ export class TimesheetService {
    * Get approval history entries for a timesheet
    */
   static async getApprovalHistory(timesheetId: number): Promise<readonly unknown[]> {
-    const response = await secureApiClient.get<readonly unknown[]>(`/api/approvals/history/${timesheetId}`);
+    const { API_ENDPOINTS } = await import('../types/api');
+    const response = await secureApiClient.get<readonly unknown[]>(API_ENDPOINTS.APPROVALS.HISTORY(timesheetId));
     return response.data ?? [];
   }
 
@@ -224,7 +228,8 @@ export class TimesheetService {
    * Admin/HR pending approvals queue
    */
   static async getPendingApprovals(signal?: AbortSignal): Promise<TimesheetPage> {
-    const response = await secureApiClient.get<unknown>('/api/approvals/pending', { signal });
+    const { API_ENDPOINTS } = await import('../types/api');
+    const response = await secureApiClient.get<unknown>(API_ENDPOINTS.APPROVALS.PENDING, { signal });
     const data = (response as any)?.data;
     if (Array.isArray(data)) {
       return this.ensureTimesheetPage({ success: true, timesheets: data });
@@ -424,5 +429,4 @@ export const {
   getActionableTimesheets,
   validateTimesheet
 } = TimesheetService;
-
 

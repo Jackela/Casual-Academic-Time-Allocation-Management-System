@@ -30,6 +30,8 @@ Actors
 
 ### Session 2025-11-03
 - Q: How should the form prevent 403 authorization errors when choosing Tutor/Course? → A: Limit selections to assigned Tutors/Courses fetched from backend; disable submit if none available.
+- Q: When is deliveryHours mandated read‑only? → A: If the quote returns a deliveryHours value that differs from current input or indicates a fixed value, set deliveryHours to the quoted value and lock the field until a subsequent quote changes it.
+- Q: Which fields are critical for re‑quote on submit? → A: taskType, deliveryHours, qualification, isRepeat, sessionDate.
 
 ## User Scenarios & Testing (mandatory)
 
@@ -90,6 +92,7 @@ Actors
 
 - No assignments available for lecturer: show guidance “You are not assigned to any tutor/course; contact admin” and disable Submit.
 - Quote service latency/high churn: debounce quote by ~300ms and cancel inflight requests on change.
+- Quote failure at submit: block Submit until a successful quote exists; show inline error and offer “Retry quote”.
 
 ## Requirements *(mandatory)*
 
@@ -101,14 +104,24 @@ Actors
 ### Functional Requirements
 - FR‑001: “Create Timesheet” opens LecturerTimesheetCreateModal reliably.
 - FR‑002: Form calls POST /api/timesheets/quote on relevant field changes and updates UI from response.
-- FR‑003: Form enforces EA constraints from quote (read‑only where mandated; show formula/clause).
-- FR‑004: Submit only with EA‑consistent values; re‑quote on submit if critical fields changed.
+- FR‑003: Form enforces EA constraints from quote (read‑only where mandated; show formula/clause). If the quote returns a deliveryHours value that differs from current input or indicates a fixed value, set deliveryHours to the quoted value and lock the field until a subsequent quote changes it.
+- FR‑004: Submit only with EA‑consistent values. If any critical field (taskType, deliveryHours, qualification, isRepeat, sessionDate) changed since the last quote, automatically re‑quote before submitting.
 - FR‑005: 403 maps to role‑aware guidance; 400 maps to inline, field‑specific messages.
 - FR‑006: Add endpoint constants for ME, CONFIRM, PENDING_APPROVAL, APPROVALS.HISTORY, APPROVALS.PENDING and use them in services.
 - FR‑007: Restrict Tutor/Course pickers to lecturer‑assigned entities fetched on modal open; if none are available, show empty‑state guidance and disable Submit.
 
 ### Key Entities *(include if feature involves data)*
 - TimesheetCreateRequest, QuoteResponse (EA‑derived)
+
+## Integration Dependencies
+
+- Lecturer assignments: GET /api/admin/lecturers/{lecturerId}/assignments → { tutorIds: number[], courseIds: number[] }. Use this to restrict Tutor/Course pickers; handle empty state and retry.
+
+## Non‑Functional Requirements
+
+- Quote latency: p95 ≤ 500ms; show loading indicator while awaiting quote.
+- Observability: log quote duration, status, debounce count, canceled requests, and create status (no PII); include backend traceId if provided.
+- Security & privacy: surface non‑PII error messages; do not log sensitive user input values.
 
 ## Success Criteria *(mandatory)*
 
