@@ -50,6 +50,8 @@ export const useTimesheetCreate = (): UseTimesheetCreateResult => {
       const duplicateHint = /already exists/i.test(String(payloadMessage ?? ''));
       if (status === 409 || code === 'RESOURCE_CONFLICT' || duplicateHint) {
         message = "A timesheet already exists for this tutor, course, and week. Please choose a different week or edit the existing one.";
+      } else if (status === 403 || code === 'AUTHORIZATION_FAILED') {
+        message = "Creation failed: you are not assigned to this course or tutor.";
       } else if (status === 400 && (code === 'VALIDATION_FAILED' || payloadMessage)) {
         message = payloadMessage ?? message;
       } else if (error instanceof Error && error.message) {

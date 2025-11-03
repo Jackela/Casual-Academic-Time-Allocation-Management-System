@@ -229,6 +229,15 @@ export class SecureApiClient {
           });
         }
 
+        // Lightweight telemetry for critical flows (no PII)
+        try {
+          const method = (responseConfig.method?.toUpperCase() || '').toString();
+          const url = (responseConfig.url || '').toString();
+          if (url.includes('/api/timesheets/quote')) {
+            secureLogger.performance('QuoteTimesheet', duration, 'ms', { method, url: '/api/timesheets/quote' });
+          }
+        } catch {}
+
         return response;
       },
       (error) => {
@@ -273,6 +282,25 @@ export class SecureApiClient {
             method: requestConfig?.method?.toUpperCase()
           });
         }
+
+        // Telemetry hook: Timesheet create failures
+        try {
+          const cfg = error?.config as InternalRequestConfigWithMeta | undefined;
+          const method = (cfg?.method?.toUpperCase() || '').toString();
+          const url = (cfg?.url || '').toString();
+          const status = error?.response?.status as number | undefined;
+          const code = ((): string | undefined => {
+            const data = error?.response?.data as any;
+            if (data && typeof data === 'object') {
+              if (typeof data.error === 'string') return data.error as string;
+              if (typeof data.code === 'string') return data.code as string;
+            }
+            return undefined;
+          })();
+          if (method === 'POST' && url.includes('/api/timesheets')) {
+            secureLogger.performance('TimesheetCreateFailed', 0, 'ms', { status, code });
+          }
+        } catch {}
 
         return Promise.reject(this.transformError(error));
       }

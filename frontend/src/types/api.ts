@@ -408,6 +408,9 @@ export const API_ENDPOINTS = {
   TIMESHEETS: {
     BASE: '/api/timesheets',
     PENDING: '/api/timesheets/pending-final-approval',
+    ME: '/api/timesheets/me',
+    PENDING_APPROVAL: '/api/timesheets/pending-approval',
+    CONFIRM: (id: number) => `/api/timesheets/${id}/confirm`,
     BY_TUTOR: (tutorId: number) => `/api/timesheets/tutor/${tutorId}`,
     BY_COURSE: (courseId: number) => `/api/timesheets/course/${courseId}`,
     APPROVE: '/api/approvals'
@@ -428,6 +431,10 @@ export const API_ENDPOINTS = {
   DASHBOARD: {
     SUMMARY: '/api/dashboard/summary',
     ADMIN_SUMMARY: '/api/dashboard/summary'
+  },
+  APPROVALS: {
+    PENDING: '/api/approvals/pending',
+    HISTORY: (timesheetId: number) => `/api/approvals/history/${timesheetId}`,
   },
   HEALTH: '/api/health'
 } as const;

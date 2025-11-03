@@ -13,6 +13,7 @@ import LoadingSpinner from '../../../shared/LoadingSpinner/LoadingSpinner';
 import { useUiConstraints } from '../../../../lib/config/ui-config';
 import { fetchTimesheetConstraints } from '../../../../lib/config/server-config';
 import { TimesheetService } from '../../../../services/timesheets';
+import type { TimesheetQuoteRequest } from '../../../../types/api';
 
 type Mode = 'tutor' | 'lecturer-create' | 'lecturer-edit';
 
@@ -187,6 +188,26 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     return filtered.length > 0 ? filtered : tutorOptions;
   }, [isLecturerMode, tutorOptions, fCourseId]);
 
+  // Filter course options by selected tutor assignments (bi-directional restriction)
+  const visibleCourseOptions = useMemo(() => {
+    if (!isLecturerMode) return courseOptions;
+    const selectedTutor = visibleTutorOptions.find(t => t.id === internalTutorId);
+    const allowed = Array.isArray(selectedTutor?.courseIds) ? selectedTutor!.courseIds! : null;
+    if (!allowed || allowed.length === 0) return courseOptions;
+    const filtered = courseOptions.filter(c => allowed.includes(c.id));
+    return filtered.length > 0 ? filtered : courseOptions;
+  }, [isLecturerMode, courseOptions, internalTutorId, visibleTutorOptions]);
+
+  // Ensure selected course remains valid when tutor changes
+  useEffect(() => {
+    if (!isLecturerMode) return;
+    const valid = visibleCourseOptions.some(c => c.id === fCourseId);
+    if (!valid) {
+      const next = visibleCourseOptions[0]?.id ?? 0;
+      setValue('courseId', next, { shouldDirty: true });
+    }
+  }, [isLecturerMode, visibleCourseOptions]);
+
   // When a tutor is selected in lecturer mode, sync qualification from tutor profile
   useEffect(() => {
     if (!isLecturerMode) return;
@@ -203,6 +224,13 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
   const controllerRef = useRef<AbortController | null>(null);
   const seqRef = useRef(0);
   const ensureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastQuotedInputRef = useRef<TimesheetQuoteRequest | null>(null);
+  const [quoteRetryTick, setQuoteRetryTick] = useState(0);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Field-level error mapping for backend 400 VALIDATION_FAILED
+  const deliveryHoursRef = useRef<HTMLInputElement | null>(null);
+  const [fieldError, setFieldError] = useState<{ field: 'deliveryHours' | null; message: string | null }>({ field: null, message: null });
 
   const resolvedTutorId = isLecturerMode ? internalTutorId : tutorId;
   const rangeText = `Delivery hours must be between ${hoursMin} and ${hoursMax}`;
@@ -238,13 +266,21 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
       } as const;
     };
 
-    TimesheetService.quoteTimesheet(buildLatestPayload(), controller.signal)
-      .then(resp => { if (!controller.signal.aborted && mySeq === seqRef.current) setQuoteState({ status: 'loaded', data: resp, error: null }); })
-      .catch(err => {
-        if (controller.signal.aborted || mySeq !== seqRef.current) return;
-        const msg = err instanceof Error ? err.message : 'Unable to calculate pay with EA rules.';
-        setQuoteState(prev => ({ status: 'error', data: prev.data, error: msg }));
-      });
+    if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); }
+    debounceTimerRef.current = setTimeout(() => {
+      TimesheetService.quoteTimesheet(buildLatestPayload(), controller.signal)
+        .then(resp => {
+          if (!controller.signal.aborted && mySeq === seqRef.current) {
+            setQuoteState({ status: 'loaded', data: resp, error: null });
+            lastQuotedInputRef.current = buildLatestPayload() as TimesheetQuoteRequest;
+          }
+        })
+        .catch(err => {
+          if (controller.signal.aborted || mySeq !== seqRef.current) return;
+          const msg = err instanceof Error ? err.message : 'Unable to calculate pay with EA rules.';
+          setQuoteState(prev => ({ status: 'error', data: prev.data, error: msg }));
+        });
+    }, 300);
 
     // Immediate microtask re-check to avoid missing an emission due to rapid field commits
     queueMicrotask(() => {
@@ -255,7 +291,12 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
       const microController = new AbortController();
       controllerRef.current = microController;
       TimesheetService.quoteTimesheet(buildLatestPayload(), microController.signal)
-        .then(resp => { if (!microController.signal.aborted && seqRef.current === mySeq) setQuoteState({ status: 'loaded', data: resp, error: null }); })
+        .then(resp => {
+          if (!microController.signal.aborted && seqRef.current === mySeq) {
+            setQuoteState({ status: 'loaded', data: resp, error: null });
+            lastQuotedInputRef.current = buildLatestPayload() as TimesheetQuoteRequest;
+          }
+        })
         .catch(() => void 0);
     });
 
@@ -272,7 +313,12 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
       const finalController = new AbortController();
       controllerRef.current = finalController;
       TimesheetService.quoteTimesheet(buildLatestPayload(), finalController.signal)
-        .then(resp => { if (!finalController.signal.aborted && seqRef.current === mySeq) setQuoteState({ status: 'loaded', data: resp, error: null }); })
+        .then(resp => {
+          if (!finalController.signal.aborted && seqRef.current === mySeq) {
+            setQuoteState({ status: 'loaded', data: resp, error: null });
+            lastQuotedInputRef.current = buildLatestPayload() as TimesheetQuoteRequest;
+          }
+        })
         .catch(() => void 0);
     }, 50);
 
@@ -284,7 +330,12 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
       const ctrl = new AbortController();
       controllerRef.current = ctrl;
       TimesheetService.quoteTimesheet(buildLatestPayload(), ctrl.signal)
-        .then(resp => { if (!ctrl.signal.aborted && seqRef.current === mySeq) setQuoteState({ status: 'loaded', data: resp, error: null }); })
+        .then(resp => {
+          if (!ctrl.signal.aborted && seqRef.current === mySeq) {
+            setQuoteState({ status: 'loaded', data: resp, error: null });
+            lastQuotedInputRef.current = buildLatestPayload() as TimesheetQuoteRequest;
+          }
+        })
         .catch(() => void 0);
     }, 500);
 
@@ -292,21 +343,58 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
       try { controller.abort(); } catch {};
       if (controllerRef.current === controller) controllerRef.current = null;
       if (ensureTimerRef.current) { clearTimeout(ensureTimerRef.current); ensureTimerRef.current = null; }
+      if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
       try { clearTimeout(secondEnsure); } catch {}
     };
-  }, [resolvedTutorId, fCourseId, fWeek, fTask, fQual, fRepeat, fHours]);
+  }, [resolvedTutorId, fCourseId, fWeek, fTask, fQual, fRepeat, fHours, quoteRetryTick]);
+
+  // Keep delivery hours synchronized with quoted value (EA-enforced)
+  useEffect(() => {
+    if (quoteState.status === 'loaded' && quoteState.data) {
+      const qh = Number(quoteState.data.deliveryHours);
+      if (Number.isFinite(qh) && qh > 0 && qh !== Number(fHours || 0)) {
+        setValue('deliveryHours', qh, { shouldDirty: true, shouldValidate: true });
+      }
+    }
+  }, [quoteState.status]);
 
   // Submit handler
-  const onFormSubmit = handleSubmit(() => {
+  const onFormSubmit = handleSubmit(async () => {
     if (loading) return;
-    if (quoteState.status !== 'loaded' || !quoteState.data) return;
     const v = getValues();
+    const currentPayload: TimesheetQuoteRequest = {
+      tutorId: resolvedTutorId,
+      courseId: Number(v.courseId),
+      sessionDate: String(v.weekStartDate),
+      taskType: v.taskType,
+      qualification: v.qualification,
+      isRepeat: Boolean(v.isRepeat),
+      deliveryHours: Number(v.deliveryHours || 0),
+    };
+
+    const sameAsLast = JSON.stringify(currentPayload) === JSON.stringify(lastQuotedInputRef.current);
+    if (!sameAsLast) {
+      try { controllerRef.current?.abort(); } catch {}
+      const ctrl = new AbortController();
+      controllerRef.current = ctrl;
+      setQuoteState(prev => ({ status: 'loading', data: prev.data, error: null }));
+      try {
+        const fresh = await TimesheetService.quoteTimesheet(currentPayload, ctrl.signal);
+        setQuoteState({ status: 'loaded', data: fresh, error: null });
+        lastQuotedInputRef.current = currentPayload;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to calculate pay with EA rules.';
+        setQuoteState(prev => ({ status: 'error', data: prev.data, error: msg }));
+        return; // block submit on failed quote
+      }
+    }
+
     const submission: TimesheetFormSubmitData = {
       tutorId: resolvedTutorId,
-      courseId: v.courseId,
+      courseId: Number(v.courseId),
       weekStartDate: v.weekStartDate,
-      sessionDate: quoteState.data.sessionDate ?? v.weekStartDate,
-      deliveryHours: v.deliveryHours,
+      sessionDate: (quoteState.data?.sessionDate ?? v.weekStartDate),
+      deliveryHours: Number(v.deliveryHours || 0),
       description: v.description,
       taskType: v.taskType,
       qualification: v.qualification,
@@ -354,7 +442,15 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     const chosen = new Date(fWeek); chosen.setHours(0,0,0,0);
     return chosen.getTime() > todayOnly.getTime();
   })();
-  const disableSubmit = loading || tutorialHoursInvalid || rangeInvalid || decimalsInvalid || weekFutureInvalid;
+  const disableSubmit = (
+    loading ||
+    tutorialHoursInvalid ||
+    rangeInvalid ||
+    decimalsInvalid ||
+    weekFutureInvalid ||
+    !resolvedTutorId || !fCourseId ||
+    quoteState.status !== 'loaded' || !!quoteState.error
+  );
 
   const friendlyError = useMemo(() => {
     if (!error) return null;
@@ -363,6 +459,21 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
       return 'A timesheet already exists for this tutor, course, and week';
     }
     return String(error);
+  }, [error]);
+
+  // Map common validation error patterns to field-level error + focus
+  useEffect(() => {
+    if (!error) {
+      setFieldError({ field: null, message: null });
+      return;
+    }
+    const msg = String(error);
+    if (/delivery\s*hours/i.test(msg)) {
+      setFieldError({ field: 'deliveryHours', message: msg });
+      try { deliveryHoursRef.current?.focus(); } catch {}
+    } else {
+      setFieldError({ field: null, message: null });
+    }
   }, [error]);
 
   return (
@@ -374,6 +485,13 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
 
       {friendlyError && (
         <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-center text-sm text-destructive">{friendlyError}</div>
+      )}
+
+      {quoteState.status === 'error' && (
+        <div className="mb-4 flex items-center justify-between rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+          <span>{quoteState.error ?? 'Unable to calculate pay with EA rules.'}</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => setQuoteRetryTick(t => t + 1)}>Retry quote</Button>
+        </div>
       )}
 
   {/* Rejection feedback (edit mode) */}
@@ -391,6 +509,13 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
         </div>
       )}
 
+      {quoteState.status === 'error' && (
+        <div className="mb-4 flex items-center justify-between rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+          <span>{quoteState.error ?? 'Unable to calculate pay with EA rules.'}</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => setQuoteRetryTick(t => t + 1)}>Retry quote</Button>
+        </div>
+      )}
+
       <form
         onSubmit={onFormSubmit}
         className="space-y-4"
@@ -404,16 +529,16 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
             id="course"
             data-testid={isLecturerMode ? 'create-course-select' : undefined}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            disabled={courseOptions.length === 0}
+            disabled={visibleCourseOptions.length === 0}
             value={fCourseId}
             onChange={(e) => setValue('courseId', Number(e.target.value), { shouldDirty: true })}
           >
             <option value={0}>Select a course</option>
-            {courseOptions.map(co => (
+            {visibleCourseOptions.map(co => (
               <option key={co.id} value={co.id}>{co.label}</option>
             ))}
           </select>
-          {courseOptions.length === 0 && (
+          {visibleCourseOptions.length === 0 && (
             <div data-testid="course-empty-state" className="text-xs text-muted-foreground">No active courses found</div>
           )}
         </div>
@@ -583,12 +708,17 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
             disabled={fTask === 'TUTORIAL'}
             onChange={(e) => setValue('deliveryHours', parseFloat(e.target.value) || 0, { shouldDirty: true })}
             data-testid={isLecturerMode ? 'create-delivery-hours-input' : undefined}
+            ref={deliveryHoursRef as any}
+            aria-invalid={fieldError.field === 'deliveryHours' ? 'true' : undefined}
           />
           <span className="text-xs text-muted-foreground">
             {fTask === 'TUTORIAL'
               ? 'Tutorial delivery is fixed at 1.0h; associated time is added per EA Schedule 1.'
               : `Enter the in-class delivery hours (${hoursMin} - ${hoursMax})`}
           </span>
+          {fieldError.field === 'deliveryHours' && (
+            <div className="text-xs text-destructive" role="alert">{fieldError.message}</div>
+          )}
           <p className="text-xs text-muted-foreground" role="note">{rangeNoteText}</p>
           {decimalsInvalid && (
             <p id="delivery-hours-error" className="text-xs text-destructive" role="alert">Delivery hours must have at most 1 decimal place</p>
@@ -628,6 +758,14 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">Payable Hours</p>
             <p>{quoteState.data ? Number(quoteState.data.payableHours) : '-'}</p>
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">Formula</p>
+            <p className="text-xs">{quoteState.data?.formula ?? '-'}</p>
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">Clause</p>
+            <p className="text-xs">{quoteState.data?.clauseReference ?? '-'}</p>
           </div>
         </div>
 
