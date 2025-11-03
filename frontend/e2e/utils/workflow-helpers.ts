@@ -341,6 +341,22 @@ export async function createTimesheetWithStatus(
     selectedCourse = candidate.courseId;
     selectedWeek = candidate.weekStartDate;
 
+    // Precondition: ensure both Tutor and Lecturer are assigned to the course
+    try {
+      // Tutor → Course assignment (idempotent)
+      await request.post(`${backendUrl}/api/admin/tutors/assignments`, {
+        headers: toHeaders(tokens.admin.token),
+        data: { tutorId: tokens.tutor.userId, courseIds: [selectedCourse] },
+      }).catch(() => undefined);
+    } catch {}
+    try {
+      // Lecturer → Course assignment (idempotent)
+      await request.post(`${backendUrl}/api/admin/lecturers/assignments`, {
+        headers: toHeaders(tokens.admin.token),
+        data: { lecturerId: tokens.lecturer.userId, courseIds: [selectedCourse] },
+      }).catch(() => undefined);
+    } catch {}
+
     // Align with backend expectations: include intrinsic fields (hours, hourlyRate), 
     // exclude calculated fields (totalPay, associatedHours)
     const payload = {
@@ -439,25 +455,8 @@ export async function createTimesheetWithStatus(
     throw new Error('Timesheet creation response missing id');
   }
 
-  // Ensure tutor is assigned to the selected course before applying approval transitions
-  try {
-    const doAssign = async () => request.post(
-      `${backendUrl}/api/admin/tutors/assignments`,
-      {
-        headers: toHeaders(tokens.admin.token),
-        data: { tutorId: tokens.tutor.userId, courseIds: [selectedCourse] },
-      }
-    );
-    let assignmentResp = await doAssign();
-    if (!assignmentResp.ok() && assignmentResp.status() !== 409) {
-      // One gentle retry for transient states; then proceed without failing
-      await delay(200);
-      assignmentResp = await doAssign();
-    }
-    // Swallow any non-fatal status to keep seed pipeline resilient
-  } catch {
-    // Intentionally ignore; quoting and UI flows do not require assignment
-  }
+  // Ensure assignments persisted (best-effort)
+  try { await request.get(`${backendUrl}/api/courses/${selectedCourse}/tutors`, { headers: toHeaders(tokens.admin.token) }); } catch {}
 
   const target = (options.targetStatus ?? 'DRAFT') as TimesheetStatus;
   const plan = [...(STATUS_TRANSITION_PLAN[target] ?? [])];

@@ -1,0 +1,142 @@
+openapi: 3.0.3
+info:
+  title: CATAMS API Alignment Test Contracts
+  version: 0.1.0
+servers:
+  - url: https://example.local
+paths:
+  /api/courses/{courseId}/tutors:
+    get:
+      summary: List tutors for a course
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+  /api/admin/tutors/{tutorId}/assignments:
+    get:
+      summary: Get tutor course assignments
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: tutorId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  courseIds:
+                    type: array
+                    items:
+                      type: integer
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+  /api/admin/tutors/assignments:
+    post:
+      summary: Replace tutor course assignments
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tutorId:
+                  type: integer
+                courseIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '204': { description: No Content }
+        '200': { description: OK }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /api/admin/lecturers/{lecturerId}/assignments:
+    get:
+      summary: Get lecturer course assignments
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: lecturerId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  courseIds:
+                    type: array
+                    items:
+                      type: integer
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+  /api/admin/lecturers/assignments:
+    post:
+      summary: Replace lecturer course assignments
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lecturerId:
+                  type: integer
+                courseIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '204': { description: No Content }
+        '200': { description: OK }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
