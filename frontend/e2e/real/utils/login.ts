@@ -3,6 +3,7 @@
  * Prefers API/session storage over UI flows to improve stability.
  */
 import { APIRequestContext, request, Page } from '@playwright/test';
+import { loginAsRole } from '../../api/auth-helper';
 
 export type UserRole = 'tutor' | 'lecturer' | 'admin';
 
@@ -14,25 +15,12 @@ export interface LoginOptions {
 }
 
 export async function apiLogin(opts: LoginOptions): Promise<{ cookies: any[] }>{
-  const context = await request.newContext({ baseURL: opts.baseURL });
-  // NOTE: Replace endpoint/fields with actual API when available.
-  const res = await context.post('/api/auth/login', {
-    data: {
-      username:
-        opts.username ??
-        process.env[`E2E_${opts.role.toUpperCase()}_USER` as any] ??
-        process.env[`E2E_${opts.role.toUpperCase()}_EMAIL` as any],
-      password:
-        opts.password ??
-        process.env[`E2E_${opts.role.toUpperCase()}_PASS` as any] ??
-        process.env[`E2E_${opts.role.toUpperCase()}_PASSWORD` as any],
-    },
-  });
-  if (!res.ok()) throw new Error(`Login failed for role ${opts.role}: ${res.status()}`);
-  const cookies = await context.storageState();
-  await context.dispose();
-  // @ts-expect-error storageState typing
-  return { cookies: cookies.cookies ?? [] };
+  // Use centralized helper for stable auth (axios + keepAlive under the hood)
+  const ctx = await request.newContext({ baseURL: opts.baseURL });
+  await loginAsRole(ctx, opts.role as any);
+  await ctx.dispose();
+  // Our app uses localStorage tokens; consumers should prefer storageState injection.
+  return { cookies: [] };
 }
 
 export async function attachSession(page: Page, baseURL: string, storageStatePath?: string) {

@@ -1,4 +1,7 @@
 import { request as pwRequest } from '@playwright/test';
+import axios from 'axios';
+import http from 'node:http';
+import https from 'node:https';
 import { fileURLToPath } from 'node:url';
 import type { APIRequestContext, Page } from '@playwright/test';
 import fs from 'node:fs/promises';
@@ -18,6 +21,14 @@ export interface RoleAuthSession extends AuthSession {
 export type RoleSessionMap = Record<UserRole, RoleAuthSession>;
 
 const LOGIN_ENDPOINT = `${E2E_CONFIG.BACKEND.URL}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`;
+
+function getKeepAliveAgents(targetUrl: string) {
+  const url = new URL(targetUrl);
+  const isHttps = url.protocol === 'https:';
+  const httpAgent = new http.Agent({ keepAlive: true });
+  const httpsAgent = new https.Agent({ keepAlive: true });
+  return isHttps ? { httpsAgent } : { httpAgent };
+}
 
 type RawAuthResponse =
   | AuthSession
@@ -110,16 +121,22 @@ export async function loginAsRole(
     return { token: `mock-${role}-token`, refreshToken: null, expiresAt: null, user, role };
   }
   const { email, password } = roleCredentials(role);
-  const response = await request.post(LOGIN_ENDPOINT, {
-    headers: { 'Content-Type': 'application/json' },
-    data: { email, password },
+  const agents = getKeepAliveAgents(LOGIN_ENDPOINT);
+  const axiosResp = await axios.post(LOGIN_ENDPOINT, { email, password }, {
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    timeout: 15000,
+    ...agents,
+    // Avoid proxy/DNS oddities in some envs
+    transitional: { clarifyTimeoutError: true },
+    validateStatus: () => true,
   });
 
-  if (!response.ok()) {
-    throw new Error(`Login failed for ${role} (${email}): ${response.status()} ${await response.text()}`);
+  if (axiosResp.status < 200 || axiosResp.status >= 300) {
+    const bodyTxt = typeof axiosResp.data === 'string' ? axiosResp.data : JSON.stringify(axiosResp.data);
+    throw new Error(`Login failed for ${role} (${email}): ${axiosResp.status} ${bodyTxt?.slice(0,200)}`);
   }
 
-  const body = (await response.json()) as RawAuthResponse;
+  const body = axiosResp.data as RawAuthResponse;
   const session = extractSession(body, role);
   return { ...session, role };
 }
@@ -233,17 +250,20 @@ export async function programmaticLoginApi(role: UserRole): Promise<{ ok: true; 
     `${E2E_CONFIG.BACKEND.URL}/auth/login`,
   ];
 
-  const ctx = await pwRequest.newContext();
+  const agentsByProto = getKeepAliveAgents(candidates[0]);
   let endpointUsed = '';
   let session: AuthSession | null = null;
   for (const candidate of candidates) {
     try {
-      const res = await ctx.post(candidate, {
-        headers: { 'Content-Type': 'application/json' },
-        data: { email: creds.email, password: creds.password },
+      const agents = getKeepAliveAgents(candidate);
+      const res = await axios.post(candidate, { email: creds.email, password: creds.password }, {
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        timeout: 15000,
+        validateStatus: () => true,
+        ...agents,
       });
-      if (!res.ok()) continue;
-      const raw = await res.json();
+      if (res.status < 200 || res.status >= 300) continue;
+      const raw = res.data;
       const extracted = extractSession(raw, role);
       session = extracted;
       endpointUsed = candidate;
@@ -279,6 +299,5 @@ export async function programmaticLoginApi(role: UserRole): Promise<{ ok: true; 
   await fs.mkdir(authRoot, { recursive: true });
   await fs.writeFile(outFile, JSON.stringify(state, null, 2), 'utf-8');
 
-  await ctx.dispose();
   return { ok: true, endpoint: endpointUsed, persisted: 'jwt', session } as const;
 }

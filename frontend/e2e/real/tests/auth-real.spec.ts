@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test';
 import { E2E_CONFIG } from '../../config/e2e.config';
 import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
 import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
+import axios from 'axios';
+import http from 'node:http';
+import https from 'node:https';
 import type { AuthContext } from '../../utils/workflow-helpers';
 
 const adminHeaders = (tokens: AuthContext) => ({
@@ -60,20 +63,18 @@ test.describe('Persisted authentication states', () => {
   });
 });
 
-test('login API rejects invalid credentials', async ({ request }) => {
-  const response = await request.post(`${E2E_CONFIG.BACKEND.URL}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`, {
-    headers: { 'Content-Type': 'application/json' },
-    data: {
-      email: 'invalid@example.com',
-      password: 'WrongPass123!',
-    },
+test('login API rejects invalid credentials', async () => {
+  const url = `${E2E_CONFIG.BACKEND.URL}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`;
+  const isHttps = url.startsWith('https:');
+  const agent = isHttps ? { httpsAgent: new https.Agent({ keepAlive: true }) } : { httpAgent: new http.Agent({ keepAlive: true }) };
+  const resp = await axios.post(url, { email: 'invalid@example.com', password: 'WrongPass123!' }, {
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    validateStatus: () => true,
+    timeout: 15000,
+    ...agent,
   });
-
-  expect(response.status()).toBe(401);
-  const body = await response.json();
-  expect(body).toMatchObject({
-    success: false,
-  });
+  expect(resp.status).toBe(401);
+  expect(resp.data).toMatchObject({ success: false });
 });
 
 test.describe('logout behaviour', () => {

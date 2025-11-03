@@ -4,10 +4,11 @@ import { E2E_CONFIG } from '../../config/e2e.config';
 import type { TimesheetPage, ApprovalAction } from '../../../src/types/api';
 import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
 import type { AuthContext } from '../../utils/workflow-helpers';
+import { loginAsRole } from '../../api/auth-helper';
 
 const BACKEND_URL = E2E_CONFIG.BACKEND.URL;
 
-test.describe('Timesheet API Contract', () => {
+test.describe('@api Timesheet API Contract', () => {
   let adminClient: TimesheetApiClient;
   let lecturerClient: TimesheetApiClient;
   let tutorClient: TimesheetApiClient;
@@ -64,7 +65,7 @@ test.describe('Timesheet API Contract', () => {
     await dataFactory?.cleanupAll();
   });
 
-  test('should return paginated pending timesheets for admin', async () => {
+  test('Admin sees pending list contains seeded LECTURER_CONFIRMED @api', async () => {
     const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'LECTURER_CONFIRMED' });
 
     const response = await adminClient.getPendingTimesheets(0, 20);
@@ -74,7 +75,7 @@ test.describe('Timesheet API Contract', () => {
     expect(match?.status).toBe('LECTURER_CONFIRMED');
   });
 
-  test('should support pagination parameters', async () => {
+  test('Pending timesheets pagination respected @api', async () => {
     await dataFactory.createTimesheetForTest({ targetStatus: 'LECTURER_CONFIRMED' });
 
     const pageSize = 1;
@@ -83,7 +84,7 @@ test.describe('Timesheet API Contract', () => {
     expect(page.timesheets.length).toBeLessThanOrEqual(pageSize);
   });
 
-  test('should require authentication for pending final approval endpoint', async () => {
+  test('Pending endpoint requires authentication @api', async () => {
     const unauthenticatedClient = new TimesheetApiClient(BACKEND_URL);
     await expect(unauthenticatedClient.getPendingTimesheets()).rejects.toMatchObject({
       status: 401,
@@ -91,7 +92,7 @@ test.describe('Timesheet API Contract', () => {
     });
   });
 
-  test('should return tutor timesheets with pagination metadata', async () => {
+  test('Tutor timesheets returns page metadata @api', async () => {
     const response: TimesheetPage = await tutorClient.getUserTimesheets();
     expect(Array.isArray(response.timesheets)).toBe(true);
     expect(response.pageInfo).toMatchObject({
@@ -101,7 +102,7 @@ test.describe('Timesheet API Contract', () => {
     });
   });
 
-  test('lecturer can query by tutor id', async () => {
+  test('Lecturer can query by tutorId @api', async () => {
     const tutorId = tokens.tutor.userId;
     const response = await lecturerClient.getUserTimesheets(tutorId, { page: 0, size: 5 });
     expect(Array.isArray(response.timesheets)).toBe(true);
@@ -110,7 +111,7 @@ test.describe('Timesheet API Contract', () => {
     }
   });
 
-  test('should reject invalid approval actions with validation error', async () => {
+  test('Invalid approval action yields 400 @api', async () => {
     const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'LECTURER_CONFIRMED' });
 
     const invalidAction = 'INVALID_ACTION' as unknown as ApprovalAction;
@@ -126,13 +127,8 @@ test.describe('Timesheet API Contract', () => {
     });
   });
 
-  test('create: ignores calculated/forbidden fields in payload (server-side SSOT)', async ({ request }) => {
-    const lecturerAuth = await request.post(`${BACKEND_URL}/api/auth/login`, {
-      headers: { 'Content-Type': 'application/json' },
-      data: { email: E2E_CONFIG.USERS.lecturer.email, password: E2E_CONFIG.USERS.lecturer.password }
-    });
-    expect(lecturerAuth.ok()).toBeTruthy();
-    const { token, user } = await lecturerAuth.json();
+  test('Create ignores forbidden fields (SSOT) @api', async ({ request, page }) => {
+    const { token, user } = await loginAsRole(page.request, 'lecturer');
 
     // Discover a real courseId for the lecturer to avoid flake
     const coursesRes = await request.get(`${BACKEND_URL}/api/courses?lecturerId=${tokens.lecturer.userId ?? 2}&active=true`, {
@@ -185,3 +181,4 @@ test.describe('Timesheet API Contract', () => {
     }
   });
 });
+
