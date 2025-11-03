@@ -31,5 +31,8 @@ public class LecturerAssignment {
     public Long getId() { return id; }
     public Long getLecturerId() { return lecturerId; }
     public Long getCourseId() { return courseId; }
+
+    public void setLecturerId(Long lecturerId) { this.lecturerId = lecturerId; }
+    public void setCourseId(Long courseId) { this.courseId = courseId; }
 }
 

@@ -1,3 +1,0 @@
-Reset OK
-Seed OK (lecturerId=2)
-Seed OK (lecturerId=3)

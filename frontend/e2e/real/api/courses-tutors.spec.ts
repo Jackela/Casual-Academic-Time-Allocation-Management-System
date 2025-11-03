@@ -7,13 +7,10 @@ let dataFactory: TestDataFactory;
 const getTutorsUrl = (courseId: number) => `${E2E_CONFIG.BACKEND.URL}/api/courses/${courseId}/tutors`;
 
 async function getWithAuth(request: APIRequestContext, url: string, token: string) {
-  const response = await request.get(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response;
+  return request.get(url, { headers: { Authorization: `Bearer ${token}` } });
 }
 
-test.describe('Courses → Tutors endpoint alignment', { tag: ['@api', '@alignment'] }, () => {
+test.describe('@api Courses → Tutors endpoint alignment', () => {
   test.beforeEach(async ({ request }) => {
     dataFactory = await createTestDataFactory(request);
   });
@@ -22,94 +19,67 @@ test.describe('Courses → Tutors endpoint alignment', { tag: ['@api', '@alignme
     await dataFactory?.cleanupAll();
   });
 
-  test('Admin can GET /api/courses/{courseId}/tutors', async ({ request }) => {
+  test('Admin GET /api/courses/{id}/tutors returns { tutorIds } @api', async ({ request }) => {
     const { admin } = dataFactory.getAuthTokens();
     const courseId = 1;
     const url = getTutorsUrl(courseId);
     const res = await getWithAuth(request, url, admin.token);
-    const bodyText = await res.text();
-    if (res.status() !== 200) {
-      throw new Error(`Expected 200 but got ${res.status()} for GET ${url}. Body: ${bodyText}`);
-    }
-    let payload: unknown;
-    try { payload = JSON.parse(bodyText); } catch { payload = bodyText; }
-    expect(Array.isArray(payload)).toBe(true);
+    const text = await res.text();
+    if (res.status() !== 200) throw new Error(`Expected 200 but got ${res.status()} for GET ${url}. Body: ${text}`);
+    const payload = JSON.parse(text);
+    expect(Array.isArray(payload.tutorIds)).toBe(true);
   });
 
-  test('Lecturer can GET /api/courses/{courseId}/tutors', async ({ request }) => {
+  test('Assigned lecturer can GET tutors list @api', async ({ request }) => {
     const tokens = dataFactory.getAuthTokens();
     const sessions = dataFactory.getAuthSessions();
     const courseId = 1;
-    // Ensure lecturer is assigned to courseId=1
     await request.post(`${E2E_CONFIG.BACKEND.URL}/api/admin/lecturers/assignments`, {
       headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
       data: { lecturerId: sessions.lecturer.user.id, courseIds: [courseId] },
     });
-    const url = getTutorsUrl(courseId);
-    const res = await getWithAuth(request, url, tokens.lecturer.token);
-    if (res.status() !== 200) {
-      const body = await res.text();
-      throw new Error(`Expected 200 but got ${res.status()} for GET ${url}. Body: ${body}`);
-    }
+    const res = await getWithAuth(request, getTutorsUrl(courseId), tokens.lecturer.token);
+    const text = await res.text();
+    if (res.status() !== 200) throw new Error(`Expected 200 but got ${res.status()} Body: ${text}`);
+    const payload = JSON.parse(text);
+    expect(Array.isArray(payload.tutorIds)).toBe(true);
   });
 
-  test('Non-assigned lecturer is forbidden for /api/courses/{courseId}/tutors', async ({ request }) => {
+  test('Non-assigned lecturer forbidden @api', async ({ request }) => {
     const tokens = dataFactory.getAuthTokens();
     const sessions = dataFactory.getAuthSessions();
-    const targetCourseId = 1;
-    // Ensure lecturer is NOT assigned to courseId=1 by assigning lecturer to a different course only
+    const url = getTutorsUrl(1);
     await request.post(`${E2E_CONFIG.BACKEND.URL}/api/admin/lecturers/assignments`, {
-      headers: {
-        Authorization: `Bearer ${tokens.admin.token}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
       data: { lecturerId: sessions.lecturer.user.id, courseIds: [2] },
     });
-    const url = getTutorsUrl(targetCourseId);
     const res = await getWithAuth(request, url, tokens.lecturer.token);
-    const status = res.status();
-    const body = await res.text();
-    if (![401, 403].includes(status)) {
-      throw new Error(`Expected 401/403 but got ${status} for GET ${url}. Body: ${body}`);
-    }
+    expect([401, 403]).toContain(res.status());
   });
 
-  test('Tutor should be forbidden for /api/courses/{courseId}/tutors', async ({ request }) => {
+  test('Tutor forbidden for tutors list @api', async ({ request }) => {
     const { tutor } = dataFactory.getAuthTokens();
-    const courseId = 1;
-    const url = getTutorsUrl(courseId);
-    const res = await getWithAuth(request, url, tutor.token);
-    const status = res.status();
-    const body = await res.text();
-    expect([401, 403]).toContain(status);
-    if (![401, 403].includes(status)) {
-      throw new Error(`Expected 401/403 but got ${status} for GET ${url}. Body: ${body}`);
-    }
+    const res = await getWithAuth(request, getTutorsUrl(1), tutor.token);
+    expect([401, 403]).toContain(res.status());
   });
 
-  test('Invalid courseId returns 404 or 200 []', async ({ request }) => {
+  test('Invalid courseId returns 404 or empty @api', async ({ request }) => {
     const { admin } = dataFactory.getAuthTokens();
     const invalidId = 999999;
-    const url = getTutorsUrl(invalidId);
-    const res = await getWithAuth(request, url, admin.token);
+    const res = await getWithAuth(request, getTutorsUrl(invalidId), admin.token);
     const status = res.status();
     const text = await res.text();
     if (status === 200) {
-      let payload: unknown;
-      try { payload = JSON.parse(text); } catch { payload = text; }
-      expect(Array.isArray(payload)).toBe(true);
-      expect((payload as any[]).length === 0).toBe(true);
-    } else if (status === 404) {
-      expect(status).toBe(404);
+      const payload = JSON.parse(text);
+      expect(Array.isArray(payload.tutorIds)).toBe(true);
+      expect(payload.tutorIds.length).toBe(0);
     } else {
-      throw new Error(`Expected 200 [] or 404 but got ${status} for GET ${url}. Body: ${text}`);
+      expect([404]).toContain(status);
     }
   });
 
-  test('Unauthenticated request is unauthorized for /api/courses/{courseId}/tutors', async ({ request }) => {
-    const courseId = 1;
-    const url = getTutorsUrl(courseId);
-    const res = await request.get(url);
+  test('Unauthenticated forbidden @api', async ({ request }) => {
+    const res = await request.get(getTutorsUrl(1));
     expect([401, 403]).toContain(res.status());
   });
 });

@@ -1,4 +1,6 @@
 import { APIRequestContext } from '@playwright/test';
+import { E2E_CONFIG } from '../config/e2e.config';
+import { getBackendUrl } from '../config/e2e.config';
 
 export interface AuthResponse {
   success: boolean;
@@ -46,7 +48,7 @@ export class AuthAPI {
   constructor(private request: APIRequestContext) {}
 
   async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await this.request.post('http://localhost:8084/api/auth/login', {
+    const response = await this.request.post(getBackendUrl(E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN), {
       data: { email, password },
       headers: { 'Content-Type': 'application/json' }
     });
@@ -59,7 +61,7 @@ export class AuthAPI {
   }
 
   async getHealth(): Promise<{ status: string }> {
-    const response = await this.request.get('http://localhost:8084/actuator/health');
+    const response = await this.request.get(getBackendUrl(E2E_CONFIG.BACKEND.ENDPOINTS.HEALTH));
     return await response.json();
   }
 }
@@ -69,7 +71,7 @@ export class TimesheetAPI {
 
   async getPendingApprovals(page = 0, size = 20): Promise<TimesheetResponse> {
     const response = await this.request.get(
-      `http://localhost:8084/api/timesheets/pending-approval?page=${page}&size=${size}`,
+      `${getBackendUrl('/api/timesheets/pending-approval')}?page=${page}&size=${size}`,
       {
         headers: {
           'Authorization': `Bearer ${this.token}`,
@@ -87,7 +89,7 @@ export class TimesheetAPI {
 
   async approveTimesheet(id: number): Promise<void> {
     const response = await this.request.post(
-      `http://localhost:8084/api/timesheets/${id}/approve`,
+      `${getBackendUrl('/api/timesheets')}/${id}/approve`,
       {
         headers: {
           'Authorization': `Bearer ${this.token}`,
@@ -103,7 +105,7 @@ export class TimesheetAPI {
 
   async rejectTimesheet(id: number, reason: string): Promise<void> {
     const response = await this.request.post(
-      `http://localhost:8084/api/timesheets/${id}/reject`,
+      `${getBackendUrl('/api/timesheets')}/${id}/reject`,
       {
         data: { reason },
         headers: {
