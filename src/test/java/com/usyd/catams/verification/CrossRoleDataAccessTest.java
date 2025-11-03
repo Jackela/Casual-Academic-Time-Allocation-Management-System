@@ -11,6 +11,7 @@ import com.usyd.catams.exception.AuthorizationException;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.TutorAssignmentRepository;
+import com.usyd.catams.repository.LecturerAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.service.TimesheetService;
 import com.usyd.catams.service.Schedule1CalculationResult;
@@ -61,6 +62,9 @@ public class CrossRoleDataAccessTest {
     @Autowired
     private TutorAssignmentRepository tutorAssignmentRepository;
 
+    @Autowired
+    private LecturerAssignmentRepository lecturerAssignmentRepository;
+
     private User tutorA;
     private User tutorB;
     private User lecturerA;
@@ -87,6 +91,10 @@ public class CrossRoleDataAccessTest {
         tutorAssignmentRepository.deleteAll();
         tutorAssignmentRepository.save(new com.usyd.catams.entity.TutorAssignment(tutorA.getId(), courseA.getId()));
         tutorAssignmentRepository.save(new com.usyd.catams.entity.TutorAssignment(tutorB.getId(), courseB.getId()));
+        // Ensure lecturer assignments SSOT is in place for scoping
+        lecturerAssignmentRepository.deleteAll();
+        lecturerAssignmentRepository.save(new com.usyd.catams.entity.LecturerAssignment(lecturerA.getId(), courseA.getId()));
+        lecturerAssignmentRepository.save(new com.usyd.catams.entity.LecturerAssignment(lecturerB.getId(), courseB.getId()));
 
         // 创建timesheet
         timesheetA1 = createTimesheet(tutorA.getId(), courseA.getId(), lecturerA.getId());
@@ -304,3 +312,4 @@ public class CrossRoleDataAccessTest {
         return String.format("%s%04d", letters, seq % 10000);
     }
 }
+

@@ -25,7 +25,7 @@ export default defineConfig({
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
-  retries: process.env.CI ? 2 : 1, // Retry once locally for flaky tests
+  retries: process.env.CI ? 2 : 0, // No retries locally for speed
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : 4, // Limit workers for better stability
   /* Reporters: JSON + JUnit for machine readability */
@@ -37,6 +37,8 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: E2E_CONFIG.FRONTEND.URL,
+    /* Force headless for CI and local consistency */
+    headless: true,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -69,7 +71,7 @@ export default defineConfig({
     {
       name: 'real',
       testDir: './e2e/real',
-      retries: process.env.CI ? 2 : 1,
+      retries: process.env.CI ? 2 : 0,
       fullyParallel: false,
       workers: 1,
       timeout: 120_000,
@@ -87,6 +89,7 @@ export default defineConfig({
           })(),
         }),
         baseURL: E2E_CONFIG.FRONTEND.URL,
+        headless: true,
       },
     },
   ],

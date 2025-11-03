@@ -18,15 +18,21 @@ Frontend
 
 Backend
 
-- API endpoints (typical shape):
-  - GET /api/timesheets/mine — current user’s timesheets with statuses.
-  - POST /api/timesheets — create/update by tutor (stays Draft until submitted).
-  - POST /api/timesheets/submit/{id} — tutor submits for lecturer approval (transitions Draft → Pending Lecturer Approval).
-  - GET /api/lecturer/pending — list of timesheets awaiting lecturer decision.
-  - POST /api/lecturer/approve/{id} — lecturer approval (Pending → Approved by Lecturer).
-  - POST /api/lecturer/reject/{id} — lecturer rejection with reason (Pending → Rejected).
-  - POST /api/timesheets/request-change/{id} — tutor requests a change after feedback (nudges state back to editable/pending as designed).
-  - POST /api/timesheets/quote — quote calculation (used by both tutor/lecturer UIs before submission).
+- API endpoints (final shape):
+  - GET /api/timesheets/me — current user’s timesheets with statuses.
+  - GET /api/timesheets — list with filters (tutorId, courseId, status, paging/sort).
+  - GET /api/timesheets/{id} — fetch details by id.
+  - POST /api/timesheets — create (Draft until submitted/confirmed).
+  - PUT /api/timesheets/{id} — update with re‑validation of EA rules.
+  - DELETE /api/timesheets/{id} — delete (role/ownership guarded).
+  - POST /api/timesheets/quote — quote calculation (shared with create/update UI flows).
+  - GET /api/timesheets/pending-approval — tutor/admin pending queue.
+  - GET /api/timesheets/pending-final-approval — lecturer/admin final approval queue.
+  - GET /api/timesheets/config — UI constraints consumed by the SPA.
+  - POST /api/approvals — perform lifecycle action (SUBMIT_FOR_APPROVAL, TUTOR_CONFIRM, LECTURER_CONFIRM, HR_CONFIRM, REJECT, REQUEST_MODIFICATION).
+  - GET /api/approvals/pending — role‑aware pending items.
+  - GET /api/approvals/history/{timesheetId} — approval history for a timesheet.
+  - GET /api/dashboard/summary — lecturer/admin/tutor dashboard summary (also GET /api/dashboard).
 
 - State machine (lifecycle):
   - DRAFT → PENDING_LECTURER_APPROVAL → APPROVED_BY_LECTURER → PROCESSED_BY_HR
@@ -38,4 +44,3 @@ Backend
 
 - HR notification (R6 handshake):
   - After lecturer approval, the system notifies HR (e.g., posting to an HR queue/topic or writing to a dedicated table for HR pickup). The HR dashboard/API exposes a pending list for final review (PROCESSED_BY_HR closes the loop). Errors are surfaced via problem+json to the lecturer UI when notifications fail, but the approval state is tracked so HR can reconcile.
-

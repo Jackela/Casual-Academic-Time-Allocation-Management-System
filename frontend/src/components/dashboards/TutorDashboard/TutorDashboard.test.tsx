@@ -521,7 +521,7 @@ describe("TutorDashboard Component", () => {
   });
 
   describe("Course and Schedule Integration", () => {
-    it.skip("should display enrolled courses", async () => {
+    it("should display enrolled courses", async () => {
       render(<TutorDashboard />, { wrapper });
 
       expect(screen.getByText(/My Courses/i)).toBeInTheDocument();
@@ -531,21 +531,21 @@ describe("TutorDashboard Component", () => {
       expect(screen.getByText(/CS102 - Data Structures/i)).toBeInTheDocument();
     });
 
-    it.skip("should show course-specific statistics", async () => {
+    it("should show course-specific statistics", async () => {
       render(<TutorDashboard />, { wrapper });
 
       expect(screen.getByTestId("course-stats")).toBeInTheDocument();
       expect(screen.getByText(/Hours per Course/i)).toBeInTheDocument();
     });
 
-    it.skip("should integrate with course calendar", async () => {
+    it("should integrate with course calendar", async () => {
       render(<TutorDashboard />, { wrapper });
 
       expect(screen.getByTestId("course-calendar")).toBeInTheDocument();
       expect(screen.getByText(/This Week's Schedule/i)).toBeInTheDocument();
     });
 
-    it.skip("should show rate information per course", async () => {
+    it("should show rate information per course", async () => {
       render(<TutorDashboard />, { wrapper });
 
       const coursesSection = screen

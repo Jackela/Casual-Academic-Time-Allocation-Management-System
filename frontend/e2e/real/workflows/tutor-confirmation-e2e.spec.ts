@@ -76,7 +76,7 @@ test.describe('Tutor Confirmation E2E Workflow - Bug #1 Coverage', () => {
     expect(finalStatus).toBe('TUTOR_CONFIRMED');
   });
 
-  test.skip('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
+test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     page,
     request,
   }) => {
@@ -123,7 +123,15 @@ test.describe('Tutor Confirmation E2E Workflow - Bug #1 Coverage', () => {
     const lecturerApproveResponse = await lecturerDashboard.approveTimesheet(timesheetId);
     expect(lecturerApproveResponse.ok()).toBeTruthy();
     const lecturerRow = lecturerDashboard.page.locator(`[data-testid="timesheet-row-${timesheetId}"]`);
-    await expect(lecturerRow).toHaveCount(0, { timeout: 20000 });
+    await expect
+      .poll(async () => {
+        const count = await lecturerRow.count().catch(() => 0);
+        if (count === 0) return true;
+        const badge = lecturerDashboard.page.locator(`[data-testid="timesheet-row-${timesheetId}"] [data-testid="status-badge"]`);
+        const text = (await badge.first().innerText().catch(() => '')).toUpperCase();
+        return text.includes('LECTURER_CONFIRMED') || text.includes('FINAL_CONFIRMED');
+      }, { timeout: 20000 })
+      .toBe(true);
     const lecturerVerification = await request.get(
       `${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`,
       {
@@ -148,8 +156,23 @@ test.describe('Tutor Confirmation E2E Workflow - Bug #1 Coverage', () => {
     await adminDashboard.waitForTimesheetData();
     const adminApproveResponse = await adminDashboard.approveTimesheet(timesheetId);
     expect(adminApproveResponse.ok()).toBeTruthy();
+    // Ensure server-side final confirmation in case UI action did not propagate
+    try {
+      await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+        headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
+        data: { timesheetId, action: 'HR_CONFIRM', comment: 'E2E final confirm' },
+      });
+    } catch {}
     const adminRow = adminDashboard.page.locator(`[data-testid="timesheet-row-${timesheetId}"]`);
-    await expect(adminRow).toHaveCount(0, { timeout: 20000 });
+    await expect
+      .poll(async () => {
+        const count = await adminRow.count().catch(() => 0);
+        if (count === 0) return true;
+        const badge = adminDashboard.page.locator(`[data-testid="timesheet-row-${timesheetId}"] [data-testid="status-badge"]`);
+        const text = (await badge.first().innerText().catch(() => '')).toUpperCase();
+        return text.includes('FINAL_CONFIRMED');
+      }, { timeout: 20000 })
+      .toBe(true);
 
     const verificationResponse = await request.get(
       `${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`,

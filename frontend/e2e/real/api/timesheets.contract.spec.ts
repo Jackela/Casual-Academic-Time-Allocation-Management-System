@@ -50,13 +50,9 @@ test.describe('Timesheet API Contract', () => {
           headers: { 'Content-Type': 'application/json', 'X-Test-Reset-Token': process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset' },
           data: { lecturerId: who, seedTutors: true },
         });
-        // tolerate non-2xx here, will re-probe
         await seed.text().catch(() => undefined);
       } catch {}
-      const retry = await request.get(`${BACKEND_URL}/api/courses?lecturerId=${who}&active=true`, { headers: hdrs });
-      if (!retry.ok()) {
-        test.skip(true, `Contract precondition not met: /api/courses unavailable for lecturerId=${who}`);
-      }
+      // Proceed deterministically even if probe fails; specs use fallbacks where needed
     }
   });
 

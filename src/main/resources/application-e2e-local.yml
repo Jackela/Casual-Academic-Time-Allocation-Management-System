@@ -31,5 +31,6 @@ server:
 logging:
   level:
     com.usyd.catams: INFO
-    com.usyd.catams.controller: DEBUG
+    com.usyd.catams.controller: INFO
+    com.usyd.catams.controller.admin: INFO
     org.springframework.security: INFO

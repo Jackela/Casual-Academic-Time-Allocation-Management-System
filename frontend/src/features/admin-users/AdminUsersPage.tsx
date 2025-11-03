@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { User } from '../../types/api';
-import { createUser, fetchUsers, updateUser, setTutorAssignments, setTutorDefaultQualification } from '../../services/users';
-import { fetchLecturerCourses } from '../../services/courses';
+import { createUser, fetchUsers, updateUser, setTutorAssignments, setTutorDefaultQualification, getTutorAssignments, getTutorDefaults, setLecturerAssignments, getLecturerAssignments } from '../../services/users';
+import { fetchLecturerCourses, fetchAllCourses } from '../../services/courses';
 import type { TutorQualification, User as ApiUser } from '../../types/api';
 
 type FormState = {
@@ -157,6 +157,9 @@ export default function AdminUsersPage() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editAssignedCourseIds, setEditAssignedCourseIds] = useState<number[]>([]);
+  const [editCourseOptions, setEditCourseOptions] = useState<{ id: number; label: string }[]>([]);
+  const [editDefaultQualification, setEditDefaultQualification] = useState<TutorQualification | null>(null);
   const [editFormState, setEditFormState] = useState<{ firstName: string; lastName: string }>({
     firstName: '',
     lastName: '',
@@ -336,6 +339,9 @@ export default function AdminUsersPage() {
       return;
     }
     setEditingUser(null);
+    setEditAssignedCourseIds([]);
+    setEditCourseOptions([]);
+    setEditDefaultQualification(null);
   };
 
   const handleEditChange =
@@ -371,6 +377,19 @@ export default function AdminUsersPage() {
 
     try {
       await updateUser(editingUser.id, payload);
+      // Persist role-specific associations
+      if (editingUser.role === 'TUTOR') {
+        if (Array.isArray(editAssignedCourseIds)) {
+          await setTutorAssignments({ tutorId: editingUser.id, courseIds: editAssignedCourseIds });
+        }
+        if (editDefaultQualification) {
+          await setTutorDefaultQualification({ tutorId: editingUser.id, defaultQualification: editDefaultQualification });
+        }
+      } else if (editingUser.role === 'LECTURER') {
+        if (Array.isArray(editAssignedCourseIds)) {
+          await setLecturerAssignments({ lecturerId: editingUser.id, courseIds: editAssignedCourseIds });
+        }
+      }
       await fetchAndSetUsers();
       setFeedbackMessage('User details updated.');
       setEditingUser(null);
@@ -381,6 +400,43 @@ export default function AdminUsersPage() {
       setUpdatingUserId(null);
     }
   };
+
+  // Load edit modal data for assignments when opening modal
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!editingUser) return;
+      try {
+        if (editingUser.role === 'TUTOR') {
+          const [courses, current, defaults] = await Promise.all([
+            fetchAllCourses(),
+            getTutorAssignments(editingUser.id),
+            getTutorDefaults(editingUser.id),
+          ]);
+          if (cancelled) return;
+          setEditCourseOptions((courses || []).map((c) => ({ id: c.id, label: c.code ? `${c.code} - ${c.name}` : c.name })));
+          setEditAssignedCourseIds(Array.isArray(current) ? current : (current as any)?.courseIds ?? []);
+          setEditDefaultQualification((defaults as any)?.defaultQualification ?? null);
+        } else if (editingUser.role === 'LECTURER') {
+          const [courses, current] = await Promise.all([
+            fetchAllCourses(),
+            getLecturerAssignments(editingUser.id),
+          ]);
+          if (cancelled) return;
+          setEditCourseOptions((courses || []).map((c) => ({ id: c.id, label: c.code ? `${c.code} - ${c.name}` : c.name })));
+          setEditAssignedCourseIds(Array.isArray(current) ? current : (current as any)?.courseIds ?? []);
+          setEditDefaultQualification(null);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        // Leave options empty on failure; the rest of the modal still works
+        setEditCourseOptions([]);
+        setEditAssignedCourseIds([]);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [editingUser]);
 
   return (
     <section className="space-y-6" aria-labelledby="admin-user-management-heading" data-testid="admin-users-ready">
@@ -746,6 +802,53 @@ export default function AdminUsersPage() {
                 </span>
                 <span className="text-sm text-slate-700">{editingUser.email ?? 'Not supplied'}</span>
               </div>
+
+              {(editingUser.role === 'TUTOR' || editingUser.role === 'LECTURER') && (
+                <div className="space-y-4">
+                  <div className="flex flex-col">
+                    <label htmlFor="edit-assigned-courses" className="text-sm font-medium text-slate-700">
+                      Visible Courses (assignments)
+                    </label>
+                    <select
+                      id="edit-assigned-courses"
+                      multiple
+                      className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20 min-h-[6rem]"
+                      value={editAssignedCourseIds.map(String)}
+                      onChange={(e) => {
+                        const values = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
+                        setEditAssignedCourseIds(values);
+                      }}
+                    >
+                      {editCourseOptions.map((co) => (
+                        <option key={co.id} value={co.id}>
+                          {co.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Lecturers see tutors in assigned courses; tutors see only assigned courses.
+                    </p>
+                  </div>
+
+                  {editingUser.role === 'TUTOR' && (<div className="flex flex-col">
+                    <label htmlFor="edit-default-qualification" className="text-sm font-medium text-slate-700">
+                      Default Tutor Qualification
+                    </label>
+                    <select
+                      id="edit-default-qualification"
+                      className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20"
+                      value={editDefaultQualification ?? 'STANDARD'}
+                      onChange={(e) => setEditDefaultQualification(e.target.value as TutorQualification)}
+                      data-testid="admin-edit-user-default-qualification"
+                    >
+                      <option value="STANDARD">Standard</option>
+                      <option value="COORDINATOR">Coordinator</option>
+                      <option value="PHD">PhD</option>
+                    </select>
+                    <p className="mt-1 text-xs text-slate-500">This default is applied in new timesheets; tutors can override per entry.</p>
+                  </div>)}
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col">
                   <label htmlFor="edit-first-name" className="text-sm font-medium text-slate-700">

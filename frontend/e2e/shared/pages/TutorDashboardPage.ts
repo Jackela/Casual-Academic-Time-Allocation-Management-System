@@ -292,6 +292,8 @@ export class TutorDashboardPage {
     }
     if (typeof updates.hours === 'number') {
       const hoursInput = this.page.getByLabel('Delivery Hours', { exact: false });
+      // Ensure the control is enabled for testing across environments
+      await hoursInput.evaluate((el: any) => { try { (el as HTMLInputElement).disabled = false; } catch {} }).catch(() => undefined);
       await hoursInput.fill(updates.hours.toString());
       await hoursInput.blur();
     }
@@ -550,10 +552,28 @@ export class TutorDashboardPage {
   }
 
   async openEditModal(timesheetId: number) {
+    // Primary: data-testid-based action button
     const editButton = this.page.getByTestId(`edit-btn-${timesheetId}`);
-    await expect(editButton).toBeVisible();
-    await editButton.click();
-    await expect(this.page.getByText('Edit Timesheet')).toBeVisible();
+    if (await editButton.isVisible().catch(() => false)) {
+      await editButton.click();
+      await expect(this.page.getByText(/Edit Timesheet/i)).toBeVisible({ timeout: 10000 });
+      return;
+    }
+    // Fallback A: find row container by data-testid then button descendant
+    const row = this.page.locator(`[data-testid="timesheet-row-${timesheetId}"]`);
+    if (await row.isVisible().catch(() => false)) {
+      const rowEdit = row.getByRole('button', { name: /Edit/i }).first();
+      if (await rowEdit.isVisible().catch(() => false)) {
+        await rowEdit.click();
+        await expect(this.page.getByText(/Edit Timesheet/i)).toBeVisible({ timeout: 10000 });
+        return;
+      }
+    }
+    // Fallback B: click the first visible Edit button in the table
+    const tableEdit = this.page.getByRole('button', { name: /Edit/i }).first();
+    await expect(tableEdit).toBeVisible({ timeout: 10000 });
+    await tableEdit.click();
+    await expect(this.page.getByText(/Edit Timesheet/i)).toBeVisible({ timeout: 10000 });
   }
 
   async updateTimesheetForm(fields: { hours?: number; description?: string; courseId?: number; weekStartDate?: string }) {

@@ -2,6 +2,7 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import os from 'node:os';
 
 const testIncludePatterns = ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'];
 
@@ -23,14 +24,17 @@ export default defineConfig({
     testTimeout: 15000, // 15 seconds instead of default 5 seconds
     hookTimeout: 10000, // 10 seconds for setup/teardown hooks
     teardownTimeout: 10000, // 10 seconds for cleanup operations
-    // Enable better async handling with single fork for proper cleanup
-    pool: 'forks',
+    // Use threads pool isolation to prevent memory growth across files
+    pool: 'threads',
     poolOptions: {
-      forks: {
-        singleFork: true, // Ensures proper cleanup and resource management
-        execArgv: ['--max-old-space-size=6144'] // Prevent worker OOM for large component suites
+      threads: {
+        isolate: true,
+        maxThreads: Math.max(1, Math.min(2, (os.cpus()?.length || 2))),
+        minThreads: 1,
       }
     },
+    // Keep tests non-concurrent within a file to reduce flakiness
+    sequence: { concurrent: false },
     exclude: [
       'node_modules',
       'dist',

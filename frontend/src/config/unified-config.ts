@@ -28,7 +28,7 @@ export interface ApiConfiguration {
   timeout: number;
   retryAttempts: number;
   retryDelay: number;
-  endpoints: {
+    endpoints: {
     health: string;
     auth: {
       login: string;
@@ -47,6 +47,8 @@ export interface ApiConfiguration {
       admin: string;
     };
     users: {
+      // Note: backend provides GET/POST/PATCH under /api/users; there is no /api/users/me endpoint.
+      // Keep shape for forward-compat but front-end should not call `me`.
       me: string;
       all: string;
     };
@@ -133,6 +135,7 @@ class ConfigurationBuilder {
           admin: '/api/dashboard/summary'
         },
         users: {
+          // Backend does not expose /api/users/me. Placeholder retained; do not use in production code.
           me: '/api/users/me',
           all: '/api/users'
         },
@@ -195,7 +198,9 @@ class ConfigurationBuilder {
 
     // Production/development defaults
     if (ENV_CONFIG.isProduction()) {
-      return 'https://api.catams.example.com'; // TODO: set real prod URL
+      // Default production API origin; override via VITE_API_BASE_URL or proxy
+      // in deployment environments.
+      return 'https://api.catams.example.com';
     }
 
     // Dev fallback

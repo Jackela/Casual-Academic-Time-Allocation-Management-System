@@ -75,10 +75,9 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.POST, "/actuator/shutdown").hasRole("ADMIN");
 
                 if (relaxedReadProfile) {
-                    // Allow read-only listing endpoints during e2e/test profiles
-                    auth.requestMatchers(HttpMethod.GET, 
-                        "/api/users", "/api/users/**", 
-                        "/api/courses", "/api/courses/**").permitAll();
+                    // Allow read-only listing endpoints during e2e/test profiles (exclude course-user edges)
+                    auth.requestMatchers(HttpMethod.GET,
+                        "/api/users", "/api/users/**").permitAll();
                 }
 
                 auth.anyRequest().authenticated();

@@ -269,6 +269,10 @@ class TimesheetRepositoryTest {
         entityManager.persistAndFlush(timesheet2);
         entityManager.persistAndFlush(timesheet3);
 
+        // Ensure lecturer assignments SSOT for scoping
+        entityManager.persistAndFlush(new com.usyd.catams.entity.LecturerAssignment(lecturer.getId(), course.getId()));
+        entityManager.persistAndFlush(new com.usyd.catams.entity.LecturerAssignment(lecturer.getId(), anotherCourse.getId()));
+
         Pageable pageable = PageRequest.of(0, 10);
 
         // When & Then

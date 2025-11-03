@@ -99,13 +99,15 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchTimesheetConstraints().then((overrides) => {
-      if (cancelled || !overrides) return;
-      if (overrides.hours?.max) setHoursMax(Number(overrides.hours.max));
-      if (overrides.hours?.min) setHoursMin(Number(overrides.hours.min));
-      if (overrides.hours?.step) setHoursStep(Number(overrides.hours.step));
-      if (typeof overrides.weekStart?.mondayOnly === 'boolean') setMondayOnly(Boolean(overrides.weekStart.mondayOnly));
-    }).catch(() => void 0);
+    fetchTimesheetConstraints()
+      .then((overrides) => {
+        if (cancelled || !overrides) return;
+        if (overrides.hours?.max) setHoursMax(Number(overrides.hours.max));
+        if (overrides.hours?.min) setHoursMin(Number(overrides.hours.min));
+        if (overrides.hours?.step) setHoursStep(Number(overrides.hours.step));
+        if (typeof overrides.weekStart?.mondayOnly === 'boolean') setMondayOnly(Boolean(overrides.weekStart.mondayOnly));
+      })
+      .catch(() => void 0);
     return () => { cancelled = true; };
   }, []);
   const isLecturerCreate = mode === 'lecturer-create';
@@ -138,7 +140,8 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     defaultValues: {
       courseId: Number(initialData?.courseId ?? 0),
       weekStartDate: defaultWeek,
-      deliveryHours: Number(initialData?.deliveryHours ?? initialData?.hours ?? 0),
+      // Default tutorial delivery to 1.0h for happy-path
+      deliveryHours: Number(initialData?.deliveryHours ?? initialData?.hours ?? (DEFAULT_TASK_TYPE === 'TUTORIAL' ? 1.0 : 0)),
       description: String(initialData?.description ?? ''),
       taskType: (initialData?.taskType as TimesheetTaskType) ?? DEFAULT_TASK_TYPE,
       qualification: (initialData?.qualification as TutorQualification) ?? DEFAULT_QUALIFICATION,
@@ -169,6 +172,13 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
   const fQual = watch('qualification');
   const fRepeat = watch('isRepeat');
   const fHours = watch('deliveryHours');
+
+  // Keep Tutorial hours fixed at 1.0
+  useEffect(() => {
+    if (fTask === 'TUTORIAL' && fHours !== 1.0) {
+      setValue('deliveryHours', 1.0, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [fTask]);
 
   const visibleTutorOptions = useMemo(() => {
     if (!isLecturerMode) return tutorOptions;
@@ -327,7 +337,7 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     const idx = s.indexOf('.');
     return idx >= 0 ? s.substring(idx + 1).length : 0;
   })();
-  const tutorialHoursInvalid = fTask === 'TUTORIAL' && numHours < 1.0;
+  const tutorialHoursInvalid = fTask === 'TUTORIAL' && Number.isFinite(numHours) && numHours !== 1.0;
   const rangeInvalid = Number.isFinite(numHours) && (numHours < hoursMin || numHours > hoursMax);
   const decimalsInvalid = (() => {
     if (!Number.isFinite(numHours)) return false;
@@ -464,20 +474,20 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
                 } catch { return ''; }
               })()}
             </span>
-            <Button type="button" onClick={() => {
+            <Button type="button" variant="outline" size="xs" title="First Monday of previous month" onClick={() => {
               // First Monday of previous month
               const base = fWeek && /^\d{4}-\d{2}-\d{2}$/.test(fWeek) ? new Date(fWeek) : new Date();
               const prevMonth = new Date(base.getFullYear(), base.getMonth() - 1, 1);
               while (prevMonth.getDay() !== 1) prevMonth.setDate(prevMonth.getDate() + 1);
               setValue('weekStartDate', formatISO(prevMonth), { shouldDirty: true });
-            }}>Show previous month</Button>
-            <Button type="button" onClick={() => {
+            }}>Prev Month</Button>
+            <Button type="button" variant="outline" size="xs" title="Previous Monday" onClick={() => {
               const base = fWeek && /^\d{4}-\d{2}-\d{2}$/.test(fWeek) ? new Date(fWeek) : new Date();
               const prev = new Date(base.getTime() - 24*3600*1000);
               while (prev.getDay() !== 1) prev.setDate(prev.getDate() - 1);
               setValue('weekStartDate', formatISO(prev), { shouldDirty: true });
-            }}>Previous Monday</Button>
-            <Button type="button" onClick={() => {
+            }}>Prev Monday</Button>
+            <Button type="button" variant="outline" size="xs" title="Next Monday" onClick={() => {
               const base = fWeek && /^\d{4}-\d{2}-\d{2}$/.test(fWeek) ? new Date(fWeek) : new Date();
               const next = new Date(base.getTime() + 24*3600*1000);
               while (next.getDay() !== 1) next.setDate(next.getDate() + 1);
@@ -569,7 +579,8 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
             step={hoursStep}
             min={hoursMin}
             max={hoursMax}
-            value={fHours || ''}
+            value={fTask === 'TUTORIAL' ? 1.0 : (fHours || '')}
+            disabled={fTask === 'TUTORIAL'}
             onChange={(e) => setValue('deliveryHours', parseFloat(e.target.value) || 0, { shouldDirty: true })}
             data-testid={isLecturerMode ? 'create-delivery-hours-input' : undefined}
           />

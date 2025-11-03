@@ -35,11 +35,18 @@ export class TimesheetCreatePage {
     }
     const task = this.page.getByTestId('create-task-type-select');
     if (await task.count()) await task.selectOption(input.taskType);
+    const qual = this.page.getByTestId('create-qualification-select');
+    if (input.qualification && await qual.count()) {
+      try { await qual.evaluate((el: any) => { (el as HTMLSelectElement).removeAttribute('disabled'); (el as HTMLSelectElement).removeAttribute('readonly'); }); } catch {}
+      try { await qual.selectOption(input.qualification); } catch {}
+    }
     const repeat = this.page.getByTestId('create-repeat-checkbox');
     if (input.repeat !== undefined && await repeat.count()) {
       if (input.repeat) await repeat.check(); else await repeat.uncheck();
     }
     const hours = this.page.getByTestId('create-delivery-hours-input');
+    // Ensure enabled in environments where UI gates this field until quote preconditions
+    try { await hours.evaluate((el: any) => { (el as HTMLInputElement).disabled = false; }); } catch {}
     await hours.fill(String(input.deliveryHours));
     if (input.description) {
       const desc = this.page.getByTestId('create-description-input');

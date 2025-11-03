@@ -17,7 +17,7 @@ Frontend
 Backend
 
 - Aggregation API endpoint:
-  - GET /api/lecturer/dashboard-summary?courseId={id}&from={yyyy-mm-dd}&to={yyyy-mm-dd}
+  - GET /api/dashboard/summary?courseId={id}&startDate={yyyy-mm-dd}&endDate={yyyy-mm-dd}
   - Returns: per-tutor hour/amount tallies, course budget figures (total budget, used, remaining), and status distribution for the period.
 
 - Data aggregation strategy:
@@ -25,4 +25,3 @@ Backend
 
 - Budget model:
   - Budget is modelled per course (e.g., total monetary budget or target payable hours). The summary computes used/remaining by subtracting period totals from the configured budget. Where a course lacks a configured budget, the API returns null/0 with clear fields so the UI can render a “no budget configured” hint rather than error.
-
