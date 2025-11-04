@@ -12,21 +12,21 @@
 - [ ] T007 Fetch lecturer assignments and restrict Tutor/Course pickers in frontend/src/components/dashboards/LecturerDashboard/components/LecturerTimesheetCreateModal.tsx
 
 ## Phase 3 — User Story 1 (P1)
-- [ ] T008 [US1] Implement focus trap, ESC close, and focus restore in frontend/src/components/dashboards/LecturerDashboard/components/LecturerTimesheetCreateModal.tsx
-- [ ] T009 [US1] Ensure click→open path is stable (≤200ms) in frontend/src/components/dashboards/LecturerDashboard/LecturerDashboardShell.tsx
+- [X] T008 [US1] Implement focus trap, ESC close, and focus restore in frontend/src/components/dashboards/LecturerDashboard/components/LecturerTimesheetCreateModal.tsx
+- [X] T009 [US1] Ensure click→open path is stable (≤200ms) in frontend/src/components/dashboards/LecturerDashboard/LecturerDashboardShell.tsx
 
 ## Phase 4 — User Story 2 (P1)
-- [ ] T010 [US2] Debounce (≈300ms) + cancel inflight quote calls in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
-- [ ] T011 [US2] Trigger quote on taskType, deliveryHours, qualification, isRepeat, sessionDate in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
-- [ ] T012 [US2] Enforce EA constraints; lock deliveryHours; populate associated/payable + policy summary in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
+- [X] T010 [US2] Debounce (≈300ms) + cancel inflight quote calls in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
+- [X] T011 [US2] Trigger quote on taskType, deliveryHours, qualification, isRepeat, sessionDate in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
+- [X] T012 [US2] Enforce EA constraints; lock deliveryHours; populate associated/payable + policy summary in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
 
 ## Phase 5 — User Story 3 (P1)
-- [ ] T013 [US3] Re‑quote on submit if critical fields changed since last quote; block submit until success in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
-- [ ] T014 [US3] Submit EA‑consistent values and refresh success state in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
+- [X] T013 [US3] Re‑quote on submit if critical fields changed since last quote; block submit until success in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
+- [X] T014 [US3] Submit EA‑consistent values and refresh success state in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
 
 ## Phase 6 — User Story 4 (P2)
-- [ ] T015 [US4] Map 403 to assignment guidance message in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
-- [ ] T016 [US4] Map 400 VALIDATION_FAILED to inline field error and focus in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
+- [X] T015 [US4] Map 403 to assignment guidance message in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
+- [X] T016 [US4] Map 400 VALIDATION_FAILED to inline field error and focus in frontend/src/components/dashboards/TutorDashboard/components/TimesheetForm.tsx
 
 ## Final Phase — Polish & Cross‑Cutting
 - [ ] T017 Empty‑state when no assignments; disable Submit; Retry load in frontend/src/components/dashboards/LecturerDashboard/components/LecturerTimesheetCreateModal.tsx
