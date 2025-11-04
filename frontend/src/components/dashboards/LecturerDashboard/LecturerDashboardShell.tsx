@@ -326,8 +326,20 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
                 type="button"
                 data-testid="lecturer-create-open-btn"
                 aria-haspopup="dialog"
-                aria-expanded="false"
+                aria-expanded={isCreateModalOpen ? 'true' : 'false'}
                 aria-controls="lecturer-create-timesheet-modal"
+                onClick={() => {
+                  // Open immediately; keep RAF for consistent focus in tests
+                  setCreateOpening(true);
+                  setCreateModalOpen(true);
+                  const rafId = requestAnimationFrame(() => {
+                    try {
+                      const modal = document.querySelector('[data-testid="lecturer-create-modal"]') as HTMLElement | null;
+                      modal?.focus?.({ preventScroll: true } as any);
+                    } catch {}
+                    cancelAnimationFrame(rafId);
+                  });
+                }}
               >
                 Create Timesheet
               </Button>

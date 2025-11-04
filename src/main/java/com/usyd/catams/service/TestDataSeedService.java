@@ -8,6 +8,12 @@ import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.LecturerAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
+import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.enums.ApprovalStatus;
+import com.usyd.catams.common.domain.model.WeekPeriod;
+import com.usyd.catams.common.domain.model.Money;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -28,11 +34,15 @@ public class TestDataSeedService {
     private final LecturerAssignmentRepository lecturerAssignmentRepository;
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final TutorAssignmentRepository tutorAssignmentRepository;
+    private final TimesheetRepository timesheetRepository;
 
-    public TestDataSeedService(CourseRepository courseRepository, UserRepository userRepository, LecturerAssignmentRepository lecturerAssignmentRepository) {
+    public TestDataSeedService(CourseRepository courseRepository, UserRepository userRepository, LecturerAssignmentRepository lecturerAssignmentRepository, TutorAssignmentRepository tutorAssignmentRepository, TimesheetRepository timesheetRepository) {
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
         this.lecturerAssignmentRepository = lecturerAssignmentRepository;
+        this.tutorAssignmentRepository = tutorAssignmentRepository;
+        this.timesheetRepository = timesheetRepository;
     }
 
     @Transactional
@@ -79,9 +89,104 @@ public class TestDataSeedService {
         upsertTutor("tutor2@example.com", "E2E Tutor Two", "Tutor123!");
     }
 
+    /**
+     * Ensure seeded tutors are assigned to all active courses owned by the lecturer.
+     * Idempotent via repository upsert semantics.
+     */
+    @Transactional
+    public void ensureTutorAssignmentsForLecturerCourses(Long lecturerId) {
+        if (lecturerId == null || lecturerId <= 0) return;
+        var courses = courseRepository.findByLecturerIdAndIsActive(lecturerId, true);
+        if (courses == null || courses.isEmpty()) return;
+        var tutorEmails = java.util.List.of("tutor@example.com", "tutor2@example.com");
+        for (String email : tutorEmails) {
+            var opt = userRepository.findByEmail(email);
+            if (opt.isEmpty()) continue;
+            Long tutorId = opt.get().getId();
+            for (var c : courses) {
+                try {
+                    if (!tutorAssignmentRepository.existsByTutorIdAndCourseId(tutorId, c.getId())) {
+                        tutorAssignmentRepository.save(new com.usyd.catams.entity.TutorAssignment(tutorId, c.getId()));
+                    }
+                } catch (Exception e) {
+                    // tolerate duplicates or transient errors in test seeding
+                }
+            }
+        }
+    }
+
+    /**
+     * Seed a minimal set of timesheets to exercise approval queues for Tutor/Lecturer/Admin.
+     * Creates at most 3 items for the first active course owned by the lecturer, using the seeded tutor(s).
+     * Idempotent: checks existing (tutor, course, weekStartDate) before insert to avoid unique constraint violation.
+     */
+    @Transactional
+    public void ensureMinimalApprovalSamples(Long lecturerId) {
+        if (lecturerId == null || lecturerId <= 0) return;
+        var courses = courseRepository.findByLecturerIdAndIsActive(lecturerId, true);
+        if (courses == null || courses.isEmpty()) return;
+
+        Long courseId = courses.get(0).getId();
+        // Prefer the canonical tutor; fallback到第二个
+        Long tutorId = userRepository.findByEmail("tutor@example.com").map(com.usyd.catams.entity.User::getId)
+                .or(() -> userRepository.findByEmail("tutor2@example.com").map(com.usyd.catams.entity.User::getId))
+                .orElse(null);
+        if (tutorId == null) return;
+
+        // Ensure assignment exists (defensive, H2-compatible)
+        try {
+            if (!tutorAssignmentRepository.existsByTutorIdAndCourseId(tutorId, courseId)) {
+                tutorAssignmentRepository.save(new com.usyd.catams.entity.TutorAssignment(tutorId, courseId));
+            }
+        } catch (Exception ignored) {}
+
+        java.time.LocalDate monday0 = java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY);
+        java.time.LocalDate monday1 = monday0.minusWeeks(1);
+        java.time.LocalDate monday2 = monday0.minusWeeks(2);
+
+        seedOneIfAbsent(tutorId, courseId, monday2, ApprovalStatus.PENDING_TUTOR_CONFIRMATION, lecturerId);
+        seedOneIfAbsent(tutorId, courseId, monday1, ApprovalStatus.TUTOR_CONFIRMED, lecturerId);
+        seedOneIfAbsent(tutorId, courseId, monday0, ApprovalStatus.LECTURER_CONFIRMED, lecturerId);
+    }
+
+    private void seedOneIfAbsent(Long tutorId, Long courseId, java.time.LocalDate weekStartDate, ApprovalStatus status, Long createdBy) {
+        var existing = timesheetRepository.findByTutorIdAndCourseId(tutorId, courseId)
+                .stream()
+                .anyMatch(t -> weekStartDate.equals(t.getWeekStartDate()));
+        if (existing) return;
+
+        Timesheet t = new Timesheet();
+        t.setTutorId(tutorId);
+        t.setCourseId(courseId);
+        t.setWeekPeriod(new WeekPeriod(weekStartDate));
+        t.setSessionDate(weekStartDate);
+        t.setHours(new java.math.BigDecimal("1.0"));
+        t.setHourlyRate(new Money(new java.math.BigDecimal("60.00")));
+        t.setDescription("E2E seed sample");
+        t.setStatus(status);
+        t.setCreatedBy(createdBy);
+        t.setDeliveryHours(new java.math.BigDecimal("1.0"));
+        t.setAssociatedHours(new java.math.BigDecimal("0.0"));
+        t.setCalculatedAmount(new java.math.BigDecimal("60.00"));
+        try { timesheetRepository.save(t); } catch (Exception ignored) {}
+    }
+
     @Transactional
     public void ensureBasicLecturer() {
         upsertUserWithRole("lecturer@example.com", "E2E Lecturer", "Lecturer123!", UserRole.LECTURER);
+    }
+
+    /**
+     * Resolve an effective lecturerId for test seeding. Prefer the canonical
+     * lecturer@example.com user if present to avoid mismatched ownership.
+     */
+    @Transactional(readOnly = true)
+    public Long resolveLecturerId(Long requested) {
+        var u = userRepository.findByEmail("lecturer@example.com");
+        if (u.isPresent()) {
+            return u.get().getId();
+        }
+        return (requested != null && requested > 0) ? requested : null;
     }
 
     @Transactional

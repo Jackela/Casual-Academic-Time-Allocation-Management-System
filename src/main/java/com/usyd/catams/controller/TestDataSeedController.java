@@ -43,6 +43,14 @@ public class TestDataSeedController {
         }
 
         Long lecturerId = body != null ? body.lecturerId() : null;
+        // Normalize to the canonical lecturer user id to avoid mismatched ownership
+        Long resolvedLecturerId = seedService.resolveLecturerId(lecturerId);
+        if (resolvedLecturerId == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Unable to resolve lecturer id for seeding"
+            ));
+        }
         if (lecturerId == null || lecturerId <= 0) {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
@@ -50,10 +58,14 @@ public class TestDataSeedController {
             ));
         }
 
-        seedService.ensureLecturerCourses(lecturerId);
+        seedService.ensureLecturerCourses(resolvedLecturerId);
         if (body != null && body.seedTutors()) {
             seedService.ensureBasicTutors();
         }
+        // Ensure tutors are assigned to lecturer's courses for deterministic approval flows
+        seedService.ensureTutorAssignmentsForLecturerCourses(resolvedLecturerId);
+        // Seed minimal approval samples so queues/pages are usable in E2E
+        seedService.ensureMinimalApprovalSamples(resolvedLecturerId);
         // Ensure baseline admin/lecturer exist for UAT
         seedService.ensureBasicAdmin();
         seedService.ensureBasicLecturer();
@@ -62,7 +74,7 @@ public class TestDataSeedController {
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "seeded", true,
-                "lecturerId", lecturerId,
+                "lecturerId", resolvedLecturerId,
                 "accounts", accounts
         ));
     }

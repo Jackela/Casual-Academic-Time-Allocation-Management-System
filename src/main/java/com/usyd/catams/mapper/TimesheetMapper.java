@@ -62,11 +62,16 @@ public class TimesheetMapper {
         // Get rejection reason from approval history if applicable
         String rejectionReason = null;
         if (timesheet.getStatus() == com.usyd.catams.enums.ApprovalStatus.REJECTED) {
-            rejectionReason = timesheet.getApprovalsByAction(com.usyd.catams.enums.ApprovalAction.REJECT)
-                .stream()
-                .reduce((first, second) -> second) // Get the most recent rejection
-                .map(approval -> approval.getComment())
-                .orElse(null);
+            // Avoid triggering lazy initialization when approvals are not loaded
+            if (timesheet.getApprovals() != null && org.hibernate.Hibernate.isInitialized(timesheet.getApprovals())) {
+                rejectionReason = timesheet.getApprovalsByAction(com.usyd.catams.enums.ApprovalAction.REJECT)
+                    .stream()
+                    .reduce((first, second) -> second) // most recent rejection
+                    .map(approval -> approval.getComment())
+                    .orElse(null);
+            } else {
+                rejectionReason = null;
+            }
         }
 
         TimesheetResponse response = new TimesheetResponse(

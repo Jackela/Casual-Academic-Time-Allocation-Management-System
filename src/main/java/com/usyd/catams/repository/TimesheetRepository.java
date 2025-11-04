@@ -93,6 +93,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param status the approval status
      * @return list of timesheets
      */
+    @EntityGraph(attributePaths = {"approvals"})
     List<Timesheet> findByStatus(ApprovalStatus status);
     
     /**
@@ -102,6 +103,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param pageable the paging information
      * @return page of timesheets
      */
+    @EntityGraph(attributePaths = {"approvals"})
     Page<Timesheet> findByStatus(ApprovalStatus status, Pageable pageable);
     
     /**
@@ -301,6 +303,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param pageable paging and sorting information
      * @return page of timesheets pending tutor confirmation for the lecturer's courses
      */
+    @EntityGraph(attributePaths = {"approvals"})
     @Query("SELECT t FROM Timesheet t WHERE t.status = 'PENDING_TUTOR_CONFIRMATION' AND (" +
            "t.courseId IN (SELECT la.courseId FROM LecturerAssignment la WHERE la.lecturerId = :lecturerId) OR " +
            "t.courseId IN (SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId))")
@@ -343,6 +346,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
      * @param pageable paging and sorting information
      * @return page of timesheets confirmed by tutor, awaiting lecturer final confirmation
      */
+    @EntityGraph(attributePaths = {"approvals"})
     @Query("SELECT t FROM Timesheet t WHERE t.status = 'TUTOR_CONFIRMED' AND (" +
            "t.courseId IN (SELECT la.courseId FROM LecturerAssignment la WHERE la.lecturerId = :lecturerId) OR " +
            "t.courseId IN (SELECT c.id FROM Course c WHERE c.lecturerId = :lecturerId))")
@@ -351,6 +355,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     /**
      * Same as findApprovedByTutorByCourses but ensures the tutor is assigned to the course via TutorAssignment.
      */
+    @EntityGraph(attributePaths = {"approvals"})
     @Query("SELECT t FROM Timesheet t WHERE t.status = 'TUTOR_CONFIRMED' AND t.courseId IN " +
            "(SELECT la.courseId FROM LecturerAssignment la WHERE la.lecturerId = :lecturerId) AND EXISTS (" +
            "SELECT 1 FROM TutorAssignment a WHERE a.tutorId = t.tutorId AND a.courseId = t.courseId)")

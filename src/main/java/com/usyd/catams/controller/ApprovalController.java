@@ -90,6 +90,7 @@ public class ApprovalController {
     }
 
     @GetMapping("/pending")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ADMIN','LECTURER','TUTOR')")
     public ResponseEntity<List<TimesheetResponse>> getPendingConfirmations() {
         Long requesterId = authenticationFacade.getCurrentUserId();

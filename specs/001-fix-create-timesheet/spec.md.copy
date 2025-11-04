@@ -1,0 +1,83 @@
+# Feature Specification: Create Timesheet UI Unblock & Quote-Then-Create Alignment
+
+**Feature Branch**: `001-fix-create-timesheet`  
+**Created**: 2025-11-04  
+**Status**: Draft  
+**Input**: User description: "You have already identify the issues above, so spcified event is solving these issues"
+
+## Overview
+Lecturer “Create Timesheet” must work reliably regardless of dashboard loading state and must follow the EA-mandated Quote‑then‑Create workflow. This feature fixes the inert Create button during loading, ensures the modal is always mountable, and enforces quote gating and error UX so that authorization and validation failures guide users instead of blocking them.
+
+## Users & Roles
+- Lecturer: opens Create Timesheet, requests quote, submits consistent timesheet.
+- Tutor (indirect): referenced via picker restricted by assignments.
+- Admin (indirect): unaffected by UI changes; benefits from stable flows.
+
+## Assumptions
+- EA policy defines which fields drive quote and when delivery hours become read‑only.
+- Assignments (lecturer↔course, tutor↔course) exist or return empty; empty disables submission.
+- E2E runs may enable an auto-open behavior for the modal during testing only.
+
+## Functional Requirements
+- FR-001 Create entry always works: Clicking “Create Timesheet” opens a modal whether the dashboard is loading or loaded.
+- FR-002 Modal lifecycle: Focus is trapped inside the dialog; ESC closes it; focus returns to the opener.
+- FR-003 Assignments-restricted pickers: Course and Tutor options reflect lecturer assignments and filter bidirectionally.
+- FR-004 Quote triggers: Quote updates when any critical field changes (taskType, deliveryHours, qualification, isRepeat, sessionDate) with debounce and inflight cancellation.
+- FR-005 EA enforcement: When quote mandates, deliveryHours sync to quoted value and become read‑only; associated/payable and policy info display read‑only.
+- FR-006 Submit gating: Submit is disabled until a successful quote exists; on submit, re‑quote if any critical fields changed since last quote.
+- FR-007 Error UX mapping: 403 shows assignment guidance; 400 VALIDATION_FAILED maps inline to the offending field and moves focus there.
+- FR-008 Empty/Retry states: If no assignments load, show empty-state and keep Submit disabled; provide retry on load failure.
+
+## Non‑Functional Requirements
+- NFR-001 Responsiveness: Click→modal-open ≤ 200ms on typical laptops.
+- NFR-002 Accessibility: Dialog has correct roles/labels and working focus trap; keyboard-only workflows pass.
+- NFR-003 Observability: Record quote latency and create outcomes without PII.
+- NFR-004 Determinism (tests): E2E suite runs reliably when backend uses test/e2e-local seed.
+
+## User Stories (Prioritized)
+- US1 (P1): As a Lecturer, I can open the Create Timesheet modal from my dashboard at any time, even while data is still loading.
+  - Independent Test: From a fresh page load with slow dashboard queries, clicking the button opens the modal and traps focus.
+  - Acceptance:
+    1) Given the dashboard is loading, when I click Create, then a modal opens and has role="dialog" with focus inside.
+    2) Given the modal is open, when I press ESC, then the modal closes and focus returns to the Create button.
+
+- US2 (P1): As a Lecturer, as I fill/adjust key fields, a quote is produced and the form updates to reflect EA rules.
+  - Independent Test: Changing task type and hours results in a new quote; read‑only/derived fields update accordingly.
+  - Acceptance:
+    1) Given I change delivery hours, when the quote resolves, then derived fields and any read‑only constraints update.
+    2) Given a quote fails, when I attempt to submit, then Submit remains disabled and I see a retry quote prompt.
+
+- US3 (P1): As a Lecturer, I can submit a timesheet only after a successful quote that reflects my current inputs.
+  - Independent Test: After a quote is successful and unchanged inputs, submit succeeds; if inputs changed, re‑quote first.
+  - Acceptance:
+    1) Given a successful quote exists, when I submit without changing critical fields, then the create operation succeeds.
+    2) Given I changed a critical field post-quote, when I submit, then a re‑quote occurs and only then submit proceeds.
+
+- US4 (P2): As a Lecturer, I get actionable guidance when I lack authorization or my inputs fail validation.
+  - Independent Test: 403 shows assignment guidance; 400 VALIDATION_FAILED surfaces inline field message and moves focus.
+  - Acceptance:
+    1) Given I am not assigned, when I try to create, then I see guidance to select a permitted course/tutor.
+    2) Given my hours are invalid, when I quote/submit, then the invalid field shows an error and gets focus.
+
+## Success Criteria
+- ≥ 95% of attempts to open the Create modal succeed within 200ms in manual measurement.
+- 0 known a11y violations related to dialog roles and keyboard traps on supported browsers.
+- ≥ 90% of quote attempts complete within 1.0s in typical test environments; failures surface actionable messages.
+- Full E2E suite for Create/Quote flows passes under Docker with test profile enabled.
+
+## Key Entities
+- Timesheet draft: fields required to request quote and create.
+- Quote result: read‑only flags, computed hours (associated, payable), rate/policy descriptors.
+- Assignment sets: course/tutor options the lecturer may select.
+
+## Edge Cases
+- No assignments → picker disabled, empty-state message, Submit disabled.
+- Rapid field edits → only the latest quote result applies (canceled inflight requests).
+- Quote failure → visible banner + inline guidance; Submit blocked until resolved.
+- Auth expired mid-flow → error message; modal remains usable after re-auth.
+
+## Out of Scope
+- Changing EA policy logic itself.
+- Admin workflows unrelated to Create/Quote.
+
+

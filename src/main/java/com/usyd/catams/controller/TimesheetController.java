@@ -152,6 +152,7 @@ public class TimesheetController {
      * Access control: allowed for TUTOR (own pending) and ADMIN (all), forbidden for LECTURER.
      */
     @GetMapping("/pending-approval")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @PreAuthorize("hasRole('TUTOR') or hasRole('ADMIN')")
     public ResponseEntity<PagedTimesheetResponse> getPendingApprovalTimesheets(
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -250,6 +251,7 @@ public class TimesheetController {
     }
 
     @GetMapping("/pending-final-approval")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @PreAuthorize("hasRole('LECTURER') or hasRole('ADMIN')")
     public ResponseEntity<PagedTimesheetResponse> getPendingFinalApprovalTimesheets(
             @RequestParam(value = "page", defaultValue = "0") int page,
