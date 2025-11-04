@@ -161,6 +161,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     error: timesheetsError,
     timesheets: allTimesheets,
     refetch: refreshTimesheets,
+    optimisticRemove,
   } = useAdminPendingApprovals();
 
   const {
@@ -408,6 +409,8 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
         action,
         comment: action === 'HR_CONFIRM' ? 'Approved timesheet' : undefined,
       });
+      // Optimistically remove the approved row from the pending list for immediate UX feedback
+      try { optimisticRemove(timesheetId); } catch {}
       await Promise.all([refreshTimesheets(), refetchDashboard()]);
       setSelectedTimesheets((previous) => previous.filter((id) => id !== timesheetId));
     } catch (error) {

@@ -46,22 +46,19 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
   await expect.poll(async () => await approveBtn.isVisible(), { timeout: 15000 }).toBe(true);
   await approveBtn.click();
   await approvalsDone;
-  // Force a list refresh to ensure our intercept returns an empty list post-approval
+  // Force a list refresh to ensure pending list reflects the approval
   const refreshBtn = page.getByRole('button', { name: /^Refresh$/i }).first();
   if (await refreshBtn.isVisible().catch(() => false)) {
     await refreshBtn.click().catch(() => undefined);
   }
-  // After approval, list should refresh and the approved item should be removed
+  // After approval, explicitly wait for the admin pending endpoint to refresh
   await page
-    .waitForResponse((r) => r.url().includes('/api/timesheets') && r.request().method() === 'GET' && r.ok())
+    .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET' && r.ok())
     .catch(() => undefined);
-  // The seeded row should no longer be present
-  await expect(pendingRegion.getByText(seeded.description)).toHaveCount(0, { timeout: 15000 });
-  // Defensive: ensure no row matching the seeded description is present
+  // The seeded row should no longer be present (scope to table rows to avoid duplicate matches)
   const tableAfter = pendingRegion.getByTestId('timesheets-table').first();
-  await expect(
-    tableAfter.getByRole('row').filter({ hasText: seeded.description })
-  ).toHaveCount(0, { timeout: 15000 });
+  // Prefer stable row test id to avoid matching other cells containing the same description
+  await expect(pendingRegion.getByTestId(`timesheet-row-${seeded.id}`)).toHaveCount(0, { timeout: 15000 });
   await page.waitForLoadState('networkidle').catch(() => undefined);
 });
 
@@ -83,10 +80,10 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
       .waitForResponse((r) => r.url().includes('/api/timesheets') && r.request().method() === 'GET' && r.ok())
       .catch(() => undefined);
 
-    // Find the seeded row by description and approve from that row to avoid picking the wrong panel
-    const row = table.getByRole('row').filter({ hasText: seeded.description }).first();
-    await expect(row).toBeVisible({ timeout: 15000 });
-    const approveBtn = row.getByRole('button', { name: /(Final Approve|Approve)/i }).first();
+  // Find the seeded row by id to avoid matching rows with identical descriptions
+  const row = table.getByTestId(`timesheet-row-${seeded.id}`).first();
+  await expect(row).toBeVisible({ timeout: 15000 });
+  const approveBtn = row.getByTestId('admin-final-approve-btn').getByRole('button', { name: /(Final Approve|Approve)/i }).first();
     await expect(approveBtn).toBeVisible({ timeout: 15000 });
     const respPromise = page.waitForResponse((r) => r.url().includes('/api/approvals') && r.request().method() === 'POST');
     await approveBtn.click();
