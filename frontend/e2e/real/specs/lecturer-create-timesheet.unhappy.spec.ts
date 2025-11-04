@@ -27,11 +27,9 @@ test.describe('Lecturer Create Timesheet – Unhappy Paths', () => {
     const hours = page.getByLabel('Delivery Hours');
     await expect(hours).toBeEnabled();
 
-    // Enter invalid hours beyond max
+    // Enter invalid hours beyond max and wait for error to render
     await hours.fill('999');
     await hours.blur();
-
-    // Expect error message and disabled submit
     await expect(page.getByText(/Delivery hours must be between/i)).toBeVisible();
     const submit = page.getByTestId('lecturer-create-modal').getByRole('button', { name: 'Create Timesheet' });
     await expect(submit).toBeDisabled();
@@ -62,7 +60,7 @@ test.describe('Lecturer Create Timesheet – Unhappy Paths', () => {
     const nextYear = new Date().getFullYear() + 1;
     await wk.fill(`${nextYear}-01-06`);
     await wk.blur();
-
+    // Wait for future-date error to render before asserting disabled
     await expect(page.getByText(/cannot be in the future/i)).toBeVisible();
     await expect(page.getByTestId('lecturer-create-modal').getByRole('button', { name: 'Create Timesheet' })).toBeDisabled();
   });

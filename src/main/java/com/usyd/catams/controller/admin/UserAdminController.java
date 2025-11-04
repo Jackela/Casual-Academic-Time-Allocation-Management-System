@@ -101,11 +101,10 @@ public class UserAdminController {
     @GetMapping("/{tutorId}/assignments")
     @PreAuthorize("hasRole('ADMIN') or hasRole('LECTURER')")
     public ResponseEntity<Map<String, List<Long>>> getAssignments(@PathVariable("tutorId") Long tutorId) {
+        // In e2e-local profile, fully bypass H2 and use in-memory map for deterministic behavior
         if (environment != null && environment.acceptsProfiles(Profiles.of("e2e-local"))) {
-            var cached = E2E_TUTOR_ASSIGNMENTS.get(tutorId);
-            if (cached != null) {
-                return ResponseEntity.ok(Map.of("courseIds", cached));
-            }
+            var cached = E2E_TUTOR_ASSIGNMENTS.getOrDefault(tutorId, java.util.List.of());
+            return ResponseEntity.ok(Map.of("courseIds", cached));
         }
         var list = assignmentRepository.findByTutorId(tutorId);
         var courseIds = list.stream().map(TutorAssignment::getCourseId).distinct().toList();
