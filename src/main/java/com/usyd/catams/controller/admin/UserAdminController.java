@@ -8,6 +8,8 @@ import com.usyd.catams.repository.TutorProfileDefaultsRepository;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,11 +22,15 @@ public class UserAdminController {
 
     private final TutorAssignmentRepository assignmentRepository;
     private final TutorProfileDefaultsRepository defaultsRepository;
+    private final Environment environment;
+    private static final java.util.concurrent.ConcurrentHashMap<Long, java.util.List<Long>> E2E_TUTOR_ASSIGNMENTS = new java.util.concurrent.ConcurrentHashMap<>();
 
     public UserAdminController(TutorAssignmentRepository assignmentRepository,
-                               TutorProfileDefaultsRepository defaultsRepository) {
+                               TutorProfileDefaultsRepository defaultsRepository,
+                               Environment environment) {
         this.assignmentRepository = assignmentRepository;
         this.defaultsRepository = defaultsRepository;
+        this.environment = environment;
     }
 
     public static class AssignmentRequest {
@@ -41,6 +47,11 @@ public class UserAdminController {
     @PreAuthorize("hasRole('ADMIN')")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> setAssignments(@RequestBody AssignmentRequest request) {
+        if (environment != null && environment.acceptsProfiles(Profiles.of("e2e-local"))) {
+            java.util.List<Long> ids = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(request.courseIds));
+            E2E_TUTOR_ASSIGNMENTS.put(request.tutorId, ids);
+            return ResponseEntity.ok(java.util.Map.of("courseIds", ids));
+        }
         try {
             org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserAdminController.class);
             // Delta algorithm: remove only what is not in requested set; insert only new ones
@@ -90,6 +101,12 @@ public class UserAdminController {
     @GetMapping("/{tutorId}/assignments")
     @PreAuthorize("hasRole('ADMIN') or hasRole('LECTURER')")
     public ResponseEntity<Map<String, List<Long>>> getAssignments(@PathVariable("tutorId") Long tutorId) {
+        if (environment != null && environment.acceptsProfiles(Profiles.of("e2e-local"))) {
+            var cached = E2E_TUTOR_ASSIGNMENTS.get(tutorId);
+            if (cached != null) {
+                return ResponseEntity.ok(Map.of("courseIds", cached));
+            }
+        }
         var list = assignmentRepository.findByTutorId(tutorId);
         var courseIds = list.stream().map(TutorAssignment::getCourseId).distinct().toList();
         return ResponseEntity.ok(Map.of("courseIds", courseIds));

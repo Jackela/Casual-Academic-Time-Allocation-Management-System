@@ -426,6 +426,7 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     return idx >= 0 ? s.substring(idx + 1).length : 0;
   })();
   const tutorialHoursInvalid = fTask === 'TUTORIAL' && Number.isFinite(numHours) && numHours !== 1.0;
+  const lectureHoursInvalid = fTask === 'LECTURE' && (!Number.isFinite(numHours) || Number(numHours) <= 0);
   const rangeInvalid = Number.isFinite(numHours) && (numHours < hoursMin || numHours > hoursMax);
   const decimalsInvalid = (() => {
     if (!Number.isFinite(numHours)) return false;
@@ -445,6 +446,7 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
   const disableSubmit = (
     loading ||
     tutorialHoursInvalid ||
+    lectureHoursInvalid ||
     rangeInvalid ||
     decimalsInvalid ||
     weekFutureInvalid ||
@@ -588,6 +590,9 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
               onChange={(e) => setValue('weekStartDate', e.target.value, { shouldDirty: true })}
               data-testid={isLecturerMode ? 'create-week-start-input' : undefined}
             />
+            {weekFutureInvalid && (
+              <div className="text-xs text-destructive" role="alert">Week start cannot be in the future</div>
+            )}
             {/* Selected label to support E2E checks */}
             <span className="text-xs text-muted-foreground" data-testid="calendar-selected-label">
               {(() => {
@@ -716,6 +721,12 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
               ? 'Tutorial delivery is fixed at 1.0h; associated time is added per EA Schedule 1.'
               : `Enter the in-class delivery hours (${hoursMin} - ${hoursMax})`}
           </span>
+          {rangeInvalid && (
+            <div className="text-xs text-destructive" role="alert">{rangeText}</div>
+          )}
+          {lectureHoursInvalid && fTask === 'LECTURE' && (
+            <div className="text-xs text-destructive" role="alert">Lecture delivery hours must be greater than 0.</div>
+          )}
           {fieldError.field === 'deliveryHours' && (
             <div className="text-xs text-destructive" role="alert">{fieldError.message}</div>
           )}
