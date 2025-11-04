@@ -489,14 +489,7 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
         <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-center text-sm text-destructive">{friendlyError}</div>
       )}
 
-      {quoteState.status === 'error' && (
-        <div className="mb-4 flex items-center justify-between rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-          <span>{quoteState.error ?? 'Unable to calculate pay with EA rules.'}</span>
-          <Button type="button" variant="outline" size="sm" onClick={() => setQuoteRetryTick(t => t + 1)}>Retry quote</Button>
-        </div>
-      )}
-
-  {/* Rejection feedback (edit mode) */}
+      {/* Rejection feedback (edit mode) */}
   {isEdit && initialData?.status === 'REJECTED' && initialData?.rejectionReason && (
     <div data-testid="rejection-feedback-section" className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3">
       <p data-testid="rejection-feedback-title" className="text-sm font-semibold text-amber-900">Lecturer Feedback</p>
