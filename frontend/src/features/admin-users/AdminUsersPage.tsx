@@ -502,14 +502,14 @@ export default function AdminUsersPage() {
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
             {requestState === 'loading' && (
-              <tr>
+              <tr key="loading-row">
                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">
                   Loading users…
                 </td>
               </tr>
             )}
             {requestState !== 'loading' && sortedUsers.length === 0 && (
-              <tr>
+              <tr key="empty-row">
                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">
                   No users found. Create the first user to get started.
                 </td>

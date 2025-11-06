@@ -53,7 +53,24 @@ const performLoginAndPersist = async () => {
       }
     }, { keys: STORAGE_KEYS, sessionData: session });
 
-    await page.goto(E2E_CONFIG.FRONTEND.URL, { waitUntil: 'domcontentloaded' });
+    // Navigate with simple retry/backoff to tolerate initial Vite warm-up under Docker
+    {
+      const maxAttempts = 3;
+      let attempt = 0;
+      let success = false;
+      while (attempt < maxAttempts && !success) {
+        try {
+          await page.goto(E2E_CONFIG.FRONTEND.URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          // Ensure root exists before proceeding
+          await page.waitForSelector('#root', { timeout: 10000 });
+          success = true;
+        } catch (e) {
+          attempt += 1;
+          if (attempt >= maxAttempts) throw e;
+          await page.waitForTimeout(2000);
+        }
+      }
+    }
     // Persist an E2E flag to force-open the create modal on dashboard mounts
     try {
       await page.evaluate(() => {

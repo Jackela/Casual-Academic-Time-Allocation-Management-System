@@ -67,6 +67,9 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
     refreshTimesheets,
     refetchDashboard,
     resetApproval,
+    // success feedback wiring
+    lastActionSuccess,
+    clearLastActionSuccess,
   } = useAdminDashboardData();
 
   devLog('[AdminDashboardShell] render start', {
@@ -208,6 +211,25 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
                   onDismiss={resetApproval}
                   data-testid="approval-error-banner"
                 />
+              )}
+
+              {actionState.isSubmitting === false && (lastActionSuccess as any) && (
+                <div
+                  className="mt-2 rounded-md border border-emerald-400 bg-emerald-50 p-3 text-emerald-900"
+                  role="status"
+                  data-testid="approval-success-banner"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{String(lastActionSuccess)}</span>
+                    <button
+                      type="button"
+                      className="text-sm underline"
+                      onClick={() => { try { (clearLastActionSuccess as any)(); } catch {} }}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
               )}
             </header>
 

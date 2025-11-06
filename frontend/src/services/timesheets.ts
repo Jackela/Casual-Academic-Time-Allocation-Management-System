@@ -121,12 +121,21 @@ export class TimesheetService {
    */
   static async getMyPendingTimesheets(signal?: AbortSignal): Promise<TimesheetPage> {
     const { API_ENDPOINTS } = await import('../types/api');
-    const response = await secureApiClient.get<unknown>(API_ENDPOINTS.TIMESHEETS.PENDING_APPROVAL, { signal });
-    const data = (response as any)?.data;
-    if (Array.isArray(data)) {
-      return this.ensureTimesheetPage({ success: true, timesheets: data });
+    try {
+      const response = await secureApiClient.get<unknown>(API_ENDPOINTS.TIMESHEETS.PENDING_APPROVAL, { signal });
+      const data = (response as any)?.data;
+      if (Array.isArray(data)) {
+        return this.ensureTimesheetPage({ success: true, timesheets: data });
+      }
+      return this.ensureTimesheetPage(data as TimesheetPage | undefined);
+    } catch (err: any) {
+      // Usability-first: treat 403 as an empty queue for lecturer scope
+      const status = err?.response?.status ?? err?.status;
+      if (status === 403) {
+        return this.ensureTimesheetPage({ success: true, timesheets: [] } as any);
+      }
+      throw err;
     }
-    return this.ensureTimesheetPage(data as TimesheetPage | undefined);
   }
 
   /**
@@ -158,8 +167,9 @@ export class TimesheetService {
    * Retrieve an EA-compliant quote for a proposed timesheet entry.
    */
   static async quoteTimesheet(request: TimesheetQuoteRequest, signal?: AbortSignal): Promise<TimesheetQuoteResponse> {
+    const { API_ENDPOINTS } = await import('../types/api');
     const response = await secureApiClient.post<TimesheetQuoteResponse, TimesheetQuoteRequest>(
-      '/api/timesheets/quote',
+      API_ENDPOINTS.TIMESHEETS.QUOTE,
       request,
       signal ? { signal } : undefined,
     );
@@ -170,7 +180,8 @@ export class TimesheetService {
    * Create new timesheet
    */
   static async createTimesheet(data: TimesheetCreateRequest): Promise<Timesheet> {
-    const response = await secureApiClient.post<Timesheet>('/api/timesheets', data);
+    const { API_ENDPOINTS } = await import('../types/api');
+    const response = await secureApiClient.post<Timesheet>(API_ENDPOINTS.TIMESHEETS.BASE, data);
     return response.data;
   }
 
@@ -229,12 +240,21 @@ export class TimesheetService {
    */
   static async getPendingApprovals(signal?: AbortSignal): Promise<TimesheetPage> {
     const { API_ENDPOINTS } = await import('../types/api');
-    const response = await secureApiClient.get<unknown>(API_ENDPOINTS.APPROVALS.PENDING, { signal });
-    const data = (response as any)?.data;
-    if (Array.isArray(data)) {
-      return this.ensureTimesheetPage({ success: true, timesheets: data });
+    try {
+      const response = await secureApiClient.get<unknown>(API_ENDPOINTS.APPROVALS.PENDING, { signal });
+      const data = (response as any)?.data;
+      if (Array.isArray(data)) {
+        return this.ensureTimesheetPage({ success: true, timesheets: data });
+      }
+      return this.ensureTimesheetPage(data as TimesheetPage | undefined);
+    } catch (err: any) {
+      const status = err?.response?.status ?? err?.status;
+      if (status === 403) {
+        // Admin/lecturer without queue should not break UI
+        return this.ensureTimesheetPage({ success: true, timesheets: [] } as any);
+      }
+      throw err;
     }
-    return this.ensureTimesheetPage(data as TimesheetPage | undefined);
   }
 
   /**

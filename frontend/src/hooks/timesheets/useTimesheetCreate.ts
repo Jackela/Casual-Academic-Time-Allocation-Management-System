@@ -50,6 +50,16 @@ export const useTimesheetCreate = (): UseTimesheetCreateResult => {
       const duplicateHint = /already exists/i.test(String(payloadMessage ?? ''));
       if (status === 409 || code === 'RESOURCE_CONFLICT' || duplicateHint) {
         message = "A timesheet already exists for this tutor, course, and week. Please choose a different week or edit the existing one.";
+        try {
+          // Emit an explicit field-level error signal so forms can render inline errors deterministically
+          const evt = new CustomEvent('catams-create-field-error', {
+            detail: {
+              field: 'weekStartDate',
+              message,
+            },
+          } as CustomEventInit);
+          window.dispatchEvent(evt);
+        } catch {}
       } else if (status === 403 || code === 'AUTHORIZATION_FAILED') {
         message = "Creation failed: you are not assigned to this course or tutor.";
       } else if (status === 400 && (code === 'VALIDATION_FAILED' || payloadMessage)) {

@@ -410,6 +410,7 @@ export const API_ENDPOINTS = {
     PENDING: '/api/timesheets/pending-final-approval',
     ME: '/api/timesheets/me',
     PENDING_APPROVAL: '/api/timesheets/pending-approval',
+    QUOTE: '/api/timesheets/quote',
     CONFIRM: (id: number) => `/api/timesheets/${id}/confirm`,
     BY_TUTOR: (tutorId: number) => `/api/timesheets/tutor/${tutorId}`,
     BY_COURSE: (courseId: number) => `/api/timesheets/course/${courseId}`,

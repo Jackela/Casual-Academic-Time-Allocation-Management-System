@@ -65,6 +65,9 @@ test.describe('Real Backend Timesheet Operations', () => {
 
     await page.reload({ waitUntil: 'domcontentloaded' });
     await dashboard.waitForDashboardReady();
+    await page
+      .waitForResponse((r) => r.url().includes('/api/timesheets') && r.request().method() === 'GET')
+      .catch(() => undefined);
     const row = dashboard.getTimesheetRow(seed.id, seed.description);
     await expect(row).toBeVisible({ timeout: 20000 });
     await expect(dashboard.getStatusBadge(seed.id)).toContainText(statusLabel('DRAFT'));
@@ -82,10 +85,17 @@ test.describe('Real Backend Timesheet Operations', () => {
 
     await page.reload({ waitUntil: 'domcontentloaded' });
     await dashboard.waitForDashboardReady();
+    await page
+      .waitForResponse((r) => r.url().includes('/api/timesheets') && r.request().method() === 'GET')
+      .catch(() => undefined);
     const row = dashboard.getTimesheetRow(draft.id, draft.description);
     await expect(row).toBeVisible({ timeout: 20000 });
 
     await dashboard.submitDraft(draft.id);
+    // Anchor on tutor pending list refresh before asserting status transition
+    await page
+      .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+      .catch(() => undefined);
     await expect(dashboard.getStatusBadge(draft.id)).toHaveText(
       statusLabelPattern('PENDING_TUTOR_CONFIRMATION'),
       { timeout: 20000 }
@@ -116,3 +126,4 @@ test.describe('Real Backend Timesheet Operations', () => {
     expect(error).toMatchObject({ success: false });
   });
 });
+

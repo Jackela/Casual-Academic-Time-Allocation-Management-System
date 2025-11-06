@@ -73,6 +73,12 @@ test.describe('Critical User Journeys', () => {
       await expect(tutorDashboard.getStatusBadge(seed.id)).toContainText(statusLabel('PENDING_TUTOR_CONFIRMATION'));
       const confirmResponse = await tutorDashboard.confirmTimesheet(seed.id);
       expect(confirmResponse.status()).toBe(200);
+      await page
+        .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+        .catch(() => undefined);
+      await page
+        .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+        .catch(() => undefined);
       await expect(tutorDashboard.getStatusBadge(seed.id)).toHaveText(
         statusLabelPattern('TUTOR_CONFIRMED'),
         { timeout: 20000 }
@@ -92,6 +98,13 @@ test.describe('Critical User Journeys', () => {
         },
       });
       expect(finalApproval.ok()).toBeTruthy();
+      // Anchor on admin pending list refresh after final confirm
+      await page
+        .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+        .catch(() => undefined);
+      await page
+        .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+        .catch(() => undefined);
 
       await expect(async () => {
         const detail = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${seed.id}`, {
@@ -106,3 +119,6 @@ test.describe('Critical User Journeys', () => {
     });
   });
 });
+
+
+

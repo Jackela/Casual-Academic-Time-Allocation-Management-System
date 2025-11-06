@@ -121,11 +121,8 @@ public class SecurityConfig {
             "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
         ));
 
-        configuration.setAllowedHeaders(Arrays.asList(
-            "Authorization", "Content-Type", "X-Requested-With",
-            "Accept", "Origin", "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"
-        ));
+        // Allow all headers to simplify CORS for E2E/dev
+        configuration.setAllowedHeaders(java.util.List.of("*"));
 
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);

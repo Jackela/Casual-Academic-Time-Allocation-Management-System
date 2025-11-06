@@ -2,6 +2,9 @@ package com.usyd.catams.controller;
 
 import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.LecturerAssignmentRepository;
+import com.usyd.catams.e2e.E2EAssignmentState;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -26,11 +29,17 @@ public class CourseUsersController {
 
     private final TutorAssignmentRepository tutorAssignmentRepository;
     private final LecturerAssignmentRepository lecturerAssignmentRepository;
+    private final E2EAssignmentState e2eState; // may be null outside e2e-local
+    private final Environment environment; // may be null in some contexts
 
     public CourseUsersController(TutorAssignmentRepository tutorAssignmentRepository,
-                                 LecturerAssignmentRepository lecturerAssignmentRepository) {
+                                 LecturerAssignmentRepository lecturerAssignmentRepository,
+                                 E2EAssignmentState e2eState,
+                                 Environment environment) {
         this.tutorAssignmentRepository = tutorAssignmentRepository;
         this.lecturerAssignmentRepository = lecturerAssignmentRepository;
+        this.e2eState = e2eState;
+        this.environment = environment;
     }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('LECTURER')")
@@ -57,9 +66,13 @@ public class CourseUsersController {
                 return ResponseEntity.status(403).build();
             }
             boolean assigned = false;
-            try {
-                assigned = lecturerAssignmentRepository.existsByLecturerIdAndCourseId(userId, courseId);
-            } catch (Exception ignored) {}
+            // Prefer in-memory assignment state when available to keep E2E deterministic
+            if (e2eState != null) {
+                try { assigned = e2eState.getLecturerCourses(userId).contains(courseId); } catch (Exception ignored) {}
+            }
+            if (!assigned) {
+                try { assigned = lecturerAssignmentRepository.existsByLecturerIdAndCourseId(userId, courseId); } catch (Exception ignored) {}
+            }
             if (!assigned) {
                 return ResponseEntity.status(403).build();
             }

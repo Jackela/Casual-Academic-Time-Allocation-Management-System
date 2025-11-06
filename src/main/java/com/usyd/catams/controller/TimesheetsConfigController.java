@@ -1,25 +1,32 @@
 package com.usyd.catams.controller;
 
-import com.usyd.catams.dto.response.TimesheetsConfigResponse;
-import com.usyd.catams.service.TimesheetsConfigService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
-@RequestMapping(path = "/api/timesheets", produces = MediaType.APPLICATION_JSON_VALUE)
 public class TimesheetsConfigController {
 
-    private final TimesheetsConfigService service;
+    @GetMapping(path = "/api/timesheets/config", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Object> getUiConstraints() {
+        Map<String, Object> root = new HashMap<>();
 
-    public TimesheetsConfigController(TimesheetsConfigService service) {
-        this.service = service;
-    }
+        Map<String, Object> hours = new HashMap<>();
+        hours.put("min", 0.1d);
+        hours.put("max", 10.0d);
+        hours.put("step", 0.1d);
 
-    @GetMapping("/config")
-    public TimesheetsConfigResponse getConfig() {
-        return service.getUiConstraints();
+        Map<String, Object> weekStart = new HashMap<>();
+        weekStart.put("mondayOnly", true);
+
+        root.put("hours", hours);
+        root.put("weekStart", weekStart);
+        root.put("currency", "AUD");
+
+        return root;
     }
 }
 

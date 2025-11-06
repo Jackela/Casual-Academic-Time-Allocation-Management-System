@@ -14,6 +14,7 @@ export interface UseAdminPendingApprovalsResult extends PendingApprovalsState {
   timesheets: TimesheetPage['timesheets'];
   pageInfo: TimesheetPage['pageInfo'] | null;
   isEmpty: boolean;
+  optimisticRemove: (id: number) => void;
 }
 
 const NOT_AUTHENTICATED_ERROR = 'Not authenticated';
@@ -108,6 +109,23 @@ export const useAdminPendingApprovals = (): UseAdminPendingApprovalsResult => {
     timesheets,
     pageInfo,
     isEmpty: !state.loading && timesheets.length === 0,
+    optimisticRemove: (id: number) => {
+      setState((prev) => {
+        const current = prev.data;
+        if (!current) return prev;
+        const next = {
+          ...current,
+          timesheets: current.timesheets.filter((t) => t.id !== id),
+          pageInfo: {
+            ...current.pageInfo,
+            totalElements: Math.max(0, (current.pageInfo?.totalElements ?? 0) - 1),
+            numberOfElements: Math.max(0, (current.pageInfo?.numberOfElements ?? 0) - 1),
+            empty: current.timesheets.length - 1 <= 0,
+          },
+        } as TimesheetPage;
+        return { ...prev, data: next };
+      });
+    },
   };
 };
 

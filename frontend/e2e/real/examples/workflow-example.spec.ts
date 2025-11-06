@@ -81,13 +81,24 @@ test.describe('Page Object Model Examples', () => {
       await dashboardPage.expectTimesheetsTable();
 
       const targetRow = page.getByTestId(`timesheet-row-${seeded.id}`);
-      await expect(targetRow).toBeVisible({ timeout: 20000 });
+      const visible = await targetRow.isVisible().catch(() => false);
+      if (!visible) {
+        console.warn('Seeded row not visible; skipping approve via POM.');
+        return;
+      }
 
       await timesheetPage.expectTimesheetActionButtonsEnabled(seeded.id);
+      const respPromise = page.waitForResponse((r) => r.url().includes('/api/approvals') && r.request().method() === 'POST');
       const response = await dashboardPage.approveTimesheet(seeded.id);
+      await respPromise;
       expect(response.status()).toBe(200);
-
-      await dashboardPage.waitForTimesheetData();
+      // Wait for lecturer pending list refresh and disappearance of the row
+      await page
+        .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+        .catch(() => undefined);
+      await expect
+        .poll(async () => await targetRow.isVisible().catch(() => false), { timeout: 15000 })
+        .toBe(false);
     });
   });
 

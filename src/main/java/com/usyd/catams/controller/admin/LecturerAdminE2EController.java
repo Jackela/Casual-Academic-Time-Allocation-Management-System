@@ -31,6 +31,7 @@ public class LecturerAdminE2EController {
     }
 
     @PostMapping("/assignments")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> setAssignments(@RequestBody AssignmentRequest request) {
         var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
@@ -43,6 +44,7 @@ public class LecturerAdminE2EController {
     }
 
     @GetMapping("/{lecturerId}/assignments")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getAssignments(@PathVariable Long lecturerId) {
         return ResponseEntity.ok(java.util.Map.of("courseIds", state.getLecturerCourses(lecturerId)));
     }

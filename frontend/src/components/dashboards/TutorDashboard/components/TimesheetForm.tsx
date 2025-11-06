@@ -219,6 +219,15 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     }
   }, [isLecturerMode, internalTutorId, visibleTutorOptions, fQual, setValue]);
 
+  // Force a fresh quote cycle immediately when the tutor changes in lecturer mode
+  // to ensure the request carries the updated tutorId before any subsequent field changes
+  useEffect(() => {
+    if (!isLecturerMode) return;
+    try {
+      setQuoteRetryTick((n) => n + 1);
+    } catch {}
+  }, [isLecturerMode, internalTutorId]);
+
   // Quote state
   const [quoteState, setQuoteState] = useState<QuoteState>({ status: 'idle', data: null, error: null });
   const controllerRef = useRef<AbortController | null>(null);
@@ -227,10 +236,11 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
   const lastQuotedInputRef = useRef<TimesheetQuoteRequest | null>(null);
   const [quoteRetryTick, setQuoteRetryTick] = useState(0);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tutorChangedAtRef = useRef<number>(0);
 
   // Field-level error mapping for backend 400 VALIDATION_FAILED
   const deliveryHoursRef = useRef<HTMLInputElement | null>(null);
-  const [fieldError, setFieldError] = useState<{ field: 'deliveryHours' | null; message: string | null }>({ field: null, message: null });
+  const [fieldError, setFieldError] = useState<{ field: 'deliveryHours' | 'weekStartDate' | null; message: string | null }>({ field: null, message: null });
 
   const resolvedTutorId = isLecturerMode ? internalTutorId : tutorId;
   const rangeText = `Delivery hours must be between ${hoursMin} and ${hoursMax}`;
@@ -255,18 +265,24 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
 
     const buildLatestPayload = () => {
       const v = getValues();
+      const selectedTutor = visibleTutorOptions.find(t => t.id === resolvedTutorId);
+      const derivedQual = (selectedTutor?.qualification || v.qualification || DEFAULT_QUALIFICATION) as TutorQualification;
       return {
         tutorId: resolvedTutorId,
         courseId: Number(v.courseId),
         sessionDate: String(v.weekStartDate),
         taskType: v.taskType,
-        qualification: v.qualification,
+        qualification: derivedQual,
         isRepeat: Boolean(v.isRepeat),
         deliveryHours: Number(v.deliveryHours || 0),
       } as const;
     };
 
     if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); }
+    const nowTs = Date.now();
+    const sinceTutorChange = nowTs - (tutorChangedAtRef.current || 0);
+    const tutorSettleExtra = Math.max(0, 200 - sinceTutorChange);
+    const emitDelay = 300 + tutorSettleExtra;
     debounceTimerRef.current = setTimeout(() => {
       TimesheetService.quoteTimesheet(buildLatestPayload(), controller.signal)
         .then(resp => {
@@ -280,10 +296,11 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
           const msg = err instanceof Error ? err.message : 'Unable to calculate pay with EA rules.';
           setQuoteState(prev => ({ status: 'error', data: prev.data, error: msg }));
         });
-    }, 300);
+    }, emitDelay);
 
-    // Immediate microtask re-check to avoid missing an emission due to rapid field commits
-    queueMicrotask(() => {
+    // Immediate microtask re-check (skip if within tutor-change settling window)
+    const withinTutorSettle = (Date.now() - (tutorChangedAtRef.current || 0)) < 200;
+    if (!withinTutorSettle) queueMicrotask(() => {
       if (controllerRef.current && !controllerRef.current.signal.aborted) return;
       if (seqRef.current !== mySeq) return;
       const stillReadyNow = resolvedTutorId > 0 && fCourseId > 0 && !!fWeek && (fHours || 0) > 0;
@@ -362,12 +379,14 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
   const onFormSubmit = handleSubmit(async () => {
     if (loading) return;
     const v = getValues();
+    const selectedTutor = visibleTutorOptions.find(t => t.id === resolvedTutorId);
+    const derivedQual = (selectedTutor?.qualification || v.qualification || DEFAULT_QUALIFICATION) as TutorQualification;
     const currentPayload: TimesheetQuoteRequest = {
       tutorId: resolvedTutorId,
       courseId: Number(v.courseId),
       sessionDate: String(v.weekStartDate),
       taskType: v.taskType,
-      qualification: v.qualification,
+      qualification: derivedQual,
       isRepeat: Boolean(v.isRepeat),
       deliveryHours: Number(v.deliveryHours || 0),
     };
@@ -457,7 +476,7 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
   const friendlyError = useMemo(() => {
     if (!error) return null;
     const msg = String(error).toLowerCase();
-    if (msg.includes('already exists') || (msg.includes('exists') && (msg.includes('tutor') || msg.includes('week')))) {
+  if (msg.includes('already exists') || (msg.includes('exists') && (msg.includes('tutor') || msg.includes('week')))) {
       return 'A timesheet already exists for this tutor, course, and week';
     }
     return String(error);
@@ -473,10 +492,29 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     if (/delivery\s*hours/i.test(msg)) {
       setFieldError({ field: 'deliveryHours', message: msg });
       try { deliveryHoursRef.current?.focus(); } catch {}
+    } else if (/already\s*exists/i.test(msg) || /week/i.test(msg)) {
+      setFieldError({ field: 'weekStartDate', message: msg });
     } else {
       setFieldError({ field: null, message: null });
     }
   }, [error]);
+
+  // Listen for explicit field error events from create hooks (e.g., 409 duplicate-week)
+  useEffect(() => {
+    function onCreateFieldError(ev: Event) {
+      try {
+        const detail = (ev as CustomEvent<{ field?: string; message?: string }>).detail || {} as any;
+        if (detail.field === 'weekStartDate' && detail.message) {
+          setFieldError({ field: 'weekStartDate', message: String(detail.message) });
+        } else if (detail.field === 'deliveryHours' && detail.message) {
+          setFieldError({ field: 'deliveryHours', message: String(detail.message) });
+          try { deliveryHoursRef.current?.focus(); } catch {}
+        }
+      } catch {}
+    }
+    window.addEventListener('catams-create-field-error', onCreateFieldError as EventListener);
+    return () => window.removeEventListener('catams-create-field-error', onCreateFieldError as EventListener);
+  }, []);
 
   return (
     <Card className="timesheet-form-modal p-6" data-testid={isLecturerCreate ? 'lecturer-create-modal-content' : undefined} aria-hidden="false">
@@ -508,6 +546,18 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
         <div className="mb-4 flex items-center justify-between rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
           <span>{quoteState.error ?? 'Unable to calculate pay with EA rules.'}</span>
           <Button type="button" variant="outline" size="sm" onClick={() => setQuoteRetryTick(t => t + 1)}>Retry quote</Button>
+        </div>
+      )}
+
+      {/* Inline field errors with stable ids */}
+      {lectureHoursInvalid && (
+        <div className="text-xs text-destructive" role="alert" data-testid="field-error-deliveryHours">
+          Lecture delivery hours must be between {hoursMin} and {hoursMax}
+        </div>
+      )}
+      {weekFutureInvalid && (
+        <div className="text-xs text-destructive" role="alert" data-testid="field-error-weekStartDate">
+          Week start date cannot be in the future
         </div>
       )}
 
@@ -552,6 +602,15 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
                 const v = Number(e.target.value);
                 setInternalTutorId(v);
                 onTutorChange?.(v);
+                // Immediately sync qualification and trigger a fresh quote cycle
+                try {
+                  const selected = visibleTutorOptions.find(t => t.id === v);
+                  const q = (selected?.qualification || DEFAULT_QUALIFICATION) as TutorQualification;
+                  if (q !== fQual) {
+                    setValue('qualification', q, { shouldDirty: true });
+                  }
+                } catch {}
+                try { setQuoteRetryTick((n) => n + 1); } catch {}
               }}
             >
               {visibleTutorOptions.map(t => (
@@ -582,6 +641,8 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
               value={fWeek}
               onChange={(e) => setValue('weekStartDate', e.target.value, { shouldDirty: true })}
               data-testid={isLecturerMode ? 'create-week-start-input' : undefined}
+              aria-invalid={fieldError.field === 'weekStartDate' ? 'true' : undefined}
+              aria-describedby={fieldError.field === 'weekStartDate' ? 'week-start-inline-error' : undefined}
             />
             {weekFutureInvalid && (
               <div className="text-xs text-destructive" role="alert">Week start cannot be in the future</div>
@@ -622,6 +683,36 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
           )}
           {weekFutureInvalid && (
             <p id="week-start-error" className="text-xs text-destructive" role="alert">Week start date cannot be in the future</p>
+          )}
+          {fieldError.field === 'weekStartDate' && fieldError.message && (
+            <div
+              id="week-start-inline-error"
+              className="text-xs text-destructive"
+              role="alert"
+              data-testid="field-error-weekStartDate-inline"
+            >
+              {fieldError.message}
+            </div>
+          )}
+          {!fieldError.message && friendlyError && /already\s*exists|timesheet\s+.*exists/i.test(String(friendlyError)) && (
+            <div
+              id="week-start-inline-error"
+              className="text-xs text-destructive"
+              role="alert"
+              data-testid="field-error-weekStartDate-inline"
+            >
+              {String(friendlyError)}
+            </div>
+          )}
+          {!fieldError.message && !friendlyError && error && /exists/i.test(String(error)) && (
+            <div
+              id="week-start-inline-error"
+              className="text-xs text-destructive"
+              role="alert"
+              data-testid="field-error-weekStartDate-inline"
+            >
+              {String(error)}
+            </div>
           )}
         </div>
 
@@ -715,7 +806,7 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
               : `Enter the in-class delivery hours (${hoursMin} - ${hoursMax})`}
           </span>
           {rangeInvalid && (
-            <div className="text-xs text-destructive" role="alert">{rangeText}</div>
+            <div className="text-xs text-destructive" role="alert" data-testid="field-error-deliveryHours">{rangeText}</div>
           )}
           {lectureHoursInvalid && fTask === 'LECTURE' && (
             <div className="text-xs text-destructive" role="alert">Lecture delivery hours must be greater than 0.</div>

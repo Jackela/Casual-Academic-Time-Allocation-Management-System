@@ -1,14 +1,31 @@
 import { test, expect } from '@playwright/test';
+import { loginAsRole } from '../../api/auth-helper';
+import { waitForAppReady } from '../../shared/utils/waits';
 
 test.describe('Lecturer Create Timesheet – Unhappy Paths', () => {
   test('disables submit for invalid delivery hours (Lecture type)', async ({ page }) => {
-    await page.goto('http://localhost:5174/login');
-    await page.getByLabel('Email').fill('lecturer@example.com');
-    await page.getByLabel('Password').fill('Lecturer123!');
-    await page.getByRole('button', { name: 'Sign In' }).click();
+    // Stabilize resources
+    await page.context().route('**/api/courses?**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 1, name: 'E2E Course', code: 'E2E-101', active: true }]) });
+    });
+    await page.context().route('**/api/users?**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
+        { id: 3, email: 'tutor@example.com', name: 'John Doe', role: 'TUTOR', isActive: true, qualification: 'STANDARD', courseIds: [1] },
+      ]) });
+    });
+    const session = await loginAsRole(page.request, 'lecturer');
+    await page.addInitScript((sess) => {
+      try {
+        localStorage.setItem('token', (sess as any).token);
+        localStorage.setItem('user', JSON.stringify((sess as any).user));
+      } catch {}
+    }, session);
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page, 'LECTURER', 20000);
 
-    await expect(page.getByRole('button', { name: 'Create Timesheet' })).toBeVisible();
-    await page.getByRole('button', { name: 'Create Timesheet' }).click();
+    await expect(page.getByTestId('lecturer-create-open-btn')).toBeVisible();
+    await page.getByTestId('lecturer-create-open-btn').click();
+    await expect(page.getByTestId('lecturer-create-modal')).toBeVisible({ timeout: 10000 });
 
     // Select course within the modal to avoid dashboard filter conflict
     const course = page.getByTestId('create-course-select');
@@ -30,18 +47,33 @@ test.describe('Lecturer Create Timesheet – Unhappy Paths', () => {
     // Enter invalid hours beyond max and wait for error to render
     await hours.fill('999');
     await hours.blur();
-    await expect(page.getByText(/Delivery hours must be between/i)).toBeVisible();
+    await expect(page.getByTestId('field-error-deliveryHours')).toBeVisible();
     const submit = page.getByTestId('lecturer-create-modal').getByRole('button', { name: 'Create Timesheet' });
     await expect(submit).toBeDisabled();
   });
 
   test('disables submit when week start is in the future', async ({ page }) => {
-    await page.goto('http://localhost:5174/login');
-    await page.getByLabel('Email').fill('lecturer@example.com');
-    await page.getByLabel('Password').fill('Lecturer123!');
-    await page.getByRole('button', { name: 'Sign In' }).click();
+    // Stabilize resources
+    await page.context().route('**/api/courses?**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 1, name: 'E2E Course', code: 'E2E-101', active: true }]) });
+    });
+    await page.context().route('**/api/users?**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
+        { id: 3, email: 'tutor@example.com', name: 'John Doe', role: 'TUTOR', isActive: true, qualification: 'STANDARD', courseIds: [1] },
+      ]) });
+    });
+    const session = await loginAsRole(page.request, 'lecturer');
+    await page.addInitScript((sess) => {
+      try {
+        localStorage.setItem('token', (sess as any).token);
+        localStorage.setItem('user', JSON.stringify((sess as any).user));
+      } catch {}
+    }, session);
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page, 'LECTURER', 20000);
 
-    await page.getByRole('button', { name: 'Create Timesheet' }).click();
+    await page.getByTestId('lecturer-create-open-btn').click();
+    await expect(page.getByTestId('lecturer-create-modal')).toBeVisible({ timeout: 10000 });
 
     // Select course within the modal
     const course2 = page.getByTestId('create-course-select');
@@ -60,8 +92,8 @@ test.describe('Lecturer Create Timesheet – Unhappy Paths', () => {
     const nextYear = new Date().getFullYear() + 1;
     await wk.fill(`${nextYear}-01-06`);
     await wk.blur();
-    // Wait for future-date error to render before asserting disabled
-    await expect(page.getByText(/cannot be in the future/i)).toBeVisible();
+    // Wait for future-date error to render before asserting disabled (unified test id)
+    await expect(page.getByTestId('field-error-weekStartDate')).toBeVisible();
     await expect(page.getByTestId('lecturer-create-modal').getByRole('button', { name: 'Create Timesheet' })).toBeDisabled();
   });
 });

@@ -452,6 +452,30 @@ describe('TimesheetService EA-compliant endpoints', () => {
     expect(mockApiClient.get).toHaveBeenCalledWith('/api/approvals/pending', { signal: undefined });
     expect(result.timesheets.length).toBe(2);
   });
+
+  it('getMyPendingTimesheets should treat 403 as empty queue (usability-first)', async () => {
+    const err: any = new Error('Forbidden');
+    err.response = { status: 403 };
+    mockApiClient.get.mockRejectedValue(err);
+
+    const result = await TimesheetService.getMyPendingTimesheets();
+    expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets/pending-approval', { signal: undefined });
+    expect(result.success).toBe(true);
+    expect(result.timesheets).toEqual([]);
+    expect(result.pageInfo.empty).toBe(true);
+  });
+
+  it('getPendingApprovals should treat 403 as empty queue (admin scope)', async () => {
+    const err: any = new Error('Forbidden');
+    err.response = { status: 403 };
+    mockApiClient.get.mockRejectedValue(err);
+
+    const result = await TimesheetService.getPendingApprovals();
+    expect(mockApiClient.get).toHaveBeenCalledWith('/api/approvals/pending', { signal: undefined });
+    expect(result.success).toBe(true);
+    expect(result.timesheets).toEqual([]);
+    expect(result.pageInfo.empty).toBe(true);
+  });
 });
 
 // =============================================================================

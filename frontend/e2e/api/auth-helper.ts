@@ -171,30 +171,31 @@ export async function clearAuthSessionFromPage(page: Page): Promise<void> {
 
 export async function signInAsRole(page: Page, role: UserRole): Promise<void> {
   const session = await loginAsRole(page.request, role);
-  // Ensure token is available before any app scripts run so api client picks it up on init
-  await page.addInitScript(({ keys, sess }) => {
-    try {
-      // Allow tests/app to disable auth seeding for logout flows
-      if (localStorage.getItem('__E2E_DISABLE_AUTH_SEED__') === '1') {
-        return;
-      }
-      localStorage.setItem(keys.TOKEN, sess.token);
-      localStorage.setItem(keys.USER, JSON.stringify(sess.user));
-      if (sess.refreshToken) {
-        localStorage.setItem(keys.REFRESH_TOKEN, sess.refreshToken);
-      } else {
-        localStorage.removeItem(keys.REFRESH_TOKEN);
-      }
-      if (typeof sess.expiresAt === 'number') {
-        localStorage.setItem(keys.TOKEN_EXPIRY, String(sess.expiresAt));
-      } else {
-        localStorage.removeItem(keys.TOKEN_EXPIRY);
-      }
-    } catch {}
-  }, { keys: STORAGE_KEYS, sess: session });
+  // Prefer early injection; tolerate page/context closure and fall back to runtime set
+  try {
+    await page.addInitScript(({ keys, sess }) => {
+      try {
+        if (localStorage.getItem('__E2E_DISABLE_AUTH_SEED__') === '1') return;
+        localStorage.setItem(keys.TOKEN, sess.token);
+        localStorage.setItem(keys.USER, JSON.stringify(sess.user));
+        if (sess.refreshToken) localStorage.setItem(keys.REFRESH_TOKEN, sess.refreshToken); else localStorage.removeItem(keys.REFRESH_TOKEN);
+        if (typeof sess.expiresAt === 'number') localStorage.setItem(keys.TOKEN_EXPIRY, String(sess.expiresAt)); else localStorage.removeItem(keys.TOKEN_EXPIRY);
+      } catch {}
+    }, { keys: STORAGE_KEYS, sess: session });
+  } catch {
+    // Fallback: will set storage after navigation below
+  }
 
-  // Navigate fresh with injected storage to let app initialize with token
-  await page.goto(`${E2E_CONFIG.FRONTEND.URL}/dashboard`, { waitUntil: 'domcontentloaded' });
+  // Navigate; then ensure storage is set even if addInitScript was skipped
+  await page.goto(`${E2E_CONFIG.FRONTEND.URL}/dashboard`, { waitUntil: 'domcontentloaded' }).catch(() => undefined);
+  try {
+    await page.evaluate(({ keys, sess }) => {
+      try {
+        localStorage.setItem(keys.TOKEN, sess.token);
+        localStorage.setItem(keys.USER, JSON.stringify(sess.user));
+      } catch {}
+    }, { keys: STORAGE_KEYS, sess: session });
+  } catch {}
 }
 
 /**

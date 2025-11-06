@@ -144,6 +144,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
   });
   const [modificationComment, setModificationComment] = useState('');
   const [modificationValidationError, setModificationValidationError] = useState<string | null>(null);
+  const [lastActionSuccess, setLastActionSuccess] = useState<string | null>(null);
   const actionLockRef = useRef(false);
 
   const setSelectedTimesheets = useCallback<Dispatch<SetStateAction<number[]>>>((nextValue) => {
@@ -161,6 +162,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     error: timesheetsError,
     timesheets: allTimesheets,
     refetch: refreshTimesheets,
+    optimisticRemove,
   } = useAdminPendingApprovals();
 
   const {
@@ -295,6 +297,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     setRejectionComment('');
     setRejectionValidationError(null);
     resetApproval();
+    setLastActionSuccess(null);
   }, [resetApproval]);
 
   const handleRejectionSubmit = useCallback(async () => {
@@ -326,6 +329,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
       await Promise.all([refreshTimesheets(), refetchDashboard()]);
       setRejectionModal({ open: false, timesheetId: null });
       setRejectionComment('');
+      setLastActionSuccess('Timesheet rejected successfully.');
     } catch (error) {
       secureLogger.error('Admin dashboard rejection action failed', error);
     } finally {
@@ -339,6 +343,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     setModificationComment('');
     setModificationValidationError(null);
     resetApproval();
+    setLastActionSuccess(null);
   }, [resetApproval]);
 
   const handleModificationSubmit = useCallback(async () => {
@@ -370,6 +375,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
       await Promise.all([refreshTimesheets(), refetchDashboard()]);
       setModificationModal({ open: false, timesheetId: null });
       setModificationComment('');
+      setLastActionSuccess('Modification request sent.');
     } catch (error) {
       secureLogger.error('Admin dashboard modification request failed', error);
     } finally {
@@ -408,8 +414,13 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
         action,
         comment: action === 'HR_CONFIRM' ? 'Approved timesheet' : undefined,
       });
+      // Optimistically remove the approved row from the pending list for immediate UX feedback
+      try { optimisticRemove(timesheetId); } catch {}
       await Promise.all([refreshTimesheets(), refetchDashboard()]);
       setSelectedTimesheets((previous) => previous.filter((id) => id !== timesheetId));
+      if (action === 'HR_CONFIRM' || action === 'LECTURER_CONFIRM' || action === 'TUTOR_CONFIRM') {
+        setLastActionSuccess('Approval completed successfully.');
+      }
     } catch (error) {
       secureLogger.error('Admin dashboard approval action failed', error);
     } finally {
@@ -540,6 +551,8 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     refreshTimesheets,
     refetchDashboard,
     resetApproval,
+    lastActionSuccess,
+    clearLastActionSuccess: () => setLastActionSuccess(null),
     adminStats,
     setFilterQuery,
   };

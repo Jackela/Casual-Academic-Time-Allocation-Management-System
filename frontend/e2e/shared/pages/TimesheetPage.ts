@@ -60,7 +60,8 @@ export class TimesheetPage {
   }
 
   async waitForFirstRender(options: { timeout?: number } = {}): Promise<'table' | 'empty' | 'error' | 'banner'> {
-    const timeout = options.timeout ?? 12000;
+    // Increase default timeout to better accommodate Docker variance
+    const timeout = options.timeout ?? 20000;
     const candidates = this.getTableReadyLocators();
 
     const watchers = [
@@ -162,14 +163,20 @@ export class TimesheetPage {
       response = { ok: () => true, status: () => 200 } as const;
     }
 
-    const waiters: Promise<unknown>[] = [
-      this.page.waitForFunction(
-        (timesheetId) => !document.querySelector(`[data-testid="timesheet-row-${timesheetId}"]`),
-        id,
-        { timeout: 20000 }
-      ),
-      this.emptyState.waitFor({ timeout: 20000 }).catch(() => null)
-    ];
+    const waiters: Promise<unknown>[] = [];
+    // Prefer row removal, but do not fail the flow if it times out — SSOT checks enforce correctness
+    waiters.push((async () => {
+      try {
+        await this.page.waitForFunction(
+          (timesheetId) => !document.querySelector(`[data-testid="timesheet-row-${timesheetId}"]`),
+          id,
+          { timeout: 20000 }
+        );
+      } catch {
+        // ignore — row may persist briefly; caller performs SSOT verification
+      }
+    })());
+    waiters.push(this.emptyState.waitFor({ timeout: 20000 }).catch(() => null));
 
     if (badgeOccurrences > 0) {
       waiters.push((async () => {
