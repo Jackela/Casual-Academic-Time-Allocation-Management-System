@@ -45,6 +45,13 @@ test.describe('Tutor UAT - Core Workflow', () => {
     await expect(tutorDashboard.getStatusBadge(seeded.id)).toContainText(statusLabel('DRAFT'));
 
     await tutorDashboard.submitDraft(seeded.id);
+    // Anchor on tutor pending list refresh to avoid racing the UI
+    await page
+      .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+      .catch(() => undefined);
+    await page
+      .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+      .catch(() => undefined);
     await expect(tutorDashboard.getStatusBadge(seeded.id)).toHaveText(
       statusLabelPattern('PENDING_TUTOR_CONFIRMATION'),
       { timeout: 20000 }

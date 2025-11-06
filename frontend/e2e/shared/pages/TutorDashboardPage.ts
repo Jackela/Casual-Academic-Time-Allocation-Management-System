@@ -617,11 +617,18 @@ export class TutorDashboardPage {
     const submitButton = this.page.locator(getTimesheetActionSelector('submit', timesheetId));
     await expect(submitButton).toBeVisible();
     const [response] = await Promise.all([
-      this.page.waitForResponse((response) =>
-        response.url().includes('/api/approvals') && response.request().method() === 'POST'
-      ),
+      Promise.race([
+        this.page.waitForResponse((response) =>
+          response.url().includes('/api/approvals') && response.request().method() === 'POST'
+        ),
+        this.page.waitForResponse((r) => /\/api\/timesheets\/\d+\/submit$/.test(r.url()) && r.request().method() === 'PUT')
+      ]),
       submitButton.click()
     ]);
+    // Anchor on pending list refresh after action to avoid timing flakes
+    await this.page
+      .waitForResponse(r => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+      .catch(() => undefined);
     await this.waitForDashboardReady();
     return response;
   }
@@ -636,11 +643,17 @@ export class TutorDashboardPage {
     const confirmButton = this.page.locator(getTimesheetActionSelector('confirm', timesheetId));
     await expect(confirmButton).toBeVisible();
     const [response] = await Promise.all([
-      this.page.waitForResponse((response) =>
-        response.url().includes('/api/approvals') && response.request().method() === 'POST'
-      ),
+      Promise.race([
+        this.page.waitForResponse((response) =>
+          response.url().includes('/api/approvals') && response.request().method() === 'POST'
+        ),
+        this.page.waitForResponse((r) => /\/api\/timesheets\/\d+\/confirm$/.test(r.url()) && r.request().method() === 'PUT')
+      ]),
       confirmButton.click()
     ]);
+    await this.page
+      .waitForResponse(r => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+      .catch(() => undefined);
     await this.waitForDashboardReady();
     return response;
   }

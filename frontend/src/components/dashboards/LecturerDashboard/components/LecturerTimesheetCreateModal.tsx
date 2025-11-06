@@ -275,12 +275,18 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
           await onSuccess?.();
           reset();
           onClose();
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : 'Failed to create timesheet';
-          secureLogger.error('Lecturer timesheet creation failed', error);
-          dispatchNotification({ type: 'API_ERROR', message });
-        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to create timesheet';
+        secureLogger.error('Lecturer timesheet creation failed', error);
+        try {
+          const evt = new CustomEvent('catams-create-field-error', {
+            detail: { field: 'weekStartDate', message },
+          } as CustomEventInit);
+          window.dispatchEvent(evt);
+        } catch {}
+        dispatchNotification({ type: 'API_ERROR', message });
+      }
       },
       [createTimesheet, courseLookup, onClose, onSuccess, reset, tutorLookup],
     );

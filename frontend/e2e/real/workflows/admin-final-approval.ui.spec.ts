@@ -32,13 +32,26 @@ test.describe('Admin Final Approval (UI, real backend)', () => {
     await approveBtn.click()
     await approvalsDone
 
-    // Button should disappear; optionally check for success toast if present
+    // Wait for the pending list to refetch after approval (double anchor for stability)
+    await page
+      .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET' && r.ok())
+      .catch(() => undefined)
+    await page
+      .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+      .catch(() => undefined)
+
+    // Button/row should disappear
     await expect
       .poll(async () => await approveBtn.isVisible().catch(() => false), { timeout: 15000 })
       .toBe(false)
+    // Also assert row id removal for extra stability
+    await expect
+      .poll(async () => await page.getByTestId(`timesheet-row-${seeded.id}`).count().catch(() => 0), { timeout: 30000 })
+      .toBe(0)
 
-    const toast = page.getByTestId('toast-success').first()
-    await toast.waitFor({ state: 'visible', timeout: 3000 }).catch(() => undefined)
+    // Success banner observation (stable id from Admin shell)
+    const successBanner = page.getByTestId('approval-success-banner').first()
+    await successBanner.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined)
   })
 })
 

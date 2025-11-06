@@ -163,6 +163,27 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
       }
     } catch {}
   }, [isCreateModalOpen]);
+
+  // Provide a resilient, programmatic way to open the Create modal for E2E/tools
+  // and as a safety net if a click event gets lost during heavy re‑renders.
+  useEffect(() => {
+    function handleProgrammaticOpen() {
+      try {
+        setCreateOpening(true);
+        setCreateModalOpen(true);
+        const id = requestAnimationFrame(() => {
+          try {
+            const modal = document.querySelector('[data-testid="lecturer-create-modal"]') as HTMLElement | null;
+            modal?.focus?.({ preventScroll: true } as any);
+          } catch {}
+        });
+        return () => cancelAnimationFrame(id);
+      } catch {}
+      return undefined;
+    }
+    window.addEventListener('catams-open-lecturer-create-modal', handleProgrammaticOpen as EventListener, { once: false });
+    return () => window.removeEventListener('catams-open-lecturer-create-modal', handleProgrammaticOpen as EventListener);
+  }, []);
   useEffect(() => {
     if (isCreateModalOpen) {
       const id = requestAnimationFrame(() => setCreateOpening(false));
@@ -402,6 +423,16 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
                   } catch {}
                   cancelAnimationFrame(rafId);
                 });
+                // Safety: if something re-rendered synchronously and lost the open state,
+                // re-assert it shortly after the event loop yields.
+                setTimeout(() => {
+                  if (!document.querySelector('[data-testid="lecturer-create-modal"][aria-hidden="false"]')) {
+                    try {
+                      setCreateOpening(true);
+                      setCreateModalOpen(true);
+                    } catch {}
+                  }
+                }, 50);
               }}
             >
               Create Timesheet

@@ -30,8 +30,16 @@ test.describe('@p1 @admin US5: Admin user management', () => {
     const createdEmail = `new.user+${uniq}@example.edu`;
     const normalizedEmail = createdEmail.replace(/\+/g, '');
 
-    // Weak password triggers policy error
+    // Define candidate passwords up-front
+    const goodPwd = (process.env.E2E_NEW_USER_PASSWORD && process.env.E2E_NEW_USER_PASSWORD.trim().length >= 8)
+      ? String(process.env.E2E_NEW_USER_PASSWORD)
+      : 'Aa1!Aa1!Aa1!';
+
+    // Weak password triggers policy error (disable generator to exercise policy)
     await admin.createUser(createdEmail, 'weak', { useGenerator: false });
+    // Anchor on users list refresh after creation
+    await page.waitForResponse((r) => r.url().includes('/api/users') && r.request().method() === 'GET').catch(() => undefined);
+    await page.waitForResponse((r) => r.url().includes('/api/users') && r.request().method() === 'GET').catch(() => undefined);
     try {
       await admin.expectPasswordPolicyError();
     } catch {
@@ -41,9 +49,6 @@ test.describe('@p1 @admin US5: Admin user management', () => {
     await admin.closeModal();
 
     // Valid password (env-driven if provided, else robust default)
-    const goodPwd = (process.env.E2E_NEW_USER_PASSWORD && process.env.E2E_NEW_USER_PASSWORD.trim().length >= 8)
-      ? String(process.env.E2E_NEW_USER_PASSWORD)
-      : 'Aa1!Aa1!Aa1!';
     const allowPositive = true; // enforce positive path; fallback to API if UI creation not observed
     // Capture POST /api/users outcome deterministically
     const postRespPromise = page
@@ -54,6 +59,9 @@ test.describe('@p1 @admin US5: Admin user management', () => {
       .catch(() => null);
     // Prefer using the secure password generator to satisfy backend policy reliably
     await admin.createUser(createdEmail, goodPwd, { useGenerator: true });
+    // Anchor on users list refresh after creation
+    await page.waitForResponse((r) => r.url().includes('/api/users') && r.request().method() === 'GET').catch(() => undefined);
+    await page.waitForResponse((r) => r.url().includes('/api/users') && r.request().method() === 'GET').catch(() => undefined);
     // After creation, wait for the list to refresh once
     await waitForUsersListOk(page, 15000).catch(() => undefined);
     const postResp = await postRespPromise;
@@ -115,3 +123,4 @@ test.describe('@p1 @admin US5: Admin user management', () => {
     await expect(row.getByText('Active')).toBeVisible({ timeout: 8000 });
   });
 });
+

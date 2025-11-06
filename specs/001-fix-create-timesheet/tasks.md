@@ -5,10 +5,10 @@
 - [X] T002 Ensure TimesheetService uses API_ENDPOINTS in frontend/src/services/timesheets.ts
 
 ## Phase 2 — Foundational
-- [ ] T003 Mount LecturerTimesheetCreateModal unconditionally; unify open/close state in frontend/src/components/dashboards/LecturerDashboard/LecturerDashboardShell.tsx
-- [ ] T004 Wire loading‑state "Create Timesheet" button onClick to open modal in frontend/src/components/dashboards/LecturerDashboard/LecturerDashboardShell.tsx
-- [ ] T005 Fix ARIA on Create button (aria-haspopup/aria-controls) in frontend/src/components/dashboards/LecturerDashboard/LecturerDashboardShell.tsx
-- [ ] T006 Add stable id/role to modal container in frontend/src/components/dashboards/LecturerDashboard/components/LecturerTimesheetCreateModal.tsx
+- [X] T003 Mount LecturerTimesheetCreateModal unconditionally; unify open/close state in frontend/src/components/dashboards/LecturerDashboard/LecturerDashboardShell.tsx
+- [X] T004 Wire loading‑state "Create Timesheet" button onClick to open modal in frontend/src/components/dashboards/LecturerDashboard/LecturerDashboardShell.tsx
+- [X] T005 Fix ARIA on Create button (aria-haspopup/aria-controls) in frontend/src/components/dashboards/LecturerDashboard/LecturerDashboardShell.tsx
+- [X] T006 Add stable id/role to modal container in frontend/src/components/dashboards/LecturerDashboard/components/LecturerTimesheetCreateModal.tsx
 - [ ] T007 Fetch lecturer assignments and restrict Tutor/Course pickers in frontend/src/components/dashboards/LecturerDashboard/components/LecturerTimesheetCreateModal.tsx
 
 ## Phase 3 — User Story 1 (P1)

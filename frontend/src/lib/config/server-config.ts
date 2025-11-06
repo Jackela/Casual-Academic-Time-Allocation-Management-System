@@ -80,6 +80,30 @@ const resolveTimesheetConfigEndpoints = (): string[] => {
   // Dedicated timesheet config endpoint is authoritative
   endpoints.add('/api/timesheets/config');
 
+  // E2E fallback: directly query backend service if dev proxy is not configured for this route
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const mode = (import.meta as any)?.env?.MODE ?? undefined;
+    const isE2E = mode === 'e2e' || mode === 'test';
+    let isLocalDev = false;
+    try {
+      if (typeof window !== 'undefined') {
+        const h = window.location.hostname;
+        const p = String(window.location.port || '');
+        isLocalDev = (h === 'localhost' || h === '127.0.0.1') && p !== '8080';
+      }
+    } catch {}
+    if (isE2E || isLocalDev) {
+      // Prefer direct backend endpoints to avoid proxy gaps in dev/e2e (omit relative path)
+      return [
+        'http://localhost:8080/api/timesheets/config',
+        'http://127.0.0.1:8080/api/timesheets/config',
+      ];
+    }
+  } catch {
+    // ignore
+  }
+
   return Array.from(endpoints);
 };
 
@@ -94,7 +118,7 @@ export async function fetchTimesheetConstraints(
 
   for (const endpoint of endpoints) {
     try {
-      const response = await secureApiClient.get<unknown>(endpoint, { signal, headers: { 'Cache-Control': 'no-cache' } });
+      const response = await secureApiClient.get<unknown>(endpoint, { signal });
       const payload = response.data;
 
       if (!validateServerConstraints(payload)) {
