@@ -5,14 +5,15 @@
 spring:
   datasource:
     url: jdbc:tc:postgresql:15:///catams
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver  # Disable Flyway for integration tests (schema managed by Hibernate)
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver  
+    # Let Flyway manage schema - disable Hibernate DDL
   flyway:
-    enabled: false
+    enabled: true
     
-  # JPA Configuration for integration tests
+  # JPA Configuration for integration tests  
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     show-sql: false
     
   # Security Configuration (test JWT secret)

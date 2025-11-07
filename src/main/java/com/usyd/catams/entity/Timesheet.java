@@ -74,7 +74,7 @@ public class Timesheet {
     
     @NotBlank
     @Size(max = 1000)
-   @Column(nullable = false, length = 1000)
+    @Column(nullable = false, length = 1000, columnDefinition = "VARCHAR(1000)")
     private String description;
 
     @Enumerated(EnumType.STRING)
