@@ -254,6 +254,10 @@ secrets/
 .devtools/ai/
 web-bundles/
 
+# --- local-only UAT artifacts & specs ---
+uat-artifacts/
+openspec/
+
 # --- local-only temp files and logs ---
 tmp_*.txt
 *_lines.txt

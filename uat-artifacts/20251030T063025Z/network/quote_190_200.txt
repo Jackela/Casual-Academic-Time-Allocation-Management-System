@@ -1,4 +1,0 @@
-REQ 190 (Quote 200)
-URL: /api/timesheets/quote
-REQ: {"tutorId":4,"courseId":1,"sessionDate":"2025-11-03","taskType":"TUTORIAL","qualification":"STANDARD","repeat":false,"deliveryHours":1}
-RESP: {"status":200, "rateCode":"TU2","payableHours":3.0,"amount":182.54}

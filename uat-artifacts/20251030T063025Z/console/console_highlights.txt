@@ -1,3 +1,0 @@
-Console highlights (Lecturer modal session):
-- Repeated 500s: GET /api/admin/tutors/{id}/defaults (not blocking lecturer modal)
-- Dashboard summary refetch logs present (focus/interval)
