@@ -96,4 +96,28 @@ describe("usePendingTimesheets", () => {
     await waitFor(() => expect(result.current.error).toBe("Not authenticated"));
     await waitFor(() => expect(result.current.isEmpty).toBe(true));
   });
+
+  it('fetches lecturer pending timesheets using correct endpoint', async () => {
+    // Mock LECTURER user
+    mockUseAuth.mockReturnValue({
+      user: { ...mockUser, role: 'LECTURER', id: 2 },
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      loading: false,
+      error: null,
+    });
+
+    // Mock service to verify correct endpoint usage
+    const mockPage = createMockTimesheetPage(2, {}, { status: 'TUTOR_CONFIRMED' });
+    mockTimesheetService.getMyPendingTimesheets.mockResolvedValue(mockPage);
+
+    const { result } = renderHook(() => usePendingTimesheets(), { wrapper });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(mockTimesheetService.getMyPendingTimesheets).toHaveBeenCalled();
+    expect(result.current.timesheets).toHaveLength(2);
+    expect(result.current.timesheets[0].status).toBe('TUTOR_CONFIRMED');
+  });
 });

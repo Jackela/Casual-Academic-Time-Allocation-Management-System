@@ -145,6 +145,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
   const [modificationComment, setModificationComment] = useState('');
   const [modificationValidationError, setModificationValidationError] = useState<string | null>(null);
   const [lastActionSuccess, setLastActionSuccess] = useState<string | null>(null);
+  const [isActionLocked, setIsActionLocked] = useState(false);
   const actionLockRef = useRef(false);
 
   const setSelectedTimesheets = useCallback<Dispatch<SetStateAction<number[]>>>((nextValue) => {
@@ -317,6 +318,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
 
     setRejectionValidationError(null);
     actionLockRef.current = true;
+    setIsActionLocked(true);
     setActionLoadingId(rejectionModal.timesheetId);
 
     try {
@@ -334,6 +336,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
       secureLogger.error('Admin dashboard rejection action failed', error);
     } finally {
       actionLockRef.current = false;
+      setIsActionLocked(false);
       setActionLoadingId(null);
     }
   }, [actionLoadingId, approvalLoading, approveTimesheet, refreshTimesheets, refetchDashboard, rejectionComment, rejectionModal, setSelectedTimesheets]);
@@ -363,6 +366,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
 
     setModificationValidationError(null);
     actionLockRef.current = true;
+    setIsActionLocked(true);
     setActionLoadingId(modificationModal.timesheetId);
 
     try {
@@ -380,12 +384,14 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
       secureLogger.error('Admin dashboard modification request failed', error);
     } finally {
       actionLockRef.current = false;
+      setIsActionLocked(false);
       setActionLoadingId(null);
     }
   }, [actionLoadingId, approvalLoading, approveTimesheet, modificationComment, modificationModal, refreshTimesheets, refetchDashboard, setSelectedTimesheets]);
 
   const handleApprovalAction = useCallback(async (timesheetId: number, action: ApprovalAction) => {
     if (actionLockRef.current || approvalLoading || actionLoadingId !== null) {
+      setLastActionSuccess('Please wait for the current approval to complete');
       return;
     }
 
@@ -406,6 +412,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     }
 
     actionLockRef.current = true;
+    setIsActionLocked(true);
     setActionLoadingId(timesheetId);
 
     try {
@@ -416,6 +423,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
       });
       // Optimistically remove the approved row from the pending list for immediate UX feedback
       try { optimisticRemove(timesheetId); } catch {}
+      // Plan C: Invalidate cache immediately to ensure metrics reflect actual state
       await Promise.all([refreshTimesheets(), refetchDashboard()]);
       setSelectedTimesheets((previous) => previous.filter((id) => id !== timesheetId));
       if (action === 'HR_CONFIRM' || action === 'LECTURER_CONFIRM' || action === 'TUTOR_CONFIRM') {
@@ -425,9 +433,10 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
       secureLogger.error('Admin dashboard approval action failed', error);
     } finally {
       actionLockRef.current = false;
+      setIsActionLocked(false);
       setActionLoadingId(null);
     }
-  }, [actionLoadingId, approvalLoading, approveTimesheet, refreshTimesheets, refetchDashboard, resetApproval, setModificationComment, setModificationValidationError, setRejectionComment, setRejectionValidationError, setSelectedTimesheets]);
+  }, [actionLoadingId, approvalLoading, approveTimesheet, optimisticRemove, refreshTimesheets, refetchDashboard, resetApproval, setSelectedTimesheets]);
 
   const tabs = useMemo<AdminTabSpec[]>(() => [
     { id: 'overview', label: 'Overview' },
@@ -490,8 +499,8 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
 
   const actionState: ActionState = useMemo(() => ({
     loadingId: actionLoadingId,
-    isSubmitting: approvalLoading,
-  }), [actionLoadingId, approvalLoading]);
+    isSubmitting: approvalLoading || isActionLocked || actionLoadingId !== null,
+  }), [actionLoadingId, approvalLoading, isActionLocked]);
 
   // Expose an E2E-only event hook to open the rejection modal programmatically
   useEffect(() => {

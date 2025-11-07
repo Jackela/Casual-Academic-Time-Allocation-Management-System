@@ -18,7 +18,7 @@ export const TUTOR_CAPABILITIES: Record<TimesheetStatus, TutorCapabilities> = {
   TUTOR_CONFIRMED: { canEdit: false, canSubmit: false, canConfirm: false },
   LECTURER_CONFIRMED: { canEdit: false, canSubmit: false, canConfirm: false },
   FINAL_CONFIRMED: { canEdit: false, canSubmit: false, canConfirm: false },
-  REJECTED: { canEdit: true, canSubmit: false, canConfirm: false },
+  REJECTED: { canEdit: true, canSubmit: true, canConfirm: false },
   MODIFICATION_REQUESTED: { canEdit: true, canSubmit: true, canConfirm: false },
 };
 

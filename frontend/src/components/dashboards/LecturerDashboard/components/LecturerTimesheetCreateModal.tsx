@@ -117,7 +117,8 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
             if (current && mappedTutors.some((option) => option.id === current)) {
               return current;
             }
-            return mappedTutors.length === 1 ? mappedTutors[0].id : null;
+            // FIX: Default to first tutor when multiple tutors exist
+            return mappedTutors[0]?.id ?? null;
           });
         } catch (error) {
           if (cancelled) {
@@ -329,6 +330,27 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
               <div className="mb-4 flex items-center justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-destructive" role="alert">
                 <span>{resourceError}</span>
                 <Button variant="outline" size="sm" onClick={() => setReloadTick((t) => t + 1)}>Retry</Button>
+              </div>
+            )}
+
+            {/* Empty-state guidance: explain that Admin assignments are required before creation */}
+            {!loadingResources && !resourceError && (courseOptions.length === 0 || tutorOptions.length === 0) && (
+              <div
+                className="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"
+                role="note"
+                data-testid="lecturer-create-empty-hint"
+              >
+                <p className="mb-1">
+                  No courses or assigned tutors were found for your account.
+                </p>
+                <p>
+                  To create a timesheet, an Administrator must set up course ↔ tutor assignments in the Admin UI (Users → Assignments).
+                  If you have admin access, please add the assignment(s) first, then return here.
+                </p>
+                {/* zh-CN helper */}
+                <p className="mt-2 text-xs text-slate-600">
+                  提示：需先在 Admin 界面的「Users」中完成课程与导师（Assignment）的关联后，才能在此创建 Timesheet。
+                </p>
               </div>
             )}
 

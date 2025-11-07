@@ -7,7 +7,7 @@ The backend is the sole authority for all financial outcomes related to casual a
 1. **Authoritative Calculations** ? `Schedule1Calculator` is the only component allowed to produce associated hours, payable hours, hourly rates, and total amounts.
 2. **Minimal Client Payloads** ? UI layers submit instructional data only (course, task type, qualification, repeat flag, delivery hours, notes).
 3. **Deterministic Persistence** ? `POST /api/timesheets` and `PUT /api/timesheets/{id}` ignore any client-supplied financial values and recompute the result before saving.
-4. **Auditability** ? Every persisted row records the `rateCode`, `rateVersion`, `formula`, and `clauseReference` used so finance teams can trace calculations back to the EA.
+4. **Auditability** ? Every persisted row records the `rateCode`, `formula`, and `clauseReference` used so finance teams can trace calculations back to the EA.
 5. **Transparency** ? The frontend displays the calculation formula and clause reference returned by the quote to keep tutors informed.
 
 ## Workflow Requirements

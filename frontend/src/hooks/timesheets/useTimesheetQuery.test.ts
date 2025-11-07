@@ -10,7 +10,6 @@ import type { TimesheetQuery } from '../../types/api';
 vi.mock('../../services/timesheets', () => ({
   TimesheetService: {
     getTimesheets: vi.fn(),
-    getTimesheetsByTutor: vi.fn(),
   },
 }));
 
@@ -20,7 +19,6 @@ vi.mock('../../contexts/AuthContext', () => ({
 
 const mockTimesheetService = TimesheetService as unknown as {
   getTimesheets: ReturnType<typeof vi.fn>;
-  getTimesheetsByTutor: ReturnType<typeof vi.fn>;
 };
 
 const mockUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
@@ -43,7 +41,6 @@ describe('useTimesheetQuery', () => {
     });
     const defaultPage = createMockTimesheetPage(5);
     mockTimesheetService.getTimesheets.mockResolvedValue(defaultPage);
-    mockTimesheetService.getTimesheetsByTutor.mockResolvedValue(defaultPage);
   });
 
   afterEach(() => {
@@ -53,10 +50,9 @@ describe('useTimesheetQuery', () => {
   it('fetches timesheets on mount when authenticated', async () => {
     renderUseTimesheetQuery();
 
-    await waitFor(() => expect(mockTimesheetService.getTimesheetsByTutor).toHaveBeenCalled());
+    await waitFor(() => expect(mockTimesheetService.getTimesheets).toHaveBeenCalled());
 
-    const [tutorId, query] = mockTimesheetService.getTimesheetsByTutor.mock.calls[0] as [number, TimesheetQuery];
-    expect(tutorId).toBe(baseUser.id);
+    const [query] = mockTimesheetService.getTimesheets.mock.calls[0] as [TimesheetQuery];
     expect(query).toMatchObject({
       page: 0,
       size: 20,
@@ -70,7 +66,7 @@ describe('useTimesheetQuery', () => {
       totalElements: 125,
       last: false,
     });
-    mockTimesheetService.getTimesheetsByTutor.mockResolvedValueOnce(page);
+    mockTimesheetService.getTimesheets.mockResolvedValueOnce(page);
 
     const { result } = renderUseTimesheetQuery();
 
@@ -94,11 +90,10 @@ describe('useTimesheetQuery', () => {
     await waitForAsync(50);
     await waitForAsync(50);
     expect(mockTimesheetService.getTimesheets).not.toHaveBeenCalled();
-    expect(mockTimesheetService.getTimesheetsByTutor).not.toHaveBeenCalled();
   });
 
   it('surfaces fetch errors', async () => {
-    mockTimesheetService.getTimesheetsByTutor.mockRejectedValueOnce(new Error('Network error'));
+    mockTimesheetService.getTimesheets.mockRejectedValueOnce(new Error('Network error'));
 
     const { result } = renderUseTimesheetQuery();
 
@@ -110,14 +105,14 @@ describe('useTimesheetQuery', () => {
     const { result } = renderUseTimesheetQuery();
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    mockTimesheetService.getTimesheetsByTutor.mockClear();
+    mockTimesheetService.getTimesheets.mockClear();
 
     act(() => {
       result.current.updateQuery({ status: 'LECTURER_CONFIRMED' });
     });
 
-    await waitFor(() => expect(mockTimesheetService.getTimesheetsByTutor).toHaveBeenCalled());
-    const [, query] = mockTimesheetService.getTimesheetsByTutor.mock.calls[0] as [number, TimesheetQuery];
+    await waitFor(() => expect(mockTimesheetService.getTimesheets).toHaveBeenCalled());
+    const [query] = mockTimesheetService.getTimesheets.mock.calls[0] as [TimesheetQuery];
     expect(query).toMatchObject({ status: 'LECTURER_CONFIRMED' });
   });
 
@@ -125,14 +120,14 @@ describe('useTimesheetQuery', () => {
     const { result } = renderUseTimesheetQuery();
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    mockTimesheetService.getTimesheetsByTutor.mockClear();
+    mockTimesheetService.getTimesheets.mockClear();
 
     act(() => {
       result.current.updateQuery({});
     });
 
     await waitForAsync(50);
-    expect(mockTimesheetService.getTimesheetsByTutor).not.toHaveBeenCalled();
+    expect(mockTimesheetService.getTimesheets).not.toHaveBeenCalled();
   });
 
   it('refresh clears cache and triggers a new request', async () => {
@@ -140,7 +135,7 @@ describe('useTimesheetQuery', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     const refreshedPage = createMockTimesheetPage(3);
-    mockTimesheetService.getTimesheetsByTutor.mockResolvedValueOnce(refreshedPage);
+    mockTimesheetService.getTimesheets.mockResolvedValueOnce(refreshedPage);
 
     await act(async () => {
       await result.current.refresh();
@@ -153,13 +148,13 @@ describe('useTimesheetQuery', () => {
     const { result } = renderUseTimesheetQuery();
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    const initialCalls = mockTimesheetService.getTimesheetsByTutor.mock.calls.length;
+    const initialCalls = mockTimesheetService.getTimesheets.mock.calls.length;
 
     await act(async () => {
       await result.current.refetch();
     });
 
-    await waitFor(() => expect(mockTimesheetService.getTimesheetsByTutor.mock.calls.length).toBe(initialCalls + 1));
+    await waitFor(() => expect(mockTimesheetService.getTimesheets.mock.calls.length).toBe(initialCalls + 1));
   });
 
   it('handles authentication changes gracefully', async () => {
@@ -185,7 +180,7 @@ describe('useTimesheetQuery', () => {
   it('ignores aborted requests', async () => {
     const abortError = new Error('Request aborted');
     abortError.name = 'AbortError';
-    mockTimesheetService.getTimesheetsByTutor.mockRejectedValueOnce(abortError);
+    mockTimesheetService.getTimesheets.mockRejectedValueOnce(abortError);
 
     const { result } = renderUseTimesheetQuery();
 
@@ -197,7 +192,7 @@ describe('useTimesheetQuery', () => {
     const canceledError: any = new Error('canceled');
     canceledError.name = 'CanceledError';
     canceledError.code = 'ERR_CANCELED';
-    mockTimesheetService.getTimesheetsByTutor.mockRejectedValueOnce(canceledError);
+    mockTimesheetService.getTimesheets.mockRejectedValueOnce(canceledError);
 
     const { result } = renderUseTimesheetQuery();
 
@@ -205,21 +200,16 @@ describe('useTimesheetQuery', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('omits tutorId for non-tutor roles', async () => {
-    mockUseAuth.mockReturnValue({
-      user: { ...baseUser, role: 'ADMIN' },
-      isAuthenticated: true,
-      login: vi.fn(),
-      logout: vi.fn(),
-      loading: false,
-      error: null,
-    });
-
+  it('uses generic getTimesheets for all roles including TUTOR', async () => {
     renderUseTimesheetQuery();
 
     await waitFor(() => expect(mockTimesheetService.getTimesheets).toHaveBeenCalled());
     const [query] = mockTimesheetService.getTimesheets.mock.calls[0] as [TimesheetQuery];
-    expect(query).not.toHaveProperty('tutorId');
-    expect(mockTimesheetService.getTimesheetsByTutor).not.toHaveBeenCalled();
+    expect(query).toMatchObject({
+      page: 0,
+      size: 20,
+      sortBy: 'createdAt',
+      sortDirection: 'desc',
+    });
   });
 });

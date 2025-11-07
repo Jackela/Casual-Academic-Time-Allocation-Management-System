@@ -45,8 +45,8 @@ public enum ApprovalStatus {
     
     /**
      * Timesheet has been rejected during the approval process.
-     * Can be rejected by either tutor or HR with rejection reasons.
-     * Lecturer can resubmit after making corrections.
+     * Can be rejected by tutor, lecturer, or HR with rejection reasons.
+     * Tutor or lecturer can edit and resubmit after making corrections.
      */
     REJECTED("rejected"),
     
@@ -104,12 +104,13 @@ public enum ApprovalStatus {
 
     /**
      * Checks if the status represents a terminal/final state.
-     * Per new workflow, only FINAL_CONFIRMED and REJECTED are terminal states.
+     * Per new workflow, only FINAL_CONFIRMED is a terminal state.
+     * REJECTED allows editing and resubmission.
      * 
      * @return true if no further actions are allowed
      */
     public boolean isFinal() {
-        return this == FINAL_CONFIRMED || this == REJECTED;
+        return this == FINAL_CONFIRMED;
     }
 
     /**
@@ -118,7 +119,7 @@ public enum ApprovalStatus {
      * @return true if timesheet can be modified
      */
     public boolean isEditable() {
-        return this == DRAFT || this == MODIFICATION_REQUESTED;
+        return this == DRAFT || this == MODIFICATION_REQUESTED || this == REJECTED;
     }
 
     /**
@@ -161,8 +162,8 @@ public enum ApprovalStatus {
                 return targetStatus == PENDING_TUTOR_CONFIRMATION;
                 
             case REJECTED:
-                // Not restartable from REJECTED in new workflow - terminal state
-                return false;
+                // Tutor/Lecturer can edit and resubmit after addressing rejection reasons
+                return targetStatus == PENDING_TUTOR_CONFIRMATION;
                 
             case FINAL_CONFIRMED:
                 return false; // Terminal state - no further transitions

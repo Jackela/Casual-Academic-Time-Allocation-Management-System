@@ -321,13 +321,29 @@ public class DashboardServiceImpl implements DashboardService {
      * Get pending items for ADMIN.
      */
     private List<PendingItem> getPendingItemsForAdmin() {
-        // For MVP, return mock data - will be implemented with actual pending item tracking
+        // Return actual pending items from database
+        // Query timesheets with LECTURER_CONFIRMED status (awaiting admin approval)
+        var pendingTimesheets = timesheetRepository.findByStatus(
+            com.usyd.catams.enums.ApprovalStatus.LECTURER_CONFIRMED);
+        
         List<PendingItem> items = new ArrayList<>();
-        items.add(new PendingItem(
-            2L, PendingItemType.HR_REVIEW, "System-wide reviews needed", 
-            "5 items requiring HR attention", Priority.HIGH, 
-            LocalDateTime.now().plus(1, ChronoUnit.DAYS), null
-        ));
+        for (var timesheet : pendingTimesheets) {
+            // Calculate age-based priority: >3 days = HIGH, otherwise MEDIUM
+            LocalDateTime createdAt = timesheet.getCreatedAt();
+            long ageInDays = ChronoUnit.DAYS.between(createdAt, LocalDateTime.now(clock));
+            Priority priority = ageInDays > 3 ? Priority.HIGH : Priority.MEDIUM;
+            
+            items.add(new PendingItem(
+                timesheet.getId(),
+                PendingItemType.HR_REVIEW,
+                String.format("Timesheet #%d awaiting HR approval", timesheet.getId()),
+                String.format("%.1fh", timesheet.getHours()),
+                priority,
+                createdAt.plusDays(7), // 7-day review deadline
+                null
+            ));
+        }
+        
         return items;
     }
 

@@ -457,8 +457,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
            "COUNT(t), " +
            "COALESCE(SUM(t.hours), 0), " +
            "COALESCE(SUM(t.hours * t.hourlyRate.amount), 0), " +
-           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED', " +
-           "'MODIFICATION_REQUESTED') THEN 1L ELSE 0L END)) " +
+           "SUM(CASE WHEN t.status = 'LECTURER_CONFIRMED' THEN 1L ELSE 0L END)) " +
            "FROM Timesheet t " +
            "WHERE t.weekPeriod.weekStartDate BETWEEN :startDate AND :endDate")
     TimesheetSummaryData findTimesheetSummarySystemWideNative(
@@ -491,8 +490,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
            "COUNT(t), " +
            "COALESCE(SUM(t.hours), 0), " +
            "COALESCE(SUM(t.hours * t.hourlyRate.amount), 0), " +
-           "SUM(CASE WHEN t.status IN ('PENDING_TUTOR_CONFIRMATION', 'TUTOR_CONFIRMED', 'LECTURER_CONFIRMED', " +
-           "'MODIFICATION_REQUESTED') THEN 1L ELSE 0L END)) " +
+           "SUM(CASE WHEN t.status = 'LECTURER_CONFIRMED' THEN 1L ELSE 0L END)) " +
            "FROM Timesheet t " +
            "WHERE t.courseId = :courseId " +
            "AND t.weekPeriod.weekStartDate BETWEEN :startDate AND :endDate")

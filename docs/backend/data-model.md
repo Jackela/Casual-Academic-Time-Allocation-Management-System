@@ -7,12 +7,12 @@ This note explains how CATAMS persists Enterprise Agreement policy data and EA-c
 
 | Table | Key Columns | Notes |
 |-------|-------------|-------|
-| `policy_version` | `id`, `ea_reference`, `major_version`, `minor_version`, `effective_from`, `effective_to`, `source_document_url` | Tracks each Enterprise Agreement revision. Date ranges must not overlap; a GiST exclusion index enforces this.
+| `policy_version` | `id`, `ea_reference`, `major_version`, `minor_version`, `effective_from`, `effective_to`, `source_document_url` | Tracks each Enterprise Agreement revision.
 | `rate_code` | `id`, `code`, `task_type`, `description`, `default_delivery_hours`, `default_associated_hours`, `requires_phd`, `is_repeatable`, `ea_clause_reference` | Canonical list of Schedule 1 task codes (tutorials TU1-TU4, lectures P01-P04, marking M03-M05, etc.).
 | `rate_amount` | `id`, `rate_code_id`, `policy_version_id`, `qualification`, `effective_from`, `effective_to`, `hourly_amount_aud`, `max_delivery_hours`, `max_associated_hours`, `max_payable_hours` | Stores the monetary values and per-session caps for each code, qualification, and year within a policy version.
 
 ### Seeding
-Flyway migration `V13__Seed_schedule1_rates.sql` (and subsequent migrations) populate the codes and rates extracted directly from the University of Sydney Enterprise Agreement 2023-2026. New agreements must be added as additional `policy_version` rows with non-overlapping effective windows.
+Flyway migration `V1__baseline_schema.sql` introduces the EA policy tables and seeds minimal tutorial rates (e.g., TU2/TU4). New agreements should be added as additional `policy_version` rows.
 
 ## Timesheet Aggregate
 The `timesheets` table now captures both tutor-supplied input and calculator output.

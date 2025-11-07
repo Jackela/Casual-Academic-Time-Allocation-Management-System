@@ -14,7 +14,6 @@ The `Timesheet` entity is the primary aggregate responsible for storing tutor su
 | `hourlyRate` | `BigDecimal` | Rate per payable hour derived from policy tables. |
 | `amount` | `BigDecimal` | Total payable amount. |
 | `rateCode` | `String` | EA Schedule 1 code (e.g., TU1). |
-| `rateVersion` | `String` | Reference to the policy version used (e.g., `EA-2023-2026-Schedule1:v1.0.0`). |
 | `formula` | `String` | Human-readable breakdown for UI transparency. |
 | `clauseReference` | `String` | Clause identifier from the EA. |
 

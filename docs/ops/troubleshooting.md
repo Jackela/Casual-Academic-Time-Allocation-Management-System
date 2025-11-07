@@ -9,7 +9,7 @@
 - If Flyway stops on `V13__Seed_schedule1_rates.sql`, ensure the database user has permission to insert into the policy tables.
 
 ## Calculation Mismatch
-1. Compare the stored `rateCode`, `rateVersion`, and `formula` with the EA schedule.
+1. Compare the stored `rateCode` and `formula` with the EA schedule.
 2. Re-run the quote via `curl` to verify the calculator output.
 3. If the backend returns unexpected values, inspect `Schedule1PolicyProvider` logs to see which rate rows were loaded.
 
@@ -26,4 +26,4 @@
 - Enable DEBUG logging for `com.usyd.catams.service.Schedule1PolicyProvider` when diagnosing policy selection.
 
 ## Support
-Escalate persistent calculator discrepancies to the operations team with the affected `rateCode`, `rateVersion`, and clause reference.
+Escalate persistent calculator discrepancies to the operations team with the affected `rateCode` and clause reference.

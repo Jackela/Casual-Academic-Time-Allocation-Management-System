@@ -116,25 +116,49 @@ export class TimesheetService {
   }
 
   /**
-   * Get timesheets pending for the current approver (Lecturer scope)
-   * New EA-compliant endpoint
+   * Get pending timesheets for the current authenticated user (TUTOR or LECTURER)
+   * 
+   * Role-based routing:
+   * - LECTURER: /api/timesheets/pending-final-approval (TUTOR_CONFIRMED status)
+   * - TUTOR/ADMIN: /api/timesheets/pending-approval (PENDING_TUTOR_CONFIRMATION status)
    */
   static async getMyPendingTimesheets(signal?: AbortSignal): Promise<TimesheetPage> {
     const { API_ENDPOINTS } = await import('../types/api');
+    
+    // Extract user role from JWT token
+    const role = this.getUserRoleFromToken();
+    
+    // Route to correct endpoint based on role
+    const endpoint = role === 'LECTURER' 
+      ? API_ENDPOINTS.TIMESHEETS.PENDING           // /pending-final-approval for LECTURER
+      : API_ENDPOINTS.TIMESHEETS.PENDING_APPROVAL; // /pending-approval for TUTOR/ADMIN
+    
+    const response = await secureApiClient.get<unknown>(endpoint, { signal });
+    const data = (response as any)?.data;
+    if (Array.isArray(data)) {
+      return this.ensureTimesheetPage({ success: true, timesheets: data });
+    }
+    return this.ensureTimesheetPage(data as TimesheetPage | undefined);
+  }
+
+  /**
+   * Extract user role from JWT token
+   * @private
+   */
+  private static getUserRoleFromToken(): 'TUTOR' | 'LECTURER' | 'ADMIN' | null {
     try {
-      const response = await secureApiClient.get<unknown>(API_ENDPOINTS.TIMESHEETS.PENDING_APPROVAL, { signal });
-      const data = (response as any)?.data;
-      if (Array.isArray(data)) {
-        return this.ensureTimesheetPage({ success: true, timesheets: data });
+      // Use localStorage directly for better testability
+      if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('token');
+        if (!token) return null;
+        
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.role || null;
       }
-      return this.ensureTimesheetPage(data as TimesheetPage | undefined);
-    } catch (err: any) {
-      // Usability-first: treat 403 as an empty queue for lecturer scope
-      const status = err?.response?.status ?? err?.status;
-      if (status === 403) {
-        return this.ensureTimesheetPage({ success: true, timesheets: [] } as any);
-      }
-      throw err;
+      return null;
+    } catch (error) {
+      // If token parsing fails, return null (will default to PENDING_APPROVAL)
+      return null;
     }
   }
 

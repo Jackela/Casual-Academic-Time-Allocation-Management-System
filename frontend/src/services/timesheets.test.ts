@@ -417,13 +417,64 @@ describe('TimesheetService EA-compliant endpoints', () => {
     expect(result.success).toBe(true);
   });
 
-  it('getMyPendingTimesheets should call /api/timesheets/pending-approval and normalize array', async () => {
+  it('getMyPendingTimesheets should use /pending-final-approval for LECTURER role', async () => {
+    // Mock JWT token with LECTURER role in localStorage
+    const mockToken = 'header.' + btoa(JSON.stringify({ role: 'LECTURER', userId: 2 })) + '.signature';
+    const originalGetItem = global.localStorage.getItem;
+    global.localStorage.getItem = vi.fn((key) => key === 'token' ? mockToken : null);
+
+    const page = createMockTimesheetPage(2);
+    mockApiClient.get.mockResolvedValue(createMockApiResponse(page));
+
+    const result = await TimesheetService.getMyPendingTimesheets();
+    expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets/pending-final-approval', { signal: undefined });
+    expect(result.timesheets).toHaveLength(2);
+    
+    global.localStorage.getItem = originalGetItem;
+  });
+
+  it('getMyPendingTimesheets should use /pending-approval for TUTOR role', async () => {
+    const mockToken = 'header.' + btoa(JSON.stringify({ role: 'TUTOR', userId: 4 })) + '.signature';
+    const originalGetItem = global.localStorage.getItem;
+    global.localStorage.getItem = vi.fn((key) => key === 'token' ? mockToken : null);
+
     const page = createMockTimesheetPage(3);
     mockApiClient.get.mockResolvedValue(createMockApiResponse(page.timesheets));
 
     const result = await TimesheetService.getMyPendingTimesheets();
     expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets/pending-approval', { signal: undefined });
     expect(Array.isArray(result.timesheets)).toBe(true);
+    
+    global.localStorage.getItem = originalGetItem;
+  });
+
+  it('getMyPendingTimesheets should use /pending-approval for ADMIN role', async () => {
+    const mockToken = 'header.' + btoa(JSON.stringify({ role: 'ADMIN', userId: 1 })) + '.signature';
+    const originalGetItem = global.localStorage.getItem;
+    global.localStorage.getItem = vi.fn((key) => key === 'token' ? mockToken : null);
+
+    const page = createMockTimesheetPage(1);
+    mockApiClient.get.mockResolvedValue(createMockApiResponse(page));
+
+    const result = await TimesheetService.getMyPendingTimesheets();
+    expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets/pending-approval', { signal: undefined });
+    expect(result.success).toBe(true);
+    
+    global.localStorage.getItem = originalGetItem;
+  });
+
+  it('getMyPendingTimesheets should default to /pending-approval when no token', async () => {
+    const originalGetItem = global.localStorage.getItem;
+    global.localStorage.getItem = vi.fn((key) => null);
+
+    const page = createMockTimesheetPage(0);
+    mockApiClient.get.mockResolvedValue(createMockApiResponse(page));
+
+    const result = await TimesheetService.getMyPendingTimesheets();
+    expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets/pending-approval', { signal: undefined });
+    expect(result.timesheets).toEqual([]);
+    
+    global.localStorage.getItem = originalGetItem;
   });
 
   it('confirmTimesheet should PUT to /api/timesheets/{id}/confirm', async () => {
@@ -453,17 +504,7 @@ describe('TimesheetService EA-compliant endpoints', () => {
     expect(result.timesheets.length).toBe(2);
   });
 
-  it('getMyPendingTimesheets should treat 403 as empty queue (usability-first)', async () => {
-    const err: any = new Error('Forbidden');
-    err.response = { status: 403 };
-    mockApiClient.get.mockRejectedValue(err);
-
-    const result = await TimesheetService.getMyPendingTimesheets();
-    expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets/pending-approval', { signal: undefined });
-    expect(result.success).toBe(true);
-    expect(result.timesheets).toEqual([]);
-    expect(result.pageInfo.empty).toBe(true);
-  });
+  // Removed: 403 usability-first workaround test (no longer applicable after role-based routing)
 
   it('getPendingApprovals should treat 403 as empty queue (admin scope)', async () => {
     const err: any = new Error('Forbidden');
