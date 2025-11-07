@@ -258,6 +258,16 @@ web-bundles/
 uat-artifacts/
 openspec/
 
+# --- local-only AI prompts and tooling states ---
+.cursor/
+.codex/
+.bmad-infrastructure-devops/
+.specify/memory/
+.vite/
+AGENTS.md
+CLAUDE.md
+patch.diff
+
 # --- local-only temp files and logs ---
 tmp_*.txt
 *_lines.txt
