@@ -3,6 +3,8 @@ package com.usyd.catams.config;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.entity.LecturerAssignment;
+import com.usyd.catams.entity.TutorAssignment;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.entity.PolicyVersion;
@@ -11,6 +13,8 @@ import com.usyd.catams.entity.RateCode;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.CourseRepository;
+import com.usyd.catams.repository.LecturerAssignmentRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.PolicyVersionRepository;
 import com.usyd.catams.repository.RateAmountRepository;
 import com.usyd.catams.repository.RateCodeRepository;
@@ -49,6 +53,8 @@ public class E2EDataInitializer {
             UserRepository userRepository, 
             CourseRepository courseRepository,
             TimesheetRepository timesheetRepository,
+            LecturerAssignmentRepository lecturerAssignmentRepository,
+            TutorAssignmentRepository tutorAssignmentRepository,
             PasswordEncoder passwordEncoder,
             ObjectProvider<Flyway> flywayProvider,
             RateCodeRepository rateCodeRepository,
@@ -129,6 +135,30 @@ public class E2EDataInitializer {
             course3.setIsActive(true);
             courseRepository.save(course3);
             
+            // Create lecturer assignments for proper access control
+            LecturerAssignment assignment1 = new LecturerAssignment(lecturerUser.getId(), course1.getId());
+            lecturerAssignmentRepository.save(assignment1);
+            
+            LecturerAssignment assignment2 = new LecturerAssignment(lecturerUser.getId(), course2.getId());
+            lecturerAssignmentRepository.save(assignment2);
+            
+            LecturerAssignment assignment3 = new LecturerAssignment(lecturerTwo.getId(), course3.getId());
+            lecturerAssignmentRepository.save(assignment3);
+            
+            System.out.println("✅ Created lecturer assignments");
+            
+            // Create tutor assignments for proper access control
+            TutorAssignment tutorAssignment1 = new TutorAssignment(tutorUser.getId(), course1.getId());
+            tutorAssignmentRepository.save(tutorAssignment1);
+            
+            TutorAssignment tutorAssignment2 = new TutorAssignment(tutorUser.getId(), course2.getId());
+            tutorAssignmentRepository.save(tutorAssignment2);
+            
+            TutorAssignment tutorAssignment3 = new TutorAssignment(tutorUser.getId(), course3.getId());
+            tutorAssignmentRepository.save(tutorAssignment3);
+            
+            System.out.println("✅ Created tutor assignments");
+            
             LocalDate today = LocalDate.now();
             LocalDate lastMonday = today.minusDays((today.getDayOfWeek().getValue() + 6) % 7);
             LocalDate twoWeeksAgoMonday = lastMonday.minusDays(7);
@@ -156,6 +186,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             pendingTimesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            pendingTimesheet.setTaskType(TimesheetTaskType.TUTORIAL);
+            pendingTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(pendingTimesheet);
             
             Timesheet pendingTimesheet2 = new Timesheet(
@@ -168,6 +200,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             pendingTimesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            pendingTimesheet2.setTaskType(TimesheetTaskType.ORAA);
+            pendingTimesheet2.setQualification(TutorQualification.STANDARD);
             upsert.apply(pendingTimesheet2);
 
             Timesheet draftTimesheet = new Timesheet(
@@ -180,6 +214,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             draftTimesheet.setStatus(ApprovalStatus.DRAFT);
+            draftTimesheet.setTaskType(TimesheetTaskType.MARKING);
+            draftTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(draftTimesheet);
 
             Timesheet rejectedTimesheet = new Timesheet(
@@ -192,6 +228,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             rejectedTimesheet.setStatus(ApprovalStatus.REJECTED);
+            rejectedTimesheet.setTaskType(TimesheetTaskType.TUTORIAL);
+            rejectedTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(rejectedTimesheet);
 
             Timesheet crossCourseTimesheet = new Timesheet(
@@ -204,6 +242,8 @@ public class E2EDataInitializer {
                 lecturerTwo.getId()
             );
             crossCourseTimesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            crossCourseTimesheet.setTaskType(TimesheetTaskType.DEMO);
+            crossCourseTimesheet.setQualification(TutorQualification.PHD);
             upsert.apply(crossCourseTimesheet);
 
             Timesheet approvedByTutorTimesheet = new Timesheet(
@@ -216,6 +256,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             approvedByTutorTimesheet.setStatus(ApprovalStatus.TUTOR_CONFIRMED);
+            approvedByTutorTimesheet.setTaskType(TimesheetTaskType.TUTORIAL);
+            approvedByTutorTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(approvedByTutorTimesheet);
 
             Timesheet approvedByTutorTimesheet2 = new Timesheet(
@@ -228,6 +270,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             approvedByTutorTimesheet2.setStatus(ApprovalStatus.TUTOR_CONFIRMED);
+            approvedByTutorTimesheet2.setTaskType(TimesheetTaskType.ORAA);
+            approvedByTutorTimesheet2.setQualification(TutorQualification.STANDARD);
             upsert.apply(approvedByTutorTimesheet2);
 
             Timesheet lecturerConfirmedTimesheet = new Timesheet(
@@ -240,6 +284,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             lecturerConfirmedTimesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
+            lecturerConfirmedTimesheet.setTaskType(TimesheetTaskType.MARKING);
+            lecturerConfirmedTimesheet.setQualification(TutorQualification.COORDINATOR);
             upsert.apply(lecturerConfirmedTimesheet);
 
             Timesheet finalConfirmedTimesheet = new Timesheet(
@@ -252,6 +298,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             finalConfirmedTimesheet.setStatus(ApprovalStatus.FINAL_CONFIRMED);
+            finalConfirmedTimesheet.setTaskType(TimesheetTaskType.TUTORIAL);
+            finalConfirmedTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(finalConfirmedTimesheet);
 
             Timesheet modificationRequestedTimesheet = new Timesheet(
@@ -264,6 +312,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             modificationRequestedTimesheet.setStatus(ApprovalStatus.MODIFICATION_REQUESTED);
+            modificationRequestedTimesheet.setTaskType(TimesheetTaskType.ORAA);
+            modificationRequestedTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(modificationRequestedTimesheet);
 
             seedSchedule1Rates(rateCodeRepository, policyVersionRepository, rateAmountRepository);

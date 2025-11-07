@@ -761,6 +761,18 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
               }}
               loading={updateLoading}
               error={updateError}
+              courseOptions={
+                editingTimesheet && editingTimesheet.courseId && editingTimesheet.courseName
+                  ? [
+                      {
+                        id: editingTimesheet.courseId,
+                        label: editingTimesheet.courseCode
+                          ? `${editingTimesheet.courseCode} - ${editingTimesheet.courseName}`
+                          : editingTimesheet.courseName,
+                      },
+                    ]
+                  : []
+              }
             />
           </div>
         </div>
