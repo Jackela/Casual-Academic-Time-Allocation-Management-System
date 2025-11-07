@@ -248,6 +248,22 @@ secrets/
 *.old
 *.orig
 
+# --- local-only internal automation and agent bundles ---
+.bmad-core/
+.claude/
+.devtools/ai/
+web-bundles/
+
+# --- local-only temp files and logs ---
+tmp_*.txt
+*_lines.txt
+*.tmp
+*.log
+
+# --- local personal scripts (keep example, ignore actual) ---
+uat-helpers.sh
+!uat-helpers.example.sh
+
 # ===========================
 # PROJECT SPECIFIC
 # ===========================
