@@ -77,20 +77,20 @@ public class WorkflowTestScenarios {
     }
     
     /**
-     * Test scenario: Rejection terminal state.
+     * Test scenario: Rejection workflow.
      * 
      * Business context: A reviewer rejects a timesheet submission. The timesheet
-     * becomes a terminal read-only record for audit purposes.
+     * becomes editable and can be corrected and resubmitted.
      * 
-     * Expected behavior: timesheet becomes read-only, preserves audit trail, requires new creation for resubmission
+     * Expected behavior: timesheet becomes editable, allows modifications, can be resubmitted
      */
     public static class RejectionTerminalWorkflow {
         public static Timesheet afterRejection() {
             return TimesheetWorkflowTestFixture.createRejectedScenario();
         }
         
-        public static Timesheet terminalState() {
-            // Rejected is terminal - no further actions allowed
+        public static Timesheet editableForResubmission() {
+            // Rejected allows editing and resubmission per updated business rule
             return TimesheetWorkflowTestFixture.createRejectedScenario();
         }
     }
@@ -125,13 +125,14 @@ public class WorkflowTestScenarios {
         
         /**
          * Scenarios where timesheet should be editable.
-         * Business rule: DRAFT and MODIFICATION_REQUESTED allow editing.
-         * REJECTED timesheets are terminal and read-only.
+         * Business rule: DRAFT, MODIFICATION_REQUESTED, and REJECTED allow editing.
+         * REJECTED timesheets can be edited and resubmitted per updated business rule.
          */
         public static Object[][] editableScenarios() {
             return new Object[][] {
                 { "Draft timesheet", TimesheetWorkflowTestFixture.createDraftScenario() },
-                { "Modification requested", TimesheetWorkflowTestFixture.createRequiresModificationScenario() }
+                { "Modification requested", TimesheetWorkflowTestFixture.createRequiresModificationScenario() },
+                { "Rejected (editable for resubmission)", TimesheetWorkflowTestFixture.createRejectedScenario() }
             };
         }
         
@@ -175,12 +176,13 @@ public class WorkflowTestScenarios {
         
         /**
          * Scenarios where timesheet can be resubmitted.
-         * Business rule: Only MODIFICATION_REQUESTED allows resubmission.
-         * REJECTED timesheets are terminal and require new timesheet creation.
+         * Business rule: MODIFICATION_REQUESTED and REJECTED allow resubmission.
+         * REJECTED timesheets can be edited and resubmitted per updated business rule.
          */
         public static Object[][] resubmittableScenarios() {
             return new Object[][] {
-                { "Modification requested", TimesheetWorkflowTestFixture.createRequiresModificationScenario() }
+                { "Modification requested", TimesheetWorkflowTestFixture.createRequiresModificationScenario() },
+                { "Rejected (editable for resubmission)", TimesheetWorkflowTestFixture.createRejectedScenario() }
             };
         }
         
@@ -270,7 +272,10 @@ public class WorkflowTestScenarios {
                 break;
                 
             case REJECTED:
-                // REJECTED is terminal - no transitions allowed
+                // REJECTED allows editing and resubmission
+                if (action == ApprovalAction.SUBMIT_FOR_APPROVAL) {
+                    return ApprovalStatus.PENDING_TUTOR_CONFIRMATION;
+                }
                 break;
         }
         
