@@ -263,6 +263,8 @@ tmp_*.txt
 # --- local personal scripts (keep example, ignore actual) ---
 uat-helpers.sh
 !uat-helpers.example.sh
+**/uat-helpers.sh
+!**/uat-helpers.example.sh
 
 # ===========================
 # PROJECT SPECIFIC
