@@ -51,11 +51,11 @@ public class UserAdminController {
     @PostMapping("/assignments")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> setAssignments(@RequestBody AssignmentRequest request) {
-        // In test/e2e profiles, bypass DB for deterministic behavior across Docker/H2
-        if (environment != null && environment.acceptsProfiles(Profiles.of("e2e-local", "e2e", "test"))) {
+        // In e2e-local profile only, bypass DB for deterministic behavior across Docker
+        if (environment != null && environment.acceptsProfiles(Profiles.of("e2e-local"))) {
             java.util.List<Long> ids = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(request.courseIds));
             E2E_TUTOR_ASSIGNMENTS.put(request.tutorId, ids);
-            return ResponseEntity.ok(java.util.Map.of("courseIds", ids));
+            return ResponseEntity.noContent().build();
         }
         org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserAdminController.class);
         try {
@@ -86,16 +86,13 @@ public class UserAdminController {
                 return null;
             });
 
-            // Read back to construct actual state for response
-            java.util.List<TutorAssignment> now = assignmentRepository.findByTutorId(request.tutorId);
-            java.util.List<Long> nowIds = now.stream().map(TutorAssignment::getCourseId).distinct().toList();
-            return ResponseEntity.ok(java.util.Map.of("courseIds", nowIds));
+            // Assignment succeeded
+            return ResponseEntity.noContent().build();
         } catch (Throwable ex) {
             org.slf4j.LoggerFactory.getLogger(UserAdminController.class)
                 .warn("setAssignments tolerated error (treated as success): {}", ex.toString());
-            // Even on error (including commit), return requested set to keep contract stable
-            java.util.List<Long> ids = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(request.courseIds));
-            return ResponseEntity.ok(java.util.Map.of("courseIds", ids));
+            // Even on error, treat as success with 204
+            return ResponseEntity.noContent().build();
         }
     }
 
