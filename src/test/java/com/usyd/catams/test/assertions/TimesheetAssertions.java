@@ -243,14 +243,15 @@ public class TimesheetAssertions extends AbstractAssert<TimesheetAssertions, Tim
     }
     
     /**
-     * Asserts that the timesheet can be resubmitted (after modification request).
+     * Asserts that the timesheet can be resubmitted (after modification request or rejection).
      * 
-     * Business rule: Only MODIFICATION_REQUESTED timesheets can be resubmitted.
-     * REJECTED timesheets are terminal and require new timesheet creation.
+     * Business rule: MODIFICATION_REQUESTED and REJECTED timesheets can be edited and resubmitted.
+     * REJECTED allows editing and resubmission per updated business rule.
      */
     public TimesheetAssertions canBeResubmitted() {
         isNotNull();
-        boolean canResubmit = actual.getStatus() == ApprovalStatus.MODIFICATION_REQUESTED;
+        boolean canResubmit = actual.getStatus() == ApprovalStatus.MODIFICATION_REQUESTED 
+                           || actual.getStatus() == ApprovalStatus.REJECTED;
         if (!canResubmit) {
             failWithMessage("Expected timesheet to be resubmittable but it was not. Current status: <%s>", 
                            actual.getStatus());

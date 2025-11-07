@@ -118,20 +118,20 @@ class TimesheetWorkflowBehaviorTest {
     }
     
     /**
-     * Test business behavior: Rejected timesheets are terminal and read-only.
+     * Test business behavior: Rejected timesheets allow editing for resubmission.
      * 
-     * Business rule: Rejected timesheets are read-only terminal states that preserve audit trail.
-     * To resubmit after rejection, lecturers must create a new timesheet.
+     * Business rule: REJECTED status allows editing and resubmission.
+     * Reviewers reject timesheets when they need to be corrected and resubmitted.
      */
     @Test
-    @DisplayName("Rejected timesheets should be read-only terminal states")
-    void rejectedTimesheet_ShouldBeReadOnlyTerminal() {
+    @DisplayName("Rejected timesheets should allow editing for resubmission")
+    void rejectedTimesheet_ShouldAllowEditingForResubmission() {
         Timesheet timesheet = TimesheetWorkflowTestFixture.createRejectedScenario();
         
         assertThat(timesheet)
-            .isNotEditable()
+            .isEditable()  // REJECTED allows editing for resubmission
             .wasRejected()
-            .isFinal()
+            .canBeResubmitted()
             .cannotBeConfirmed();
     }
     
@@ -243,11 +243,11 @@ class TimesheetWorkflowBehaviorTest {
         pending.confirmByLecturer(WorkflowTestScenarios.LECTURER_ID, "Final academic confirmation");
         assertThat(pending).isReadyForHRReview().canBeConfirmed();
         
-        // Test rejection
+        // Test rejection - REJECTED allows editing for resubmission
         Timesheet forRejection = TimesheetWorkflowTestFixture.createPendingApprovalScenario();
         Approval rejection = forRejection.reject(WorkflowTestScenarios.TUTOR_ID, "Needs more detail");
         
-        assertThat(forRejection).wasRejected().isFinal();
+        assertThat(forRejection).wasRejected().canBeResubmitted();
         org.assertj.core.api.Assertions.assertThat(rejection).isNotNull();
         
         // Test modification request

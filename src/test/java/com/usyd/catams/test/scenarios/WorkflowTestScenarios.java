@@ -144,8 +144,7 @@ public class WorkflowTestScenarios {
                 { "Pending tutor review", TimesheetWorkflowTestFixture.createPendingApprovalScenario() },
                 { "Tutor approved", TimesheetWorkflowTestFixture.createTutorApprovedScenario() },
                 { "Ready for HR", TimesheetWorkflowTestFixture.createReadyForHRScenario() },
-                { "Fully approved", TimesheetWorkflowTestFixture.createCompletedWorkflowScenario() },
-                { "Rejected (terminal)", TimesheetWorkflowTestFixture.createRejectedScenario() }
+                { "Fully approved", TimesheetWorkflowTestFixture.createCompletedWorkflowScenario() }
             };
         }
         

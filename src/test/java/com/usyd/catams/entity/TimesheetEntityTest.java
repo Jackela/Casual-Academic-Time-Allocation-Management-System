@@ -126,11 +126,9 @@ public class TimesheetEntityTest {
         void isEditable_ShouldReturnFalseForOtherStatuses() {
             ApprovalStatus[] nonEditableStatuses = {
                 ApprovalStatus.PENDING_TUTOR_CONFIRMATION,
-                ApprovalStatus.PENDING_TUTOR_CONFIRMATION,
-            ApprovalStatus.LECTURER_CONFIRMED,
-            ApprovalStatus.FINAL_CONFIRMED,
-            ApprovalStatus.REJECTED,
-            ApprovalStatus.FINAL_CONFIRMED
+                ApprovalStatus.TUTOR_CONFIRMED,
+                ApprovalStatus.LECTURER_CONFIRMED,
+                ApprovalStatus.FINAL_CONFIRMED
             };
 
             for (ApprovalStatus status : nonEditableStatuses) {
@@ -527,7 +525,7 @@ public class TimesheetEntityTest {
             timesheet.reject(2L, "Needs more detail");
 
             assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.REJECTED);
-            assertThat(timesheet.isEditable()).isFalse();
+            assertThat(timesheet.isEditable()).isTrue(); // REJECTED allows editing for resubmission
             assertThat(timesheet.canBeConfirmed()).isFalse();
 
             List<Approval> history = timesheet.getApprovalHistory();
