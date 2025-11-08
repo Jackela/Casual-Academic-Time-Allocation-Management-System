@@ -385,3 +385,6 @@ playwright-report/
 test-results/
 .pnpm-store/
 /.claude
+
+# temp doc copies
+*.copy
