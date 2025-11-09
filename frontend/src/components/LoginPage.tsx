@@ -206,18 +206,18 @@ const LoginPage: React.FC = () => {
             <div className="mt-2 space-y-1 text-sm text-muted-foreground" data-testid="credentials-list">
               <div className="flex justify-between gap-4">
                 <strong>Admin:</strong>
-                <span>admin@example.com</span>
+                <span>admin@example.com / Admin123!</span>
               </div>
               <div className="flex justify-between gap-4">
                 <strong>Lecturer:</strong>
-                <span>lecturer@example.com</span>
+                <span>lecturer@example.com / Lecturer123!</span>
               </div>
               <div className="flex justify-between gap-4">
                 <strong>Tutor:</strong>
-                <span>tutor@example.com</span>
+                <span>tutor@example.com / Tutor123!</span>
               </div>
               <small className="mt-2 block opacity-70">
-                Use any password for testing
+                Password format: [Role]123!
               </small>
             </div>
           </CardFooter>

@@ -128,7 +128,8 @@ public class ApprovalStateMachine {
         }
         
         return status == ApprovalStatus.DRAFT || 
-               status == ApprovalStatus.MODIFICATION_REQUESTED;
+               status == ApprovalStatus.MODIFICATION_REQUESTED ||
+               status == ApprovalStatus.REJECTED;
     }
     
     /**
@@ -161,8 +162,8 @@ public class ApprovalStateMachine {
             throw new IllegalArgumentException("Status cannot be null");
         }
         
-        return status == ApprovalStatus.FINAL_CONFIRMED || 
-               status == ApprovalStatus.REJECTED;
+        // Only FINAL_CONFIRMED is terminal. REJECTED allows editing and resubmission.
+        return status == ApprovalStatus.FINAL_CONFIRMED;
     }
     
     /**
@@ -204,11 +205,13 @@ public class ApprovalStateMachine {
         map.put(new StateTransition(ApprovalStatus.LECTURER_CONFIRMED, ApprovalAction.REQUEST_MODIFICATION),
                 ApprovalStatus.MODIFICATION_REQUESTED);
 
-        // Recovery workflows: MODIFICATION_REQUESTED can be resubmitted by LECTURER or TUTOR (self)
+        // Recovery workflows: MODIFICATION_REQUESTED and REJECTED can be resubmitted by LECTURER or TUTOR (self)
         map.put(new StateTransition(ApprovalStatus.MODIFICATION_REQUESTED, ApprovalAction.SUBMIT_FOR_APPROVAL), 
                 ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+        map.put(new StateTransition(ApprovalStatus.REJECTED, ApprovalAction.SUBMIT_FOR_APPROVAL), 
+                ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
-        // FINAL_CONFIRMED and REJECTED are terminal states - no transitions
+        // FINAL_CONFIRMED is terminal state - no transitions
         
         return Collections.unmodifiableMap(map);
     }
@@ -241,9 +244,9 @@ public class ApprovalStateMachine {
                .add(transition.action);
         }
         
-        // Add terminal states with empty action sets
+        // Add terminal state FINAL_CONFIRMED with empty action set
         map.put(ApprovalStatus.FINAL_CONFIRMED, Collections.emptySet());
-        map.put(ApprovalStatus.REJECTED, Collections.emptySet());
+        // REJECTED is not terminal - it has SUBMIT_FOR_APPROVAL action (already added via transitionMap)
         
         // Make all sets immutable
         map.replaceAll((status, actions) -> Collections.unmodifiableSet(actions));

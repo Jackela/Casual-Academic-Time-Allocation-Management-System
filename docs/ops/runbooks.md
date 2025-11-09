@@ -12,7 +12,7 @@
 3. Redeploy backend once Flyway applies successfully.
 
 ## Rate Discrepancy Report
-1. Retrieve stored `rateCode`, `rateVersion`, `formula`, and `clauseReference` from the affected timesheet.
+1. Retrieve stored `rateCode`, `formula`, and `clauseReference` from the affected timesheet.
 2. Cross-check values with the EA Schedule 1 documentation.
 3. If calculator bug suspected, add failing test to `Schedule1CalculatorTest` and coordinate hotfix.
 

@@ -198,10 +198,10 @@ export default function AdminUsersPage() {
     if (!modalOpen && !editingUser) return;
     const loadCourses = async () => {
       try {
-        // Admins can assign for any lecturer; simplest is to fetch all active courses endpoint
-        // Reuse lecturer courses util with lecturerId omitted by backend or provide 0
-        const list = await fetchLecturerCourses(0 as unknown as number).catch(() => []);
-        const mapped = (list || []).map((c) => ({ id: c.id, label: `${c.code ?? c.id} ${c.name}` }));
+        // In create-user modal, we need the full course set so admins can assign visibility immediately.
+        // Use fetchAllCourses() instead of fetching by lecturerId=0.
+        const list = await fetchAllCourses().catch(() => []);
+        const mapped = (list || []).map((c) => ({ id: c.id, label: c.code ? `${c.code} - ${c.name}` : c.name }));
         setAvailableCourses(mapped);
       } catch (e) {
         setAvailableCourses([]);
@@ -255,7 +255,7 @@ export default function AdminUsersPage() {
       const createPayload = { ...formState, password: candidate } as typeof formState;
       const newUser = await createUser(createPayload);
 
-      // If user is TUTOR and assignments/defaults were selected, push them
+      // If user is TUTOR/LECTURER and assignments/defaults were selected, push them
       if (newUser.role === 'TUTOR') {
         try {
           if (Array.isArray(formState.assignedCourseIds) && formState.assignedCourseIds.length > 0) {
@@ -266,6 +266,14 @@ export default function AdminUsersPage() {
           }
         } catch (err) {
           console.warn('Post-create tutor config failed', err);
+        }
+      } else if (newUser.role === 'LECTURER') {
+        try {
+          if (Array.isArray(formState.assignedCourseIds) && formState.assignedCourseIds.length > 0) {
+            await setLecturerAssignments({ lecturerId: newUser.id, courseIds: formState.assignedCourseIds });
+          }
+        } catch (err) {
+          console.warn('Post-create lecturer assignments failed', err);
         }
       }
 
@@ -515,7 +523,7 @@ export default function AdminUsersPage() {
                 </td>
               </tr>
             )}
-            {sortedUsers.map((user) => {
+            {sortedUsers.map((user, idx) => {
               const emailValue = user.email ?? '';
               const normalizedEmail = emailValue.replace(/\+/g, '');
               const isActive = resolveIsActive(user);
@@ -525,9 +533,13 @@ export default function AdminUsersPage() {
                 ? 'inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700'
                 : 'inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700';
 
+              const rowKey = typeof user.id === 'number' && Number.isFinite(user.id)
+                ? `id:${user.id}`
+                : (normalizedEmail ? `email:${normalizedEmail}` : `idx:${idx}`);
+
               return (
                 <tr
-                  key={user.id}
+                  key={rowKey}
                   className="hover:bg-slate-50"
                   data-testid={`row-${normalizedEmail}`}
                 >
@@ -705,30 +717,37 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
-              {formState.role === 'TUTOR' && (
+              {(formState.role === 'TUTOR' || formState.role === 'LECTURER') && (
                 <div className="space-y-4 border-t border-slate-200 pt-4">
                   <div className="flex flex-col">
-                    <label htmlFor="assigned-courses" className="text-sm font-medium text-slate-700">
+                    <label className="text-sm font-medium text-slate-700 mb-2">
                       Visible Courses (assignments)
                     </label>
-                    <select
-                      id="assigned-courses"
-                      multiple
-                      className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20 min-h-[6rem]"
-                      value={(formState.assignedCourseIds ?? []).map(String)}
-                      onChange={(e) => {
-                        const values = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
-                        setFormState((prev) => ({ ...prev, assignedCourseIds: values }));
-                      }}
-                      data-testid="admin-user-assigned-courses"
-                    >
+                    <div className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm min-h-[6rem] max-h-[12rem] overflow-y-auto space-y-2" data-testid="admin-user-assigned-courses">
                       {availableCourses.map((c) => (
-                        <option key={c.id} value={c.id}>{c.label}</option>
+                        <label key={c.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={(formState.assignedCourseIds ?? []).includes(c.id)}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              setFormState((prev) => {
+                                const current = prev.assignedCourseIds ?? [];
+                                const updated = isChecked
+                                  ? [...current, c.id]
+                                  : current.filter((id) => id !== c.id);
+                                return { ...prev, assignedCourseIds: updated };
+                              });
+                            }}
+                            className="rounded border-slate-300 text-primary focus:ring-primary/20"
+                          />
+                          <span className="text-sm text-slate-700">{c.label}</span>
+                        </label>
                       ))}
-                    </select>
-                    <p className="mt-1 text-xs text-slate-500">Lecturers will only see tutors in their assigned courses; tutors will only see assigned courses.</p>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">Lecturers see tutors/records in assigned courses；Tutors只能看到被分配的课程。</p>
                   </div>
-                  <div className="flex flex-col">
+                  {formState.role === 'TUTOR' && (<div className="flex flex-col">
                     <label htmlFor="default-qualification" className="text-sm font-medium text-slate-700">
                       Default Tutor Qualification
                     </label>
@@ -744,7 +763,7 @@ export default function AdminUsersPage() {
                       <option value="PHD">PhD</option>
                     </select>
                     <p className="mt-1 text-xs text-slate-500">This default is applied in new timesheets; tutors can override per entry.</p>
-                  </div>
+                  </div>)}
                 </div>
               )}
 
@@ -806,25 +825,30 @@ export default function AdminUsersPage() {
               {(editingUser.role === 'TUTOR' || editingUser.role === 'LECTURER') && (
                 <div className="space-y-4">
                   <div className="flex flex-col">
-                    <label htmlFor="edit-assigned-courses" className="text-sm font-medium text-slate-700">
+                    <label className="text-sm font-medium text-slate-700 mb-2">
                       Visible Courses (assignments)
                     </label>
-                    <select
-                      id="edit-assigned-courses"
-                      multiple
-                      className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20 min-h-[6rem]"
-                      value={editAssignedCourseIds.map(String)}
-                      onChange={(e) => {
-                        const values = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
-                        setEditAssignedCourseIds(values);
-                      }}
-                    >
+                    <div className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm min-h-[6rem] max-h-[12rem] overflow-y-auto space-y-2" data-testid="admin-edit-user-assigned-courses">
                       {editCourseOptions.map((co) => (
-                        <option key={co.id} value={co.id}>
-                          {co.label}
-                        </option>
+                        <label key={co.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={editAssignedCourseIds.includes(co.id)}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              setEditAssignedCourseIds((prev) => {
+                                const updated = isChecked
+                                  ? [...prev, co.id]
+                                  : prev.filter((id) => id !== co.id);
+                                return updated;
+                              });
+                            }}
+                            className="rounded border-slate-300 text-primary focus:ring-primary/20"
+                          />
+                          <span className="text-sm text-slate-700">{co.label}</span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                     <p className="mt-1 text-xs text-slate-500">
                       Lecturers see tutors in assigned courses; tutors see only assigned courses.
                     </p>

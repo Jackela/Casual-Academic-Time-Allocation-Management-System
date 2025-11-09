@@ -31,7 +31,7 @@ This plan defines the multi-phase program required to make the Casual Academic T
   - `qualification: TutorQualification` – enum (`PHD`, `COORDINATOR`, `STANDARD`) drawn from people data or manual override, determines whether TU1 vs TU2 etc. apply.
   - `deliveryHours` – hours submitted by lecturer; validated against EA limits.
   - `associatedHours` – calculator output reflecting Schedule 1 entitlements (e.g. TU1 includes up to 2 hours; repeat tutorial only up to 1 hour).
-  - `rateCode` and `rateVersion` – foreign-key references to `rate_code` and `policy_version` used at calculation time to keep historical fidelity.
+  - `rateCode` – reference to the EA rate code used at calculation time to keep historical fidelity.
   - `payableHours` – `deliveryHours + associatedHours` unless overridden by EA rules (e.g. marking tasks use hourly rates without automatic association).
   - `amount` – total amount for the line item; always computed server-side.
   - `calculationBreakdown` – JSON column storing structured metadata (formula, warnings such as “Associated hours capped at 2 by Schedule 1 clause 2”, whether marking hours were split).
@@ -96,11 +96,6 @@ This plan defines the multi-phase program required to make the Casual Academic T
   ```jsonc
   {
     "rateCode": "TU2",
-    "rateVersion": {
-      "policyVersionId": "uuid",
-      "eaReference": "EA-2023-2026-Schedule-1",
-      "effectivePeriod": { "from": "2024-07-01", "to": "2025-06-30" }
-    },
     "deliveryHours": 1.0,
     "associatedHours": 2.0,
     "payableHours": 3.0,
@@ -121,7 +116,7 @@ This plan defines the multi-phase program required to make the Casual Academic T
 - **Security & Performance:** enforce lecturer/tutor role permissions, rate-limit to prevent abuse, and add response caching keyed by hash of payload for short-lived scenarios to reduce load during rapid form edits.
 
 ### 2.2 Existing API Hardening (`POST /timesheets`, `PUT /timesheets/{id}`)
-- Strip financial fields (`associatedHours`, `payableHours`, `amount`, `rateCode`, `rateVersion`) from request DTOs; server always recalculates by invoking `Schedule1Calculator` before persisting.
+- Strip financial fields (`associatedHours`, `payableHours`, `amount`, `rateCode`) from request DTOs; server always recalculates by invoking `Schedule1Calculator` before persisting.
 - Persist calculator output as part of a transaction that includes workflow state transitions defined in the SSOT workflow document.
 - Add optimistic locking to prevent stale frontends from overwriting recalculated values.
 - Enforce that manual overrides (e.g. additional ORAA hours granted post-review) require a privileged flag and audit note referencing EA clause or HR exception.
@@ -147,7 +142,7 @@ This plan defines the multi-phase program required to make the Casual Academic T
 - Handle validation errors from the backend (e.g. repeat eligibility) by surfacing inline error banners tied to the relevant field.
 
 ### 3.2 Enhanced UI Transparency
-- Display `rateCode`, `rateVersion` (human-readable year span), and `formula` returned by the calculator in the entry details panel.
+- Display `rateCode` and `formula` returned by the calculator in the entry details panel.
 - Add a collapsible “EA Breakdown” component that shows:
   - Clause reference (e.g. “Schedule 1, Section 2 – Tutorials”).
   - Delivery vs. associated hours.
@@ -183,4 +178,3 @@ This plan defines the multi-phase program required to make the Casual Academic T
 - **Operational Readiness:** train HR/payroll teams on new auditing screens, update documentation, and monitor quote latency (<150 ms p95) plus calculator error rate (<0.5%).
 
 This phased plan positions CATAMS to meet the Enterprise Agreement obligations while honouring the project’s SSOT principles, ensuring that every stakeholder trusts the backend as the definitive authority for payment calculations.
-

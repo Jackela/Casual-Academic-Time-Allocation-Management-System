@@ -248,6 +248,38 @@ secrets/
 *.old
 *.orig
 
+# --- local-only internal automation and agent bundles ---
+.bmad-core/
+.claude/
+.devtools/ai/
+web-bundles/
+
+# --- local-only UAT artifacts & specs ---
+uat-artifacts/
+openspec/
+
+# --- local-only AI prompts and tooling states ---
+.cursor/
+.codex/
+.bmad-infrastructure-devops/
+.specify/memory/
+.vite/
+AGENTS.md
+CLAUDE.md
+patch.diff
+
+# --- local-only temp files and logs ---
+tmp_*.txt
+*_lines.txt
+*.tmp
+*.log
+
+# --- local personal scripts (keep example, ignore actual) ---
+uat-helpers.sh
+!uat-helpers.example.sh
+**/uat-helpers.sh
+!**/uat-helpers.example.sh
+
 # ===========================
 # PROJECT SPECIFIC
 # ===========================
@@ -353,3 +385,6 @@ playwright-report/
 test-results/
 .pnpm-store/
 /.claude
+
+# temp doc copies
+*.copy

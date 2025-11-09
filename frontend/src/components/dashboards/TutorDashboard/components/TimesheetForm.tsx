@@ -116,10 +116,27 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
 
   // In lecturer mode, keep internal tutor selection in sync with parent-provided selection
   useEffect(() => {
-    if (isLecturerMode && selectedTutorId && selectedTutorId > 0) {
-      setInternalTutorId((prev) => (prev && prev > 0 ? prev : selectedTutorId));
+    if (!isLecturerMode) return;
+    
+    if (selectedTutorId && selectedTutorId > 0) {
+      // Only update if different from current value to avoid unnecessary re-renders
+      setInternalTutorId((prev) => prev === selectedTutorId ? prev : selectedTutorId);
     }
   }, [isLecturerMode, selectedTutorId]);
+  
+  // Separate effect for fallback: only when no selectedTutorId but tutorOptions available
+  useEffect(() => {
+    if (!isLecturerMode || (selectedTutorId && selectedTutorId > 0)) return;
+    
+    if (tutorOptions.length > 0) {
+      const firstTutorId = tutorOptions[0]?.id ?? 0;
+      setInternalTutorId((prev) => {
+        // Only apply fallback if we don't have a valid tutor yet
+        if (!prev || prev === 0) return firstTutorId;
+        return prev;
+      });
+    }
+  }, [isLecturerMode, selectedTutorId, tutorOptions]);
 
   const today = new Date();
   const defaultWeek = initialData?.weekStartDate
@@ -159,13 +176,6 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     }
     return tutorId;
   });
-
-  useEffect(() => {
-    if (!isLecturerCreate) return;
-    if (selectedTutorId && selectedTutorId !== internalTutorId) {
-      setInternalTutorId(selectedTutorId);
-    }
-  }, [isLecturerCreate, selectedTutorId, internalTutorId]);
 
   const fCourseId = watch('courseId');
   const fWeek = watch('weekStartDate');

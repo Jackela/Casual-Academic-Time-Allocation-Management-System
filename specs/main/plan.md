@@ -47,7 +47,7 @@
   - State machine transitions/invariants asserted
 - Observability & Audit:
   - Structured logs on key events
-  - Persisted rate metadata (rateCode, rateVersion, formula, clause)
+  - Persisted rate metadata (rateCode, formula, clause)
 
 ## Project Structure
 

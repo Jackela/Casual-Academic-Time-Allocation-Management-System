@@ -3,7 +3,7 @@
 **Feature Branch**: `[004-frontend-ea-compliance]`  
 **Created**: 2025-11-03  
 **Status**: Draft  
-**Input**: User description: "All modifications are concentrated in the Frontend. The Backend already provides all Enterprise Agreement (EA)–compliant endpoints, but the Frontend does not call five key ones. The current Frontend (e.g., Tutor view list and Tutor submission) bypasses the required “Tutor confirmation” step and lacks the “audit trail” feature. You must modify the Frontend to call the existing Backend endpoints to meet CATAMS and EA compliance requirements. Backend: no change needed. The five unused endpoints (/api/timesheets/me, /api/timesheets/pending-approval, /api/timesheets/{id}/confirm, /api/approvals/history/{timesheetId}, /api/approvals/pending) must stay; they are required for workflow compliance. Frontend—Service layer: add five new functions in frontend/src/services/timesheets.ts: (1) getMyTimesheets() → GET /api/timesheets/me; (2) getMyPendingTimesheets() → GET /api/timesheets/pending-approval; (3) confirmTimesheet() → PUT /api/timesheets/{id}/confirm; (4) getApprovalHistory() → GET /api/approvals/history/{timesheetId}; (5) getPendingApprovals() → GET /api/approvals/pending. Frontend—Component layer: update three main React components to use them. (1) TutorDashboard: replace GET /api/timesheets with getMyTimesheets() so Tutors only see their own records. (2) ApprovalWorkflow: modify submission to a two-step process—“Submit” must first call confirmTimesheet() (PUT /api/timesheets/{id}/confirm) before going to Lecturer approval. (3) TimesheetDetailView: add an “Approval History” section calling getApprovalHistory() to show a full audit log for HR and Lecturer. Summary: Backend logic is correct; Frontend is incomplete. Implement five service functions and update three core components to activate Tutor confirmation and audit history."
+**Input**: User description: "All modifications are concentrated in the Frontend. The Backend already provides all Enterprise Agreement (EA)–compliant endpoints, but the Frontend does not call five key ones. The current Frontend (e.g., Tutor view list and Tutor submission) bypasses the required “Tutor confirmation” step and lacks the “audit trail” feature. You must modify the Frontend to call the existing Backend endpoints to meet CATAMS and EA compliance requirements. Backend: no change needed. The five endpoints (/api/timesheets/me, /api/timesheets/pending-approval, /api/approvals, /api/approvals/history/{timesheetId}, /api/approvals/pending) must stay; they are required for workflow compliance. Frontend—Service layer: add five new functions in frontend/src/services/timesheets.ts: (1) getMyTimesheets() → GET /api/timesheets/me; (2) getMyPendingTimesheets() → GET /api/timesheets/pending-approval; (3) confirmTimesheet() → POST /api/approvals with action=TUTOR_CONFIRM; (4) getApprovalHistory() → GET /api/approvals/history/{timesheetId}; (5) getPendingApprovals() → GET /api/approvals/pending. Frontend—Component layer: update three main React components to use them. (1) TutorDashboard: replace GET /api/timesheets with getMyTimesheets() so Tutors only see their own records. (2) ApprovalWorkflow: modify submission to a two-step process—“Submit” must first call confirmTimesheet() (POST /api/approvals) before going to Lecturer approval. (3) TimesheetDetailView: add an “Approval History” section calling getApprovalHistory() to show a full audit log for HR and Lecturer. Summary: Backend logic is correct; Frontend is incomplete. Implement five service functions and update three core components to activate Tutor confirmation and audit history."
 
 ## Clarifications
 
@@ -34,10 +34,10 @@ As a Tutor, when I submit a drafted timesheet, the system requires an explicit T
 
 **Why this priority**: EA compliance requires explicit confirmation by the Tutor prior to Lecturer approval.
 
-**Independent Test**: Submitting a draft triggers PUT /api/timesheets/{id}/confirm and only then proceeds to Lecturer approval. The server responds 200 with a payload whose status is in {'PENDING_TUTOR_CONFIRMATION','TUTOR_CONFIRMED'}; the UI treats both as “Tutor confirmed” and allows Lecturer approval only when the status is 'TUTOR_CONFIRMED'.
+**Independent Test**: Submitting a draft triggers POST /api/approvals (action=TUTOR_CONFIRM) and only then proceeds to Lecturer approval. The server responds 200 and the UI treats status 'TUTOR_CONFIRMED' as “Tutor confirmed”, enabling Lecturer approval.
 
 **Acceptance Scenarios**:
-1. Given a DRAFT timesheet, When Tutor clicks Submit, Then the app calls PUT /api/timesheets/{id}/confirm, receives 200, and the returned status is one of {'PENDING_TUTOR_CONFIRMATION','TUTOR_CONFIRMED'}. The UI enables the Lecturer approval path only when status is 'TUTOR_CONFIRMED'.
+1. Given a DRAFT timesheet, When Tutor clicks Submit, Then the app calls POST /api/approvals (TUTOR_CONFIRM) and receives 200. The UI enables the Lecturer approval path only when status is 'TUTOR_CONFIRMED'.
 2. Given a non-DRAFT timesheet, When Tutor attempts confirmation, Then the UI disables or shows a validation message.
 3. Given a timesheet already confirmed by Tutor, When Tutor repeats confirmation, Then the server returns 200 with unchanged status and the UI shows a non-blocking “Already confirmed” toast without changing navigation.
 
@@ -78,7 +78,7 @@ As a Lecturer/HR/Admin, I can view pending approvals via the dedicated endpoints
 
 ### Functional Requirements
 - **FR-001**: Frontend MUST call GET /api/timesheets/me for TutorDashboard list (not generic /api/timesheets with tutorId).
-- **FR-002**: Frontend MUST call PUT /api/timesheets/{id}/confirm before enabling Lecturer approval flow.
+- **FR-002**: Frontend MUST call POST /api/approvals (TUTOR_CONFIRM) before enabling Lecturer approval flow.
   - Server response MUST be 200 with payload status in {'PENDING_TUTOR_CONFIRMATION','TUTOR_CONFIRMED'}.
   - Repeated confirm MUST be idempotent: return 200 with unchanged status; UI shows a non-blocking “Already confirmed” toast.
 - **FR-003**: Frontend MUST call GET /api/approvals/history/{timesheetId} and render an “Approval History” section in TimesheetDetailView.
@@ -97,6 +97,6 @@ As a Lecturer/HR/Admin, I can view pending approvals via the dedicated endpoints
 
 ### Measurable Outcomes
 - **SC-001**: 100% of TutorDashboard list loads use /api/timesheets/me (validated via tests/mocks).
-- **SC-002**: 100% of “Submit” actions perform PUT /api/timesheets/{id}/confirm before any Lecturer approval call.
+- **SC-002**: 100% of “Submit” actions perform POST /api/approvals (TUTOR_CONFIRM) before any Lecturer approval call.
 - **SC-003**: Approval History section appears for 95%+ timesheet detail views with history data under normal conditions.
 - **SC-004**: Approver pending views use the correct endpoints and complete under 2 seconds median in test env.

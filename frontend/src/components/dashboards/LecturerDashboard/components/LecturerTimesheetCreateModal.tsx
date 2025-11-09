@@ -8,8 +8,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Button } from '../../../ui/button';
 import LoadingSpinner from '../../../shared/LoadingSpinner/LoadingSpinner';
 import { secureLogger } from '../../../../utils/secure-logger';
-import { fetchLecturerCourses } from '../../../../services/courses';
-import { fetchTutorsForLecturer } from '../../../../services/users';
+import { fetchLecturerCourses, fetchAllCourses } from '../../../../services/courses';
+import { fetchTutorsForLecturer, getLecturerAssignments } from '../../../../services/users';
 import { useTimesheetCreate } from '../../../../hooks/timesheets';
 import { dispatchNotification } from '../../../../lib/routing/notificationRouter';
 
@@ -60,10 +60,24 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
 
       const loadResources = async () => {
         try {
-          const [coursesRaw, tutorsRaw] = await Promise.all([
-            fetchLecturerCourses(lecturerId),
-            fetchTutorsForLecturer(lecturerId),
-          ]);
+          // Prefer SSOT: lecturer_assignments → derive courses from assignments
+          let coursesRaw;
+          try {
+            const assignedCourseIds = await getLecturerAssignments(lecturerId);
+            if (Array.isArray(assignedCourseIds) && assignedCourseIds.length > 0) {
+              const allCourses = await fetchAllCourses();
+              coursesRaw = allCourses.filter(c => assignedCourseIds.includes(c.id));
+            }
+          } catch {
+            // ignore and fallback below
+          }
+
+          // Fallback to legacy Course.lecturerId mapping if no assignments found
+          if (!Array.isArray(coursesRaw)) {
+            coursesRaw = await fetchLecturerCourses(lecturerId);
+          }
+
+          const tutorsRaw = await fetchTutorsForLecturer(lecturerId);
 
           // Be resilient to unexpected shapes to avoid runtime crashes
           const courses = Array.isArray(coursesRaw) ? coursesRaw : [];
@@ -117,7 +131,8 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
             if (current && mappedTutors.some((option) => option.id === current)) {
               return current;
             }
-            return mappedTutors.length === 1 ? mappedTutors[0].id : null;
+            // FIX: Default to first tutor when multiple tutors exist
+            return mappedTutors[0]?.id ?? null;
           });
         } catch (error) {
           if (cancelled) {
@@ -329,6 +344,27 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
               <div className="mb-4 flex items-center justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-destructive" role="alert">
                 <span>{resourceError}</span>
                 <Button variant="outline" size="sm" onClick={() => setReloadTick((t) => t + 1)}>Retry</Button>
+              </div>
+            )}
+
+            {/* Empty-state guidance: explain that Admin assignments are required before creation */}
+            {!loadingResources && !resourceError && (courseOptions.length === 0 || tutorOptions.length === 0) && (
+              <div
+                className="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"
+                role="note"
+                data-testid="lecturer-create-empty-hint"
+              >
+                <p className="mb-1">
+                  No courses or assigned tutors were found for your account.
+                </p>
+                <p>
+                  To create a timesheet, an Administrator must set up course ↔ tutor assignments in the Admin UI (Users → Assignments).
+                  If you have admin access, please add the assignment(s) first, then return here.
+                </p>
+                {/* zh-CN helper */}
+                <p className="mt-2 text-xs text-slate-600">
+                  提示：需先在 Admin 界面的「Users」中完成课程与导师（Assignment）的关联后，才能在此创建 Timesheet。
+                </p>
               </div>
             )}
 

@@ -70,17 +70,39 @@ export class TestDataFactory {
     tutorId?: number;
   }): Promise<SeededTimesheet> {
     const hours = options.hours ?? (options.deliveryHours ?? 1);
-    const seeded = await this.createTimesheetForTest({
-      ...options,
-      hours,
-      deliveryHours: options.deliveryHours ?? hours,
-      taskType: 'TUTORIAL',
-      qualification: options.qualification ?? 'STANDARD',
-      isRepeat: options.isRepeat ?? false,
-      sessionDate: options.sessionDate ?? options.weekStartDate,
-      tutorId: options.tutorId,
-      targetStatus: options.targetStatus ?? 'DRAFT',
-    });
+    const preferredTutor = options.tutorId ?? this.tokens.tutor.userId;
+    const candidateTutors = Array.from(new Set([preferredTutor, 3, 4, 5]));
+    let seeded: SeededTimesheet | null = null;
+    let lastErr: any = null;
+    for (const tutorId of candidateTutors) {
+      try {
+        seeded = await this.createTimesheetForTest({
+          ...options,
+          hours,
+          deliveryHours: options.deliveryHours ?? hours,
+          taskType: 'TUTORIAL',
+          qualification: options.qualification ?? 'STANDARD',
+          isRepeat: options.isRepeat ?? false,
+          sessionDate: options.sessionDate ?? options.weekStartDate,
+          tutorId,
+          targetStatus: options.targetStatus ?? 'DRAFT',
+        });
+        if (seeded) {
+          seeded = { ...seeded, tutorId };
+        }
+        break;
+      } catch (e) {
+        const msg = String((e as Error)?.message ?? '').toLowerCase();
+        lastErr = e;
+        if (msg.includes('already exists') || msg.includes('resource_conflict') || msg.includes('409')) {
+          continue; // try next tutor id to avoid collision on (tutor, course, week)
+        }
+        throw e;
+      }
+    }
+    if (!seeded) {
+      throw lastErr ?? new Error('Unable to seed tutorial timesheet');
+    }
 
     // Verify seed is visible by course/week for determinism in EA tests (fail fast)
     const list = await this.request.get(

@@ -13,6 +13,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -24,6 +27,9 @@ class UserControllerIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @BeforeEach
     void cleanDatabase() {
@@ -109,18 +115,25 @@ class UserControllerIntegrationTest extends IntegrationTestBase {
     }
 
     private User persistUser(String email, UserRole role, boolean active) {
-        var builder = TestDataBuilder.aUser()
-            .withEmail(email)
-            .withName("Integration User")
-            .withRole(role);
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
-        if (active) {
-            builder.active();
-        } else {
-            builder.inactive();
-        }
+        return template.execute(status -> {
+            var builder = TestDataBuilder.aUser()
+                .withEmail(email)
+                .withName("Integration User")
+                .withRole(role);
 
-        return userRepository.save(builder.build());
+            if (active) {
+                builder.active();
+            } else {
+                builder.inactive();
+            }
+
+            var saved = userRepository.save(builder.build());
+            userRepository.flush();
+            return saved;
+        });
     }
 
     private String bearer(User user) {

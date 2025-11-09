@@ -191,76 +191,95 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
     }
 
     private void seedTutorialPolicySnapshot() {
-        PolicyVersion version = new PolicyVersion();
-        version.setEaReference("EA-2023-2026-Schedule-1");
-        version.setMajorVersion(2023);
-        version.setMinorVersion(0);
-        version.setEffectiveFrom(LocalDate.of(2023, 7, 1));
-        version.setEffectiveTo(null);
-        version.setSourceDocumentUrl("docs/requirements/University-of-Sydney-Enterprise-Agreement-2023-2026.pdf");
-        version.setNotes("Integration test seed for Schedule 1 tutorial rates");
-        version = policyVersionRepository.save(version);
+        PolicyVersion version = policyVersionRepository
+            .findByEaReferenceAndMajorVersionAndMinorVersion("EA-2023-2026-Schedule-1", 2023, 0)
+            .orElseGet(() -> {
+                PolicyVersion newVersion = new PolicyVersion();
+                newVersion.setEaReference("EA-2023-2026-Schedule-1");
+                newVersion.setMajorVersion(2023);
+                newVersion.setMinorVersion(0);
+                newVersion.setEffectiveFrom(LocalDate.of(2023, 7, 1));
+                newVersion.setEffectiveTo(null);
+                newVersion.setSourceDocumentUrl("docs/requirements/University-of-Sydney-Enterprise-Agreement-2023-2026.pdf");
+                newVersion.setNotes("Integration test seed for Schedule 1 tutorial rates");
+                return policyVersionRepository.save(newVersion);
+            });
 
-        RateCode tutorialPhd = new RateCode();
-        tutorialPhd.setCode("TU1");
-        tutorialPhd.setTaskType(TimesheetTaskType.TUTORIAL);
-        tutorialPhd.setDescription("Tutorial rate – PhD holder or unit coordinator");
-        tutorialPhd.setDefaultAssociatedHours(new BigDecimal("2.0"));
-        tutorialPhd.setDefaultDeliveryHours(new BigDecimal("1.0"));
-        tutorialPhd.setRequiresPhd(true);
-        tutorialPhd.setRepeatable(false);
-        tutorialPhd.setEaClauseReference("Schedule 1 – Tutoring p. 213");
-        tutorialPhd = rateCodeRepository.save(tutorialPhd);
+        RateCode tutorialPhd = rateCodeRepository.findByCode("TU1")
+            .orElseGet(() -> {
+                RateCode newRate = new RateCode();
+                newRate.setCode("TU1");
+                newRate.setTaskType(TimesheetTaskType.TUTORIAL);
+                newRate.setDescription("Tutorial rate – PhD holder or unit coordinator");
+                newRate.setDefaultAssociatedHours(new BigDecimal("2.0"));
+                newRate.setDefaultDeliveryHours(new BigDecimal("1.0"));
+                newRate.setRequiresPhd(true);
+                newRate.setRepeatable(false);
+                newRate.setEaClauseReference("Schedule 1 – Tutoring p. 213");
+                return rateCodeRepository.save(newRate);
+            });
 
-        RateCode tutorialStandard = new RateCode();
-        tutorialStandard.setCode("TU2");
-        tutorialStandard.setTaskType(TimesheetTaskType.TUTORIAL);
-        tutorialStandard.setDescription("Tutorial rate – standard eligibility");
-        tutorialStandard.setDefaultAssociatedHours(new BigDecimal("2.0"));
-        tutorialStandard.setDefaultDeliveryHours(new BigDecimal("1.0"));
-        tutorialStandard.setRequiresPhd(false);
-        tutorialStandard.setRepeatable(false);
-        tutorialStandard.setEaClauseReference("Schedule 1 – Tutoring p. 213");
-        tutorialStandard = rateCodeRepository.save(tutorialStandard);
+        RateCode tutorialStandard = rateCodeRepository.findByCode("TU2")
+            .orElseGet(() -> {
+                RateCode newRate = new RateCode();
+                newRate.setCode("TU2");
+                newRate.setTaskType(TimesheetTaskType.TUTORIAL);
+                newRate.setDescription("Tutorial rate – standard eligibility");
+                newRate.setDefaultAssociatedHours(new BigDecimal("2.0"));
+                newRate.setDefaultDeliveryHours(new BigDecimal("1.0"));
+                newRate.setRequiresPhd(false);
+                newRate.setRepeatable(false);
+                newRate.setEaClauseReference("Schedule 1 – Tutoring p. 213");
+                return rateCodeRepository.save(newRate);
+            });
 
-        RateAmount phdAmount = new RateAmount();
-        phdAmount.setRateCode(tutorialPhd);
-        phdAmount.setPolicyVersion(version);
-        phdAmount.setYearLabel("2024-07");
-        phdAmount.setEffectiveFrom(LocalDate.of(2024, 7, 1));
-        phdAmount.setEffectiveTo(null);
-        phdAmount.setHourlyAmountAud(new BigDecimal("210.19")); // session amount for 3 payable hours
-        phdAmount.setMaxAssociatedHours(new BigDecimal("2.0"));
-        phdAmount.setMaxPayableHours(new BigDecimal("3.0"));
-        phdAmount.setQualification(TutorQualification.PHD);
-        phdAmount.setNotes("Tutorial PhD rate (1 July 2024, EA Schedule 1)");
-        rateAmountRepository.save(phdAmount);
+        rateAmountRepository.findByRateCodeAndPolicyVersionAndQualification(tutorialPhd, version, TutorQualification.PHD)
+            .orElseGet(() -> {
+                RateAmount phdAmount = new RateAmount();
+                phdAmount.setRateCode(tutorialPhd);
+                phdAmount.setPolicyVersion(version);
+                phdAmount.setYearLabel("2024-07");
+                phdAmount.setEffectiveFrom(LocalDate.of(2024, 7, 1));
+                phdAmount.setEffectiveTo(null);
+                phdAmount.setHourlyAmountAud(new BigDecimal("210.19"));
+                phdAmount.setMaxAssociatedHours(new BigDecimal("2.0"));
+                phdAmount.setMaxPayableHours(new BigDecimal("3.0"));
+                phdAmount.setQualification(TutorQualification.PHD);
+                phdAmount.setNotes("Tutorial PhD rate (1 July 2024, EA Schedule 1)");
+                return rateAmountRepository.save(phdAmount);
+            });
 
-        RateAmount coordinatorAmount = new RateAmount();
-        coordinatorAmount.setRateCode(tutorialPhd);
-        coordinatorAmount.setPolicyVersion(version);
-        coordinatorAmount.setYearLabel("2024-07");
-        coordinatorAmount.setEffectiveFrom(LocalDate.of(2024, 7, 1));
-        coordinatorAmount.setEffectiveTo(null);
-        coordinatorAmount.setHourlyAmountAud(new BigDecimal("210.19"));
-        coordinatorAmount.setMaxAssociatedHours(new BigDecimal("2.0"));
-        coordinatorAmount.setMaxPayableHours(new BigDecimal("3.0"));
-        coordinatorAmount.setQualification(TutorQualification.COORDINATOR);
-        coordinatorAmount.setNotes("Tutorial coordinator rate (1 July 2024, EA Schedule 1)");
-        rateAmountRepository.save(coordinatorAmount);
+        rateAmountRepository.findByRateCodeAndPolicyVersionAndQualification(tutorialPhd, version, TutorQualification.COORDINATOR)
+            .orElseGet(() -> {
+                RateAmount coordinatorAmount = new RateAmount();
+                coordinatorAmount.setRateCode(tutorialPhd);
+                coordinatorAmount.setPolicyVersion(version);
+                coordinatorAmount.setYearLabel("2024-07");
+                coordinatorAmount.setEffectiveFrom(LocalDate.of(2024, 7, 1));
+                coordinatorAmount.setEffectiveTo(null);
+                coordinatorAmount.setHourlyAmountAud(new BigDecimal("210.19"));
+                coordinatorAmount.setMaxAssociatedHours(new BigDecimal("2.0"));
+                coordinatorAmount.setMaxPayableHours(new BigDecimal("3.0"));
+                coordinatorAmount.setQualification(TutorQualification.COORDINATOR);
+                coordinatorAmount.setNotes("Tutorial coordinator rate (1 July 2024, EA Schedule 1)");
+                return rateAmountRepository.save(coordinatorAmount);
+            });
 
-        RateAmount standardAmount = new RateAmount();
-        standardAmount.setRateCode(tutorialStandard);
-        standardAmount.setPolicyVersion(version);
-        standardAmount.setYearLabel("2024-07");
-        standardAmount.setEffectiveFrom(LocalDate.of(2024, 7, 1));
-        standardAmount.setEffectiveTo(null);
-        standardAmount.setHourlyAmountAud(new BigDecimal("175.94")); // session amount for 3 payable hours
-        standardAmount.setMaxAssociatedHours(new BigDecimal("2.0"));
-        standardAmount.setMaxPayableHours(new BigDecimal("3.0"));
-        standardAmount.setQualification(TutorQualification.STANDARD);
-        standardAmount.setNotes("Tutorial standard rate (1 July 2024, EA Schedule 1)");
-        rateAmountRepository.save(standardAmount);
+        rateAmountRepository.findByRateCodeAndPolicyVersionAndQualification(tutorialStandard, version, TutorQualification.STANDARD)
+            .orElseGet(() -> {
+                RateAmount standardAmount = new RateAmount();
+                standardAmount.setRateCode(tutorialStandard);
+                standardAmount.setPolicyVersion(version);
+                standardAmount.setYearLabel("2024-07");
+                standardAmount.setEffectiveFrom(LocalDate.of(2024, 7, 1));
+                standardAmount.setEffectiveTo(null);
+                standardAmount.setHourlyAmountAud(new BigDecimal("175.94"));
+                standardAmount.setMaxAssociatedHours(new BigDecimal("2.0"));
+                standardAmount.setMaxPayableHours(new BigDecimal("3.0"));
+                standardAmount.setQualification(TutorQualification.STANDARD);
+                standardAmount.setNotes("Tutorial standard rate (1 July 2024, EA Schedule 1)");
+                return rateAmountRepository.save(standardAmount);
+            });
     }
 
     @Test

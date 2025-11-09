@@ -6,6 +6,15 @@ CATAMS is a full‑stack system for managing casual academic timesheets and appr
 - Lecturer dashboard (hours by tutor, budget used/remaining, status breakdown)
 - Unified error responses (problem+json) and end‑to‑end tests running under Docker
 
+## Documentation / SSOT Quick Links
+- Docs Home: `docs/index.md` (SSOT map and navigation)
+- Product Requirements (SSOT): `docs/product/requirements/University-of-Sydney-Enterprise-Agreement-2023-2026.pdf` + `docs/product/requirements/University-of-Sydney-Enterprise-Agreement-2023-2026.txt`
+- API Contract (SSOT): `docs/openapi.yaml` (source) → bundle `docs/openapi.bundled.yaml`
+- Architecture (SSOT): `docs/architecture/overview.md` (see ADRs in `docs/adr/`)
+- Backend Dev (SSOT): `docs/backend/development-guide.md`
+- Frontend Architecture (SSOT): `docs/frontend/architecture.md`
+- Testing (SSOT): `docs/testing/README.md`
+
 ## Tech Stack
 - Backend: Java, Spring Boot, Spring Security (JWT), JPA/Hibernate, Flyway, Testcontainers (PostgreSQL)
 - Frontend: React (Vite), TypeScript, Tailwind UI

@@ -7,7 +7,7 @@ This guide summarizes how to validate the EA-compliant wiring for feature `004-f
 - Tutor dashboard list: `GET /api/timesheets/me`
 - Lecturer pending queue: `GET /api/timesheets/pending-approval`
 - Admin/HR pending queue: `GET /api/approvals/pending`
-- Tutor confirmation: `PUT /api/timesheets/{id}/confirm`
+- Tutor confirmation: `POST /api/approvals` with `{ action: 'TUTOR_CONFIRM', timesheetId }`
 - Approval history: `GET /api/approvals/history/{timesheetId}`
 
 ## Local testing

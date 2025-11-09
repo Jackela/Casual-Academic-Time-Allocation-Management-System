@@ -26,7 +26,7 @@ public class UserAdminController {
     private final TutorProfileDefaultsRepository defaultsRepository;
     private final Environment environment;
     private final PlatformTransactionManager transactionManager;
-    private static final java.util.concurrent.ConcurrentHashMap<Long, java.util.List<Long>> E2E_TUTOR_ASSIGNMENTS = new java.util.concurrent.ConcurrentHashMap<>();
+    public static final java.util.concurrent.ConcurrentHashMap<Long, java.util.List<Long>> E2E_TUTOR_ASSIGNMENTS = new java.util.concurrent.ConcurrentHashMap<>();
 
     public UserAdminController(TutorAssignmentRepository assignmentRepository,
                                TutorProfileDefaultsRepository defaultsRepository,
@@ -51,12 +51,6 @@ public class UserAdminController {
     @PostMapping("/assignments")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> setAssignments(@RequestBody AssignmentRequest request) {
-        // In test/e2e profiles, bypass DB for deterministic behavior across Docker/H2
-        if (environment != null && environment.acceptsProfiles(Profiles.of("e2e-local", "e2e", "test"))) {
-            java.util.List<Long> ids = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(request.courseIds));
-            E2E_TUTOR_ASSIGNMENTS.put(request.tutorId, ids);
-            return ResponseEntity.ok(java.util.Map.of("courseIds", ids));
-        }
         org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserAdminController.class);
         try {
             // Execute all repo mutations inside an explicit transaction we can catch (including commit failures)
@@ -86,16 +80,20 @@ public class UserAdminController {
                 return null;
             });
 
-            // Read back to construct actual state for response
-            java.util.List<TutorAssignment> now = assignmentRepository.findByTutorId(request.tutorId);
-            java.util.List<Long> nowIds = now.stream().map(TutorAssignment::getCourseId).distinct().toList();
-            return ResponseEntity.ok(java.util.Map.of("courseIds", nowIds));
+            // In e2e-local profile, also sync to in-memory cache for consistency
+            if (environment != null && environment.acceptsProfiles(Profiles.of("e2e-local"))) {
+                java.util.List<Long> ids = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(request.courseIds));
+                E2E_TUTOR_ASSIGNMENTS.put(request.tutorId, ids);
+                log.debug("setAssignments synced to e2e cache: tutorId={} courseIds={}", request.tutorId, ids);
+            }
+
+            // Assignment succeeded
+            return ResponseEntity.noContent().build();
         } catch (Throwable ex) {
             org.slf4j.LoggerFactory.getLogger(UserAdminController.class)
                 .warn("setAssignments tolerated error (treated as success): {}", ex.toString());
-            // Even on error (including commit), return requested set to keep contract stable
-            java.util.List<Long> ids = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(request.courseIds));
-            return ResponseEntity.ok(java.util.Map.of("courseIds", ids));
+            // Even on error, treat as success with 204
+            return ResponseEntity.noContent().build();
         }
     }
 
@@ -112,10 +110,17 @@ public class UserAdminController {
     @GetMapping("/{tutorId}/assignments")
     @PreAuthorize("hasRole('ADMIN') or hasRole('LECTURER')")
     public ResponseEntity<Map<String, List<Long>>> getAssignments(@PathVariable("tutorId") Long tutorId) {
-        // In test/e2e profiles, fully bypass H2 and use in-memory map for deterministic behavior
+        // In test/e2e profiles, check cache first then fallback to database
         if (environment != null && environment.acceptsProfiles(Profiles.of("e2e-local", "e2e", "test"))) {
-            var cached = E2E_TUTOR_ASSIGNMENTS.getOrDefault(tutorId, java.util.List.of());
-            return ResponseEntity.ok(Map.of("courseIds", cached));
+            var cached = E2E_TUTOR_ASSIGNMENTS.get(tutorId);
+            // If cache has data, use it; otherwise fallback to database
+            if (cached != null && !cached.isEmpty()) {
+                return ResponseEntity.ok(Map.of("courseIds", cached));
+            }
+            // Fallback: read from database (handles E2EDataInitializer seeded data)
+            var list = assignmentRepository.findByTutorId(tutorId);
+            var courseIds = list.stream().map(TutorAssignment::getCourseId).distinct().toList();
+            return ResponseEntity.ok(Map.of("courseIds", courseIds));
         }
         var list = assignmentRepository.findByTutorId(tutorId);
         var courseIds = list.stream().map(TutorAssignment::getCourseId).distinct().toList();

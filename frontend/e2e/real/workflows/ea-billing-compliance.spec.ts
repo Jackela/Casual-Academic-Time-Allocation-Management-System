@@ -8,10 +8,13 @@ const REPEAT_LABEL = 'Repeat session within seven days';
 
 const DATE_TU1_STANDARD = '2024-08-05';
 const DATE_TU2_STANDARD = '2024-08-12';
-const DATE_REPEAT_BASE_VALID = '2024-06-17';
-const DATE_REPEAT_VALID = '2024-06-24';
-const DATE_REPEAT_BASE_INVALID = '2024-07-08';
-const DATE_REPEAT_INVALID_ATTEMPT = '2024-07-22';
+// Use dates far in the past to avoid collisions with seeded data
+const DATE_REPEAT_BASE_VALID = '2020-06-15'; // Monday
+// Backend requires quote sessionDate to be a Monday; use next Monday within 7-day window
+const DATE_REPEAT_VALID = '2020-06-22'; // Monday, +7 days
+const DATE_REPEAT_BASE_INVALID = '2020-07-06'; // Monday
+// 14 days (not within 7) remains invalid case
+const DATE_REPEAT_INVALID_ATTEMPT = '2020-07-20'; // Monday two weeks later
 const DATE_LECTURE_STANDARD = '2024-09-02';
 const DATE_LECTURE_DEVELOPED = '2024-09-09';
 const DATE_LECTURE_REPEAT = '2024-09-16';
@@ -96,12 +99,17 @@ async function openLecturerCreateModal(page: Page) {
   try { await tutorSelect.evaluate((el: any) => { (el as HTMLSelectElement).disabled = false; }); } catch {}
 }
 
-async function selectTutorByQualification(page: Page, qualification: 'STANDARD' | 'PHD' | 'COORDINATOR') {
+async function selectTutorByQualification(
+  page: Page,
+  qualification: 'STANDARD' | 'PHD' | 'COORDINATOR',
+  forcedTutorId?: number,
+) {
   const container = page.getByTestId('lecturer-timesheet-tutor-selector');
   const tutorSelect = container.locator('select#tutor');
   await expect(tutorSelect).toBeVisible({ timeout: 20000 });
   // Force selection via DOM events to ensure React state updates even if control is logically locked
-  const preferred = qualification === 'PHD' ? '4' : qualification === 'COORDINATOR' ? '5' : '3';
+  const fallback = qualification === 'PHD' ? '4' : qualification === 'COORDINATOR' ? '5' : '3';
+  const preferred = String(forcedTutorId ?? fallback);
   await tutorSelect.evaluate((el: any, val: string) => {
     const s = el as HTMLSelectElement;
     try { s.disabled = false; } catch {}
@@ -288,7 +296,7 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
         let effectiveRepeat = isRepeat;
 
         const withinSevenDaysDates = new Set([
-          '2024-06-24', // DATE_REPEAT_VALID
+          '2020-06-21', // DATE_REPEAT_VALID
         ]);
         const outsideSevenDates = new Set([
           '2024-07-22', // DATE_REPEAT_INVALID_ATTEMPT
@@ -458,24 +466,38 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
     await expect(rateCodeLocator(page)).not.toHaveText('-', { timeout: 30000 });
     await expect(fieldLocator(page, 'Associated Hours')).not.toHaveText('-', { timeout: 30000 });
     await expect(fieldLocator(page, 'Payable Hours')).not.toHaveText('-', { timeout: 30000 });
-    await await expect(rateCodeLocator(page)).not.toHaveText('-', { timeout: 30000 });
+    await expect(rateCodeLocator(page)).not.toHaveText('-', { timeout: 30000 });
     await expect(fieldLocator(page, 'Associated Hours')).not.toHaveText('-', { timeout: 30000 });
-    await expect(fieldLocator(page, 'Payable Hours')).not.toHaveText('-', { timeout: 30000 });
     await expect(rateCodeLocator(page)).toHaveText('TU2');
   });
 
   test('Valid repeat tutorial within seven days yields TU3 for PhD tutor', async ({ page }) => {
-    await dataFactory.createTutorialTimesheet({
-      courseId: 1,
-      weekStartDate: DATE_REPEAT_BASE_VALID,
-      qualification: 'PHD',
-      isRepeat: false,
-      deliveryHours: 1,
-    });
+    // Seed a base tutorial within the repeat window; cycle through tutorIds to avoid constraint collisions
+    const repeatTutorCandidates = [4, 5, 3];
+    let seededRepeatTutorId = repeatTutorCandidates[0];
+    for (const tutorId of repeatTutorCandidates) {
+      try {
+        const seeded = await dataFactory.createTutorialTimesheet({
+          courseId: 1,
+          weekStartDate: DATE_REPEAT_BASE_VALID,
+          qualification: 'PHD',
+          isRepeat: false,
+          deliveryHours: 1,
+          tutorId,
+        });
+        seededRepeatTutorId = seeded.tutorId ?? tutorId;
+        break;
+      } catch (e) {
+        if (tutorId === repeatTutorCandidates[repeatTutorCandidates.length - 1]) {
+          throw e;
+        }
+      }
+    }
       await openLecturerCreateModal(page);
       await setCourse(page, 1);
       await ensureTaskTypeTutorial(page);
-      await selectTutorByQualification(page, 'PHD');
+      await selectTutorByQualification(page, 'PHD', seededRepeatTutorId);
+      await setQualification(page, 'PHD');
       await setWeekStart(page, DATE_REPEAT_VALID);
 
     await setDeliveryHours(page, 1.0);
@@ -486,6 +508,8 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
 
     expect((repeatQuote.requestBody as any).isRepeat).toBe(true);
     expect(Object.prototype.hasOwnProperty.call(repeatQuote.requestBody, 'repeat')).toBe(false);
+    // Diagnostic: log actual quote for visibility in CI artifacts
+    console.log('[EA-QUOTE]', JSON.stringify(repeatQuote.payload));
     expect(repeatQuote.payload.rateCode).toBe('TU3');
     expect(repeatQuote.payload.qualification).toBe('PHD');
     expect(Number(repeatQuote.payload.associatedHours)).toBeCloseTo(1.0, 5);
@@ -494,21 +518,26 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
     await expect(rateCodeLocator(page)).not.toHaveText('-', { timeout: 30000 });
     await expect(fieldLocator(page, 'Associated Hours')).not.toHaveText('-', { timeout: 30000 });
     await expect(fieldLocator(page, 'Payable Hours')).not.toHaveText('-', { timeout: 30000 });
-    await expect(rateCodeLocator(page)).not.toHaveText('-', { timeout: 30000 });
-    await expect(fieldLocator(page, 'Associated Hours')).not.toHaveText('-', { timeout: 30000 });
-    await expect(fieldLocator(page, 'Payable Hours')).not.toHaveText('-', { timeout: 30000 });
     await expect(rateCodeLocator(page)).toHaveText('TU3');
   });
 
   test('Valid repeat tutorial within seven days yields TU4 for standard tutor', async ({ page }) => {
     test.setTimeout(180000);
-    await dataFactory.createTutorialTimesheet({
-      courseId: 2,
-      weekStartDate: DATE_REPEAT_BASE_VALID,
-      qualification: 'STANDARD',
-      isRepeat: false,
-      deliveryHours: 1,
-    });
+    // Seed a base tutorial within the repeat window; retry once to avoid rare 409 during parallel runs
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await dataFactory.createTutorialTimesheet({
+          courseId: 2,
+          weekStartDate: DATE_REPEAT_BASE_VALID,
+          qualification: 'STANDARD',
+          isRepeat: false,
+          deliveryHours: 1,
+        });
+        break;
+      } catch (e) {
+        if (attempt === 1) throw e;
+      }
+    }
       await openLecturerCreateModal(page);
       await setCourse(page, 2);
       await ensureTaskTypeTutorial(page);
@@ -721,17 +750,32 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
   });
 
   test('Repeat outside seven-day window is downgraded to standard TU1 rate for PhD tutor', async ({ page }) => {
-    await dataFactory.createTutorialTimesheet({
-      courseId: 1,
-      weekStartDate: DATE_REPEAT_BASE_INVALID,
-      qualification: 'PHD',
-      isRepeat: false,
-      deliveryHours: 1,
-    });
+    // Seed a base tutorial two weeks earlier; rotate tutorIds to eliminate duplicate collisions
+    const downgradeTutorCandidates = [4, 5, 3];
+    let seededDowngradeTutorId = downgradeTutorCandidates[0];
+    for (const tutorId of downgradeTutorCandidates) {
+      try {
+        const seeded = await dataFactory.createTutorialTimesheet({
+          courseId: 1,
+          weekStartDate: DATE_REPEAT_BASE_INVALID,
+          qualification: 'PHD',
+          isRepeat: false,
+          deliveryHours: 1,
+          tutorId,
+        });
+        seededDowngradeTutorId = seeded.tutorId ?? tutorId;
+        break;
+      } catch (e) {
+        if (tutorId === downgradeTutorCandidates[downgradeTutorCandidates.length - 1]) {
+          throw e;
+        }
+      }
+    }
       await openLecturerCreateModal(page);
       await setCourse(page, 1);
       await ensureTaskTypeTutorial(page);
-      await selectTutorByQualification(page, 'PHD');
+      await selectTutorByQualification(page, 'PHD', seededDowngradeTutorId);
+      await setQualification(page, 'PHD');
       await setWeekStart(page, DATE_REPEAT_INVALID_ATTEMPT);
 
     await setDeliveryHours(page, 1.0);
@@ -763,6 +807,8 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
     await expect(page.getByLabel(REPEAT_LABEL)).not.toBeChecked();
   });
 });
+
+
 
 
 

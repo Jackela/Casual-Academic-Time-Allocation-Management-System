@@ -189,8 +189,9 @@ public class TimesheetTest {
         timesheet.setStatus(ApprovalStatus.FINAL_CONFIRMED);
         assertThat(timesheet.isEditable()).isFalse();
 
+        // Test REJECTED status - editable for resubmission
         timesheet.setStatus(ApprovalStatus.REJECTED);
-        assertThat(timesheet.isEditable()).isFalse();
+        assertThat(timesheet.isEditable()).isTrue();
     }
 
     @Test
@@ -563,7 +564,7 @@ public class TimesheetTest {
         // 2. Reject
         timesheet.reject(456L, "Needs more detail");
         assertThat(timesheet.getStatus()).isEqualTo(ApprovalStatus.REJECTED);
-        assertThat(timesheet.isEditable()).isFalse();
+        assertThat(timesheet.isEditable()).isTrue(); // REJECTED allows editing for resubmission
         assertThat(timesheet.canBeConfirmed()).isFalse();
 
         assertThat(timesheet.getApprovals()).hasSize(2);

@@ -227,3 +227,150 @@ GET_PENDING_FINAL:
           application/json:
             schema:
               $ref: '../schemas/errors.yaml#/ErrorResponse'
+
+GET_PENDING:
+  get:
+    tags:
+      - Timesheets
+    summary: Get timesheets pending first-level approval
+    description: Returns timesheets pending first-level approval. Accessible to Tutor (own) and Admin roles.
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+    responses:
+      '200':
+        description: Pending timesheets retrieved
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetPageResponse'
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+
+GET_ME:
+  get:
+    tags:
+      - Timesheets
+    summary: Get current tutor's timesheets
+    description: Returns a paged list of timesheets for the current authenticated tutor.
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: sort
+        in: query
+        schema:
+          type: string
+          example: createdAt,desc
+      - name: status
+        in: query
+        schema:
+          $ref: '../schemas/approvals.yaml#/ApprovalStatus'
+    responses:
+      '200':
+        description: Timesheets retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetPageResponse'
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+
+GET_CONFIG:
+  get:
+    tags:
+      - Timesheets
+    summary: Get timesheets UI constraints
+    description: Publishes server-side SSOT config for UI validation (hours range, weekStart rules, currency).
+    security:
+      - bearerAuth: []
+    responses:
+      '200':
+        description: Config retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hours:
+                  type: object
+                  properties:
+                    min:
+                      type: number
+                    max:
+                      type: number
+                    step:
+                      type: number
+                weekStart:
+                  type: object
+                  properties:
+                    mondayOnly:
+                      type: boolean
+                currency:
+                  type: string
+  delete:
+    tags:
+      - Timesheets
+    summary: Delete timesheet
+    description: Deletes a timesheet by ID. Authorization and business rule validation are enforced server-side.
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    responses:
+      '204':
+        description: Timesheet deleted
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '404':
+        description: Timesheet not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'

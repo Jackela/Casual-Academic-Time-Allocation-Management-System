@@ -7,8 +7,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.usyd.catams.policy.AuthenticationFacade;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,15 +30,18 @@ public class CourseUsersController {
     private final LecturerAssignmentRepository lecturerAssignmentRepository;
     private final E2EAssignmentState e2eState; // may be null outside e2e-local
     private final Environment environment; // may be null in some contexts
+    private final AuthenticationFacade authenticationFacade;
 
     public CourseUsersController(TutorAssignmentRepository tutorAssignmentRepository,
                                  LecturerAssignmentRepository lecturerAssignmentRepository,
-                                 E2EAssignmentState e2eState,
-                                 Environment environment) {
+                                 AuthenticationFacade authenticationFacade,
+                                 @org.springframework.beans.factory.annotation.Autowired(required = false) E2EAssignmentState e2eState,
+                                 @org.springframework.beans.factory.annotation.Autowired(required = false) Environment environment) {
         this.tutorAssignmentRepository = tutorAssignmentRepository;
         this.lecturerAssignmentRepository = lecturerAssignmentRepository;
         this.e2eState = e2eState;
         this.environment = environment;
+        this.authenticationFacade = authenticationFacade;
     }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('LECTURER')")
@@ -49,22 +51,23 @@ public class CourseUsersController {
         if (authz == null || authz.isBlank()) {
             return ResponseEntity.status(401).build();
         }
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getAuthorities() == null) {
+        Long userId;
+        java.util.Collection<String> roles;
+        try {
+            userId = authenticationFacade.getCurrentUserId();
+            roles = authenticationFacade.getCurrentUserRoles();
+        } catch (IllegalStateException e) {
             return ResponseEntity.status(401).build();
         }
-        boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
-        boolean isLecturer = auth.getAuthorities().stream().anyMatch(a -> "ROLE_LECTURER".equals(a.getAuthority()));
-        boolean isTutor = auth.getAuthorities().stream().anyMatch(a -> "ROLE_TUTOR".equals(a.getAuthority()));
+
+        boolean isAdmin = roles.contains("ROLE_ADMIN");
+        boolean isLecturer = roles.contains("ROLE_LECTURER");
+        boolean isTutor = roles.contains("ROLE_TUTOR");
 
         if (isTutor && !isAdmin) {
             return ResponseEntity.status(403).build();
         }
         if (isLecturer && !isAdmin) {
-            Long userId = extractUserId(auth);
-            if (userId == null) {
-                return ResponseEntity.status(403).build();
-            }
             boolean assigned = false;
             // Prefer in-memory assignment state when available to keep E2E deterministic
             if (e2eState != null) {
@@ -93,15 +96,4 @@ public class CourseUsersController {
         }
     }
 
-    private Long extractUserId(Authentication authentication) {
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof com.usyd.catams.entity.User u) {
-            return u.getId();
-        }
-        try {
-            return Long.parseLong(authentication.getName());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
 }

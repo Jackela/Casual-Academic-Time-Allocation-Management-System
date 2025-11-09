@@ -4,7 +4,7 @@ This feature wires existing endpoints; no backend contract changes are introduce
 
 - GET /api/timesheets/me
 - GET /api/timesheets/pending-approval
-- PUT /api/timesheets/{id}/confirm
+- POST /api/approvals (TUTOR_CONFIRM)
 - GET /api/approvals/history/{timesheetId}
 - GET /api/approvals/pending
 

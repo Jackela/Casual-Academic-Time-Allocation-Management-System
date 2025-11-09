@@ -30,11 +30,11 @@ class ApprovalStatusTest {
     }
 
     @Test
-    @DisplayName("REJECTED status should NOT be editable (read-only)")
-    void rejectedShouldNotBeEditable() {
+    @DisplayName("REJECTED status should be editable to allow corrections and resubmission")
+    void rejectedShouldBeEditable() {
         ApprovalStatus status = ApprovalStatus.REJECTED;
         
-        assertFalse(status.isEditable());
+        assertTrue(status.isEditable());
     }
 
     @Test
@@ -76,12 +76,12 @@ class ApprovalStatusTest {
     }
 
     @Test
-    @DisplayName("REJECTED should be final")
-    void rejectedShouldBeFinal() {
+    @DisplayName("REJECTED should allow resubmission (not final)")
+    void rejectedShouldAllowResubmission() {
         ApprovalStatus status = ApprovalStatus.REJECTED;
         
-        assertTrue(status.isFinal());
-        assertFalse(status.isEditable()); // REJECTED is read-only and cannot be modified
+        assertFalse(status.isFinal()); // Can be edited and resubmitted
+        assertTrue(status.isEditable()); // Allows corrections
         assertFalse(status.isPending());
     }
 
@@ -105,5 +105,14 @@ class ApprovalStatusTest {
         assertEquals("lecturer_confirmed", ApprovalStatus.LECTURER_CONFIRMED.getValue());
         assertEquals("final_confirmed", ApprovalStatus.FINAL_CONFIRMED.getValue());
         assertEquals("rejected", ApprovalStatus.REJECTED.getValue());
+    }
+    
+    @Test
+    @DisplayName("REJECTED can transition to PENDING_TUTOR_CONFIRMATION")
+    void rejectedCanBeResubmitted() {
+        ApprovalStatus status = ApprovalStatus.REJECTED;
+        
+        assertTrue(status.canTransitionTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION));
+        assertFalse(status.canTransitionTo(ApprovalStatus.FINAL_CONFIRMED));
     }
 }

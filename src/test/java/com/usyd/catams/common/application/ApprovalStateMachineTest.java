@@ -62,8 +62,9 @@ class ApprovalStateMachineTest {
         "LECTURER_CONFIRMED, REJECT, REJECTED",
         "LECTURER_CONFIRMED, REQUEST_MODIFICATION, MODIFICATION_REQUESTED",
         
-        // Recovery workflows: MODIFICATION_REQUESTED can be resubmitted
+        // Recovery workflows: MODIFICATION_REQUESTED and REJECTED can be resubmitted
         "MODIFICATION_REQUESTED, SUBMIT_FOR_APPROVAL, PENDING_TUTOR_CONFIRMATION",
+        "REJECTED, SUBMIT_FOR_APPROVAL, PENDING_TUTOR_CONFIRMATION",
         
     })
     void validTransitions_ShouldSucceed(ApprovalStatus fromStatus, ApprovalAction action, ApprovalStatus expectedStatus) {
@@ -117,13 +118,12 @@ class ApprovalStateMachineTest {
         // Invalid transitions from PENDING_TUTOR_CONFIRMATION (cannot submit)
         "PENDING_TUTOR_CONFIRMATION, SUBMIT_FOR_APPROVAL",
         
-        // Invalid transitions from REJECTED (terminal state - no actions allowed)
+        // Invalid transitions from REJECTED (can only resubmit, other actions not allowed)
         "REJECTED, TUTOR_CONFIRM",
         "REJECTED, LECTURER_CONFIRM",
         "REJECTED, HR_CONFIRM",
         "REJECTED, REJECT",
-        "REJECTED, REQUEST_MODIFICATION",
-        "REJECTED, SUBMIT_FOR_APPROVAL"
+        "REJECTED, REQUEST_MODIFICATION"
     })
     void invalidTransitions_ShouldBeRejected(ApprovalStatus fromStatus, ApprovalAction action) {
         // Test canTransition returns false
@@ -148,7 +148,7 @@ class ApprovalStateMachineTest {
     @CsvSource({
         "DRAFT, true",
         "MODIFICATION_REQUESTED, true", 
-        "REJECTED, false",
+        "REJECTED, true",
         "PENDING_TUTOR_CONFIRMATION, false",
         "TUTOR_CONFIRMED, false",
         "LECTURER_CONFIRMED, false",
@@ -181,8 +181,7 @@ class ApprovalStateMachineTest {
     @DisplayName("Final status classification should be correct")
     @CsvSource({
         "FINAL_CONFIRMED, true",
-        "FINAL_CONFIRMED, true",
-        "REJECTED, true",
+        "REJECTED, false",
         "DRAFT, false",
         "PENDING_TUTOR_CONFIRMATION, false",
         "TUTOR_CONFIRMED, false",
@@ -204,9 +203,7 @@ class ApprovalStateMachineTest {
     void everyNonFinalStatus_ShouldHaveValidActions(ApprovalStatus status) {
         Set<ApprovalAction> validActions = stateMachine.getValidActions(status);
         
-        if (status == ApprovalStatus.FINAL_CONFIRMED || 
-            status == ApprovalStatus.FINAL_CONFIRMED || 
-            status == ApprovalStatus.REJECTED) {
+        if (status == ApprovalStatus.FINAL_CONFIRMED) {
             assertThat(validActions)
                 .as("Status %s should have no valid actions", status)
                 .isEmpty();
@@ -214,6 +211,10 @@ class ApprovalStateMachineTest {
             assertThat(validActions)
                 .as("TUTOR_CONFIRMED should allow lecturer CONFIRM, REJECT, and REQUEST_MODIFICATION")
                 .containsExactlyInAnyOrder(ApprovalAction.LECTURER_CONFIRM, ApprovalAction.REJECT, ApprovalAction.REQUEST_MODIFICATION);
+        } else if (status == ApprovalStatus.REJECTED || status == ApprovalStatus.MODIFICATION_REQUESTED) {
+            assertThat(validActions)
+                .as("Status %s should allow resubmission", status)
+                .containsOnly(ApprovalAction.SUBMIT_FOR_APPROVAL);
         } else {
             assertThat(validActions)
                 .as("Non-final status %s should have at least one valid action", status)
@@ -321,7 +322,7 @@ class ApprovalStateMachineTest {
     }
     
     /**
-     * Test rejection workflow scenario.
+     * Test rejection workflow scenario with resubmission capability.
      */
     @Test
     @DisplayName("Rejection workflow should work")
@@ -332,17 +333,22 @@ class ApprovalStateMachineTest {
         currentStatus = stateMachine.getNextStatus(currentStatus, ApprovalAction.SUBMIT_FOR_APPROVAL);
         assertThat(currentStatus).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
-        // Step 2: Reject (terminal state)
+        // Step 2: Reject (allows corrections and resubmission)
         currentStatus = stateMachine.getNextStatus(currentStatus, ApprovalAction.REJECT);
         assertThat(currentStatus).isEqualTo(ApprovalStatus.REJECTED);
         
-        // Step 3: Verify REJECTED is final and has no valid actions
-        assertThat(stateMachine.isFinal(ApprovalStatus.REJECTED)).isTrue();
-        assertThat(stateMachine.getValidActions(ApprovalStatus.REJECTED)).isEmpty();
+        // Step 3: Verify REJECTED allows resubmission after corrections
+        assertThat(stateMachine.isFinal(ApprovalStatus.REJECTED)).isFalse();
+        assertThat(stateMachine.getValidActions(ApprovalStatus.REJECTED))
+            .containsOnly(ApprovalAction.SUBMIT_FOR_APPROVAL);
         
-        // Verify status editability: REJECTED is read-only, DRAFT is editable
-        assertThat(stateMachine.isEditable(ApprovalStatus.REJECTED)).isFalse();
+        // Verify status editability: REJECTED is editable, DRAFT is editable
+        assertThat(stateMachine.isEditable(ApprovalStatus.REJECTED)).isTrue();
         assertThat(stateMachine.isEditable(ApprovalStatus.DRAFT)).isTrue();
+        
+        // Step 4: Verify rejected timesheet can be resubmitted
+        currentStatus = stateMachine.getNextStatus(currentStatus, ApprovalAction.SUBMIT_FOR_APPROVAL);
+        assertThat(currentStatus).isEqualTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
     }
     
     /**
@@ -363,15 +369,18 @@ class ApprovalStateMachineTest {
         assertThat(stateMachine.getValidActions(ApprovalStatus.LECTURER_CONFIRMED))
             .containsExactlyInAnyOrder(ApprovalAction.HR_CONFIRM, ApprovalAction.REJECT, ApprovalAction.REQUEST_MODIFICATION);
             
-        // Business rule: Final states have no actions; TUTOR_CONFIRMED allows FINAL_APPROVAL and REJECT per SSOT
+        // Business rule: FINAL_CONFIRMED is terminal state with no actions
         assertThat(stateMachine.getValidActions(ApprovalStatus.FINAL_CONFIRMED)).isEmpty();
-        assertThat(stateMachine.getValidActions(ApprovalStatus.REJECTED)).isEmpty();
+        
+        // Business rule: TUTOR_CONFIRMED allows LECTURER_CONFIRM, REJECT and REQUEST_MODIFICATION per SSOT
         assertThat(stateMachine.getValidActions(ApprovalStatus.TUTOR_CONFIRMED))
             .containsExactlyInAnyOrder(ApprovalAction.LECTURER_CONFIRM, ApprovalAction.REJECT, ApprovalAction.REQUEST_MODIFICATION);
         
-        // Business rule: REJECTED is terminal state with no actions
+        // Business rule: REJECTED allows resubmission after corrections
         assertThat(stateMachine.getValidActions(ApprovalStatus.REJECTED))
-            .isEmpty();
+            .containsOnly(ApprovalAction.SUBMIT_FOR_APPROVAL);
+        
+        // Business rule: MODIFICATION_REQUESTED allows resubmission
         assertThat(stateMachine.getValidActions(ApprovalStatus.MODIFICATION_REQUESTED))
             .containsOnly(ApprovalAction.SUBMIT_FOR_APPROVAL);
     }
@@ -385,7 +394,7 @@ class ApprovalStateMachineTest {
         // Business rule: Editable states allow user modifications
         assertThat(stateMachine.isEditable(ApprovalStatus.DRAFT)).isTrue();
         assertThat(stateMachine.isEditable(ApprovalStatus.MODIFICATION_REQUESTED)).isTrue();
-        assertThat(stateMachine.isEditable(ApprovalStatus.REJECTED)).isFalse(); // REJECTED is read-only
+        assertThat(stateMachine.isEditable(ApprovalStatus.REJECTED)).isTrue(); // REJECTED allows corrections and resubmission
         
         // Business rule: Non-editable states prevent modifications
         assertThat(stateMachine.isEditable(ApprovalStatus.PENDING_TUTOR_CONFIRMATION)).isFalse();
@@ -398,10 +407,11 @@ class ApprovalStateMachineTest {
         assertThat(stateMachine.isPending(ApprovalStatus.PENDING_TUTOR_CONFIRMATION)).isTrue();
         assertThat(stateMachine.isPending(ApprovalStatus.LECTURER_CONFIRMED)).isTrue();
         
-        // Business rule: Final states complete workflow (terminal states)
+        // Business rule: Only FINAL_CONFIRMED is a terminal state
         assertThat(stateMachine.isFinal(ApprovalStatus.FINAL_CONFIRMED)).isTrue();
-        assertThat(stateMachine.isFinal(ApprovalStatus.FINAL_CONFIRMED)).isTrue();
-        assertThat(stateMachine.isFinal(ApprovalStatus.REJECTED)).isTrue(); // REJECTED is final
+        
+        // Business rule: REJECTED allows resubmission, so it's not a terminal state
+        assertThat(stateMachine.isFinal(ApprovalStatus.REJECTED)).isFalse();
         assertThat(stateMachine.isFinal(ApprovalStatus.DRAFT)).isFalse();
     }
 }

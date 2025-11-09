@@ -18,7 +18,6 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/courses")
-@Profile({"test", "e2e", "e2e-local"})
 public class CourseController {
 
     private final CourseRepository courseRepository;

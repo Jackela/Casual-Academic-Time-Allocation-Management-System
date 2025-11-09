@@ -63,7 +63,7 @@ test.describe('Exception workflow guard-rails', () => {
       await tutorDashboard.expectConfirmButtonVisible(timesheetId);
     });
 
-    await test.step('Tutor confirms via UI, covering Bug #1 regression', async () => {
+  await test.step('Tutor confirms via UI, covering Bug #1 regression', async () => {
       const confirmation = await tutorDashboard.confirmTimesheet(timesheetId);
       expect(confirmation.ok(), 'TUTOR_CONFIRM action should succeed').toBeTruthy();
       // Manual refresh to settle UI
@@ -93,7 +93,7 @@ test.describe('Exception workflow guard-rails', () => {
       const payload = await verification.json();
       const status = payload?.status ?? payload?.timesheet?.status;
       expect(status).toBe('TUTOR_CONFIRMED');
-    });
+  });
 
   await test.step('Lecturer queue receives the confirmed timesheet', async () => {
       await clearAuthSessionFromPage(page);
@@ -145,7 +145,7 @@ test.describe('Exception workflow guard-rails', () => {
       }
     });
   });
-
+  
   test('Lecturer modification request enforces role guard-rails', async ({ page, request }) => {
     const tokens = dataFactory.getAuthTokens();
     const feedbackComment = 'Please attach tutorial attendance confirmation before approval.';
@@ -411,3 +411,4 @@ test.describe('Exception workflow guard-rails', () => {
     expect(finalStatus).toBe('REJECTED');
   });
 });
+

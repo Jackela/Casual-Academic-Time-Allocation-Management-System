@@ -1,6 +1,23 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import TimesheetForm from './TimesheetForm';
+
+const mockQuoteTimesheet = vi.hoisted(() => vi.fn(async (req) => {
+  return {
+    taskType: req.taskType,
+    rateCode: req.taskType === 'LECTURE' ? 'LEC' : 'TU2',
+    qualification: req.qualification,
+    isRepeat: !!(req as any).isRepeat,
+    deliveryHours: Number(req.deliveryHours || 1),
+    associatedHours: req.taskType === 'TUTORIAL' ? 2 : 0,
+    payableHours: req.taskType === 'TUTORIAL' ? Number(req.deliveryHours || 1) + 2 : Number(req.deliveryHours || 1),
+    hourlyRate: 60,
+    amount: 60 * Number(req.deliveryHours || 1),
+    formula: 'test-formula',
+    clauseReference: null,
+    sessionDate: req.sessionDate,
+  };
+}));
 
 vi.mock('../../../../services/timesheets', async (orig) => {
   const actual = await orig();
@@ -8,20 +25,7 @@ vi.mock('../../../../services/timesheets', async (orig) => {
     ...actual,
     TimesheetService: {
       ...actual.TimesheetService,
-      quoteTimesheet: vi.fn(async (req) => ({
-        taskType: req.taskType,
-        rateCode: req.taskType === 'LECTURE' ? 'LEC' : 'TU2',
-        qualification: req.qualification,
-        isRepeat: !!(req as any).isRepeat,
-        deliveryHours: Number(req.deliveryHours || 1),
-        associatedHours: req.taskType === 'TUTORIAL' ? 2 : 0,
-        payableHours: req.taskType === 'TUTORIAL' ? Number(req.deliveryHours || 1) + 2 : Number(req.deliveryHours || 1),
-        hourlyRate: 60,
-        amount: 60 * Number(req.deliveryHours || 1),
-        formula: 'test-formula',
-        clauseReference: null,
-        sessionDate: req.sessionDate,
-      })),
+      quoteTimesheet: mockQuoteTimesheet,
     },
   };
 });
@@ -50,6 +54,10 @@ const renderLecturerCreate = () =>
 describe('TimesheetForm validation and quoting', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it('shows error and disables submit when hours have >1 decimal place', async () => {
@@ -84,9 +92,13 @@ describe('TimesheetForm validation and quoting', () => {
     fireEvent.change(screen.getByLabelText(/delivery hours/i), { target: { value: '0.25' } });
     fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Min boundary' } });
 
+    // Wait for quote debounce (300ms) + safety margin
+    await new Promise(r => setTimeout(r, 500));
+
+    // Then verify quote loaded
     await waitFor(() => {
       expect(screen.getByText(/Calculated Pay Summary/i)).toBeInTheDocument();
-    });
+    }, { timeout: 500 });
 
     const submit = screen.getByRole('button', { name: /create timesheet/i });
     expect(submit).not.toBeDisabled();
@@ -95,12 +107,18 @@ describe('TimesheetForm validation and quoting', () => {
   it('accepts maximum hours (60) and enables submit when other fields valid', async () => {
     renderLecturerCreate();
     fireEvent.change(screen.getByLabelText(/course/i), { target: { value: '1' } });
+    // Switch to hourly task type that allows variable hours
+    fireEvent.change(screen.getByLabelText(/task type/i), { target: { value: 'MARKING' } });
     fireEvent.change(screen.getByLabelText(/delivery hours/i), { target: { value: '60' } });
     fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Max boundary' } });
 
+    // Wait for quote debounce (300ms) + safety margin
+    await new Promise(r => setTimeout(r, 500));
+
+    // Then verify quote loaded
     await waitFor(() => {
       expect(screen.getByText(/Calculated Pay Summary/i)).toBeInTheDocument();
-    });
+    }, { timeout: 500 });
 
     const submit = screen.getByRole('button', { name: /create timesheet/i });
     expect(submit).not.toBeDisabled();
@@ -112,11 +130,15 @@ describe('TimesheetForm validation and quoting', () => {
     fireEvent.change(screen.getByLabelText(/delivery hours/i), { target: { value: '1.0' } });
     fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Valid desc' } });
 
+    // Wait for quote debounce (300ms) + safety margin
+    await new Promise(r => setTimeout(r, 500));
+
+    // Then verify quote loaded
     await waitFor(() => {
       // Quote preview fields appear
       expect(screen.getByText(/Calculated Pay Summary/i)).toBeInTheDocument();
       expect(screen.getByText(/Rate Code/i)).toBeInTheDocument();
-    });
+    }, { timeout: 500 });
 
     const submit = screen.getByRole('button', { name: /create timesheet/i });
     expect(submit).not.toBeDisabled();

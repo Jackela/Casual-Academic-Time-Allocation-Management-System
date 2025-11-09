@@ -60,7 +60,7 @@ export async function setTutorDefaultQualification(payload: TutorDefaultsPayload
 }
 
 export async function getTutorAssignments(tutorId: number): Promise<number[]> {
-  const response = await secureApiClient.get<{ courseIds: number[] }>(`${API_ENDPOINTS.USERS.ADMIN.TUTOR_ASSIGNMENTS}/${tutorId}`);
+  const response = await secureApiClient.get<{ courseIds: number[] }>(`/api/admin/tutors/${tutorId}/assignments`);
   return response.data.courseIds ?? [];
 }
 

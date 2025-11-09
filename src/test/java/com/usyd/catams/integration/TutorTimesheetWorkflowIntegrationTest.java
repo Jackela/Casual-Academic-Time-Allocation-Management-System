@@ -8,6 +8,7 @@ import com.usyd.catams.dto.response.TimesheetResponse;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
+import com.usyd.catams.entity.LecturerAssignment;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.TimesheetTaskType;
@@ -18,6 +19,7 @@ import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.repository.TutorAssignmentRepository;
+import com.usyd.catams.repository.LecturerAssignmentRepository;
 import com.usyd.catams.entity.TutorAssignment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,8 +28,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -62,6 +67,12 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
     @Autowired
     private TutorAssignmentRepository tutorAssignmentRepository;
 
+    @Autowired
+    private LecturerAssignmentRepository lecturerAssignmentRepository;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
     private User lecturer;
     private User tutor;
     private User admin; // kept for completeness of seeded roles
@@ -73,21 +84,29 @@ public class TutorTimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
     @BeforeEach
     void setUp() {
-        // Clear existing data
-        timesheetRepository.deleteAll();
-        courseRepository.deleteAll();
-        userRepository.deleteAll();
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        template.execute(status -> {
+            timesheetRepository.deleteAll();
+            timesheetRepository.flush();
+            tutorAssignmentRepository.deleteAll();
+            tutorAssignmentRepository.flush();
+            lecturerAssignmentRepository.deleteAll();
+            lecturerAssignmentRepository.flush();
+            courseRepository.deleteAll();
+            courseRepository.flush();
+            userRepository.deleteAll();
+            userRepository.flush();
 
-        // Create test users
-        lecturer = createUser("lecturer@test.com", "Lecturer User", UserRole.LECTURER);
-        tutor = createUser("tutor@test.com", "Tutor User", UserRole.TUTOR);
-        admin = createUser("admin@test.com", "Admin User", UserRole.ADMIN);
+            lecturer = createUser("lecturer@test.com", "Lecturer User", UserRole.LECTURER);
+            tutor = createUser("tutor@test.com", "Tutor User", UserRole.TUTOR);
+            admin = createUser("admin@test.com", "Admin User", UserRole.ADMIN);
 
-        // Create test course
-        course = createCourse("TEST3001", "Test Course", lecturer.getId());
-
-        // Link tutor to course for authorization requirements
-        tutorAssignmentRepository.save(new TutorAssignment(tutor.getId(), course.getId()));
+            course = createCourse("TEST3001", "Test Course", lecturer.getId());
+            tutorAssignmentRepository.save(new TutorAssignment(tutor.getId(), course.getId()));
+            lecturerAssignmentRepository.save(new LecturerAssignment(lecturer.getId(), course.getId()));
+            return null;
+        });
 
         // Use current or previous Monday for testing to avoid future-date rule violations
         mondayDate = LocalDate.now().with(DayOfWeek.MONDAY);

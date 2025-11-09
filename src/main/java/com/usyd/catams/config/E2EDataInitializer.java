@@ -3,6 +3,8 @@ package com.usyd.catams.config;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.entity.LecturerAssignment;
+import com.usyd.catams.entity.TutorAssignment;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.entity.PolicyVersion;
@@ -11,6 +13,8 @@ import com.usyd.catams.entity.RateCode;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.CourseRepository;
+import com.usyd.catams.repository.LecturerAssignmentRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.PolicyVersionRepository;
 import com.usyd.catams.repository.RateAmountRepository;
 import com.usyd.catams.repository.RateCodeRepository;
@@ -49,6 +53,8 @@ public class E2EDataInitializer {
             UserRepository userRepository, 
             CourseRepository courseRepository,
             TimesheetRepository timesheetRepository,
+            LecturerAssignmentRepository lecturerAssignmentRepository,
+            TutorAssignmentRepository tutorAssignmentRepository,
             PasswordEncoder passwordEncoder,
             ObjectProvider<Flyway> flywayProvider,
             RateCodeRepository rateCodeRepository,
@@ -64,12 +70,15 @@ public class E2EDataInitializer {
             });
             System.out.println("\uD83D\uDE80 Starting E2E data initialization...");
             System.out.println("\uD83D\uDCCB Active profiles: " + System.getProperty("spring.profiles.active"));
-            
-            // Always clear and recreate data for E2E tests to ensure clean state
-            try { timesheetRepository.deleteAll(); } catch (Exception ignored) {}
-            try { courseRepository.deleteAll(); } catch (Exception ignored) {}
-            try { userRepository.deleteAll(); } catch (Exception ignored) {}
-            
+
+            // Check if data already exists (idempotent initialization for persistent PostgreSQL)
+            if (userRepository.count() > 0) {
+                System.out.println("✅ E2E data already exists, skipping initialization");
+                return;
+            }
+
+            System.out.println("\uD83D\uDCDD Creating fresh E2E test data...");
+
             User adminUser = new User(
                 "admin@example.com",
                 "Admin User",
@@ -129,6 +138,36 @@ public class E2EDataInitializer {
             course3.setIsActive(true);
             courseRepository.save(course3);
             
+            // Create lecturer assignments for proper access control
+            LecturerAssignment assignment1 = new LecturerAssignment(lecturerUser.getId(), course1.getId());
+            lecturerAssignmentRepository.save(assignment1);
+            
+            LecturerAssignment assignment2 = new LecturerAssignment(lecturerUser.getId(), course2.getId());
+            lecturerAssignmentRepository.save(assignment2);
+            
+            LecturerAssignment assignment3 = new LecturerAssignment(lecturerTwo.getId(), course3.getId());
+            lecturerAssignmentRepository.save(assignment3);
+            
+            System.out.println("✅ Created lecturer assignments");
+
+            // Create tutor assignments for proper access control
+            TutorAssignment tutorAssignment1 = new TutorAssignment(tutorUser.getId(), course1.getId());
+            tutorAssignmentRepository.save(tutorAssignment1);
+
+            TutorAssignment tutorAssignment2 = new TutorAssignment(tutorUser.getId(), course2.getId());
+            tutorAssignmentRepository.save(tutorAssignment2);
+
+            TutorAssignment tutorAssignment3 = new TutorAssignment(tutorUser.getId(), course3.getId());
+            tutorAssignmentRepository.save(tutorAssignment3);
+
+            // Sync to in-memory cache for e2e-local profile consistency
+            // This ensures both database AND cache have the same data on startup
+            Long tutorId = tutorUser.getId();
+            java.util.List<Long> courseIds = java.util.List.of(course1.getId(), course2.getId(), course3.getId());
+            com.usyd.catams.controller.admin.UserAdminController.E2E_TUTOR_ASSIGNMENTS.put(tutorId, courseIds);
+
+            System.out.println("✅ Created tutor assignments (tutorId=" + tutorId + ", courses=" + courseIds + ")");
+            
             LocalDate today = LocalDate.now();
             LocalDate lastMonday = today.minusDays((today.getDayOfWeek().getValue() + 6) % 7);
             LocalDate twoWeeksAgoMonday = lastMonday.minusDays(7);
@@ -156,6 +195,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             pendingTimesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            pendingTimesheet.setTaskType(TimesheetTaskType.TUTORIAL);
+            pendingTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(pendingTimesheet);
             
             Timesheet pendingTimesheet2 = new Timesheet(
@@ -168,6 +209,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             pendingTimesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            pendingTimesheet2.setTaskType(TimesheetTaskType.ORAA);
+            pendingTimesheet2.setQualification(TutorQualification.STANDARD);
             upsert.apply(pendingTimesheet2);
 
             Timesheet draftTimesheet = new Timesheet(
@@ -180,6 +223,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             draftTimesheet.setStatus(ApprovalStatus.DRAFT);
+            draftTimesheet.setTaskType(TimesheetTaskType.MARKING);
+            draftTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(draftTimesheet);
 
             Timesheet rejectedTimesheet = new Timesheet(
@@ -192,6 +237,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             rejectedTimesheet.setStatus(ApprovalStatus.REJECTED);
+            rejectedTimesheet.setTaskType(TimesheetTaskType.TUTORIAL);
+            rejectedTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(rejectedTimesheet);
 
             Timesheet crossCourseTimesheet = new Timesheet(
@@ -204,6 +251,8 @@ public class E2EDataInitializer {
                 lecturerTwo.getId()
             );
             crossCourseTimesheet.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            crossCourseTimesheet.setTaskType(TimesheetTaskType.DEMO);
+            crossCourseTimesheet.setQualification(TutorQualification.PHD);
             upsert.apply(crossCourseTimesheet);
 
             Timesheet approvedByTutorTimesheet = new Timesheet(
@@ -216,6 +265,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             approvedByTutorTimesheet.setStatus(ApprovalStatus.TUTOR_CONFIRMED);
+            approvedByTutorTimesheet.setTaskType(TimesheetTaskType.TUTORIAL);
+            approvedByTutorTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(approvedByTutorTimesheet);
 
             Timesheet approvedByTutorTimesheet2 = new Timesheet(
@@ -228,6 +279,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             approvedByTutorTimesheet2.setStatus(ApprovalStatus.TUTOR_CONFIRMED);
+            approvedByTutorTimesheet2.setTaskType(TimesheetTaskType.ORAA);
+            approvedByTutorTimesheet2.setQualification(TutorQualification.STANDARD);
             upsert.apply(approvedByTutorTimesheet2);
 
             Timesheet lecturerConfirmedTimesheet = new Timesheet(
@@ -240,6 +293,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             lecturerConfirmedTimesheet.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
+            lecturerConfirmedTimesheet.setTaskType(TimesheetTaskType.MARKING);
+            lecturerConfirmedTimesheet.setQualification(TutorQualification.COORDINATOR);
             upsert.apply(lecturerConfirmedTimesheet);
 
             Timesheet finalConfirmedTimesheet = new Timesheet(
@@ -252,6 +307,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             finalConfirmedTimesheet.setStatus(ApprovalStatus.FINAL_CONFIRMED);
+            finalConfirmedTimesheet.setTaskType(TimesheetTaskType.TUTORIAL);
+            finalConfirmedTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(finalConfirmedTimesheet);
 
             Timesheet modificationRequestedTimesheet = new Timesheet(
@@ -264,6 +321,8 @@ public class E2EDataInitializer {
                 lecturerUser.getId()
             );
             modificationRequestedTimesheet.setStatus(ApprovalStatus.MODIFICATION_REQUESTED);
+            modificationRequestedTimesheet.setTaskType(TimesheetTaskType.ORAA);
+            modificationRequestedTimesheet.setQualification(TutorQualification.STANDARD);
             upsert.apply(modificationRequestedTimesheet);
 
             seedSchedule1Rates(rateCodeRepository, policyVersionRepository, rateAmountRepository);
@@ -331,6 +390,76 @@ public class E2EDataInitializer {
             false,
             "Schedule 1 Clause 3.1(a) – ORAA");
 
+        RateCode de1 = ensureRateCode(rateCodeRepository,
+            "DE1",
+            TimesheetTaskType.DEMO,
+            "Demonstration – PhD holder or unit coordinator",
+            BigDecimal.ZERO,
+            BigDecimal.ONE,
+            true,
+            false,
+            "Schedule 1 – Demonstrations");
+
+        RateCode de2 = ensureRateCode(rateCodeRepository,
+            "DE2",
+            TimesheetTaskType.DEMO,
+            "Demonstration – standard eligibility",
+            BigDecimal.ZERO,
+            BigDecimal.ONE,
+            false,
+            false,
+            "Schedule 1 – Demonstrations");
+
+        RateCode m04 = ensureRateCode(rateCodeRepository,
+            "M04",
+            TimesheetTaskType.MARKING,
+            "Marking – Supervising Examiner (PhD/coordinator)",
+            BigDecimal.ZERO,
+            BigDecimal.ONE,
+            true,
+            false,
+            "Schedule 1 – Marking");
+
+        RateCode m05 = ensureRateCode(rateCodeRepository,
+            "M05",
+            TimesheetTaskType.MARKING,
+            "Routine (Standard) Marking",
+            BigDecimal.ZERO,
+            BigDecimal.ONE,
+            false,
+            false,
+            "Schedule 1 – Marking");
+
+        RateCode p02 = ensureRateCode(rateCodeRepository,
+            "P02",
+            TimesheetTaskType.LECTURE,
+            "Developed Lecture Rate – with course unit coordination responsibility",
+            new BigDecimal("3.00"),
+            BigDecimal.ONE,
+            false,
+            false,
+            "Schedule 1 – Lecturing");
+
+        RateCode p03 = ensureRateCode(rateCodeRepository,
+            "P03",
+            TimesheetTaskType.LECTURE,
+            "Lecture Rate – standard delivery",
+            new BigDecimal("1.50"),
+            BigDecimal.ONE,
+            false,
+            false,
+            "Schedule 1 – Lecturing");
+
+        RateCode p04 = ensureRateCode(rateCodeRepository,
+            "P04",
+            TimesheetTaskType.LECTURE,
+            "Repeat Lecture Rate",
+            BigDecimal.ZERO,
+            BigDecimal.ONE,
+            false,
+            true,
+            "Schedule 1 – Lecturing");
+
         LocalDate effectiveFrom = LocalDate.of(2025, 7, 1);
         LocalDate effectiveTo = LocalDate.of(2026, 5, 31);
 
@@ -363,6 +492,51 @@ public class E2EDataInitializer {
             "2025-07", effectiveFrom, effectiveTo, new BigDecimal("60.51"),
             BigDecimal.ZERO, BigDecimal.ONE,
             "Schedule 1 – ORAA (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, de1, TutorQualification.PHD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("72.33"),
+            BigDecimal.ZERO, BigDecimal.ONE,
+            "Schedule 1 – Demonstrations (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, de1, TutorQualification.COORDINATOR,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("72.33"),
+            BigDecimal.ZERO, BigDecimal.ONE,
+            "Schedule 1 – Demonstrations (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, de2, TutorQualification.STANDARD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("60.51"),
+            BigDecimal.ZERO, BigDecimal.ONE,
+            "Schedule 1 – Demonstrations (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, m04, TutorQualification.PHD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("72.33"),
+            BigDecimal.ZERO, BigDecimal.ONE,
+            "Schedule 1 – Marking (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, m04, TutorQualification.COORDINATOR,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("72.33"),
+            BigDecimal.ZERO, BigDecimal.ONE,
+            "Schedule 1 – Marking (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, m05, TutorQualification.STANDARD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("60.51"),
+            BigDecimal.ZERO, BigDecimal.ONE,
+            "Schedule 1 – Marking (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, p02, TutorQualification.STANDARD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("184.93"),
+            new BigDecimal("3.00"), new BigDecimal("4.00"),
+            "Schedule 1 – Lecturing (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, p03, TutorQualification.STANDARD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("143.73"),
+            new BigDecimal("1.50"), new BigDecimal("2.50"),
+            "Schedule 1 – Lecturing (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, p04, TutorQualification.STANDARD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("143.73"),
+            BigDecimal.ZERO, BigDecimal.ONE,
+            "Schedule 1 – Lecturing (1 July 2025)");
     }
 
     private RateCode ensureRateCode(RateCodeRepository rateCodeRepository,

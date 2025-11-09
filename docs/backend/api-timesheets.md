@@ -16,7 +16,7 @@ Requests an authoritative calculation for a prospective session. The request is 
   "courseId": 101,
   "taskType": "TUTORIAL",
   "qualification": "STANDARD",
-  "repeat": false,
+  "isRepeat": false,
   "deliveryHours": 1.0,
   "sessionDate": "2025-08-11"
 }
@@ -27,9 +27,8 @@ Requests an authoritative calculation for a prospective session. The request is 
 {
   "taskType": "TUTORIAL",
   "rateCode": "TU1",
-  "rateVersion": "EA-2023-2026-Schedule1:v1.0.0",
   "qualification": "STANDARD",
-  "repeat": false,
+  "isRepeat": false,
   "deliveryHours": 1.0,
   "associatedHours": 2.0,
   "payableHours": 3.0,
@@ -97,7 +96,6 @@ The application service reruns `Schedule1Calculator`, updates rate metadata, and
   "hourlyRate": 65.77,
   "amount": 197.31,
   "rateCode": "TU1",
-  "rateVersion": "EA-2023-2026-Schedule1:v1.0.0",
   "formula": "1h delivery + 2h associated",
   "clauseReference": "Schedule 1 Item 1",
   "sessionDate": "2025-08-11"
@@ -113,6 +111,7 @@ Updates an existing entry using the same rules as `POST`. The payload excludes c
 - `GET /timesheets` supports filtering by tutor, course, date range, and status. Responses include calculator outputs for transparency.
 - `GET /timesheets/{id}` returns a single entry with all SSOT fields.
 - `GET /timesheets/pending-final-approval` returns the lecturer-confirmed queue awaiting administrator (HR) action. Lecturers only receive rows for tutors assigned to their courses; unassigned combinations trigger `403` ProblemDetails.
+ - `GET /timesheets/pending-approval` returns the first-level approval queue for Tutors (own items) and Admins (all).
 
 ## Error Handling
 

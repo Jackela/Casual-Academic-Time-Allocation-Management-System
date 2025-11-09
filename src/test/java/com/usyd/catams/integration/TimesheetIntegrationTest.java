@@ -6,6 +6,7 @@ import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
+import com.usyd.catams.repository.LecturerAssignmentRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +42,9 @@ public class TimesheetIntegrationTest extends IntegrationTestBase {
     @Autowired
     private CourseRepository courseRepository;
 
+    @Autowired
+    private LecturerAssignmentRepository lecturerAssignmentRepository;
+
     private User lecturer;
     private User tutor;
     private Course course;
@@ -50,8 +54,13 @@ public class TimesheetIntegrationTest extends IntegrationTestBase {
     void setUp() {
         // Clean up any existing data
         timesheetRepository.deleteAll();
+        timesheetRepository.flush();
+        lecturerAssignmentRepository.deleteAll();
+        lecturerAssignmentRepository.flush();
         courseRepository.deleteAll();
+        courseRepository.flush();
         userRepository.deleteAll();
+        userRepository.flush();
 
         // Create test lecturer
         lecturer = new User("lecturer@university.edu.au", "Dr. John Smith", "hashedPassword123", UserRole.LECTURER);

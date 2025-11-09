@@ -5,7 +5,7 @@ TimesheetQuoteRequest:
     - courseId
     - taskType
     - qualification
-    - repeat
+    - isRepeat
     - deliveryHours
     - sessionDate
   properties:
@@ -30,7 +30,7 @@ TimesheetQuoteRequest:
         - STANDARD
         - COORDINATOR
         - PHD
-    repeat:
+    isRepeat:
       type: boolean
     deliveryHours:
       type: number
@@ -103,7 +103,7 @@ TimesheetInstructionRequest:
     - weekStartDate
     - taskType
     - qualification
-    - repeat
+    - isRepeat
     - deliveryHours
     - description
   properties:
@@ -139,7 +139,7 @@ TimesheetInstructionRequest:
         - STANDARD
         - COORDINATOR
         - PHD
-    repeat:
+    isRepeat:
       type: boolean
       description: Whether the session is a repeat within seven days.
     deliveryHours:
@@ -164,7 +164,7 @@ TimesheetUpdateRequest:
   required:
     - taskType
     - qualification
-    - repeat
+    - isRepeat
     - deliveryHours
     - description
   properties:
@@ -183,7 +183,7 @@ TimesheetUpdateRequest:
         - STANDARD
         - COORDINATOR
         - PHD
-    repeat:
+    isRepeat:
       type: boolean
     deliveryHours:
       type: number

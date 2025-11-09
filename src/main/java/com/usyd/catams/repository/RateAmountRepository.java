@@ -1,10 +1,12 @@
 package com.usyd.catams.repository;
 
+import com.usyd.catams.entity.PolicyVersion;
 import com.usyd.catams.entity.RateAmount;
 import com.usyd.catams.entity.RateCode;
 import com.usyd.catams.enums.TutorQualification;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -34,4 +36,6 @@ public interface RateAmountRepository extends JpaRepository<RateAmount, Long> {
             @Param("rateCode") RateCode rateCode,
             @Param("qualification") TutorQualification qualification,
             @Param("targetDate") LocalDate targetDate);
+
+    Optional<RateAmount> findByRateCodeAndPolicyVersionAndQualification(RateCode rateCode, PolicyVersion policyVersion, TutorQualification qualification);
 }

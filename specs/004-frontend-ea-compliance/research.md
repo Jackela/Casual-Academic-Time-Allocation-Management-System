@@ -6,7 +6,7 @@
 - Service functions to add in `frontend/src/services/timesheets.ts`:
   - `getMyTimesheets()` → GET `/api/timesheets/me`
   - `getMyPendingTimesheets()` → GET `/api/timesheets/pending-approval`
-  - `confirmTimesheet(id)` → PUT `/api/timesheets/{id}/confirm`
+  - `confirmTimesheet(id)` → POST `/api/approvals` (action=`TUTOR_CONFIRM`)
   - `getApprovalHistory(timesheetId)` → GET `/api/approvals/history/{timesheetId}`
   - `getPendingApprovals()` → GET `/api/approvals/pending`
 

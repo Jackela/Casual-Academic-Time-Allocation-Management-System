@@ -1,5 +1,7 @@
 # Frontend Architecture
 
+This directory is the SSOT for frontend architecture and patterns. See `docs/index.md` for the global SSOT map and `docs/openapi.yaml` for the API contract source used by the frontend services.
+
 ## Runtime & Tooling
 - React 18 + TypeScript served by Vite.
 - Tailwind CSS with design-token backed custom layers (`src/index.modern.css`, `src/styles/*`).

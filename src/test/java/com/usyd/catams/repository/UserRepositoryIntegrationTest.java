@@ -4,6 +4,10 @@ import com.usyd.catams.common.domain.model.Email;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.integration.IntegrationTestBase;
+import com.usyd.catams.repository.CourseRepository;
+import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.LecturerAssignmentRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +24,18 @@ class UserRepositoryIntegrationTest extends IntegrationTestBase {
     private UserRepository userRepository;
 
     @Autowired
+    private TimesheetRepository timesheetRepository;
+
+    @Autowired
+    private CourseRepository courseRepository;
+
+    @Autowired
+    private LecturerAssignmentRepository lecturerAssignmentRepository;
+
+    @Autowired
+    private TutorAssignmentRepository tutorAssignmentRepository;
+
+    @Autowired
     private EntityManager entityManager;
 
     private User tutorUser;
@@ -29,7 +45,16 @@ class UserRepositoryIntegrationTest extends IntegrationTestBase {
 
     @BeforeEach
     void setUp() {
+        timesheetRepository.deleteAll();
+        timesheetRepository.flush();
+        tutorAssignmentRepository.deleteAll();
+        tutorAssignmentRepository.flush();
+        lecturerAssignmentRepository.deleteAll();
+        lecturerAssignmentRepository.flush();
+        courseRepository.deleteAll();
+        courseRepository.flush();
         userRepository.deleteAll();
+        userRepository.flush();
         tutorUser = new User(new Email("tutor@example.com"), "John Doe", "$2a$10$hashedPassword1", UserRole.TUTOR);
         tutorUser.setIsActive(true);
         lecturerUser = new User(new Email("lecturer@example.com"), "Jane Smith", "$2a$10$hashedPassword2", UserRole.LECTURER);

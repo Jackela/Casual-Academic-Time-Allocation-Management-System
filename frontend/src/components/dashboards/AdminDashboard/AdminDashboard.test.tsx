@@ -32,6 +32,7 @@ const timesheetHooksMock = vi.hoisted(() => ({
   useTimesheetDashboardSummary: vi.fn(),
   useApprovalAction: vi.fn(),
   useTimesheetStats: vi.fn(),
+  useAdminPendingApprovals: vi.fn(),
 }));
 
 vi.mock("../../../auth/SessionProvider", () => sessionHooksMock);
@@ -48,6 +49,7 @@ const mockTimesheetModule = timesheetHooksMock as unknown as {
   useTimesheetDashboardSummary: ReturnType<typeof vi.fn>;
   useApprovalAction: ReturnType<typeof vi.fn>;
   useTimesheetStats: ReturnType<typeof vi.fn>;
+  useAdminPendingApprovals: ReturnType<typeof vi.fn>;
 };
 import AdminDashboard from "./index";
 import {
@@ -180,6 +182,17 @@ beforeEach(() => {
   });
 
   mockTimesheetModule.useTimesheetStats.mockReturnValue(mockAdminStats);
+
+  mockTimesheetModule.useAdminPendingApprovals.mockReturnValue({
+    data: mockSystemTimesheets,
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+    timesheets: mockSystemTimesheets.timesheets,
+    pageInfo: mockSystemTimesheets.pageInfo,
+    isEmpty: false,
+    optimisticRemove: vi.fn(),
+  });
 });
 
 describe("AdminDashboard Component", () => {
@@ -387,6 +400,17 @@ describe("AdminDashboard Component", () => {
       updateQuery: vi.fn(),
     });
 
+    mockTimesheetModule.useAdminPendingApprovals.mockReturnValue({
+      data: approvalTimesheets,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+      timesheets: approvalTimesheets.timesheets,
+      pageInfo: approvalTimesheets.pageInfo,
+      isEmpty: false,
+      optimisticRemove: vi.fn(),
+    });
+
     const approvalResponse: ApprovalResponse = {
       success: true,
       message: "approved",
@@ -436,6 +460,17 @@ describe("AdminDashboard Component", () => {
       refresh: vi.fn(),
       refetch: vi.fn().mockResolvedValue(undefined),
       updateQuery: vi.fn(),
+    });
+
+    mockTimesheetModule.useAdminPendingApprovals.mockReturnValue({
+      data: rejectionTimesheets,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+      timesheets: rejectionTimesheets.timesheets,
+      pageInfo: rejectionTimesheets.pageInfo,
+      isEmpty: false,
+      optimisticRemove: vi.fn(),
     });
 
     const rejectionResponse: ApprovalResponse = {

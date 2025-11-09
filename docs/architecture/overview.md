@@ -53,7 +53,6 @@ classDiagram
         BigDecimal hourlyRate
         BigDecimal amount
         String rateCode
-        String rateVersion
         String formula
         String clauseReference
         ApprovalStatus status
@@ -100,5 +99,5 @@ Flyway migrations V11- V14 introduced the policy tables, seeded official Schedul
 
 - `docs/backend/data-model.md`
 - `docs/backend/api-timesheets.md`
-- `docs/policy/backend-ssot.md` *(planned)*
-- `docs/frontend/architecture.md` *(planned)*
+- `docs/policy/backend-ssot.md`
+- `docs/frontend/architecture.md`

@@ -492,7 +492,8 @@ class TimesheetRepositoryTest {
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Work 1", lecturer.getId());
         Timesheet timesheet2 = new Timesheet(tutor.getId(), course.getId(), LocalDate.of(2024, 3, 11),
                 new BigDecimal("3.0"), new BigDecimal("30.00"), "Work 2", lecturer.getId());
-        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);        
+        // Admin dashboard pending approvals should only include LECTURER_CONFIRMED
+        timesheet2.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
         // Outside date range
         Timesheet timesheet3 = new Timesheet(tutor.getId(), course.getId(), LocalDate.of(2024, 3, 25),
                 new BigDecimal("4.0"), new BigDecimal("25.00"), "Work 3", lecturer.getId());
@@ -526,7 +527,7 @@ class TimesheetRepositoryTest {
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Work 1", lecturer.getId());
         Timesheet timesheet2 = new Timesheet(tutor.getId(), anotherCourse.getId(), LocalDate.of(2024, 3, 11),
                 new BigDecimal("3.0"), new BigDecimal("30.00"), "Work 2", lecturer.getId());
-        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);        
+        timesheet2.setStatus(ApprovalStatus.TUTOR_CONFIRMED);
         entityManager.persistAndFlush(timesheet1);
         entityManager.persistAndFlush(timesheet2);
 
@@ -539,7 +540,7 @@ class TimesheetRepositoryTest {
         assertThat(summary.getTotalTimesheets()).isEqualTo(2L);
         assertThat(summary.getTotalHours()).isEqualByComparingTo(new BigDecimal("8.0"));
         assertThat(summary.getTotalPay()).isEqualByComparingTo(new BigDecimal("215.00")); // 5*25 + 3*30 = 215
-        assertThat(summary.getPendingApprovals()).isEqualTo(1L);
+        assertThat(summary.getPendingApprovals()).isEqualTo(1L); // Only timesheet2 with TUTOR_CONFIRMED status
     }
 
     @Test
@@ -580,7 +581,8 @@ class TimesheetRepositoryTest {
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Work 1", lecturer.getId());
         Timesheet timesheet2 = new Timesheet(tutor.getId(), course.getId(), LocalDate.of(2024, 3, 11),
                 new BigDecimal("3.0"), new BigDecimal("30.00"), "Work 2", lecturer.getId());
-        timesheet2.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);        
+        // Admin dashboard pending approvals should only include LECTURER_CONFIRMED
+        timesheet2.setStatus(ApprovalStatus.LECTURER_CONFIRMED);
         entityManager.persistAndFlush(timesheet1);
         entityManager.persistAndFlush(timesheet2);
 

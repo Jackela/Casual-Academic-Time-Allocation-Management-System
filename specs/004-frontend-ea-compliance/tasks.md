@@ -23,7 +23,7 @@
 
 - [x] T011 [US2] Centralize confirm→approve in shared handler in frontend/src/components/shared/TimesheetTable/TimesheetTable.tsx
 - [x] T012 [US2] Use `confirmTimesheet(id)` prior to any Lecturer approval action in the shared handler
-- [x] T013 [P] [US2] Update/extend tests to verify PUT /api/timesheets/{id}/confirm precedes any approval request in frontend/src/components/shared/TimesheetTable/TimesheetTable.test.tsx
+- [x] T013 [P] [US2] Update/extend tests to verify POST /api/approvals (TUTOR_CONFIRM) precedes any Lecturer approval request in frontend/src/components/shared/TimesheetTable/TimesheetTable.test.tsx
 
 ## Phase 5 — US3: Approval History in Timesheet Detail (P2)
 

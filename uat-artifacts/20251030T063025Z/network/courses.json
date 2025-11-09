@@ -1,1 +1,0 @@
-{"type":"urn:catams:error:access_denied","title":"Forbidden","status":403,"detail":"Access denied","instance":"/api/courses","timestamp":"2025-10-30T06:35:57.000153465Z","path":"/api/courses","error":"ACCESS_DENIED","success":false,"traceId":"cbd9582399173be5ac68d2f43d6b6946","spanId":"b00ce8981e80bb75","message":"Access denied"}

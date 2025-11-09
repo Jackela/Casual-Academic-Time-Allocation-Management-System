@@ -20,21 +20,29 @@ import java.util.List;
 public class LecturerAdminE2EController {
 
     private final E2EAssignmentState state;
+    private final com.usyd.catams.policy.AuthenticationFacade authenticationFacade;
 
     public static class AssignmentRequest {
         @NotNull public Long lecturerId;
         @NotEmpty public List<Long> courseIds;
     }
 
-    public LecturerAdminE2EController(E2EAssignmentState state) {
+    public LecturerAdminE2EController(E2EAssignmentState state,
+                                      com.usyd.catams.policy.AuthenticationFacade authenticationFacade) {
         this.state = state;
+        this.authenticationFacade = authenticationFacade;
     }
 
     @PostMapping("/assignments")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> setAssignments(@RequestBody AssignmentRequest request) {
-        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        java.util.Collection<String> roles;
+        try {
+            roles = authenticationFacade.getCurrentUserRoles();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(403).body(java.util.Map.of("success", false, "error", "FORBIDDEN"));
+        }
+        boolean isAdmin = roles.contains("ROLE_ADMIN");
         if (!isAdmin) {
             return ResponseEntity.status(403).body(java.util.Map.of("success", false, "error", "FORBIDDEN"));
         }
@@ -44,7 +52,7 @@ public class LecturerAdminE2EController {
     }
 
     @GetMapping("/{lecturerId}/assignments")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN') or hasRole('LECTURER')")
     public ResponseEntity<?> getAssignments(@PathVariable Long lecturerId) {
         return ResponseEntity.ok(java.util.Map.of("courseIds", state.getLecturerCourses(lecturerId)));
     }

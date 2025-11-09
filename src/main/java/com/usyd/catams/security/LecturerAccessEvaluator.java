@@ -13,10 +13,9 @@ public class LecturerAccessEvaluator {
     private final Environment environment;
     private final E2EAssignmentState e2eState; // may be null outside e2e-local
 
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
     public LecturerAccessEvaluator(LecturerAssignmentRepository lecturerAssignmentRepository,
                                    Environment environment,
-                                   E2EAssignmentState e2eState) {
+                                   @org.springframework.beans.factory.annotation.Autowired(required = false) E2EAssignmentState e2eState) {
         this.lecturerAssignmentRepository = lecturerAssignmentRepository;
         this.environment = environment;
         this.e2eState = e2eState;
