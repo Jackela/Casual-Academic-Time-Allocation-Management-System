@@ -151,7 +151,15 @@ public class Schedule1Calculator {
                         : TutorQualification.STANDARD;
                 yield policyProvider.resolvePolicyByRateCode(rateCode, policyQualification, sessionDate);
             }
-            default -> throw new IllegalArgumentException("Unsupported task type for Schedule 1 calculation: " + taskType);
+            case OTHER -> {
+                // OTHER task type maps to standard ORAA rate as a fallback for miscellaneous academic activities
+                boolean highBand = isHighBand(qualification);
+                String rateCode = highBand ? "AO1_DE1" : "AO2_DE2";
+                TutorQualification policyQualification = highBand
+                        ? resolveHighBandQualification(qualification)
+                        : TutorQualification.STANDARD;
+                yield policyProvider.resolvePolicyByRateCode(rateCode, policyQualification, sessionDate);
+            }
         };
     }
 
