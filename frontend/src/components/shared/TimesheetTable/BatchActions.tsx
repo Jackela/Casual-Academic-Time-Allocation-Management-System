@@ -121,7 +121,7 @@ const BatchActions = memo<BatchActionsProps>(({
       data-selected-count={selectedCount}
       data-mode={mode}
     >
-      {sortedActions.map((action, index) => {
+      {sortedActions.map((action, _index) => {
         const isPrimary = action.priority === ACTION_PRIORITY.PRIMARY;
         const isDestructive = action.priority === ACTION_PRIORITY.DESTRUCTIVE;
         const actionDisabled = isLocked || action.disabled || !action.onClick;

@@ -153,7 +153,7 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     isRepeat: boolean;
   };
 
-  const { register, setValue, watch, handleSubmit, getValues } = useForm<FormValues>({
+  const { setValue, watch, handleSubmit, getValues } = useForm<FormValues>({
     mode: 'onChange',
     defaultValues: {
       courseId: Number(initialData?.courseId ?? 0),
@@ -757,7 +757,6 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
               data-testid="create-qualification-select"
               aria-readonly="true"
               disabled
-              readOnly
               onChange={(e) => setValue('qualification', e.target.value as TutorQualification, { shouldDirty: true })}
             >
               {Object.keys(qualLabels).map(key => (

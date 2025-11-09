@@ -7,20 +7,6 @@
 
 import type { EnvironmentDebugInfo } from '../types/logging';
 
-type GlobalProcessEnv = typeof globalThis & {
-  process?: {
-    env?: Record<string, string | undefined>;
-  };
-};
-
-const getProcessEnv = (): Record<string, string | undefined> | undefined => {
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env as Record<string, string | undefined>;
-  }
-
-  return (globalThis as GlobalProcessEnv).process?.env;
-};
-
 /**
  * Centralized environment configuration and detection utilities
  */

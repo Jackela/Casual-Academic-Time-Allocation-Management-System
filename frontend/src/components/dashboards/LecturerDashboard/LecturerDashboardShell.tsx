@@ -285,6 +285,9 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
     const rafId = window.requestAnimationFrame(focusFirstElement);
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (!activeModal) {
+        return;
+      }
       const modalElement = activeModal.ref.current;
       if (!modalElement) {
         return;

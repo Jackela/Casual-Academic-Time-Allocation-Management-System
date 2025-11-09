@@ -62,7 +62,7 @@ interface TimesheetTablePagination {
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [20, 50, 100];
 
-type DerivedColumnKey = 'tutor' | 'course' | 'totalPay' | 'actions' | 'selection' | 'details' | 'timeline';
+type DerivedColumnKey = 'tutor' | 'course' | 'totalPay' | 'actions' | 'selection' | 'details' | 'timeline' | 'lastUpdated';
 type TimesheetColumnKey = keyof Timesheet | DerivedColumnKey;
 
 interface Column {
@@ -610,7 +610,7 @@ function renderDefaultCell(
       }
       // Determine the correct mode based on actionMode and approvalRole
       let mode: 'tutor' | 'lecturer' | 'admin' = 'tutor';
-      
+
       if (actionMode !== 'tutor') {
         mode = approvalRole === 'ADMIN' ? 'admin' : 'lecturer';
       }
@@ -619,15 +619,15 @@ function renderDefaultCell(
         <TimesheetActions
           timesheet={timesheet}
           mode={mode}
-          loading={actionLoading === timesheet.id}
+          loading={actionLoading === true}
           disabled={actionsDisabled}
           disabledReason={actionsDisabledReason}
-          onEdit={onEdit}
-          onSubmit={onSubmitDraft}
-          onConfirm={onConfirm}
-          onApprove={onApprove}
-          onReject={onReject}
-          onRequestModification={onRequestModification}
+          onEdit={onEdit ? () => onEdit({} as React.MouseEvent) : undefined}
+          onSubmit={onSubmitDraft ? () => onSubmitDraft({} as React.MouseEvent) : undefined}
+          onConfirm={onConfirm ? () => onConfirm({} as React.MouseEvent) : undefined}
+          onApprove={() => onApprove({} as React.MouseEvent)}
+          onReject={() => onReject({} as React.MouseEvent)}
+          onRequestModification={onRequestModification ? () => onRequestModification({} as React.MouseEvent) : undefined}
         />
       );
     }

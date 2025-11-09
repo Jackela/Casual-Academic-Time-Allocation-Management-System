@@ -86,6 +86,8 @@ export interface UseAdminDashboardDataResult {
   refreshTimesheets: () => Promise<void>;
   refetchDashboard: () => Promise<void>;
   resetApproval: () => void;
+  lastActionSuccess: string | null;
+  clearLastActionSuccess: () => void;
   adminStats: TimesheetStatistics;
   setFilterQuery: (update: Partial<TimesheetQuery>) => void;
 }

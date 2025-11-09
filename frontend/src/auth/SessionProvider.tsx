@@ -99,7 +99,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
     // Expose a minimal auth snapshot for E2E diagnostics and optional checks
     global.__E2E_GET_AUTH__ = () => {
       const authState = authManager.getAuthState();
-      return { isAuthenticated: authState.isAuthenticated, user: authState.user };
+      return { isAuthenticated: authState.isAuthenticated, user: authState.user, token: authState.token };
     };
 
     if (global.__E2E_PENDING_SESSION__) {

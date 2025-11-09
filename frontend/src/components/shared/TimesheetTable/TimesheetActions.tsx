@@ -1,11 +1,11 @@
 /**
  * Timesheet Action Buttons Component
- * 
+ *
  * Enforces the "one primary action per row" rule from UI standards
  * and provides consistent action button layout across the application.
  */
 
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Button } from '../../ui/button';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import type { Timesheet } from '../../../types/api';
@@ -100,9 +100,9 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
       }
     } else if (mode === 'lecturer' || mode === 'admin') {
       // Lecturer/Admin actions
-      const canApprove = timesheet.status === 'TUTOR_CONFIRMED' ||
+      const canApprove = (mode === 'lecturer' && timesheet.status === 'TUTOR_CONFIRMED') ||
         (mode === 'admin' && (timesheet.status === 'LECTURER_CONFIRMED' || timesheet.status === 'TUTOR_CONFIRMED'));
-      const canRequestChanges = timesheet.status === 'TUTOR_CONFIRMED' ||
+      const canRequestChanges = (mode === 'lecturer' && timesheet.status === 'TUTOR_CONFIRMED') ||
         (mode === 'admin' && (timesheet.status === 'LECTURER_CONFIRMED' || timesheet.status === 'TUTOR_CONFIRMED'));
 
       // Primary action: Approve

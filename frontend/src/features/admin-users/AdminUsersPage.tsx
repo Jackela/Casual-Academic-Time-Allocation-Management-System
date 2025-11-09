@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { User } from '../../types/api';
 import { createUser, fetchUsers, updateUser, setTutorAssignments, setTutorDefaultQualification, getTutorAssignments, getTutorDefaults, setLecturerAssignments, getLecturerAssignments } from '../../services/users';
-import { fetchLecturerCourses, fetchAllCourses } from '../../services/courses';
-import type { TutorQualification, User as ApiUser } from '../../types/api';
+import { fetchAllCourses } from '../../services/courses';
+import type { TutorQualification } from '../../types/api';
 
 type FormState = {
   firstName: string;
@@ -57,7 +57,7 @@ const generateSecurePassword = (): string => {
   };
 
   const baseCharacters = PASSWORD_CHARSETS.join('');
-  const requiredCharacters = PASSWORD_CHARSETS.map((charset, index) => {
+  const requiredCharacters = PASSWORD_CHARSETS.map((charset, _index) => {
     const randomIndex = getRandomValues(1)[0] % charset.length;
     return charset.charAt(randomIndex);
   });

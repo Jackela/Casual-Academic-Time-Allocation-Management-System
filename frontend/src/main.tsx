@@ -6,6 +6,7 @@ import { ENV_CONFIG } from './utils/environment'
 import { secureLogger } from './utils/secure-logger'
 import { authManager } from './services/auth-manager'
 import type { AuthSession } from './types/api'
+import type { AuthState } from './types/auth'
 import { STORAGE_KEYS } from './utils/storage-keys'
 
 type E2EDebugInfo = ReturnType<typeof ENV_CONFIG.e2e.getDebugInfo>
@@ -119,7 +120,7 @@ window.__E2E_SET_AUTH__ = (session: AuthSession) => {
     secureLogger.error('Failed to inject E2E auth session', error);
   }
 };
-window.__E2E_GET_AUTH__ = () => {
+window.__E2E_GET_AUTH__ = (): AuthState => {
   const global = window as typeof window & {
     __E2E_SESSION_STATE__?: () => { user?: unknown; token?: string | null; isAuthenticated?: boolean };
     __E2E_AUTH_MANAGER_STATE__?: () => ReturnType<typeof authManager.getAuthState>;
@@ -128,7 +129,7 @@ window.__E2E_GET_AUTH__ = () => {
     global.__E2E_SESSION_STATE__?.() ??
     global.__E2E_AUTH_MANAGER_STATE__?.() ??
     authManager.getAuthState()
-  );
+  ) as AuthState;
 };
 
 const globalForAuth = window as typeof window & {
