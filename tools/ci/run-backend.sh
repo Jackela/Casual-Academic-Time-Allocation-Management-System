@@ -8,7 +8,10 @@ fi
 
 echo "[backend] gradle check"
 export JWT_SECRET="${JWT_SECRET:-test-secret}"
-if [ -x ./gradlew ]; then
+# Use system gradle in CI/act environments to avoid wrapper jar permission issues
+if [ -n "${CI:-}" ] || [ -n "${ACT:-}" ]; then
+  gradle --no-configuration-cache check
+elif [ -x ./gradlew ]; then
   ./gradlew --no-configuration-cache check
 else
   gradle --no-configuration-cache check
