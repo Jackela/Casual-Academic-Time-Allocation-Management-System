@@ -18,7 +18,7 @@ test.describe('Tutor Confirmation E2E Workflow - Bug #1 Coverage', () => {
     await dataFactory?.cleanupAll();
   });
 
-  test('API: Tutor confirms timesheet via PUT /api/timesheets/{id}/confirm endpoint', async ({
+  test('API: Tutor confirms timesheet via POST /api/approvals (TUTOR_CONFIRM)', async ({
     request,
   }) => {
     const tokens = dataFactory.getAuthTokens();
@@ -38,12 +38,7 @@ test.describe('Tutor Confirmation E2E Workflow - Bug #1 Coverage', () => {
     expect(createdTimesheet.status).toBe('PENDING_TUTOR_CONFIRMATION');
     const timesheetId = createdTimesheet.id;
 
-    const confirmResponse = await request.put(
-      `${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}/confirm`,
-      {
-        headers: tutorHeaders,
-      }
-    );
+    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: \x27TUTOR_CONFIRM\x27 } });
 
     const responseStatus = confirmResponse.status();
     if (!confirmResponse.ok()) {
@@ -141,8 +136,9 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
       const confirmResponse = await tutorDashboard.confirmTimesheet(timesheetId);
       confirmedOk = confirmResponse.ok();
     } else {
-      const confirmApi = await request.put(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}/confirm`, {
+      const confirmApi = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
         headers: { Authorization: `Bearer ${tokens.tutor.token}`, 'Content-Type': 'application/json' },
+        data: { timesheetId, action: 'TUTOR_CONFIRM' },
       });
       confirmedOk = confirmApi.ok();
     }
@@ -325,7 +321,7 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     expect(resolvedStatus).toBe('FINAL_CONFIRMED');
   });
 
-  test('API Contract: PUT /api/timesheets/{id}/confirm returns correct response structure', async ({
+  test('API Contract: POST /api/approvals returns correct response structure for TUTOR_CONFIRM', async ({
     request,
   }) => {
     const tokens = dataFactory.getAuthTokens();
@@ -345,12 +341,7 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     expect(createdTimesheet.status).toBe('PENDING_TUTOR_CONFIRMATION');
     const timesheetId = createdTimesheet.id;
 
-    const confirmResponse = await request.put(
-      `${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}/confirm`,
-      {
-        headers: tutorHeaders,
-      }
-    );
+    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: \x27TUTOR_CONFIRM\x27 } });
 
     expect(confirmResponse.ok()).toBeTruthy();
     expect(confirmResponse.status()).toBe(200);
@@ -400,12 +391,7 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     expect(draftTimesheet.status).toBe('DRAFT');
     const timesheetId = draftTimesheet.id;
 
-    const confirmResponse = await request.put(
-      `${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}/confirm`,
-      {
-        headers: tutorHeaders,
-      }
-    );
+    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: \x27TUTOR_CONFIRM\x27 } });
 
     expect(confirmResponse.ok()).toBeFalsy();
     expect([400, 422]).toContain(confirmResponse.status());
@@ -433,7 +419,7 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     const timesheetId = createdTimesheet.id;
 
     const confirmResponse = await request.put(
-      `${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}/confirm`,
+      `${E2E_CONFIG.BACKEND.URL}/api/approvals`,
       {
         headers: lecturerHeaders,
       }
@@ -443,5 +429,9 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     expect([403, 422]).toContain(confirmResponse.status());
   });
 });
+
+
+
+
 
 

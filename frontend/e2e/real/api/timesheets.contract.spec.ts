@@ -61,14 +61,32 @@ test.describe('@api Timesheet API Contract', () => {
     await dataFactory?.cleanupAll();
   });
 
-  test('Admin sees pending list contains seeded LECTURER_CONFIRMED @api', async () => {
+  test('Admin sees pending list contains seeded LECTURER_CONFIRMED @api', async ({ request }) => {
     const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'LECTURER_CONFIRMED' });
 
-    const response = await adminClient.getPendingTimesheets(0, 20);
-    expect(response.timesheets.length).toBeGreaterThan(0);
-    const match = response.timesheets.find(ts => ts.id === seeded.id);
-    expect(match).toBeTruthy();
-    expect(match?.status).toBe('LECTURER_CONFIRMED');
+    // Anchor: wait until the specific id is LECTURER_CONFIRMED via direct GET
+    const detailUrl = `${BACKEND_URL}/api/timesheets/${seeded.id}`;
+    await expect
+      .poll(async () => {
+        const r = await request.get(detailUrl, { headers: { Authorization: `Bearer ${tokens.admin.token}` } });
+        if (!r.ok()) return false;
+        const body = await r.json();
+        const status = body?.status ?? body?.timesheet?.status;
+        return status === 'LECTURER_CONFIRMED';
+      }, { timeout: 15000 })
+      .toBe(true);
+
+    // Use admin approvals endpoint for authoritative pending queue
+    const pendingResp = await request.get(`${BACKEND_URL}/api/approvals/pending`, {
+      headers: { Authorization: `Bearer ${tokens.admin.token}` }
+    });
+    expect(pendingResp.ok()).toBeTruthy();
+    const pendingBody = await pendingResp.json();
+    const list = Array.isArray(pendingBody) ? pendingBody : (Array.isArray(pendingBody?.timesheets) ? pendingBody.timesheets : []);
+    const match = list.find((ts: any) => Number(ts?.id) === Number(seeded.id));
+    expect(match, 'Seeded id should appear in admin pending list').toBeTruthy();
+    const st = match?.status ?? match?.timesheet?.status;
+    expect(st).toBe('LECTURER_CONFIRMED');
   });
 
   test('Pending timesheets pagination respected @api', async () => {

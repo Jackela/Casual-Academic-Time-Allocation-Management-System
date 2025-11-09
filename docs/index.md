@@ -2,6 +2,16 @@
 
 Welcome to the Enterprise Agreement compliant documentation set for the Casual Academic Time Allocation Management System (CATAMS).
 
+## SSOT Map
+- Product Requirements (SSOT): `docs/product/requirements/University-of-Sydney-Enterprise-Agreement-2023-2026.pdf` and searchable `docs/product/requirements/University-of-Sydney-Enterprise-Agreement-2023-2026.txt`
+- API Contract (SSOT): `docs/openapi.yaml` (source). Bundle: `docs/openapi.bundled.yaml` (generated)
+- Architecture (SSOT): `docs/architecture/overview.md` with ADRs under `docs/adr/`
+- Backend Dev (SSOT): `docs/backend/development-guide.md`
+- Frontend Architecture (SSOT): `docs/frontend/architecture.md`
+- Testing (SSOT): `docs/testing/README.md` (see also `docs/testing/QUICK_START.md`, `docs/testing/strategy.md`)
+- Ops/Runbooks (SSOT): `docs/ops/deployment-guide.md`, `docs/ops/runbooks.md`, `docs/ops/release-checklist.md`
+- Policy & Compliance (SSOT): `docs/policy/timesheet-ssot.md`, `docs/policy/backend-ssot.md`
+
 ## How to Use These Docs
 - **Developers** ? start with `docs/backend/development-guide.md`, `docs/backend/api-overview.md`, and the data model notes.
 - **Product & UX** ? review `docs/product/user-guide.md`, `docs/frontend/ux-spec.md`, and release notes.

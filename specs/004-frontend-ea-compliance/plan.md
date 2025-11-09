@@ -7,7 +7,7 @@
 
 ## Summary
 
-Wire the existing EA-compliant backend endpoints into the frontend: add five service functions in `frontend/src/services/timesheets.ts`, refactor TutorDashboard to use `/api/timesheets/me`, enforce explicit Tutor confirmation via `PUT /api/timesheets/{id}/confirm` before Lecturer approval, and add an “Approval History” section using `/api/approvals/history/{timesheetId}`. Pending queues: Lecturer → `/api/timesheets/pending-approval`, Admin/HR → `/api/approvals/pending`. Centralize confirm→approve in the shared TimesheetTable action handler.
+Wire the existing EA-compliant backend endpoints into the frontend: add five service functions in `frontend/src/services/timesheets.ts`, refactor TutorDashboard to use `/api/timesheets/me`, enforce explicit Tutor confirmation via `POST /api/approvals` (action=`TUTOR_CONFIRM`) before Lecturer approval, and add an “Approval History” section using `/api/approvals/history/{timesheetId}`. Pending queues: Lecturer → `/api/timesheets/pending-approval`, Admin/HR → `/api/approvals/pending`. Centralize confirm→approve in the shared TimesheetTable action handler.
 
 ## Technical Context
 

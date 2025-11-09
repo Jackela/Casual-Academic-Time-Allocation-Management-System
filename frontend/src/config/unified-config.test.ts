@@ -113,8 +113,21 @@ describe('Unified Configuration System', () => {
       const envConfig = vi.mocked(ENV_CONFIG);
       envConfig.isE2E.mockReturnValue(true);
       
+      // Set environment variable to ensure E2E URL is used
+      const originalEnv = (globalThis as any).process?.env;
+      (globalThis as any).process = {
+        env: { E2E_BACKEND_PORT: '8084' }
+      };
+      
       resetConfig();
       const config = getConfig();
+      
+      // Restore original environment
+      if (originalEnv !== undefined) {
+        (globalThis as any).process.env = originalEnv;
+      } else {
+        delete (globalThis as any).process;
+      }
       
       expect(config.api.baseUrl).toBe('http://127.0.0.1:8084');
     });
@@ -123,8 +136,21 @@ describe('Unified Configuration System', () => {
       const envConfig = vi.mocked(ENV_CONFIG);
       envConfig.getMode.mockReturnValue('test');
       
+      // Set environment variable to ensure test URL is used
+      const originalEnv = (globalThis as any).process?.env;
+      (globalThis as any).process = {
+        env: { E2E_BACKEND_PORT: '8084' }
+      };
+      
       resetConfig();
       const config = getConfig();
+      
+      // Restore original environment
+      if (originalEnv !== undefined) {
+        (globalThis as any).process.env = originalEnv;
+      } else {
+        delete (globalThis as any).process;
+      }
       
       expect(config.api.baseUrl).toBe('http://127.0.0.1:8084');
     });

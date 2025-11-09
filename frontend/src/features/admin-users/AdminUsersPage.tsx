@@ -720,24 +720,31 @@ export default function AdminUsersPage() {
               {(formState.role === 'TUTOR' || formState.role === 'LECTURER') && (
                 <div className="space-y-4 border-t border-slate-200 pt-4">
                   <div className="flex flex-col">
-                    <label htmlFor="assigned-courses" className="text-sm font-medium text-slate-700">
+                    <label className="text-sm font-medium text-slate-700 mb-2">
                       Visible Courses (assignments)
                     </label>
-                    <select
-                      id="assigned-courses"
-                      multiple
-                      className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20 min-h-[6rem]"
-                      value={(formState.assignedCourseIds ?? []).map(String)}
-                      onChange={(e) => {
-                        const values = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
-                        setFormState((prev) => ({ ...prev, assignedCourseIds: values }));
-                      }}
-                      data-testid="admin-user-assigned-courses"
-                    >
+                    <div className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm min-h-[6rem] max-h-[12rem] overflow-y-auto space-y-2" data-testid="admin-user-assigned-courses">
                       {availableCourses.map((c) => (
-                        <option key={c.id} value={c.id}>{c.label}</option>
+                        <label key={c.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={(formState.assignedCourseIds ?? []).includes(c.id)}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              setFormState((prev) => {
+                                const current = prev.assignedCourseIds ?? [];
+                                const updated = isChecked
+                                  ? [...current, c.id]
+                                  : current.filter((id) => id !== c.id);
+                                return { ...prev, assignedCourseIds: updated };
+                              });
+                            }}
+                            className="rounded border-slate-300 text-primary focus:ring-primary/20"
+                          />
+                          <span className="text-sm text-slate-700">{c.label}</span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                     <p className="mt-1 text-xs text-slate-500">Lecturers see tutors/records in assigned courses；Tutors只能看到被分配的课程。</p>
                   </div>
                   {formState.role === 'TUTOR' && (<div className="flex flex-col">
@@ -818,25 +825,30 @@ export default function AdminUsersPage() {
               {(editingUser.role === 'TUTOR' || editingUser.role === 'LECTURER') && (
                 <div className="space-y-4">
                   <div className="flex flex-col">
-                    <label htmlFor="edit-assigned-courses" className="text-sm font-medium text-slate-700">
+                    <label className="text-sm font-medium text-slate-700 mb-2">
                       Visible Courses (assignments)
                     </label>
-                    <select
-                      id="edit-assigned-courses"
-                      multiple
-                      className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring focus:ring-primary/20 min-h-[6rem]"
-                      value={editAssignedCourseIds.map(String)}
-                      onChange={(e) => {
-                        const values = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
-                        setEditAssignedCourseIds(values);
-                      }}
-                    >
+                    <div className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm min-h-[6rem] max-h-[12rem] overflow-y-auto space-y-2" data-testid="admin-edit-user-assigned-courses">
                       {editCourseOptions.map((co) => (
-                        <option key={co.id} value={co.id}>
-                          {co.label}
-                        </option>
+                        <label key={co.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={editAssignedCourseIds.includes(co.id)}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              setEditAssignedCourseIds((prev) => {
+                                const updated = isChecked
+                                  ? [...prev, co.id]
+                                  : prev.filter((id) => id !== co.id);
+                                return updated;
+                              });
+                            }}
+                            className="rounded border-slate-300 text-primary focus:ring-primary/20"
+                          />
+                          <span className="text-sm text-slate-700">{co.label}</span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                     <p className="mt-1 text-xs text-slate-500">
                       Lecturers see tutors in assigned courses; tutors see only assigned courses.
                     </p>

@@ -11,6 +11,7 @@ import com.usyd.catams.enums.TimesheetTaskType;
 import com.usyd.catams.enums.TutorQualification;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
+import com.usyd.catams.repository.LecturerAssignmentRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.security.JwtTokenProvider;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.DayOfWeek;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -61,6 +63,9 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
     private TimesheetRepository timesheetRepository;
 
     @Autowired
+    private LecturerAssignmentRepository lecturerAssignmentRepository;
+
+    @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
     @Autowired
@@ -83,8 +88,13 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
     void setUp() {
         // Clean up existing data
         timesheetRepository.deleteAll();
+        timesheetRepository.flush();
+        lecturerAssignmentRepository.deleteAll();
+        lecturerAssignmentRepository.flush();
         courseRepository.deleteAll();
+        courseRepository.flush();
         userRepository.deleteAll();
+        userRepository.flush();
 
         // Create test users
         lecturer = new User();
@@ -114,7 +124,8 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
         // Create test course
         course = new Course();
         course.setName("COMP1001 - Introduction to Programming");
-        course.setCode("COMP1001");
+        String uniqueCourseCode = "COMP" + (1000 + ThreadLocalRandom.current().nextInt(9000));
+        course.setCode(uniqueCourseCode);
         course.setSemester("2024S1");
         course.setLecturerId(lecturer.getId());
         course.setIsActive(true);

@@ -159,10 +159,17 @@ class ConfigurationBuilder {
       return undefined;
     };
 
-    const envBackendUrl = tryEnvBackend();
     const isE2EorTest = ENV_CONFIG.isE2E() || ENV_CONFIG.getMode() === 'test';
+    const envBackendUrl = tryEnvBackend();
+    const fallbackPort = getProcessEnv().E2E_BACKEND_PORT ?? '8084';
 
-    // Vite env for browser runtime
+    // In E2E/test, always prefer explicit E2E backend settings over browser origin
+    if (isE2EorTest) {
+      const preferred = envBackendUrl ?? `http://127.0.0.1:${fallbackPort}`;
+      return preferred;
+    }
+
+    // Vite env for browser runtime (development/production)
     try {
       if (typeof window !== 'undefined') {
         const envs = import.meta.env as Record<string, string | undefined>;
@@ -175,23 +182,13 @@ class ConfigurationBuilder {
         if (typeof explicitBase === 'string' && explicitBase.length > 0) {
           return explicitBase;
         }
-        if (!isE2EorTest) {
-          return window.location.origin;
-        }
-        if (envBackendUrl) {
-          return envBackendUrl;
-        }
+        return window.location.origin;
       }
     } catch {
       // ignore
     }
 
-    const fallbackPort = getProcessEnv().E2E_BACKEND_PORT ?? '8084';
-
-    if (isE2EorTest) {
-      return envBackendUrl ?? `http://127.0.0.1:${fallbackPort}`;
-    }
-
+    // Fallbacks for non-browser contexts
     if (envBackendUrl) {
       return envBackendUrl;
     }

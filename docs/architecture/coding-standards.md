@@ -718,9 +718,9 @@ For unpredictable system exceptions (such as NullPointerException, database conn
 #### 9.4.2 ErrorResponse Class Implementation
 ```java
 /**
- * 标准错误响应DTO
+ * Standard error response DTO
  * 
- * 所有API错误响应都必须使用此格式
+ * All API error responses must use this format
  */
 public class ErrorResponse {
     
@@ -730,7 +730,7 @@ public class ErrorResponse {
     private String message;
     private String path;
     
-    // 构造函数
+    // Constructors
     public ErrorResponse() {
     }
     
@@ -742,7 +742,7 @@ public class ErrorResponse {
         this.path = path;
     }
     
-    // Builder模式
+    // Builder pattern
     public static ErrorResponseBuilder builder() {
         return new ErrorResponseBuilder();
     }

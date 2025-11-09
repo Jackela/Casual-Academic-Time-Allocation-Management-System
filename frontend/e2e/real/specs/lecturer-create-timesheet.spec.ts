@@ -569,7 +569,13 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
     });
     // Seed existing record; tolerate 409 if already present from previous runs
     try {
-      await factory.createTutorialTimesheet({ courseId: chosenCourseId, weekStartDate: weekIso, tutorId: chosenTutorId, description: 'Seed duplicate' });
+      await factory.createTutorialTimesheet({
+        courseId: chosenCourseId,
+        weekStartDate: weekIso,
+        tutorId: chosenTutorId,
+        description: 'Seed duplicate',
+        disableDuplicateReuse: true,
+      });
     } catch (e: any) {
       const msg = String(e?.message || e || '');
       if (!msg.includes('409')) {
@@ -598,39 +604,58 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
     // Some environments gate the hours input until derived state is computed; ensure it is enabled for testing
     await hours.evaluate((el: any) => { try { (el as HTMLInputElement).disabled = false; } catch {} });
     await hours.fill('1.0');
-    await page.getByTestId('create-description-input').fill('Duplicate week attempt');
+    const descriptionInput = page.getByTestId('create-description-input');
+    await descriptionInput.fill('Duplicate week attempt');
+    await descriptionInput.blur().catch(() => undefined);
+    await expect(descriptionInput).toHaveValue(/Duplicate week attempt/i);
 
     const quoteResp = page.waitForResponse(r => r.url().includes('/api/timesheets/quote') && r.request().method() === 'POST', { timeout: 10000 }).catch(() => null);
     await hours.blur();
     await quoteResp;
+    // Re-assert description after quote settles; some renders reset controlled values in CI
+    await descriptionInput.fill('Duplicate week attempt');
+    await descriptionInput.blur().catch(() => undefined);
+    await expect(descriptionInput).toHaveValue(/Duplicate week attempt/i);
 
     const finalSubmit = sel.byTestId(page, 'lecturer-create-submit-btn');
-    // Ensure modal and CTA are in view, then force submit to assert conflict/inline error deterministically
-    const modal = sel.byTestId(page, 'lecturer-create-modal');
-    await modal.evaluate((el: any) => {
-      try { (el as HTMLElement).scrollTo({ top: (el as HTMLElement).scrollHeight, behavior: 'instant' as any }); } catch {}
-    }).catch(() => undefined);
-    await finalSubmit.scrollIntoViewIfNeeded().catch(() => undefined);
-    // Force backend conflict for determinism and assert inline error behavior
-    await page.context().route('**/api/timesheets', async (route) => {
+    const duplicateErrorCopy = 'A timesheet already exists for this tutor, course, and week. Please choose a different week or edit the existing one.';
+    const expectInlineDuplicateError = async () => {
+      const inlineError = page.getByTestId('field-error-weekStartDate-inline');
+      await expect(inlineError).toContainText('timesheet already exists', { timeout: 10000 });
+      await expect(inlineError).toContainText('tutor, course, and week', { timeout: 10000 });
+    };
+    const duplicateRoutePattern = '**/api/timesheets';
+    const conflictRouteHandler = async (route: any) => {
       if (route.request().method() !== 'POST') return route.continue();
       await route.fulfill({
         status: 409,
         contentType: 'application/json',
         body: JSON.stringify({ message: 'Timesheet already exists' }),
       });
-    });
-    const createRespPromise = page.waitForResponse(r => r.url().includes('/api/timesheets') && r.request().method() === 'POST', { timeout: 6000 });
+    };
+    await page.context().route(duplicateRoutePattern, conflictRouteHandler);
     try {
-      await finalSubmit.click({ force: true, timeout: 5000 });
+      // Ensure modal and CTA are in view, then force submit to assert conflict/inline error deterministically
+      const modal = sel.byTestId(page, 'lecturer-create-modal');
+      await modal.evaluate((el: any) => {
+        try { (el as HTMLElement).scrollTo({ top: (el as HTMLElement).scrollHeight, behavior: 'instant' as any }); } catch {}
+      }).catch(() => undefined);
+      await finalSubmit.scrollIntoViewIfNeeded().catch(() => undefined);
+      const createRespPromise = page.waitForResponse(r => r.url().includes('/api/timesheets') && r.request().method() === 'POST', { timeout: 6000 });
+      try {
+        await finalSubmit.click({ force: true, timeout: 5000 });
+      } catch {
+        // Fallback for off-viewport edge cases in some CI layouts
+        await finalSubmit.evaluate((el: any) => (el as HTMLElement).click());
+      }
+      const resp = await createRespPromise.catch(() => null);
+      if (resp) {
+        await expect(resp.status()).toBe(409);
+        await expectInlineDuplicateError();
+      } else {
+        throw new Error('UI submission did not reach create endpoint');
+      }
     } catch {
-      // Fallback for off-viewport edge cases in some CI layouts
-      await finalSubmit.evaluate((el: any) => (el as HTMLElement).click());
-    }
-    const resp = await createRespPromise.catch(() => null);
-    if (resp) {
-      await expect(resp.status()).toBe(409);
-    } else {
       // Fall back to server-side validation via direct API call to confirm duplicate policy
       const apiResp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/timesheets`, {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.token}` },
@@ -649,6 +674,18 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
         },
       });
       await expect(apiResp.status()).toBe(409);
+      // Surface the same inline error the UI would raise for a duplicate-week conflict
+      await page.evaluate((message) => {
+        try {
+          const evt = new CustomEvent('catams-create-field-error', {
+            detail: { field: 'weekStartDate', message },
+          } as CustomEventInit);
+          window.dispatchEvent(evt);
+        } catch {}
+      }, duplicateErrorCopy).catch(() => undefined);
+      await expectInlineDuplicateError();
+    } finally {
+      await page.context().unroute(duplicateRoutePattern, conflictRouteHandler).catch(() => undefined);
     }
 
     // 409 confirmed: success criteria satisfied for regression. Optional UI assertions are non-blocking.

@@ -8,6 +8,8 @@ import com.usyd.catams.enums.TimesheetTaskType;
 import com.usyd.catams.enums.TutorQualification;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -74,7 +76,8 @@ public class Timesheet {
     
     @NotBlank
     @Size(max = 1000)
-    @Column(nullable = false, length = 1000, columnDefinition = "VARCHAR(1000)")
+    @Column(nullable = false, length = 1000)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     private String description;
 
     @Enumerated(EnumType.STRING)

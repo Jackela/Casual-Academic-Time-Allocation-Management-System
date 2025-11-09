@@ -130,13 +130,9 @@ public final class WorkflowRulesRegistry {
         // From HR queue, LECTURER cannot reject (ensure 400 by not defining rule)
         
         // ===================== STEP 6: HANDLING REJECTED TIMESHEETS =====================
-        
-        // TUTOR (as owner) can edit and resubmit rejected timesheets
-        addRule(ApprovalAction.SUBMIT_FOR_APPROVAL, UserRole.TUTOR, ApprovalStatus.REJECTED,
-            "Step 6: TUTOR edits and resubmits rejected timesheets",
-            (user, context) -> user.getId().equals(context.getTimesheet().getTutorId()),
-            ApprovalStatus.PENDING_TUTOR_CONFIRMATION
-        );
+        // Rejected timesheets must be edited first, which moves status to DRAFT.
+        // Resubmission is only allowed from DRAFT (see rules above). This prevents
+        // a direct submit from REJECTED without changes and aligns with guard-rails.
         
         // ===================== ADMIN OVERRIDE RULES =====================
         

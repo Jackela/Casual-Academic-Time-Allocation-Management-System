@@ -96,7 +96,8 @@ describe('TimesheetForm – server config SSOT', () => {
     await user.type(editable, '10.1');
     await user.tab();
 
-    expect(await screen.findByText(/Delivery hours must be between 0\.1 and 10/)).toBeInTheDocument();
+    const err = await screen.findByTestId('field-error-deliveryHours');
+    expect(err).toHaveTextContent(/Delivery hours must be between 0\.1 and 10/);
   });
 });
 

@@ -22,6 +22,11 @@ export interface TimesheetSeedOptions {
   hourlyRate?: number;
   courseId?: number;
   weekStartDate?: string;
+  /**
+   * When true, fail fast on duplicate-week conflicts instead of reusing an existing record.
+   * Useful for tests that explicitly need a fresh record to trigger duplicate validation.
+   */
+  disableDuplicateReuse?: boolean;
   targetStatus?: TimesheetStatus;
   taskType?: 'TUTORIAL' | 'LECTURE' | 'ORAA' | 'DEMO' | 'MARKING' | 'OTHER';
   qualification?: 'STANDARD' | 'PHD' | 'COORDINATOR';
@@ -37,6 +42,7 @@ export interface SeededTimesheet {
   courseId: number;
   weekStartDate: string;
   status?: TimesheetStatus;
+  tutorId?: number;
 }
 
 export type ApprovalTransition =
@@ -399,21 +405,24 @@ export async function createTimesheetWithStatus(
     const errorBody = await createResponse.text().catch(() => '');
     lastError = { status, body: errorBody };
 
-    const duplicate = status === 400 && errorBody.includes('Timesheet already exists');
+    const duplicate = status === 400 && /already exists/i.test(errorBody);
     const constraintViolation = status === 409 || /constraint|already exists|duplicate/i.test(errorBody);
+    const duplicateOrConflict = duplicate || constraintViolation;
     const transientServerError = status >= 500;
 
-    if (duplicate && options.weekStartDate) {
+    if (duplicateOrConflict && options.weekStartDate && !options.disableDuplicateReuse) {
       try {
         // Attempt to find existing timesheet for the same (tutor, course, week) and reuse its id
+        // Query by course only (server may not support tutorId filter in all builds)
         const listResp = await request.get(
-          `${timesheetsEndpoint}?tutorId=${tokens.tutor.userId}&courseId=${selectedCourse}&size=200`,
+          `${timesheetsEndpoint}?courseId=${selectedCourse}&size=500`,
           { headers: toHeaders(tokens.admin.token) }
         );
         if (listResp.ok()) {
           const payload = await listResp.json().catch(() => null as any);
           const found = Array.isArray(payload?.timesheets)
-            ? payload.timesheets.find((t: any) => String(t.weekStartDate) === String(selectedWeek))
+            ? payload.timesheets.find((t: any) => String(t.weekStartDate) === String(selectedWeek) &&
+                (t.tutorId === (options.tutorId ?? tokens.tutor.userId)))
             : null;
           if (found?.id) {
             // Fabricate a successful creation by breaking the loop and continuing with transitions below
@@ -429,7 +438,7 @@ export async function createTimesheetWithStatus(
       }
     }
 
-    if (!options.weekStartDate && (duplicate || constraintViolation || transientServerError)) {
+    if (!options.weekStartDate && (duplicateOrConflict || transientServerError)) {
       usedSeedCombinations.add(seedKey);
       continue;
     }

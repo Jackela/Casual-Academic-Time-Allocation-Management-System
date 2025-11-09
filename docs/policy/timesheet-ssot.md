@@ -1,5 +1,7 @@
 # Timesheet Single Source of Truth Policy
 
+> Source of business rules: `docs/product/requirements/University-of-Sydney-Enterprise-Agreement-2023-2026.pdf` (and searchable `docs/product/requirements/University-of-Sydney-Enterprise-Agreement-2023-2026.txt`). This document consolidates implementation policy derived from the EA.
+
 ## Objective
 The backend is the sole authority for all financial outcomes related to casual academic timesheets. This policy documents the rules that enforce compliance with the University of Sydney Enterprise Agreement Schedule 1.
 

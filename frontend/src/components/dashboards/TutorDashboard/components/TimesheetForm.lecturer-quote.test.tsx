@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import TimesheetForm from './TimesheetForm';
 
-const quoteTimesheetSpy = vi.hoisted(() => vi.fn());
+const mockQuoteTimesheet = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../../services/timesheets', async (orig) => {
   const actual = await orig();
-  quoteTimesheetSpy().mockResolvedValue({
+  mockQuoteTimesheet.mockResolvedValue({
     taskType: 'TUTORIAL',
     rateCode: 'TU1',
     qualification: 'STANDARD',
@@ -20,7 +20,7 @@ vi.mock('../../../../services/timesheets', async (orig) => {
     clauseReference: 'Schedule 1, Clause 3.1',
     sessionDate: '2025-11-03',
   });
-  return { ...actual, TimesheetService: { ...actual.TimesheetService, quoteTimesheet: quoteTimesheetSpy() } };
+  return { ...actual, TimesheetService: { ...actual.TimesheetService, quoteTimesheet: mockQuoteTimesheet } };
 });
 
 vi.mock('../../../../lib/config/ui-config', async (orig) => {
@@ -64,11 +64,11 @@ describe('TimesheetForm - Lecturer Mode Quote', () => {
 
     // Quote should fire automatically within 500ms (debounce + ensure timers)
     await waitFor(() => {
-      expect(quoteTimesheetSpy()).toHaveBeenCalled();
+      expect(mockQuoteTimesheet).toHaveBeenCalled();
     }, { timeout: 1000 });
 
     // Verify quote was called with correct payload
-    const callArgs = quoteTimesheetSpy().mock.calls[0][0];
+    const callArgs = mockQuoteTimesheet.mock.calls[0][0];
     expect(callArgs.tutorId).toBe(5);
     expect(callArgs.courseId).toBe(1);
     expect(callArgs.taskType).toBe('TUTORIAL');
@@ -92,10 +92,10 @@ describe('TimesheetForm - Lecturer Mode Quote', () => {
     // Even with tutorId=0 and selectedTutorId=null, quote should still fire
     // because form should fallback to first tutor in tutorOptions
     await waitFor(() => {
-      expect(quoteTimesheetSpy()).toHaveBeenCalled();
+      expect(mockQuoteTimesheet).toHaveBeenCalled();
     }, { timeout: 1000 });
 
-    const callArgs = quoteTimesheetSpy().mock.calls[0][0];
+    const callArgs = mockQuoteTimesheet.mock.calls[0][0];
     expect(callArgs.tutorId).toBeGreaterThan(0);
     expect(callArgs.tutorId).toBe(5); // First tutor
   });
@@ -115,10 +115,10 @@ describe('TimesheetForm - Lecturer Mode Quote', () => {
     );
 
     await waitFor(() => {
-      expect(quoteTimesheetSpy()).toHaveBeenCalled();
+      expect(mockQuoteTimesheet).toHaveBeenCalled();
     }, { timeout: 1000 });
 
-    const callArgs = quoteTimesheetSpy().mock.calls[0][0];
+    const callArgs = mockQuoteTimesheet.mock.calls[0][0];
     // In lecturer-create mode with tutorId=4, should use selectedTutorId=5 initially
     // but then internalTutorId state should be 5 (from selectedTutorId)
     expect(callArgs.tutorId).toBe(5);
@@ -141,6 +141,6 @@ describe('TimesheetForm - Lecturer Mode Quote', () => {
     // Wait to ensure quote does not fire
     await new Promise(resolve => setTimeout(resolve, 600));
 
-    expect(quoteTimesheetSpy()).not.toHaveBeenCalled();
+    expect(mockQuoteTimesheet).not.toHaveBeenCalled();
   });
 });

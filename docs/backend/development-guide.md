@@ -1,5 +1,7 @@
 # Backend Development Guide
 
+This directory serves as the SSOT for backend development workflows and conventions. See the docs home `docs/index.md` for the global SSOT map and `docs/openapi.yaml` for the API contract source.
+
 This guide outlines day-to-day workflows for working on the EA-compliant CATAMS backend.
 
 ## Environment Setup

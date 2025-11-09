@@ -44,7 +44,7 @@ test.describe('@p1 US4: Modification & Rejection (aligned to current UI)', () =>
     const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'LECTURER_CONFIRMED' });
 
     // 2) 管理员发起 REJECT（API 确定性）
-    await dataFactory.transitionTimesheet(seeded.id, 'REJECT', 'Policy mismatch', 'ADMIN');
+    await dataFactory.transitionTimesheet(seeded.id, 'REJECT', 'Policy mismatch', 'admin');
 
     // 3) 导师端查看 REJECTED 且无“提交”按钮
     await signInAsRole(page, 'tutor');

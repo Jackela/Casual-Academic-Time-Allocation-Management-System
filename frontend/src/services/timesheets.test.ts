@@ -477,12 +477,20 @@ describe('TimesheetService EA-compliant endpoints', () => {
     global.localStorage.getItem = originalGetItem;
   });
 
-  it('confirmTimesheet should PUT to /api/timesheets/{id}/confirm', async () => {
+  it('confirmTimesheet should POST to /api/approvals with TUTOR_CONFIRM and then GET', async () => {
     const ts = createMockTimesheet();
-    mockApiClient.put.mockResolvedValue(createMockApiResponse(ts));
+    ts.id = 42 as any;
+    ts.status = 'TUTOR_CONFIRMED' as any;
+    mockApiClient.post.mockResolvedValue(createMockApiResponse({ success: true }));
+    mockApiClient.get.mockResolvedValue(createMockApiResponse(ts));
 
     const result = await TimesheetService.confirmTimesheet(42);
-    expect(mockApiClient.put).toHaveBeenCalledWith('/api/timesheets/42/confirm', {});
+    expect(mockApiClient.post).toHaveBeenCalledWith('/api/approvals', {
+      timesheetId: 42,
+      action: 'TUTOR_CONFIRM',
+      comment: null,
+    });
+    expect(mockApiClient.get).toHaveBeenCalledWith('/api/timesheets/42');
     expect(result).toEqual(ts);
   });
 

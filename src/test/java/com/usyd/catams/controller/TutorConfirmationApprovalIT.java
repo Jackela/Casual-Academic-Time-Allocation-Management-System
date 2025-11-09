@@ -22,21 +22,9 @@ import java.time.LocalDate;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * TDD Test for Bug #1: Tutor Confirmation Endpoint Missing
- * 
- * This test reproduces the critical bug where the frontend calls
- * PUT /api/timesheets/{id}/confirm but the endpoint doesn't exist,
- * resulting in a 500 Internal Server Error (or 404 Not Found).
- * 
- * RED PHASE: This test should FAIL initially because the endpoint
- * PUT /api/timesheets/{id}/confirm does not exist in TimesheetController.
- * 
- * Expected failure: HTTP 404 Not Found or 405 Method Not Allowed
- * 
- * Once the endpoint is implemented, this test should pass with HTTP 200 OK
- * and the timesheet status should transition from PENDING_TUTOR_REVIEW to TUTOR_CONFIRMED.
+ * Confirms a timesheet via the unified approvals endpoint.
  */
-class TutorConfirmationEndpointTest extends IntegrationTestBase {
+class TutorConfirmationApprovalIT extends IntegrationTestBase {
 
     @Autowired
     private UserRepository userRepository;
@@ -91,8 +79,8 @@ class TutorConfirmationEndpointTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("PUT /api/timesheets/{id}/confirm should confirm timesheet (Bug #1 - GREEN PHASE)")
-    void tutorConfirmationEndpointShouldConfirmTimesheet() throws Exception {
+    @DisplayName("POST /api/approvals with TUTOR_CONFIRM should confirm timesheet")
+    void tutorConfirmationViaApprovalsEndpoint() throws Exception {
         Timesheet pendingTimesheet = timesheetRepository.save(new TimesheetBuilder()
                 .withTutorId(tutor.getId())
                 .withCourseId(course.getId())
@@ -101,10 +89,12 @@ class TutorConfirmationEndpointTest extends IntegrationTestBase {
                 .withStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION)
                 .build());
 
-        // GREEN PHASE: Endpoint now exists and should return 200 OK
-        performPut("/api/timesheets/" + pendingTimesheet.getId() + "/confirm",
-                new java.util.HashMap<>(),
-                tutorToken)
-                .andExpect(status().isOk());
+        java.util.Map<String, Object> body = new java.util.HashMap<>();
+        body.put("timesheetId", pendingTimesheet.getId());
+        body.put("action", "TUTOR_CONFIRM");
+
+        performPost("/api/approvals", body, tutorToken)
+            .andExpect(status().isOk());
     }
 }
+

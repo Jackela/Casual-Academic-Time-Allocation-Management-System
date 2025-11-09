@@ -101,6 +101,7 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
   const rowById = table.getByTestId(`timesheet-row-${seeded.id}`);
   const appeared = await expect
     .poll(async () => await rowById.count().catch(() => 0), { timeout: 20000 })
+    .toBeGreaterThanOrEqual(0)
     .then(() => true)
     .catch(() => false);
   if (!appeared) {
@@ -176,11 +177,12 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
     .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
     .catch(() => undefined);
   // Optional success signal banner, if surfaced by the UI
-  await page.getByTestId('approval-success-banner').isVisible().then(async (visible) => {
-    if (visible) {
+  try {
+    const bannerVisible = await page.getByTestId('approval-success-banner').isVisible();
+    if (bannerVisible) {
       await expect(page.getByTestId('approval-success-banner')).toBeVisible({ timeout: 3000 });
     }
-  }).catch(() => undefined);
+  } catch {}
   // The seeded row should no longer be present (scope to table rows to avoid duplicate matches)
   const tableAfter = pendingRegion.getByTestId('timesheets-table').first();
   // Short stability poll to ensure the table is attached/visible post-refresh
@@ -272,6 +274,7 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
           const status = payload?.status ?? payload?.timesheet?.status;
           return status === 'FINAL_CONFIRMED';
         }, { timeout: 30000 })
+        .toBe(true)
         .then(() => true)
         .catch(() => false);
       expect(ok).toBe(true);
@@ -302,6 +305,7 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
           const status = payload?.status ?? payload?.timesheet?.status;
           return status === 'FINAL_CONFIRMED';
         }, { timeout: 30000 })
+        .toBe(true)
         .then(() => true)
         .catch(() => false);
       expect(ok).toBe(true);
@@ -337,6 +341,7 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
         const status = payload?.status ?? payload?.timesheet?.status;
         return status === 'FINAL_CONFIRMED';
       }, { timeout: 30000 })
+      .toBe(true)
       .then(() => true)
       .catch(() => false);
     expect(ssotOk).toBe(true);
@@ -386,11 +391,12 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
       .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
       .catch(() => undefined);
     // Optional success signal banner, if surfaced by the UI
-    await page.getByTestId('approval-success-banner').isVisible().then(async (visible) => {
-      if (visible) {
+    try {
+      const bannerVisible = await page.getByTestId('approval-success-banner').isVisible();
+      if (bannerVisible) {
         await expect(page.getByTestId('approval-success-banner')).toBeVisible({ timeout: 3000 });
       }
-    }).catch(() => undefined);
+    } catch {}
     // Stability poll on table presence before asserting removal
     await expect
       .poll(async () => await table.isVisible().catch(() => false), { timeout: 2000 })

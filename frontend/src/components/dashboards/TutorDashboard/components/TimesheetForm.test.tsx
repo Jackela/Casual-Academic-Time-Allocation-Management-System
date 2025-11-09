@@ -17,7 +17,7 @@ const mockQuote = vi.fn(() =>
   Promise.resolve({
     taskType: 'TUTORIAL',
     rateCode: 'TU1',
-    qualification: 'STANDARD',
+    qualification: 'PhD Qualified',
     isRepeat: false,
     deliveryHours: 1,
     associatedHours: 2,
@@ -110,7 +110,8 @@ describe('TimesheetForm', () => {
     await user.type(enabledHoursInput, '49');
     await user.tab();
 
-    expect(await screen.findByText(/Delivery hours must be between 0\.25 and 48/)).toBeInTheDocument();
+    const err = await screen.findByTestId('field-error-deliveryHours');
+    expect(err).toHaveTextContent(/Delivery hours must be between 0\.25 and 48/);
   });
 
   it('displays rejection feedback for rejected timesheets', async () => {
@@ -138,7 +139,13 @@ describe('TimesheetForm', () => {
     };
 
     render(
-      <TimesheetForm tutorId={42} onSubmit={vi.fn()} onCancel={vi.fn()} mode={'lecturer-create' as any} tutorOptions={[{ id: 42, label: 'Tutor X' }]} courseOptions={[{ id: 1, label: 'COMP1001 - Programming' }]} />,
+      <TimesheetForm 
+        tutorId={42} 
+        onSubmit={vi.fn()} 
+        onCancel={vi.fn()} 
+        isEdit={true}
+        initialData={rejectedTimesheet as any}
+      />,
     );
 
     // Check that rejection feedback section is visible
@@ -178,14 +185,28 @@ describe('TimesheetForm', () => {
     const courseOptions = [{ id: 3, label: 'COMP1010 - Programming' }];
 
     const { rerender } = render(
-      <TimesheetForm tutorId={42} onSubmit={vi.fn()} onCancel={vi.fn()} mode={'lecturer-create' as any} tutorOptions={[{ id: 42, label: 'Tutor X' }]} courseOptions={[{ id: 1, label: 'COMP1001 - Programming' }]} />,
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        mode={'lecturer-create' as any}
+        tutorOptions={[{ id: 42, label: 'Tutor X', qualification: 'PHD' as any }]}
+        courseOptions={[{ id: 1, label: 'COMP1001 - Programming' }]}
+      />,
     );
 
-    const qualificationField = await screen.findByLabelText(/Tutor Qualification/i) as HTMLInputElement;
+    const qualificationField = await screen.findByLabelText(/Tutor Qualification/i) as HTMLSelectElement;
     expect(qualificationField).toBeDisabled();
     expect(qualificationField).toHaveAttribute('readonly');
-    expect(qualificationField.value).toBe('PhD Qualified');
-    expect(screen.queryByRole('combobox', { name: /Tutor Qualification/i })).not.toBeInTheDocument();
+    
+    // Wait for quote to load and update qualification value
+    await waitFor(() => {
+      // In lecturer mode, the disabled select holds enum value; the option text shows the label
+      expect(qualificationField.value).toBe('PHD');
+    }, { timeout: 5000 });
+    
+    // In lecturer-create mode, qualification is rendered as a disabled select (not editable)
+    expect(screen.getByRole('combobox', { name: /Tutor Qualification/i })).toBeInTheDocument();
   });
 
   it('renders task type as read-only for tutors and selectable for lecturers', async () => {
@@ -196,10 +217,10 @@ describe('TimesheetForm', () => {
       <TimesheetForm tutorId={42} onSubmit={vi.fn()} onCancel={vi.fn()} mode={'lecturer-create' as any} tutorOptions={[{ id: 42, label: 'Tutor X' }]} courseOptions={[{ id: 1, label: 'COMP1001 - Programming' }]} />,
     );
 
-    const taskTypeDisplay = await screen.findByLabelText(/Task Type/i) as HTMLInputElement;
-    expect(taskTypeDisplay).toBeDisabled();
-    expect(taskTypeDisplay.value).toBe('Marking');
-    expect(screen.queryByRole('combobox', { name: /Task Type/i })).not.toBeInTheDocument();
+    // In lecturer-create mode, task type should be selectable (not disabled)
+    const taskTypeSelect = await screen.findByLabelText(/Task Type/i) as HTMLSelectElement;
+    expect(taskTypeSelect).not.toBeDisabled();
+    expect(taskTypeSelect.tagName).toBe('SELECT');
 
     rerender(
       <TimesheetForm tutorId={42} onSubmit={vi.fn()} onCancel={vi.fn()} mode={'lecturer-create' as any} tutorOptions={[{ id: 42, label: 'Tutor X' }]} courseOptions={[{ id: 1, label: 'COMP1001 - Programming' }]} />,

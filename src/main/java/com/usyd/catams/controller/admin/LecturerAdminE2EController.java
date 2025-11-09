@@ -52,7 +52,7 @@ public class LecturerAdminE2EController {
     }
 
     @GetMapping("/{lecturerId}/assignments")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN') or hasRole('LECTURER')")
     public ResponseEntity<?> getAssignments(@PathVariable Long lecturerId) {
         return ResponseEntity.ok(java.util.Map.of("courseIds", state.getLecturerCourses(lecturerId)));
     }

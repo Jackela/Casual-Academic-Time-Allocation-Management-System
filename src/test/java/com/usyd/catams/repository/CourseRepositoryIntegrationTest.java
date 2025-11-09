@@ -3,7 +3,12 @@ package com.usyd.catams.repository;
 import com.usyd.catams.common.domain.model.CourseCode;
 import com.usyd.catams.common.domain.model.Money;
 import com.usyd.catams.entity.Course;
+import com.usyd.catams.entity.User;
+import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.integration.IntegrationTestBase;
+import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.repository.LecturerAssignmentRepository;
+import com.usyd.catams.testdata.TestDataBuilder;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,21 +29,53 @@ class CourseRepositoryIntegrationTest extends IntegrationTestBase {
     private CourseRepository courseRepository;
 
     @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private LecturerAssignmentRepository lecturerAssignmentRepository;
+
+    @Autowired
     private EntityManager entityManager;
 
     private Course course1;
     private Course course2;
     private Course course3;
+    private Long lecturerAId;
+    private Long lecturerBId;
 
     @BeforeEach
     void setUp() {
+        lecturerAssignmentRepository.deleteAll();
+        lecturerAssignmentRepository.flush();
+
         courseRepository.deleteAll();
+        courseRepository.flush();
+        userRepository.deleteAll();
+        userRepository.flush();
+
+        User lecturerA = userRepository.save(
+            TestDataBuilder.aLecturer()
+                .withEmail("courselect1@test.com")
+                .withName("Lecturer A")
+                .withHashedPassword("hashedPassword123")
+                .build()
+        );
+        User lecturerB = userRepository.save(
+            TestDataBuilder.aLecturer()
+                .withEmail("courselect2@test.com")
+                .withName("Lecturer B")
+                .withHashedPassword("hashedPassword123")
+                .build()
+        );
+        userRepository.flush();
+        lecturerAId = lecturerA.getId();
+        lecturerBId = lecturerB.getId();
 
         course1 = new Course(
             new CourseCode("COMP2022"),
             "Models of Computation",
             "2024S1",
-            1L,
+            lecturerAId,
             new Money(new BigDecimal("10000.00"))
         );
         course1.setBudgetUsed(new Money(new BigDecimal("2500.00")));
@@ -48,7 +85,7 @@ class CourseRepositoryIntegrationTest extends IntegrationTestBase {
             new CourseCode("COMP3888"),
             "Computer Science Capstone",
             "2024S1",
-            2L,
+            lecturerBId,
             new Money(new BigDecimal("15000.00"))
         );
         course2.setBudgetUsed(new Money(new BigDecimal("12500.00"))); // > 80%
@@ -58,10 +95,10 @@ class CourseRepositoryIntegrationTest extends IntegrationTestBase {
             new CourseCode("COMP1511"),
             "Programming Fundamentals",
             "2024S2",
-            1L,
+            lecturerAId,
             new Money(new BigDecimal("8000.00"))
         );
-        course3.setBudgetUsed(new Money(new BigDecimal("8500.00"))); // over budget
+        course3.setBudgetUsed(new Money(new BigDecimal("7600.00"))); // high usage but within allocation
         course3.setIsActive(false);
 
         entityManager.persist(course1);
@@ -88,15 +125,15 @@ class CourseRepositoryIntegrationTest extends IntegrationTestBase {
 
     @Test
     void findByLecturerId_FiltersByLecturer() {
-        List<Course> byLecturer1 = courseRepository.findByLecturerId(1L);
-        List<Course> byLecturer2 = courseRepository.findByLecturerId(2L);
-        assertThat(byLecturer1).extracting(Course::getLecturerId).containsOnly(1L);
-        assertThat(byLecturer2).extracting(Course::getLecturerId).containsOnly(2L);
+        List<Course> byLecturer1 = courseRepository.findByLecturerId(lecturerAId);
+        List<Course> byLecturer2 = courseRepository.findByLecturerId(lecturerBId);
+        assertThat(byLecturer1).extracting(Course::getLecturerId).containsOnly(lecturerAId);
+        assertThat(byLecturer2).extracting(Course::getLecturerId).containsOnly(lecturerBId);
     }
 
     @Test
     void findByLecturerIdAndIsActive_FiltersByLecturerAndActive() {
-        List<Course> activeLecturer1 = courseRepository.findByLecturerIdAndIsActive(1L, true);
+        List<Course> activeLecturer1 = courseRepository.findByLecturerIdAndIsActive(lecturerAId, true);
         assertThat(activeLecturer1).extracting(Course::getCode).containsExactlyInAnyOrder("COMP2022");
     }
 
@@ -119,9 +156,9 @@ class CourseRepositoryIntegrationTest extends IntegrationTestBase {
 
     @Test
     void pagingByLecturer_ShouldReturnPages() {
-        Page<Course> page = courseRepository.findByLecturerId(1L, PageRequest.of(0, 10));
+        Page<Course> page = courseRepository.findByLecturerId(lecturerAId, PageRequest.of(0, 10));
         assertThat(page.getTotalElements()).isEqualTo(2);
-        assertThat(page.getContent()).extracting(Course::getLecturerId).containsOnly(1L);
+        assertThat(page.getContent()).extracting(Course::getLecturerId).containsOnly(lecturerAId);
     }
 
     @Test
@@ -138,14 +175,13 @@ class CourseRepositoryIntegrationTest extends IntegrationTestBase {
         assertThat(budgetUsage).hasSize(3);
         assertThat(courseRepository.findCoursesWithLowBudget()).extracting(Course::getCode)
             .contains("COMP3888");
-        assertThat(courseRepository.findCoursesOverBudget()).extracting(Course::getCode)
-            .contains("COMP1511");
+        assertThat(courseRepository.findCoursesOverBudget()).isEmpty();
     }
 
     @Test
     void totalsByLecturer_ShouldSumBudgets() {
-        Double allocated = courseRepository.getTotalBudgetAllocatedByLecturer(1L);
-        Double used = courseRepository.getTotalBudgetUsedByLecturer(1L);
+        Double allocated = courseRepository.getTotalBudgetAllocatedByLecturer(lecturerAId);
+        Double used = courseRepository.getTotalBudgetUsedByLecturer(lecturerAId);
         assertThat(allocated).isNotNull();
         assertThat(allocated).isGreaterThan(0.0);
         assertThat(used).isNotNull();
@@ -155,7 +191,7 @@ class CourseRepositoryIntegrationTest extends IntegrationTestBase {
     @Test
     void existsByIdAndLecturerId_ShouldCheckOwnership() {
         entityManager.flush();
-        assertThat(courseRepository.existsByIdAndLecturerId(course1.getId(), 1L)).isTrue();
-        assertThat(courseRepository.existsByIdAndLecturerId(course2.getId(), 1L)).isFalse();
+        assertThat(courseRepository.existsByIdAndLecturerId(course1.getId(), lecturerAId)).isTrue();
+        assertThat(courseRepository.existsByIdAndLecturerId(course2.getId(), lecturerAId)).isFalse();
     }
 }

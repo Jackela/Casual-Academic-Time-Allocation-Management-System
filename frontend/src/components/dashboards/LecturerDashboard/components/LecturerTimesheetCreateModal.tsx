@@ -8,8 +8,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Button } from '../../../ui/button';
 import LoadingSpinner from '../../../shared/LoadingSpinner/LoadingSpinner';
 import { secureLogger } from '../../../../utils/secure-logger';
-import { fetchLecturerCourses } from '../../../../services/courses';
-import { fetchTutorsForLecturer } from '../../../../services/users';
+import { fetchLecturerCourses, fetchAllCourses } from '../../../../services/courses';
+import { fetchTutorsForLecturer, getLecturerAssignments } from '../../../../services/users';
 import { useTimesheetCreate } from '../../../../hooks/timesheets';
 import { dispatchNotification } from '../../../../lib/routing/notificationRouter';
 
@@ -60,10 +60,24 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
 
       const loadResources = async () => {
         try {
-          const [coursesRaw, tutorsRaw] = await Promise.all([
-            fetchLecturerCourses(lecturerId),
-            fetchTutorsForLecturer(lecturerId),
-          ]);
+          // Prefer SSOT: lecturer_assignments → derive courses from assignments
+          let coursesRaw;
+          try {
+            const assignedCourseIds = await getLecturerAssignments(lecturerId);
+            if (Array.isArray(assignedCourseIds) && assignedCourseIds.length > 0) {
+              const allCourses = await fetchAllCourses();
+              coursesRaw = allCourses.filter(c => assignedCourseIds.includes(c.id));
+            }
+          } catch {
+            // ignore and fallback below
+          }
+
+          // Fallback to legacy Course.lecturerId mapping if no assignments found
+          if (!Array.isArray(coursesRaw)) {
+            coursesRaw = await fetchLecturerCourses(lecturerId);
+          }
+
+          const tutorsRaw = await fetchTutorsForLecturer(lecturerId);
 
           // Be resilient to unexpected shapes to avoid runtime crashes
           const courses = Array.isArray(coursesRaw) ? coursesRaw : [];

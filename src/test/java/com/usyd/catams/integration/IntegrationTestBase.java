@@ -61,9 +61,10 @@ public abstract class IntegrationTestBase {
             }
         }
 
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+        // Let Flyway manage schema completely - disable Hibernate DDL
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
         registry.add("spring.jpa.show-sql", () -> "false");
-        registry.add("spring.flyway.enabled", () -> "false");
+        registry.add("spring.flyway.enabled", () -> "true");
     }
 
     @Autowired

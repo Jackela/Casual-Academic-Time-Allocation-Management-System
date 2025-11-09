@@ -61,7 +61,7 @@ describe('server-config', () => {
       weekStart: { mondayOnly: true },
       currency: 'AUD',
     });
-    expect(mockedSecureClient.get).toHaveBeenCalledWith('/api/config', { signal: undefined });
+    expect(mockedSecureClient.get).toHaveBeenCalledWith('http://localhost:8080/api/timesheets/config', { signal: undefined });
   });
 
   it('returns null for payloads that violate schema', async () => {
@@ -82,8 +82,8 @@ describe('server-config', () => {
     const result = await module.fetchTimesheetConstraints();
 
     expect(result).toBeNull();
-    expect(mockedSecureClient.get).toHaveBeenNthCalledWith(1, '/api/config', { signal: undefined });
-    expect(mockedSecureClient.get).toHaveBeenNthCalledWith(2, '/api/timesheets/config', { signal: undefined });
+    expect(mockedSecureClient.get).toHaveBeenNthCalledWith(1, 'http://localhost:8080/api/timesheets/config', { signal: undefined });
+    expect(mockedSecureClient.get).toHaveBeenNthCalledWith(2, 'http://127.0.0.1:8080/api/timesheets/config', { signal: undefined });
   });
 
   it('falls back to secondary endpoint when primary fails', async () => {
@@ -106,7 +106,7 @@ describe('server-config', () => {
       weekStart: { mondayOnly: false },
       currency: 'AUD',
     });
-    expect(mockedSecureClient.get).toHaveBeenNthCalledWith(1, '/api/config', { signal: undefined });
-    expect(mockedSecureClient.get).toHaveBeenNthCalledWith(2, '/api/timesheets/config', { signal: undefined });
+    expect(mockedSecureClient.get).toHaveBeenNthCalledWith(1, 'http://localhost:8080/api/timesheets/config', { signal: undefined });
+    expect(mockedSecureClient.get).toHaveBeenNthCalledWith(2, 'http://127.0.0.1:8080/api/timesheets/config', { signal: undefined });
   });
 });
