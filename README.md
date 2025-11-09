@@ -102,6 +102,27 @@ Reports/screenshots: `frontend/playwright-report` (or test-results per runner ou
 - Frontend unit: `npm --prefix frontend test -- --reporter=verbose`
 - E2E: `node frontend/scripts/run-e2e-tests.js --project=real`
 
+### Run GitHub Actions locally with act
+
+This repo ships a preconfigured `.actrc` so you can run the CI locally:
+
+- Requirements: Docker running; install act (https://github.com/nektos/act)
+- The provided `.actrc` does the following:
+  - Maps `ubuntu-latest` to `catthehacker/ubuntu:act-latest`
+  - Mounts Docker socket and enables privileged mode for `docker compose`
+  - Adds `host.docker.internal` gateway so containers can reach host services
+  - Overrides E2E URLs to talk to host: `http://host.docker.internal:8084` and `http://host.docker.internal:5174`
+
+Common commands:
+- `act -l`                # list jobs
+- `act -j backend`        # run backend job
+- `act -j frontend-unit`  # run frontend unit tests
+- `act -j e2e`            # run E2E job
+
+Notes:
+- If your Linux kernel doesn’t support `host-gateway`, replace `host.docker.internal` with your host IP in `.actrc`.
+- Artifacts (e.g., Playwright reports) are saved under `./logs/act-artifacts` when using `actions/upload-artifact`.
+
 ## Troubleshooting
 - Playwright browsers: `npm --prefix frontend exec playwright install --with-deps chromium`
 - Port conflicts (8084/5174): stop conflicting processes or change ports

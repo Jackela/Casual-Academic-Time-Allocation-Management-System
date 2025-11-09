@@ -1,0 +1,6 @@
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+--container-options "--privileged -v /var/run/docker.sock:/var/run/docker.sock --add-host=host.docker.internal:host-gateway"
+-e ACT=true
+-e E2E_BACKEND_URL=http://host.docker.internal:8084
+-e E2E_FRONTEND_URL=http://host.docker.internal:5174
+--artifact-server-path ./logs/act-artifacts

@@ -20,8 +20,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install Repo Tooling Deps
-        run: npm ci --ignore-scripts
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -40,10 +38,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.7
-      - name: Gradle check
+      - name: Backend checks
         env:
           JWT_SECRET: test-secret
-        run: gradle --no-configuration-cache check
+        run: bash tools/ci/run-backend.sh
 
   frontend-unit:
     needs: backend
@@ -55,15 +53,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install Frontend Deps
-        working-directory: frontend
-        run: npm ci
-      - name: Run Frontend Unit Tests
-        working-directory: frontend
+      - name: Frontend unit tests
         env:
           CI: '1'
           NODE_ENV: test
-        run: npm run test:unit
+        run: bash tools/ci/run-frontend-unit.sh
 
   e2e:
     needs: [backend, frontend-unit]
@@ -75,19 +69,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install frontend deps
-        working-directory: frontend
-        run: npm ci
-      - name: Install Playwright browsers (Chromium)
-        working-directory: frontend
-        run: npx playwright install --with-deps chromium
       - name: Run E2E (real)
         env:
           E2E_BACKEND_MODE: docker
           E2E_BACKEND_URL: http://127.0.0.1:8084
           E2E_FRONTEND_URL: http://127.0.0.1:5174
           CI: '1'
-        run: node scripts/e2e-runner.js --project=real
+        run: bash tools/ci/run-e2e.sh
       - name: Upload Playwright report (on failure)
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4

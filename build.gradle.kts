@@ -108,7 +108,7 @@ tasks.withType<Test> {
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
     // Fail fast on first failure and keep tests responsive
-    failFast = true
+    failFast = false  // Temporarily disabled to run all tests for coverage
     // A conservative global timeout so hanging tests don't block CI/dev
     systemProperty("junit.jupiter.execution.timeout.default", "60s")
 }
