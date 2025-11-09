@@ -1,10 +1,17 @@
 package com.usyd.catams.workflow;
 
+import com.usyd.catams.common.domain.model.Email;
+import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalStatus;
+import com.usyd.catams.enums.TimesheetTaskType;
+import com.usyd.catams.enums.UserRole;
+import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.security.JwtTokenProvider;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -13,7 +20,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,7 +32,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("e2e-local")
+@ActiveProfiles("integration-test")
+@Transactional
 public class ModificationRequestedWorkflowTest {
 
     @Autowired
@@ -37,11 +48,55 @@ public class ModificationRequestedWorkflowTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private CourseRepository courseRepository;
+
+    private User lecturerUser;
+    private User tutorUser;
+    private Course testCourse;
+
+    @BeforeEach
+    public void setUp() {
+        // Clean up existing data
+        timesheetRepository.deleteAll();
+        courseRepository.deleteAll();
+        userRepository.deleteAll();
+
+        // Create test users
+        tutorUser = new User(new Email("tutor@example.com"), "Test Tutor", "$2a$10$hashedPassword", UserRole.TUTOR);
+        tutorUser.setIsActive(true);
+        tutorUser = userRepository.save(tutorUser);
+
+        lecturerUser = new User(new Email("lecturer@example.com"), "Test Lecturer", "$2a$10$hashedPassword", UserRole.LECTURER);
+        lecturerUser.setIsActive(true);
+        lecturerUser = userRepository.save(lecturerUser);
+
+        // Create test course
+        testCourse = new Course();
+        testCourse.setCode("TEST1001");
+        testCourse.setName("Test Course");
+        testCourse.setSemester("2025S1");
+        testCourse.setLecturerId(lecturerUser.getId());
+        testCourse.setIsActive(true);
+        testCourse.setBudgetAllocated(BigDecimal.valueOf(10000));
+        testCourse = courseRepository.save(testCourse);
+
+        // Create a TUTOR_CONFIRMED timesheet for testing
+        Timesheet timesheet = new Timesheet();
+        timesheet.setTutorId(tutorUser.getId());
+        timesheet.setCourseId(testCourse.getId());
+        timesheet.setWeekStartDate(LocalDate.now().minusWeeks(1));
+        timesheet.setTaskType(TimesheetTaskType.TUTORIAL);
+        timesheet.setHours(BigDecimal.valueOf(2.0));
+        timesheet.setHourlyRate(BigDecimal.valueOf(50.00));
+        timesheet.setCalculatedAmount(BigDecimal.valueOf(100.00));
+        timesheet.setDescription("Test timesheet for modification workflow");
+        timesheet.setStatus(ApprovalStatus.TUTOR_CONFIRMED);
+        timesheetRepository.save(timesheet);
+    }
+
     @Test
     public void testModificationRequestedWorkflow() throws Exception {
-        var lecturerUser = userRepository.findByEmail("lecturer@example.com").orElseThrow();
-        var tutorUser = userRepository.findByEmail("tutor@example.com").orElseThrow();
-
         String lecturerToken = jwtTokenProvider.generateToken(lecturerUser.getId(), lecturerUser.getEmail(), lecturerUser.getRole().name());
         String tutorToken = jwtTokenProvider.generateToken(tutorUser.getId(), tutorUser.getEmail(), tutorUser.getRole().name());
 
