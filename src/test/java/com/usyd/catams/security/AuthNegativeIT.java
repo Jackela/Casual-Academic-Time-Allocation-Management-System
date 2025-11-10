@@ -9,6 +9,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
+/**
+ * Negative path integration tests for authentication endpoints.
+ * Relies on @Transactional from IntegrationTestBase for automatic test isolation.
+ */
 class AuthNegativeIT extends IntegrationTestBase {
 
     @Test
