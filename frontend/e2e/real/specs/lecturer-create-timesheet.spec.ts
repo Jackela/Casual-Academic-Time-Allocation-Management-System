@@ -577,8 +577,8 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
         disableDuplicateReuse: true,
       });
     } catch (e: any) {
-      const msg = String(e?.message || e || '');
-      if (!msg.includes('409')) {
+      const msg = String(e?.message || e || '').toLowerCase();
+      if (!msg.includes('409') && !msg.includes('already exists') && !msg.includes('duplicate')) {
         throw e;
       }
     }
