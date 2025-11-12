@@ -206,7 +206,7 @@ export const useCurrencyFormatter = () => {
   const baseOptions = useMemo<Intl.NumberFormatOptions>(
     () => ({
       style: 'currency',
-      currency: CURRENCY,
+      currency: CURRENCY as string,
       currencyDisplay: 'code',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -227,7 +227,7 @@ export const useCurrencyFormatter = () => {
       };
 
       if (mergedOptions.style === 'currency' && !mergedOptions.currency) {
-        mergedOptions.currency = CURRENCY;
+        mergedOptions.currency = CURRENCY as string;
       }
 
       return formatCurrency(amount, mergedOptions);

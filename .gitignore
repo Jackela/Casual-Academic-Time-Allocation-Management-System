@@ -20,7 +20,6 @@ buildNumber.properties
 # Gradle (if used in future)
 .gradle
 build/
-!gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
 
@@ -28,6 +27,7 @@ build/
 *.class
 *.log
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.war
 *.nar
 *.ear
@@ -273,6 +273,12 @@ tmp_*.txt
 *_lines.txt
 *.tmp
 *.log
+PREPTH
+frontend-test.out
+vit*.out
+gha-artifacts/
+gha-artifacts-latest/
+.tools/
 
 # --- local personal scripts (keep example, ignore actual) ---
 uat-helpers.sh

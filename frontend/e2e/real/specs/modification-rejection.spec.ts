@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
 import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
-import { DashboardPage } from '../../shared/pages/DashboardPage';
 import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
 import { statusLabel } from '../../utils/status-labels';
 
@@ -39,7 +38,7 @@ test.describe('@p1 US4: Modification & Rejection (aligned to current UI)', () =>
     );
   });
 
-  test('admin 拒绝后 → 导师看到 REJECTED 且不可再次提交', async ({ page, request }) => {
+  test('admin 拒绝后 → 导师看到 REJECTED 且不可再次提交', async ({ page }) => {
     // 1) 种子：生成已由讲师确认的工单（LECTURER_CONFIRMED）
     const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'LECTURER_CONFIRMED' });
 

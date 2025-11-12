@@ -43,11 +43,10 @@ export const useTimesheetDashboardSummary = (
       setState({ data: summary, loading: false, error: null, lastUpdatedAt: now });
       if (import.meta.env.DEV) {
         const key = `__dashboard_fetch_count_${scope}`;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const w = window as any;
-        w[key] = (w[key] ?? 0) + 1;
+        const devWindow = window as typeof window & Record<string, number | undefined>;
+        devWindow[key] = (devWindow[key] ?? 0) + 1;
         // Minimal budget diagnostic; manual check in devtools
-        console.info(`[dashboard] fetched summary (scope=${scope}) count=${w[key]} at ${new Date(now).toISOString()}`);
+        console.info(`[dashboard] fetched summary (scope=${scope}) count=${devWindow[key]} at ${new Date(now).toISOString()}`);
       }
     } catch (error: unknown) {
       setState((previous) => ({

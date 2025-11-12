@@ -3,7 +3,6 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useSession } from '../auth/SessionProvider';
 import { STORAGE_KEYS } from '../utils/storage-keys';
 import useRole from '../auth/useRole';
-import { useUserProfile } from '../auth/UserProfileProvider';
 import { useAccessControl } from '../auth/access-control';
 import './ProtectedRoute.css';
 
@@ -12,13 +11,12 @@ interface ProtectedRouteProps {
   requiredRole?: string;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
-  requiredRole 
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  requiredRole
 }) => {
-  const { role, ready } = useRole();
+  const { role } = useRole();
   const session = useSession();
-  const { profile } = useUserProfile();
   const access = useAccessControl();
   const location = useLocation();
 

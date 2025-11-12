@@ -1,6 +1,8 @@
 import { Page, expect, Locator } from '@playwright/test';
 import { E2E_CONFIG } from '../../config/e2e.config';
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 type LoginWaitUntil = 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
 
 interface LoginOptions {
@@ -300,7 +302,7 @@ export class LoginPage {
         
         if (attempt < maxRetries) {
           // Wait before retry and ensure clean state
-          await this.page.waitForTimeout(1000 * attempt);
+          await sleep(1000 * attempt);
           await this.navigateTo();
         }
       }

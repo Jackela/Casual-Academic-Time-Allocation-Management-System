@@ -4,11 +4,16 @@ import com.usyd.catams.integration.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
+/**
+ * Negative path integration tests for authentication endpoints.
+ * Relies on @Transactional from IntegrationTestBase for automatic test isolation.
+ */
 class AuthNegativeIT extends IntegrationTestBase {
 
     @Test

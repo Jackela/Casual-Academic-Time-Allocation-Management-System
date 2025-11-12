@@ -69,7 +69,7 @@ export const UserProfileProvider: React.FC<UserProfileProviderProps> = ({ childr
         if (auth.token) {
           try {
             authManager.setAuth(auth.token, profile);
-          } catch (e) {
+          } catch (err) {
             // fallback: just update provider state
             setState({ profile, loading: false, error: null });
             return;

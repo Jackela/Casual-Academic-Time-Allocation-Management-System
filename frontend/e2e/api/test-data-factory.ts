@@ -14,6 +14,7 @@ import {
   toAuthContext,
   type RoleSessionMap,
 } from './auth-helper';
+import { getDefaultCourseIds } from '../utils/course-catalog';
 
 type CleanupStep = () => Promise<void>;
 
@@ -24,6 +25,8 @@ export class TestDataFactory {
     private readonly request: APIRequestContext,
     private readonly tokens: AuthContext,
     private readonly sessions: RoleSessionMap,
+    private readonly defaultCourseIds: number[],
+    private readonly fallbackTutorIds: number[],
   ) {}
 
   getAuthTokens(): AuthContext {
@@ -32,6 +35,10 @@ export class TestDataFactory {
 
   getAuthSessions(): RoleSessionMap {
     return this.sessions;
+  }
+
+  getDefaultCourseIds(): number[] {
+    return [...this.defaultCourseIds];
   }
 
   async createTimesheetForTest(options: TimesheetSeedOptions = {}): Promise<SeededTimesheet> {
@@ -44,8 +51,9 @@ export class TestDataFactory {
           headers: { Authorization: `Bearer ${this.tokens.admin.token}` },
         });
         deleted = response.status() === 204;
-      } catch {
+      } catch (error) {
         deleted = false;
+        void error;
       }
 
       if (!deleted) {
@@ -71,9 +79,10 @@ export class TestDataFactory {
   }): Promise<SeededTimesheet> {
     const hours = options.hours ?? (options.deliveryHours ?? 1);
     const preferredTutor = options.tutorId ?? this.tokens.tutor.userId;
-    const candidateTutors = Array.from(new Set([preferredTutor, 3, 4, 5]));
+    const fallbackPool = options.tutorId ? [] : this.fallbackTutorIds;
+    const candidateTutors = Array.from(new Set([preferredTutor, ...fallbackPool]));
     let seeded: SeededTimesheet | null = null;
-    let lastErr: any = null;
+    let lastError: unknown = null;
     for (const tutorId of candidateTutors) {
       try {
         seeded = await this.createTimesheetForTest({
@@ -91,34 +100,39 @@ export class TestDataFactory {
           seeded = { ...seeded, tutorId };
         }
         break;
-      } catch (e) {
-        const msg = String((e as Error)?.message ?? '').toLowerCase();
-        lastErr = e;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error ?? 'unknown error'));
+        const msg = err.message.toLowerCase();
+        lastError = err;
         if (msg.includes('already exists') || msg.includes('resource_conflict') || msg.includes('409')) {
           continue; // try next tutor id to avoid collision on (tutor, course, week)
         }
-        throw e;
+        throw err;
       }
     }
     if (!seeded) {
-      throw lastErr ?? new Error('Unable to seed tutorial timesheet');
+      throw (lastError instanceof Error ? lastError : new Error('Unable to seed tutorial timesheet'));
     }
 
     // Verify seed is visible by course/week for determinism in EA tests (fail fast)
+    const listCourseId = seeded.courseId ?? options.courseId ?? this.defaultCourseIds[0];
     const list = await this.request.get(
-      `${E2E_CONFIG.BACKEND.URL}/api/timesheets?courseId=${options.courseId ?? 1}&size=200`,
+      `${E2E_CONFIG.BACKEND.URL}/api/timesheets?courseId=${listCourseId}&size=200`,
       { headers: { Authorization: `Bearer ${this.tokens.admin.token}` } },
     );
     if (!list.ok()) {
       throw new Error(`Admin list timesheets failed: ${list.status()} ${await list.text()}`);
     }
     {
-      const payload = await list.json().catch(() => null as any);
-      const found = Array.isArray(payload?.timesheets)
-        ? payload.timesheets.find((t: any) => String(t.weekStartDate) === String(options.weekStartDate))
-        : null;
+      type TimesheetListResponse = {
+        timesheets?: Array<{ weekStartDate?: string | null }>;
+      };
+      const payload = (await list.json().catch(() => null)) as TimesheetListResponse | null;
+      const found = payload?.timesheets?.find(
+        (t) => String(t?.weekStartDate) === String(options.weekStartDate),
+      );
       if (!found) {
-        throw new Error(`Seeded tutorial not found for course=${options.courseId ?? 1} week=${options.weekStartDate}`);
+        throw new Error(`Seeded tutorial not found for course=${listCourseId} week=${options.weekStartDate}`);
       }
     }
 
@@ -146,10 +160,15 @@ export class TestDataFactory {
 export async function createTestDataFactory(request: APIRequestContext): Promise<TestDataFactory> {
   const sessions = await loginAllRoles(request);
   const tokens = toAuthContext(sessions);
-  // Ensure standard E2E tutors are assigned to common courses (1 and 2)
+  const defaultCourseIds = await getDefaultCourseIds(request, tokens.admin.token, 2);
+  const fallbackTutorIds = await resolveTutorPool(request, tokens.admin.token, tokens.tutor.userId);
+  // Ensure standard E2E tutors are assigned to common courses
   try {
-    const tutorIds = [3, 4, 5];
-    const courseIds = [1, 2];
+    const tutorIds = fallbackTutorIds.slice(0, Math.max(1, Math.min(3, fallbackTutorIds.length)));
+    if (!tutorIds.length) {
+      tutorIds.push(tokens.tutor.userId);
+    }
+    const courseIds = defaultCourseIds.slice(0, Math.max(1, Math.min(2, defaultCourseIds.length)));
     for (const tutorId of tutorIds) {
       try {
         const resp = await request.post(
@@ -175,12 +194,48 @@ export async function createTestDataFactory(request: APIRequestContext): Promise
             },
           ).catch(() => undefined);
         }
-      } catch {
+      } catch (error) {
         // Non-fatal; UI quoting does not strictly require this but improves determinism
+        void error;
       }
     }
-  } catch {
-    // ignore
+  } catch (error) {
+    void error;
   }
-  return new TestDataFactory(request, tokens, sessions);
+  return new TestDataFactory(request, tokens, sessions, defaultCourseIds, fallbackTutorIds);
+}
+
+async function resolveTutorPool(
+  request: APIRequestContext,
+  adminToken: string,
+  preferredTutorId: number,
+): Promise<number[]> {
+  const unique = new Set<number>();
+  if (Number.isFinite(preferredTutorId)) {
+    unique.add(Number(preferredTutorId));
+  }
+  try {
+    const resp = await request.get(
+      `${E2E_CONFIG.BACKEND.URL}/api/users?role=TUTOR&active=true&size=50`,
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+    if (resp.ok()) {
+      const payload = await resp.json().catch(() => null as any);
+      const entries: Array<{ id?: number }> =
+        Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.content)
+            ? payload.content
+            : [];
+      for (const entry of entries) {
+        const id = Number(entry?.id);
+        if (Number.isFinite(id)) {
+          unique.add(id);
+        }
+      }
+    }
+  } catch (error) {
+    void error;
+  }
+  return Array.from(unique);
 }

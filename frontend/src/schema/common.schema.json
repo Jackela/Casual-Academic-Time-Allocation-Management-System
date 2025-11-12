@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "common.schema.json",
+  "title": "Common Schema",
+  "type": "object",
+  "$defs": {
+    "Currency": {
+      "type": "string",
+      "enum": ["AUD", "USD", "EUR", "GBP"]
+    }
+  }
+}

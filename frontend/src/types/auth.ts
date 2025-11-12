@@ -96,6 +96,7 @@ export interface AccessControlState {
 }
 
 export interface ErrorContext {
+  [key: string]: string | number | undefined;
   component: string;
   action: string;
   userId?: string;

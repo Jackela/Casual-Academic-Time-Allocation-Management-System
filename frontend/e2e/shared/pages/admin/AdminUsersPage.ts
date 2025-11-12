@@ -24,8 +24,12 @@ export class AdminUsersPage {
     // If the modal is already open, skip clicking the Add User button
     const alreadyOpen = await modal.isVisible().catch(() => false);
     if (!alreadyOpen) {
-      await waitForEnabled(this.createButton);
-      await this.createButton.click();
+      await this.dismissBlockingToasts();
+      const trigger = this.createButton;
+      await waitForEnabled(trigger);
+      await trigger.scrollIntoViewIfNeeded().catch(() => undefined);
+      await trigger.focus().catch(() => undefined);
+      await trigger.click();
       await modal.waitFor({ state: 'visible', timeout: 10000 }).catch(() => undefined);
     }
   }
@@ -47,7 +51,50 @@ export class AdminUsersPage {
   }
 
   async submitCreate(): Promise<void> {
-    await this.page.getByTestId('admin-user-submit').click();
+    const modal = this.modal;
+    const submit = this.page.getByTestId('admin-user-submit');
+    await waitForVisible(modal);
+    const modalBox = await modal.boundingBox().catch(() => null);
+    if (modalBox) {
+      const centerX = modalBox.x + modalBox.width / 2;
+      const startY = Math.min(modalBox.y + 20, modalBox.y + modalBox.height - 10);
+      await this.page.mouse.move(centerX, startY);
+      await this.page.mouse.wheel(0, modalBox.height);
+    }
+    // Ensure the modal itself is scrolled so the submit button becomes visible
+    await modal.evaluate((dialog) => {
+      try {
+        dialog.scrollTop = dialog.scrollHeight;
+        dialog.scrollIntoView?.({ block: 'center', inline: 'center' });
+      } catch (error) {
+        void error;
+      }
+    }).catch(() => undefined);
+    await submit.evaluate((button) => {
+      try {
+        let parent = button.parentElement;
+        while (parent) {
+          const scrollable = parent.scrollHeight > parent.clientHeight + 4;
+          if (scrollable) {
+            parent.scrollTop = parent.scrollHeight;
+          }
+          parent = parent.parentElement;
+        }
+        button.scrollIntoView({ block: 'center', inline: 'center' });
+      } catch (error) {
+        void error;
+      }
+    }).catch(() => undefined);
+    await submit.scrollIntoViewIfNeeded().catch(() => undefined);
+    await submit.focus().catch(() => undefined);
+    await waitForEnabled(submit);
+    try {
+      await submit.click();
+    } catch (error) {
+      await submit.evaluate((button) => {
+        (button as HTMLButtonElement).click();
+      });
+    }
   }
 
   async closeCreateModal(): Promise<void> {
@@ -82,6 +129,19 @@ export class AdminUsersPage {
   async findUserRow(emailOrId: string): Promise<Locator> {
     await waitForVisible(this.table);
     return this.table.getByRole('row').filter({ hasText: emailOrId }).first();
+  }
+
+  private async dismissBlockingToasts(): Promise<void> {
+    const stack = this.page.getByTestId('toast-stack');
+    const hasStack = await stack.isVisible().catch(() => false);
+    if (!hasStack) {
+      return;
+    }
+    const dismissButtons = stack.getByRole('button', { name: /dismiss notification/i });
+    const count = await dismissButtons.count().catch(() => 0);
+    for (let i = 0; i < count; i += 1) {
+      await dismissButtons.nth(i).click().catch(() => undefined);
+    }
   }
 }
 

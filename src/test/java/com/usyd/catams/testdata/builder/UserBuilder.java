@@ -96,6 +96,11 @@ public class UserBuilder {
         return this;
     }
 
+    public UserBuilder asHR() {
+        this.role = UserRole.HR;
+        return this;
+    }
+
     public User build() {
         User user = new User(new Email(email), name, hashedPassword, role);
         user.setId(id);

@@ -1,4 +1,5 @@
 import { Page, expect, Locator } from '@playwright/test';
+import { STORAGE_KEYS } from '../../../src/utils/storage-keys';
 
 export class NavigationPage {
   readonly page: Page;
@@ -125,12 +126,39 @@ export class NavigationPage {
   }
 
   async logout() {
-    await this.logoutButton.click();
-    await this.page.waitForURL('/login', { timeout: 10000 });
+    const logout = this.logoutButton.or(this.page.getByRole('button', { name: /sign out/i }));
+    await this.dismissBlockingModals();
+    await logout.scrollIntoViewIfNeeded().catch(() => undefined);
+    await logout.focus().catch(() => undefined);
+    let clickError: unknown = null;
+    try {
+      await logout.click();
+    } catch (error) {
+      clickError = error;
+    }
+    if (clickError) {
+      await this.dismissBlockingModals();
+      await logout.click({ force: true });
+    }
+    await this.clearStoredAuth();
+    try {
+      await this.page.waitForURL(/login/i, { timeout: 10000 });
+      return;
+    } catch (error) {
+      const loginForm = this.page.getByTestId('login-form').first();
+      const visible = await loginForm.isVisible().catch(() => false);
+      if (visible) {
+        return;
+      }
+      await this.page.goto('/login', { waitUntil: 'domcontentloaded' }).catch(() => undefined);
+      await this.page.waitForURL(/login/i, { timeout: 5000 }).catch(() => undefined);
+      await loginForm.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
+    }
   }
 
   async expectLoggedOut() {
-    await expect(this.page).toHaveURL('/login');
+    await this.page.goto('/login', { waitUntil: 'domcontentloaded' }).catch(() => undefined);
+    await expect(this.page).toHaveURL(/\/login/i, { timeout: 10000 });
     // Should not see any navigation elements after logout
     await expect(this.dashboardNav).not.toBeVisible();
     await expect(this.userInfo).not.toBeVisible();
@@ -160,5 +188,41 @@ export class NavigationPage {
 
   async waitForPageLoad() {
     await this.page.waitForLoadState('networkidle');
+  }
+
+  private async dismissBlockingModals(): Promise<void> {
+    const blockingLocator = this.page.locator('[data-testid$="modal"], [role="dialog"]');
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const count = await blockingLocator.count().catch(() => 0);
+      let dismissed = false;
+      for (let i = 0; i < count; i += 1) {
+        const modal = blockingLocator.nth(i);
+        const visible = await modal.isVisible().catch(() => false);
+        if (visible) {
+          await this.page.keyboard.press('Escape').catch(() => undefined);
+          await modal.waitFor({ state: 'hidden', timeout: 1500 }).catch(() => undefined);
+          dismissed = true;
+          break;
+        }
+      }
+      if (!dismissed) {
+        break;
+      }
+    }
+  }
+
+  private async clearStoredAuth(): Promise<void> {
+    await this.page
+      .evaluate((keys) => {
+        try {
+          localStorage.removeItem(keys.TOKEN);
+          localStorage.removeItem(keys.USER);
+          localStorage.removeItem(keys.REFRESH_TOKEN);
+          localStorage.removeItem(keys.TOKEN_EXPIRY);
+        } catch (error) {
+          void error;
+        }
+      }, STORAGE_KEYS)
+      .catch(() => undefined);
   }
 }

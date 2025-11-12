@@ -18,6 +18,12 @@ import type { User } from "../../../../types/auth";
 import type { QuickStat } from "../components/QuickStats";
 import type { SupportResourceItem } from "../components/SupportResources";
 
+declare global {
+  interface Window {
+    __tutor_dashboard_last_updated_at?: number | null;
+  }
+}
+
 export type TutorDashboardTabId = "all" | "drafts" | "submitted" | "needAction";
 
 export interface TutorDashboardTab {
@@ -79,7 +85,8 @@ export const useTutorDashboardViewModel = (): TutorDashboardViewModel => {
   });
   // Expose dashboard lastUpdatedAt globally for optional UI badges
   useEffect(() => {
-    (window as any).__tutor_dashboard_last_updated_at = dashboardQuery.lastUpdatedAt ?? (window as any).__tutor_dashboard_last_updated_at ?? null;
+    const previous = window.__tutor_dashboard_last_updated_at ?? null;
+    window.__tutor_dashboard_last_updated_at = dashboardQuery.lastUpdatedAt ?? previous ?? null;
   }, [dashboardQuery.lastUpdatedAt]);
   const updateMutation = useUpdateTimesheet();
   const tutorStats = useTimesheetStats(timesheetsQuery.timesheets);

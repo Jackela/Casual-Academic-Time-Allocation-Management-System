@@ -44,9 +44,9 @@ export class AdminUsersPage extends BasePage {
     }
     // Wait for modal fields to appear
     await emailField.waitFor({ state: 'visible', timeout: 10000 });
-    // Fill required first/last name fields (no data-testids; use ids)
-    const first = this.page.locator('#firstName');
-    const last = this.page.locator('#lastName');
+    // Fill required first/last name fields via accessible labels
+    const first = this.page.getByLabel(/^First Name$/i);
+    const last = this.page.getByLabel(/^Last Name$/i);
     if (await first.count()) {
       await first.fill('New');
     }
@@ -82,7 +82,7 @@ export class AdminUsersPage extends BasePage {
     try {
       const dialog = this.page.getByRole('dialog', { name: /Create User/i }).first();
       await dialog.evaluate((el) => {
-        try { (el as HTMLElement).scrollTo({ top: (el as HTMLElement).scrollHeight, behavior: 'instant' as any }); } catch {}
+        try { (el as HTMLElement).scrollTo({ top: (el as HTMLElement).scrollHeight, behavior: 'auto' }); } catch {}
       });
     } catch {}
     await this.page.evaluate(() => { try { window.scrollTo(0, document.body.scrollHeight); } catch {} });
@@ -103,11 +103,14 @@ export class AdminUsersPage extends BasePage {
     if (!clicked) {
       // Fallback: submit the form programmatically to avoid viewport issues
       try {
-        const form = submit.locator('xpath=ancestor::form').first();
-        await form.evaluate((el) => {
-          const f = el as HTMLFormElement;
-          if (typeof f.requestSubmit === 'function') f.requestSubmit();
-          else f.submit();
+        await submit.evaluate((element) => {
+          const form = element.closest('form') as HTMLFormElement | null;
+          if (!form) return;
+          if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+          } else {
+            form.submit();
+          }
         });
       } catch {}
       // As an additional guard, send Enter key which triggers submit on focused inputs

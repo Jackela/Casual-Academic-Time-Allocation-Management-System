@@ -432,7 +432,6 @@ const TutorDashboard = memo<TutorDashboardProps>(({ className = '' }) => {
   const hasPrimaryErrors = timesheetsError || dashboardError || updateError;
   const hasAnyErrors = Boolean(hasPrimaryErrors || actionError);
   const actionInFlightMessage = ACTION_LOCK_MESSAGE;
-  const canSubmitAllDrafts = allTimesheets.some(t => t.status === 'DRAFT' || t.status === 'MODIFICATION_REQUESTED');
   // Tutor creation restriction banner (clarified requirement)
   const restrictionBanner = (
     <div

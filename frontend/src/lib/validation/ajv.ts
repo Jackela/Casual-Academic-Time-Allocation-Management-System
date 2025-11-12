@@ -114,7 +114,7 @@ export const validateTimesheet = (
     weekStartDate?: string;
   };
 
-  const hoursValue = data.hours;
+  const hoursValue = (data as Record<string, unknown>).hours;
   if (isFiniteNumber(hoursValue)) {
     if (
       hoursValue < constraints.hours.min ||
@@ -148,7 +148,7 @@ export const validateTimesheet = (
     }
   }
 
-  const weekStartValue = data.weekStart ?? data.weekStartDate;
+  const weekStartValue = (data as Record<string, unknown>).weekStart ?? (data as Record<string, unknown>).weekStartDate;
   if (constraints.weekStart.mondayOnly && isIsoDateString(weekStartValue)) {
     const parsed = new Date(`${weekStartValue}T00:00:00Z`);
     if (

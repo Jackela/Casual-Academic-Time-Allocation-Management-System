@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
-import TimesheetForm from './TimesheetForm';
+import TimesheetForm, { type TimesheetFormTutorOption, type TimesheetFormCourseOption } from './TimesheetForm';
+import type { TimesheetQuoteRequest } from '../../../../types/api';
 
-const mockQuoteTimesheet = vi.hoisted(() => vi.fn(async (req) => {
+const mockQuoteTimesheet = vi.hoisted(() => vi.fn(async (req: TimesheetQuoteRequest) => {
   return {
     taskType: req.taskType,
     rateCode: req.taskType === 'LECTURE' ? 'LEC' : 'TU2',
     qualification: req.qualification,
-    isRepeat: !!(req as any).isRepeat,
+    isRepeat: Boolean(req.isRepeat),
     deliveryHours: Number(req.deliveryHours || 1),
     associatedHours: req.taskType === 'TUTORIAL' ? 2 : 0,
     payableHours: req.taskType === 'TUTORIAL' ? Number(req.deliveryHours || 1) + 2 : Number(req.deliveryHours || 1),
@@ -30,10 +31,10 @@ vi.mock('../../../../services/timesheets', async (orig) => {
   };
 });
 
-const tutorOptions = [
+const tutorOptions: TimesheetFormTutorOption[] = [
   { id: 4, label: 'E2E Tutor One', qualification: 'STANDARD' },
 ];
-const courseOptions = [
+const courseOptions: TimesheetFormCourseOption[] = [
   { id: 1, label: 'COMP1001 - Introduction to Programming' },
 ];
 
@@ -43,7 +44,7 @@ const renderLecturerCreate = () =>
       mode="lecturer-create"
       tutorId={4}
       selectedTutorId={4}
-      tutorOptions={tutorOptions as any}
+      tutorOptions={tutorOptions}
       courseOptions={courseOptions}
       onTutorChange={() => {}}
       onSubmit={() => {}}

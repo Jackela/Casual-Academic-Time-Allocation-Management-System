@@ -1,12 +1,27 @@
-import { test, expect } from '@playwright/test';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { test, expect, type APIResponse } from '@playwright/test';
 import AdminUsersPage from '../../shared/pages/admin/AdminUsersPage';
 import { waitForRoute, waitForToastSuccess, waitForVisible, waitForAdminUsersReady } from '../../shared/utils/waits';
 import { assertUserResponseShape } from '../api/users.contract.helpers';
 // import { ensureLoggedIn } from '../../shared/utils/auth';
 import { gotoAdminUsers } from '../../shared/utils/nav';
 import { E2E_CONFIG } from '../../config/e2e.config';
+
+type AuthSnapshot = {
+  isAuthenticated?: boolean;
+  user?: { role?: string | null } | null;
+};
+
+type WhoAmIProbe = {
+  endpoint?: string;
+  ok: boolean;
+  reason?: string;
+  body?: unknown;
+};
+
+type AdminAuthWindow = Window & {
+  __E2E_GET_AUTH__?: () => AuthSnapshot | null;
+  __E2E_SESSION_STATE__?: () => AuthSnapshot | null;
+};
 
 test.describe('@p1 @admin Admin User Lifecycle – create + activate/deactivate', () => {
   // Explicit per-spec storageState binding to enforce admin role state
@@ -29,18 +44,17 @@ test('@admin should create Tutor and toggle active state twice', async ({ page }
       }
     });
     
-    let authResult: { method: string } = { method: 'unknown' };
+    const authResult: { method: string } = { method: 'unknown' };
     let nav: { path: string } = { path: '' };
-    let authStateSnapshot: any = null;
-    let whoamiProbe: any = null;
+    let authStateSnapshot: AuthSnapshot | null = null;
+    let whoamiProbe: WhoAmIProbe | null = null;
     const users = new AdminUsersPage(page);
     try {
       // Navigate and wait for admin users page readiness (project-level storageState provides auth)
       // Capture SPA auth state before navigating to admin/users
       authStateSnapshot = await page.evaluate(() => {
-        const g = window as any;
-        const state = g.__E2E_GET_AUTH__?.() ?? g.__E2E_SESSION_STATE__?.() ?? null;
-        return state;
+        const globalWindow = window as AdminAuthWindow;
+        return globalWindow.__E2E_GET_AUTH__?.() ?? globalWindow.__E2E_SESSION_STATE__?.() ?? null;
       }).catch(() => null);
       // Attempt a whoami probe using injected token
       whoamiProbe = await page.evaluate(async (backend) => {
@@ -51,13 +65,18 @@ test('@admin should create Tutor and toggle active state twice', async ({ page }
             try {
               const res = await fetch(`${backend}${rel}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
               if (res.ok) {
-                const body = await res.json().catch(() => ({}));
+                const body = await res.json().catch(() => ({} as Record<string, unknown>));
                 return { endpoint: rel, ok: true, body };
               }
-            } catch {}
+            } catch (error) {
+              void error;
+            }
           }
           return { ok: false, reason: 'no-ok-endpoint' };
-        } catch { return { ok: false, reason: 'probe-error' } }
+        } catch (error) {
+          void error;
+          return { ok: false, reason: 'probe-error' };
+        }
       }, E2E_CONFIG.BACKEND.URL).catch(() => null);
       // Log for trace viewer
       console.log(JSON.stringify({ AUTH_SNAPSHOT_BEFORE_NAV: { isAuthenticated: !!authStateSnapshot?.isAuthenticated, role: authStateSnapshot?.user?.role ?? null, whoami: whoamiProbe } }));
@@ -92,22 +111,10 @@ test('@admin should create Tutor and toggle active state twice', async ({ page }
     await page.getByTestId('admin-user-password').fill(validPassword);
     await users.submitCreate();
     // If positive path allowed, require 201; otherwise accept UI error and end early
-    let createRes: any = null;
-    if (allowPositive) {
-      createRes = await waitForRoute(page, { method: 'POST', pathPart: '/api/users', status: 201 });
-    } else {
-      // Deterministic UI oracle: if environment blocks creation, expect policy error region
-      try {
-        const policyAlert2 = page.getByRole('alert').filter({ hasText: /unable to create user|password/i }).first();
-        await expect(policyAlert2).toBeVisible({ timeout: 8000 });
-        return; // stop flow since creation is blocked in this environment
-      } catch {
-        // Otherwise, expect success toast and continue
-        await waitForToastSuccess(page);
-      }
-    }
+    let createRes: APIResponse | null = null;
+    createRes = await waitForRoute(page, { method: 'POST', pathPart: '/api/users', status: 201 });
     // From here, we have a created user
-    const createJson = await (createRes as any).json();
+    const createJson = await createRes.json();
     assertUserResponseShape(createJson, { email, role: 'TUTOR' });
 
     // UI assertions: toast-success (or fallback success message), plus row visible with expected cols
@@ -138,7 +145,9 @@ test('@admin should create Tutor and toggle active state twice', async ({ page }
       // Accept either isActive or active flags
       const activeFlag = (createdBody?.isActive ?? createdBody?.active) as boolean | undefined;
       expect(activeFlag).toBe(true);
-    } catch { /* best-effort SSOT check */ }
+    } catch (error) { /* best-effort SSOT check */
+      void error;
+    }
 
     // 3) Toggle active → inactive (PATCH 200) and assert state flips
     const deactivatePromise = waitForRoute(page, { method: 'PATCH', pathPart: `/api/users/${userId}`, status: 200 });
@@ -155,13 +164,17 @@ test('@admin should create Tutor and toggle active state twice', async ({ page }
       const body = await snap.json();
       const activeFlag = (body?.isActive ?? body?.active) as boolean | undefined;
       expect(activeFlag).toBe(false);
-    } catch { /* noop */ }
+    } catch (error) {
+      void error; /* noop */
+    }
     // UI follow-ups are non-fatal if SSOT is correct
     try {
       const deactivated = await users.findUserRow(email);
       await expect(deactivated).toContainText(/Inactive/i);
       await expect(deactivated.getByTestId('admin-user-activate-toggle')).toHaveText(/Reactivate|Updating…/i);
-    } catch { /* tolerate UI lag under Docker */ }
+    } catch (error) {
+      void error; /* tolerate UI lag under Docker */
+    }
 
     // 4) Toggle inactive → active (PATCH 200) and assert state flips back
     const activatePromise = waitForRoute(page, { method: 'PATCH', pathPart: `/api/users/${userId}`, status: 200 });
@@ -178,16 +191,19 @@ test('@admin should create Tutor and toggle active state twice', async ({ page }
       const body2 = await snap2.json();
       const activeFlag2 = (body2?.isActive ?? body2?.active) as boolean | undefined;
       expect(activeFlag2).toBe(true);
-    } catch { /* noop */ }
+    } catch (error) {
+      void error; /* noop */
+    }
     // UI follow-ups are non-fatal if SSOT is correct
     try {
       const activated = await users.findUserRow(email);
       await expect(activated).toContainText(/Active/i);
       await expect(activated.getByTestId('admin-user-activate-toggle')).toHaveText(/Deactivate|Updating…/i);
-    } catch { /* tolerate UI lag under Docker */ }
+    } catch (error) {
+      void error; /* tolerate UI lag under Docker */
+    }
 
       // Minimal console summary for verification output
-      // eslint-disable-next-line no-console
       console.log(JSON.stringify({
         route: nav.path,
         authMethod: authResult.method,
@@ -202,7 +218,7 @@ test('@admin should create Tutor and toggle active state twice', async ({ page }
       // Diagnostics on failure: url, title, whoami probe, SPA auth state, screenshot and html snippet
       const url = page.url();
       const title = await page.title().catch(() => '');
-      let whoami: any = null;
+      let whoami: unknown = null;
       try {
         const base = (await import('../../config/e2e.config')).E2E_CONFIG.BACKEND.URL;
         const candidates = ['/api/auth/whoami', '/api/users/me', '/api/me'];
@@ -210,18 +226,27 @@ test('@admin should create Tutor and toggle active state twice', async ({ page }
           const res = await page.request.get(`${base}${rel}`);
           if (res.ok()) { whoami = await res.json(); break; }
         }
-      } catch { /* noop */ }
-      // eslint-disable-next-line no-console
+      } catch (diagError) {
+        void diagError; /* noop */
+      }
       console.log(JSON.stringify({ diag: { url, title: String(title).slice(0, 120), whoami, authMethod: authResult.method, routeTried: nav.path, spaAuth: authStateSnapshot, whoamiProbe } }));
-      try { await testInfo.attach('screenshot', { body: await page.screenshot({ fullPage: false }), contentType: 'image/png' }); } catch {}
+      try {
+        await testInfo.attach('screenshot', { body: await page.screenshot({ fullPage: false }), contentType: 'image/png' });
+      } catch (attachmentError) {
+        void attachmentError;
+      }
       try {
         const html = await page.content();
         await testInfo.attach('html-snippet', { body: Buffer.from(html.slice(0, 2000), 'utf-8'), contentType: 'text/html' });
-      } catch {}
+      } catch (attachmentError) {
+        void attachmentError;
+      }
       try {
         const dbg = { spaAuth: authStateSnapshot, whoamiProbe };
         await testInfo.attach('auth-state', { body: Buffer.from(JSON.stringify(dbg, null, 2), 'utf-8'), contentType: 'application/json' });
-      } catch {}
+      } catch (attachmentError) {
+        void attachmentError;
+      }
       throw error;
     }
   });

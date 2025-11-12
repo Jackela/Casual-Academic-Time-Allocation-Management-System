@@ -16,6 +16,7 @@ import type { AuthSession } from '../types/api';
 import type { LoginCredentials, SessionContextValue, SessionState } from '../types/auth';
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
+type AuthManagerSnapshot = ReturnType<typeof authManager.getAuthState>;
 
 const buildSessionState = (): SessionState => {
   const authState = authManager.getAuthState();
@@ -87,9 +88,9 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
       __E2E_SESSION_STATE__?: () => SessionState;
       __E2E_APPLY_SESSION__?: (session: AuthSession) => void;
       __E2E_PENDING_SESSION__?: AuthSession | null;
-      __E2E_GET_AUTH__?: () => { isAuthenticated: boolean; user: any };
+      __E2E_GET_AUTH__?: () => { isAuthenticated: boolean; user: AuthManagerSnapshot['user']; token: string | null };
       __E2E_SET_AUTH__?: (session: AuthSession) => void;
-      __E2E_AUTH_MANAGER_STATE__?: () => { isAuthenticated: boolean; token: string | null; user: any };
+      __E2E_AUTH_MANAGER_STATE__?: () => { isAuthenticated: boolean; token: string | null; user: AuthManagerSnapshot['user'] };
     };
 
     global.__E2E_SESSION_STATE__ = () => state;
@@ -99,7 +100,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
     // Expose a minimal auth snapshot for E2E diagnostics and optional checks
     global.__E2E_GET_AUTH__ = () => {
       const authState = authManager.getAuthState();
-      return { isAuthenticated: authState.isAuthenticated, user: authState.user };
+      return { isAuthenticated: authState.isAuthenticated, user: authState.user, token: authState.token };
     };
 
     if (global.__E2E_PENDING_SESSION__) {

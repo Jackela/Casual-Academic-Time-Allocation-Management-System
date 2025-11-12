@@ -1,50 +1,43 @@
 import { test, expect } from '@playwright/test';
-import { signInAsRole, roleCredentials } from '../../api/auth-helper';
-import { E2E_CONFIG } from '../../config/e2e.config';
+import { signInAsRole } from '../../api/auth-helper';
+import AdminUsersPage from '../../shared/pages/admin/AdminUsersPage';
 
 test.describe('@p1 @admin Admin User Create — assignments in create modal', () => {
-  test('Create Tutor and Lecturer with visible courses selected', async ({ page, request }, testInfo) => {
+  test('Create Tutor and Lecturer with visible courses selected', async ({ page }) => {
     await signInAsRole(page, 'admin');
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-    // Go to Users page
     await page.getByRole('link', { name: /^Users$/i }).click();
     await expect(page.getByRole('heading', { name: /User Management/i })).toBeVisible();
+    const adminUsers = new AdminUsersPage(page);
 
     // Unique suffix
     const ts = Date.now();
     const tutorEmail = `tutor.create.${ts}@example.edu`;
-    const tutorName = `Tutor Create ${ts}`;
     const lecturerEmail = `lecturer.create.${ts}@example.edu`;
-    const lecturerName = `Lecturer Create ${ts}`;
     const strongPassword = `Aa1!Aa1!${ts}Aa@`;
 
     // Helper to open create modal
-    const openCreate = async () => {
-      const btn = page.getByTestId('admin-user-create-btn').or(page.getByRole('button', { name: /^Add user$/i }));
-      await btn.click();
-      await expect(page.getByRole('heading', { name: /Create user/i })).toBeVisible({ timeout: 10000 }).catch(() => undefined);
-    };
-
     // Create Tutor with assignments
-    await openCreate();
-    // Fill name fields by label when no testids are present
-    await page.getByLabel(/^First Name$/i).fill('Tutor');
-    await page.getByLabel(/^Last Name$/i).fill(`Create ${ts}`);
-    await page.getByTestId('admin-user-email').fill(tutorEmail);
-    await page.getByTestId('admin-user-role').selectOption('TUTOR');
+    await adminUsers.openCreate();
+    await adminUsers.fillCreateFields({ email: tutorEmail, name: `Tutor Create ${ts}`, role: 'TUTOR' });
     await page.getByTestId('admin-user-password').fill(strongPassword);
 
     // Ensure course options present and select up to 2 options
     const coursesSelect = page.getByTestId('admin-user-assigned-courses');
     await expect(coursesSelect).toBeVisible();
-    const options = await coursesSelect.locator('option').all();
-    expect(options.length).toBeGreaterThan(0);
-    const toSelect = await Promise.all(options.slice(0, Math.min(2, options.length)).map(async opt => ({ value: await opt.getAttribute('value') })));
-    await coursesSelect.selectOption(toSelect.map(o => o.value!).filter(Boolean));
+    const courseCheckboxes = coursesSelect.getByRole('checkbox');
+    const checkboxCount = await courseCheckboxes.count();
+    expect(checkboxCount).toBeGreaterThan(0);
+    for (let i = 0; i < Math.min(2, checkboxCount); i += 1) {
+      await courseCheckboxes.nth(i).check();
+    }
 
     // Submit and capture created user
-    const createdResp = page.waitForResponse((r) => r.url().includes('/api/users') && r.request().method() === 'POST' && r.status() === 201);
-    await page.getByTestId('admin-user-submit').click();
+    const createdResp = page.waitForResponse(
+      (r) => r.url().includes('/api/users') && r.request().method() === 'POST' && r.status() === 201,
+      { timeout: 30000 },
+    );
+    await adminUsers.submitCreate();
     const resp = await createdResp;
     const createdTutor = await resp.json();
     expect(createdTutor?.id).toBeTruthy();
@@ -53,21 +46,23 @@ test.describe('@p1 @admin Admin User Create — assignments in create modal', ()
     // Best-effort: UI path validated (options present and selected) and creation 201 confirmed.
 
     // Create Lecturer with assignments
-    await openCreate();
-    await page.getByLabel(/^First Name$/i).fill('Lecturer');
-    await page.getByLabel(/^Last Name$/i).fill(`Create ${ts}`);
-    await page.getByTestId('admin-user-email').fill(lecturerEmail);
-    await page.getByTestId('admin-user-role').selectOption('LECTURER');
+    await adminUsers.openCreate();
+    await adminUsers.fillCreateFields({ email: lecturerEmail, name: `Lecturer Create ${ts}`, role: 'LECTURER' });
     await page.getByTestId('admin-user-password').fill(strongPassword);
     const lecturerCourses = page.getByTestId('admin-user-assigned-courses');
     await expect(lecturerCourses).toBeVisible();
-    const lecturerOptions = await lecturerCourses.locator('option').all();
-    expect(lecturerOptions.length).toBeGreaterThan(0);
-    const lToSelect = await Promise.all(lecturerOptions.slice(0, Math.min(2, lecturerOptions.length)).map(async opt => ({ value: await opt.getAttribute('value') })));
-    await lecturerCourses.selectOption(lToSelect.map(o => o.value!).filter(Boolean));
+    const lecturerCheckboxes = lecturerCourses.getByRole('checkbox');
+    const lecturerCount = await lecturerCheckboxes.count();
+    expect(lecturerCount).toBeGreaterThan(0);
+    for (let i = 0; i < Math.min(2, lecturerCount); i += 1) {
+      await lecturerCheckboxes.nth(i).check();
+    }
 
-    const createdLecturerResp = page.waitForResponse((r) => r.url().includes('/api/users') && r.request().method() === 'POST' && r.status() === 201);
-    await page.getByTestId('admin-user-submit').click();
+    const createdLecturerResp = page.waitForResponse(
+      (r) => r.url().includes('/api/users') && r.request().method() === 'POST' && r.status() === 201,
+      { timeout: 30000 },
+    );
+    await adminUsers.submitCreate();
     const lResp = await createdLecturerResp;
     const createdLecturer = await lResp.json();
     expect(createdLecturer?.id).toBeTruthy();
@@ -75,7 +70,6 @@ test.describe('@p1 @admin Admin User Create — assignments in create modal', ()
     // Best-effort: creation 201 and selection path completed for Lecturer as well.
 
     // Minimal console artifact for trace viewer
-    // eslint-disable-next-line no-console
     console.log(JSON.stringify({ createdTutor: createdTutor.email, createdLecturer: createdLecturer.email }));
   });
 });
