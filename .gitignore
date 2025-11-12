@@ -273,6 +273,12 @@ tmp_*.txt
 *_lines.txt
 *.tmp
 *.log
+PREPTH
+frontend-test.out
+vit*.out
+gha-artifacts/
+gha-artifacts-latest/
+.tools/
 
 # --- local personal scripts (keep example, ignore actual) ---
 uat-helpers.sh
