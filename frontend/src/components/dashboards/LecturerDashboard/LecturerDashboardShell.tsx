@@ -79,6 +79,38 @@ const focusableSelectors = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ');
 
+const isLecturerModalAutoOpenEnabled = (): boolean => {
+  if (import.meta.env.VITE_E2E_DISABLE_LECTURER_MODAL === 'true') {
+    return false;
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      return window.localStorage.getItem('__E2E_DISABLE_LECTURER_MODAL__') !== '1';
+    } catch {
+      return true;
+    }
+  }
+  return true;
+};
+
+const shouldForceLecturerModalOpen = (): boolean => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('openCreate') === '1') {
+      return true;
+    }
+    if (window.localStorage.getItem('__E2E_OPEN_CREATE__') === '1') {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+};
+
 function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
   if (!container) {
     return [];
@@ -130,8 +162,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
       // This does not affect production builds.
       // Vite injects import.meta.env.VITE_E2E when started with --mode e2e
       // If undefined, fallback to closed.
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      return (import.meta as any)?.env?.VITE_E2E === 'true';
+      return import.meta.env.VITE_E2E === 'true' && isLecturerModalAutoOpenEnabled();
     } catch {
       return false;
     }
@@ -141,9 +172,9 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
   // E2E safety: if未打开且为e2e模式，挂载后强制打开一次，避免点击时机竞态
   useEffect(() => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const isE2E = (import.meta as any)?.env?.VITE_E2E === 'true';
-      if (isE2E && !isCreateModalOpen) {
+      const autoOpenEnabled = isLecturerModalAutoOpenEnabled();
+      const isE2E = import.meta.env.VITE_E2E === 'true';
+      if (autoOpenEnabled && isE2E && !isCreateModalOpen) {
         const id = requestAnimationFrame(() => {
           setCreateOpening(true);
           setCreateModalOpen(true);
@@ -152,8 +183,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
       }
       // Allow query param or localStorage flag to force open in test/dev
       if (!isCreateModalOpen && typeof window !== 'undefined') {
-        const url = new URL(window.location.href);
-        if (url.searchParams.get('openCreate') === '1' || localStorage.getItem('__E2E_OPEN_CREATE__') === '1') {
+        if (shouldForceLecturerModalOpen()) {
           const id = requestAnimationFrame(() => {
             setCreateOpening(true);
             setCreateModalOpen(true);
@@ -169,6 +199,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
   useEffect(() => {
     function handleProgrammaticOpen() {
       try {
+        if (!isLecturerModalAutoOpenEnabled()) return;
         setCreateOpening(true);
         setCreateModalOpen(true);
         const id = requestAnimationFrame(() => {

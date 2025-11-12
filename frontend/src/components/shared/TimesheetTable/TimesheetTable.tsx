@@ -172,17 +172,25 @@ const TimesheetRow = memo<TimesheetRowProps>(({
     onRowClick?.(timesheet);
   }, [timesheet, onRowClick]);
 
-  const handleSelectionChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    event.stopPropagation();
+  const handleSelectionChange = useCallback((event: React.ChangeEvent<HTMLInputElement> | unknown) => {
+    // Some tests may invoke handlers without a real DOM event
+    if (event && typeof (event as any).stopPropagation === 'function') {
+      (event as any).stopPropagation();
+    }
     if (actionsDisabled) {
-      event.preventDefault();
+      if (event && typeof (event as any).preventDefault === 'function') {
+        (event as any).preventDefault();
+      }
       return;
     }
-    onSelectionChange?.(timesheet.id, event.target.checked);
+    const checked = (event as any)?.target?.checked as boolean | undefined;
+    onSelectionChange?.(timesheet.id, Boolean(checked));
   }, [actionsDisabled, timesheet.id, onSelectionChange]);
 
-  const handleApprove = useCallback(async (event: React.MouseEvent) => {
-    event.stopPropagation();
+  const handleApprove = useCallback(async (event: React.MouseEvent | unknown) => {
+    if (event && typeof (event as any).stopPropagation === 'function') {
+      (event as any).stopPropagation();
+    }
     if (actionLoading || actionsDisabled || !onApprovalAction) {
       return;
     }
@@ -196,32 +204,40 @@ const TimesheetRow = memo<TimesheetRowProps>(({
     await Promise.resolve(onApprovalAction(timesheet.id, approveAction));
   }, [actionLoading, actionsDisabled, approvalRole, onApprovalAction, timesheet.id, actionMode]);
 
-  const handleReject = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
+  const handleReject = useCallback((event: React.MouseEvent | unknown) => {
+    if (event && typeof (event as any).stopPropagation === 'function') {
+      (event as any).stopPropagation();
+    }
     if (actionLoading || actionsDisabled || !onApprovalAction) {
       return;
     }
     onApprovalAction(timesheet.id, 'REJECT');
   }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
 
-  const handleRequestModification = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
+  const handleRequestModification = useCallback((event: React.MouseEvent | unknown) => {
+    if (event && typeof (event as any).stopPropagation === 'function') {
+      (event as any).stopPropagation();
+    }
     if (actionLoading || actionsDisabled || !onApprovalAction) {
       return;
     }
     onApprovalAction(timesheet.id, 'REQUEST_MODIFICATION');
   }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
 
-  const handleEdit = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
+  const handleEdit = useCallback((event: React.MouseEvent | unknown) => {
+    if (event && typeof (event as any).stopPropagation === 'function') {
+      (event as any).stopPropagation();
+    }
     if (actionLoading || actionsDisabled || !onApprovalAction) {
       return;
     }
     onApprovalAction(timesheet.id, 'EDIT');
   }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
 
-  const handleSubmitDraft = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
+  const handleSubmitDraft = useCallback((event: React.MouseEvent | unknown) => {
+    if (event && typeof (event as any).stopPropagation === 'function') {
+      (event as any).stopPropagation();
+    }
     if (actionLoading || actionsDisabled || !onApprovalAction) {
       return;
     }
@@ -622,12 +638,12 @@ function renderDefaultCell(
           loading={actionLoading === true}
           disabled={actionsDisabled}
           disabledReason={actionsDisabledReason}
-          onEdit={onEdit ? () => onEdit({} as React.MouseEvent) : undefined}
-          onSubmit={onSubmitDraft ? () => onSubmitDraft({} as React.MouseEvent) : undefined}
-          onConfirm={onConfirm ? () => onConfirm({} as React.MouseEvent) : undefined}
-          onApprove={() => onApprove({} as React.MouseEvent)}
-          onReject={() => onReject({} as React.MouseEvent)}
-          onRequestModification={onRequestModification ? () => onRequestModification({} as React.MouseEvent) : undefined}
+          onEdit={onEdit}
+          onSubmit={onSubmitDraft}
+          onConfirm={onConfirm}
+          onApprove={onApprove}
+          onReject={onReject}
+          onRequestModification={onRequestModification}
         />
       );
     }

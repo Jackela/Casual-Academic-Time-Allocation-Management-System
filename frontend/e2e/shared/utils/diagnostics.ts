@@ -9,7 +9,6 @@ export function attachPageDiagnostics(page: Page): void {
   page.on('console', (msg) => {
     try {
       // Prefix to make it easy to spot in traces
-      // eslint-disable-next-line no-console
       console.log(`[BROWSER:${msg.type()}] ${msg.text()}`);
     } catch {
       // ignore
@@ -18,7 +17,6 @@ export function attachPageDiagnostics(page: Page): void {
 
   page.on('pageerror', (err) => {
     try {
-      // eslint-disable-next-line no-console
       console.log(`[PAGEERROR] ${err?.message || String(err)}`);
     } catch {
       // ignore

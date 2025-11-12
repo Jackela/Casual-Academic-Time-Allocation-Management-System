@@ -81,8 +81,7 @@ const resolveTimesheetConfigEndpoints = (): string[] => {
 
   // E2E fallback: directly query backend service if dev proxy is not configured for this route
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const mode = (import.meta as any)?.env?.MODE ?? undefined;
+    const mode = import.meta.env.MODE ?? undefined;
     const isE2E = mode === 'e2e' || mode === 'test';
     let isLocalDev = false;
     try {

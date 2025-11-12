@@ -12,6 +12,15 @@ const __dirname = path.dirname(__filename);
 const AUTH_DIR = path.resolve(__dirname, '../shared/.auth');
 const STORAGE_STATE_FILE = path.resolve(AUTH_DIR, 'storageState.json');
 
+type AuthHookState = {
+  isAuthenticated?: boolean;
+  user?: { role?: string | null } | null;
+};
+
+type AuthHookWindow = Window & {
+  __E2E_GET_AUTH__?: () => AuthHookState | null;
+};
+
 const hasRealProject = (config: FullConfig): boolean =>
   config.projects.some((project) => project.name === 'real');
 
@@ -48,8 +57,8 @@ const performLoginAndPersist = async () => {
         if (sessionData.expiresAt) {
           localStorage.setItem(keys.TOKEN_EXPIRY, String(sessionData.expiresAt));
         }
-      } catch {
-        // ignore
+      } catch (error) {
+        void error;
       }
     }, { keys: STORAGE_KEYS, sessionData: session });
 
@@ -67,16 +76,22 @@ const performLoginAndPersist = async () => {
         } catch (e) {
           attempt += 1;
           if (attempt >= maxAttempts) throw e;
-          await page.waitForTimeout(2000);
+          await page.waitForLoadState('networkidle', { timeout: 2000 }).catch(() => undefined);
         }
       }
     }
     // Persist an E2E flag to force-open the create modal on dashboard mounts
     try {
       await page.evaluate(() => {
-        try { localStorage.setItem('__E2E_OPEN_CREATE__', '1'); } catch {}
+        try {
+          localStorage.setItem('__E2E_OPEN_CREATE__', '1');
+        } catch (error) {
+          void error;
+        }
       });
-    } catch {}
+    } catch (error) {
+      void error;
+    }
 
     await ensureStorageDirectory();
     await context.storageState({ path: STORAGE_STATE_FILE });
@@ -93,11 +108,14 @@ const performLoginAndPersist = async () => {
       await validationPage.waitForSelector('#root', { timeout: 10000 }).catch(() => undefined);
       // Wait up to 30s for the SPA to expose the E2E auth hook
       const hasHook = await validationPage
-        .waitForFunction(() => typeof (window as any).__E2E_GET_AUTH__ === 'function', { timeout: 30000 })
+        .waitForFunction(() => typeof (window as AuthHookWindow).__E2E_GET_AUTH__ === 'function', { timeout: 30000 })
         .then(() => true)
         .catch(() => false);
       if (hasHook) {
-        const authState = await validationPage.evaluate(() => (window as any).__E2E_GET_AUTH__?.());
+        const authState = await validationPage.evaluate(() => {
+          const hookWindow = window as AuthHookWindow;
+          return hookWindow.__E2E_GET_AUTH__?.();
+        });
         const isAuthenticated = !!(authState && (authState.isAuthenticated === true));
         const gotRole = String(authState?.user?.role ?? '');
         if (!isAuthenticated || gotRole.toUpperCase() !== 'ADMIN') {
@@ -116,12 +134,21 @@ const performLoginAndPersist = async () => {
           user: localStorage.getItem('user'),
         }));
         console.warn(`[real/global.setup] validation error: ${(e as Error).message}\n[real/global.setup] localStorage snapshot: ${JSON.stringify(ls)}`);
-      } catch {
+      } catch (innerError) {
+        void innerError;
         console.warn(`[real/global.setup] validation error: ${(e as Error).message}`);
       }
     } finally {
-      try { await validationPage?.close(); } catch {}
-      try { await validationContext?.close(); } catch {}
+      try {
+        await validationPage?.close();
+      } catch (closeError) {
+        void closeError;
+      }
+      try {
+        await validationContext?.close();
+      } catch (closeError) {
+        void closeError;
+      }
     }
   } finally {
     await browser.close();

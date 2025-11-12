@@ -52,7 +52,7 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    NavLink: ({ children, to, className, end, ...props }: { children: React.ReactNode; to: string; className?: string | ((args: { isActive: boolean; isPending?: boolean; isTransitioning?: boolean }) => string); end?: boolean }) => {
+    NavLink: ({ children, to, className, ...props }: { children: React.ReactNode; to: string; className?: string | ((args: { isActive: boolean; isPending?: boolean; isTransitioning?: boolean }) => string); end?: boolean }) => {
       const resolvedClassName =
         typeof className === 'function'
           ? className({ isActive: false, isPending: false, isTransitioning: false })

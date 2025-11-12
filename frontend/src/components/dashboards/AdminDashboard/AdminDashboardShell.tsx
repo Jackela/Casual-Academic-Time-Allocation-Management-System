@@ -17,6 +17,8 @@ import AdminRejectionModal from './components/AdminRejectionModal';
 import ErrorBoundary from '../../ErrorBoundary';
 import '../../../styles/dashboard-shell.css';
 
+type AdminDashboardWindow = typeof window & { __admin_dashboard_last_updated_at?: number | null };
+
 export interface AdminDashboardProps {
   className?: string;
 }
@@ -107,10 +109,15 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   useEffect(() => {
     try {
-      const stamp = (window as any).__admin_dashboard_last_updated_at as number | undefined;
-      if (stamp && stamp !== lastUpdatedAt) setLastUpdatedAt(stamp);
-    } catch {}
-  });
+      const adminWindow = window as AdminDashboardWindow;
+      const stamp = adminWindow.__admin_dashboard_last_updated_at ?? null;
+      if (stamp && stamp !== lastUpdatedAt) {
+        setLastUpdatedAt(stamp);
+      }
+    } catch {
+      // ignore diagnostics errors
+    }
+  }, [lastUpdatedAt]);
 
   const formatClock = (ts: number | null) => {
     if (!ts) return '';
@@ -213,7 +220,7 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
                 />
               )}
 
-              {actionState.isSubmitting === false && (lastActionSuccess as any) && (
+              {actionState.isSubmitting === false && Boolean(lastActionSuccess) && (
                 <div
                   className="mt-2 rounded-md border border-emerald-400 bg-emerald-50 p-3 text-emerald-900"
                   role="status"
@@ -224,7 +231,7 @@ const AdminDashboardShell = memo<AdminDashboardProps>(({ className = '' }) => {
                     <button
                       type="button"
                       className="text-sm underline"
-                      onClick={() => { try { (clearLastActionSuccess as any)(); } catch {} }}
+                      onClick={clearLastActionSuccess}
                     >
                       Dismiss
                     </button>

@@ -237,8 +237,18 @@ export class TimesheetService {
       action: normalizeApprovalAction(request.action),
       comment: request.comment ?? null,
     };
-    const response = await secureApiClient.post<ApprovalResponse>('/api/approvals', payload);
-    return response.data;
+    try {
+      const response = await secureApiClient.post<ApprovalResponse>('/api/approvals', payload);
+      return response.data;
+    } catch (error) {
+      console.error('[timesheets.approveTimesheet] Request failed', {
+        payload,
+        status: (error as any)?.response?.status,
+        body: (error as any)?.response?.data,
+      });
+      const enriched = error instanceof Error ? Object.assign(error, { approvalPayload: payload }) : error;
+      throw enriched;
+    }
   }
 
   /**
@@ -246,7 +256,17 @@ export class TimesheetService {
    */
   static async confirmTimesheet(id: number): Promise<Timesheet> {
     const payload = { timesheetId: id, action: normalizeApprovalAction('TUTOR_CONFIRM'), comment: null } as const;
-    await secureApiClient.post<ApprovalResponse>('/api/approvals', payload);
+    try {
+      await secureApiClient.post<ApprovalResponse>('/api/approvals', payload);
+    } catch (error) {
+      console.error('[timesheets.confirmTimesheet] Request failed', {
+        payload,
+        status: (error as any)?.response?.status,
+        body: (error as any)?.response?.data,
+      });
+      const enriched = error instanceof Error ? Object.assign(error, { approvalPayload: payload }) : error;
+      throw enriched;
+    }
     // After confirmation, fetch the timesheet to return fresh state if needed in callers
     try {
       const ts = await secureApiClient.get<Timesheet>(`/api/timesheets/${id}`);

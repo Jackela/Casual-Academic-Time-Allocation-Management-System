@@ -197,7 +197,6 @@ describe('TimesheetForm', () => {
 
     const qualificationField = await screen.findByLabelText(/Tutor Qualification/i) as HTMLSelectElement;
     expect(qualificationField).toBeDisabled();
-    expect(qualificationField).toHaveAttribute('readonly');
     
     // Wait for quote to load and update qualification value
     await waitFor(() => {

@@ -4,7 +4,7 @@
  * Focused UI assertions aligned with the current AdminDashboard implementation.
  */
 
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { formatCurrency, formatters } from "../../../utils/formatting";
 import { describe, it, expect, vi, beforeEach } from "vitest";

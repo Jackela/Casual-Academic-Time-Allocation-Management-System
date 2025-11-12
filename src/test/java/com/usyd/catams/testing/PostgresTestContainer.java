@@ -11,7 +11,15 @@ import java.time.Duration;
 public class PostgresTestContainer extends PostgreSQLContainer<PostgresTestContainer> {
 
     private static final String IMAGE_VERSION = "postgres:15-alpine";
+    private static final boolean RUNNING_IN_ACT = isActEnvironment();
     private static PostgresTestContainer container;
+
+    static {
+        if (RUNNING_IN_ACT) {
+            // act executes inside Docker where Ryuk can't call back to the host; disable it to prevent context boot failures
+            setIfUnset("testcontainers.ryuk.disabled", "true");
+        }
+    }
 
     private PostgresTestContainer() {
         super(IMAGE_VERSION);
@@ -28,6 +36,16 @@ public class PostgresTestContainer extends PostgreSQLContainer<PostgresTestConta
             container = new PostgresTestContainer();
         }
         return container;
+    }
+
+    private static void setIfUnset(String key, String value) {
+        if (System.getProperty(key) == null && System.getenv(key.replace('.', '_').toUpperCase()) == null) {
+            System.setProperty(key, value);
+        }
+    }
+
+    private static boolean isActEnvironment() {
+        return System.getenv("ACT") != null || System.getenv("ACT_TOOLSDIRECTORY") != null;
     }
 
     @Override

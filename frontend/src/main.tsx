@@ -81,7 +81,9 @@ if (ENV_CONFIG.isE2E()) {
       ...ENV_CONFIG.e2e.getDebugInfo(),
       storage: getStorageSnapshot(),
     };
-    window.__E2E_ENV__ = e2eEnv;
+    if (import.meta.env.DEV) {
+      (window as Window & { __E2E_ENV__?: E2EEnvironmentSnapshot }).__E2E_ENV__ = e2eEnv;
+    }
     secureLogger.e2e('E2E globals exposed', e2eEnv);
   } catch (error) {
     secureLogger.error('Error exposing E2E globals', error);

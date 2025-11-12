@@ -31,7 +31,6 @@ function broadcast(command: NotificationCommand): void {
     try {
       listener(command);
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('[NotificationBus] listener error', error);
     }
   }

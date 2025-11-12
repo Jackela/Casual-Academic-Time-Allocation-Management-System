@@ -25,17 +25,17 @@ interface TimesheetActionsProps {
   loading?: boolean;
   disabled?: boolean;
   disabledReason?: string;
-  onEdit?: () => void;
-  onSubmit?: () => void;
-  onConfirm?: () => void;
-  onApprove?: () => void;
-  onReject?: () => void;
-  onRequestModification?: () => void;
+  onEdit?: (e?: React.MouseEvent) => void;
+  onSubmit?: (e?: React.MouseEvent) => void;
+  onConfirm?: (e?: React.MouseEvent) => void;
+  onApprove?: (e?: React.MouseEvent) => void;
+  onReject?: (e?: React.MouseEvent) => void;
+  onRequestModification?: (e?: React.MouseEvent) => void;
 }
 
 interface ActionButton extends ActionConfig {
   id: string;
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent) => void;
   visible: boolean;
 }
 
@@ -198,7 +198,7 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
           <Button
             key={action.id}
             type="button"
-            onClick={action.onClick}
+            onClick={(e) => action.onClick?.(e)}
             disabled={actionDisabled}
             variant={resolvedVariant}
             size={action.size ?? 'xs'}

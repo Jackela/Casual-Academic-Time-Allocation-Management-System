@@ -28,7 +28,8 @@ test.describe('@api Lecturer assignments admin API', () => {
     const tokens = dataFactory.getAuthTokens();
     const sessions = dataFactory.getAuthSessions();
     const lecturerId = sessions.lecturer.user.id;
-    const courseIds = [1, 2];
+    const courseIds = dataFactory.getDefaultCourseIds().slice(0, 2);
+    expect(courseIds.length).toBeGreaterThan(0);
 
     const postRes = await postWithAuth(request, postAssignmentsUrl(), tokens.admin.token, { lecturerId, courseIds });
     const postText = await postRes.text();
@@ -61,7 +62,8 @@ test.describe('@api Lecturer assignments admin API', () => {
       expect([401,403]).toContain(getStatus);
     }
 
-    const badPost = await postWithAuth(request, urlPost, tokens.tutor.token, { lecturerId, courseIds: [1] });
+    const fallbackCourse = dataFactory.getDefaultCourseIds()[0] ?? 1;
+    const badPost = await postWithAuth(request, urlPost, tokens.tutor.token, { lecturerId, courseIds: [fallbackCourse] });
     expect([401,403]).toContain(badPost.status());
   });
 

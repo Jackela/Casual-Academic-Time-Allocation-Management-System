@@ -235,7 +235,9 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     if (!isLecturerMode) return;
     try {
       setQuoteRetryTick((n) => n + 1);
-    } catch {}
+    } catch (error) {
+      void error;
+    }
   }, [isLecturerMode, internalTutorId]);
 
   // Quote state
@@ -260,14 +262,22 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
   useEffect(() => {
     const ready = resolvedTutorId > 0 && fCourseId > 0 && !!fWeek && (fHours || 0) > 0;
     if (!ready) {
-      try { controllerRef.current?.abort(); } catch {}
+      try {
+        controllerRef.current?.abort();
+      } catch (error) {
+        void error;
+      }
       controllerRef.current = null;
       if (ensureTimerRef.current) { clearTimeout(ensureTimerRef.current); ensureTimerRef.current = null; }
       setQuoteState(prev => (prev.status === 'idle' && prev.data === null && prev.error === null ? prev : { status: 'idle', data: null, error: null }));
       return;
     }
 
-    try { controllerRef.current?.abort(); } catch {}
+    try {
+      controllerRef.current?.abort();
+    } catch (error) {
+      void error;
+    }
     const controller = new AbortController();
     controllerRef.current = controller;
     const mySeq = ++seqRef.current;
@@ -367,11 +377,19 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     }, 500);
 
     return () => {
-      try { controller.abort(); } catch {};
+      try {
+        controller.abort();
+      } catch (error) {
+        void error;
+      }
       if (controllerRef.current === controller) controllerRef.current = null;
       if (ensureTimerRef.current) { clearTimeout(ensureTimerRef.current); ensureTimerRef.current = null; }
       if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
-      try { clearTimeout(secondEnsure); } catch {}
+      try {
+        clearTimeout(secondEnsure);
+      } catch (error) {
+        void error;
+      }
     };
   }, [resolvedTutorId, fCourseId, fWeek, fTask, fQual, fRepeat, fHours, quoteRetryTick]);
 
@@ -403,7 +421,11 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
 
     const sameAsLast = JSON.stringify(currentPayload) === JSON.stringify(lastQuotedInputRef.current);
     if (!sameAsLast) {
-      try { controllerRef.current?.abort(); } catch {}
+      try {
+        controllerRef.current?.abort();
+      } catch (error) {
+        void error;
+      }
       const ctrl = new AbortController();
       controllerRef.current = ctrl;
       setQuoteState(prev => ({ status: 'loading', data: prev.data, error: null }));
@@ -501,7 +523,11 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     const msg = String(error);
     if (/delivery\s*hours/i.test(msg)) {
       setFieldError({ field: 'deliveryHours', message: msg });
-      try { deliveryHoursRef.current?.focus(); } catch {}
+      try {
+        deliveryHoursRef.current?.focus();
+      } catch (error) {
+        void error;
+      }
     } else if (/already\s*exists/i.test(msg) || /week/i.test(msg)) {
       setFieldError({ field: 'weekStartDate', message: msg });
     } else {
@@ -513,14 +539,22 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
   useEffect(() => {
     function onCreateFieldError(ev: Event) {
       try {
-        const detail = (ev as CustomEvent<{ field?: string; message?: string }>).detail || {} as any;
+        type FieldErrorDetail = { field?: string; message?: string };
+        const customEvent = ev as CustomEvent<FieldErrorDetail>;
+        const detail: FieldErrorDetail = customEvent.detail ?? {};
         if (detail.field === 'weekStartDate' && detail.message) {
           setFieldError({ field: 'weekStartDate', message: String(detail.message) });
         } else if (detail.field === 'deliveryHours' && detail.message) {
           setFieldError({ field: 'deliveryHours', message: String(detail.message) });
-          try { deliveryHoursRef.current?.focus(); } catch {}
+          try {
+            deliveryHoursRef.current?.focus();
+          } catch (error) {
+            void error;
+          }
         }
-      } catch {}
+      } catch (error) {
+        void error;
+      }
     }
     window.addEventListener('catams-create-field-error', onCreateFieldError as EventListener);
     return () => window.removeEventListener('catams-create-field-error', onCreateFieldError as EventListener);
@@ -619,8 +653,14 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
                   if (q !== fQual) {
                     setValue('qualification', q, { shouldDirty: true });
                   }
-                } catch {}
-                try { setQuoteRetryTick((n) => n + 1); } catch {}
+                } catch (error) {
+                  void error;
+                }
+                try {
+                  setQuoteRetryTick((n) => n + 1);
+                } catch (error) {
+                  void error;
+                }
               }}
             >
               {visibleTutorOptions.map(t => (
@@ -665,7 +705,10 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
                   const d = new Date(fWeek);
                   const label = new Intl.DateTimeFormat('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
                   return `Selected: ${label}`;
-                } catch { return ''; }
+                } catch (error) {
+                  void error;
+                  return '';
+                }
               })()}
             </span>
             <Button type="button" variant="outline" size="xs" title="First Monday of previous month" onClick={() => {
@@ -806,7 +849,7 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
             disabled={fTask === 'TUTORIAL'}
             onChange={(e) => setValue('deliveryHours', parseFloat(e.target.value) || 0, { shouldDirty: true })}
             data-testid={isLecturerMode ? 'create-delivery-hours-input' : undefined}
-            ref={deliveryHoursRef as any}
+            ref={deliveryHoursRef}
             aria-invalid={fieldError.field === 'deliveryHours' ? 'true' : undefined}
           />
           <span className="text-xs text-muted-foreground">
