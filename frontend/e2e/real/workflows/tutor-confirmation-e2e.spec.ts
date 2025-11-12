@@ -38,7 +38,7 @@ test.describe('Tutor Confirmation E2E Workflow - Bug #1 Coverage', () => {
     expect(createdTimesheet.status).toBe('PENDING_TUTOR_CONFIRMATION');
     const timesheetId = createdTimesheet.id;
 
-    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: \x27TUTOR_CONFIRM\x27 } });
+    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: 'TUTOR_CONFIRM' } });
 
     const responseStatus = confirmResponse.status();
     if (!confirmResponse.ok()) {
@@ -341,7 +341,7 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     expect(createdTimesheet.status).toBe('PENDING_TUTOR_CONFIRMATION');
     const timesheetId = createdTimesheet.id;
 
-    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: \x27TUTOR_CONFIRM\x27 } });
+    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: 'TUTOR_CONFIRM' } });
 
     expect(confirmResponse.ok()).toBeTruthy();
     expect(confirmResponse.status()).toBe(200);
@@ -391,7 +391,7 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     expect(draftTimesheet.status).toBe('DRAFT');
     const timesheetId = draftTimesheet.id;
 
-    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: \x27TUTOR_CONFIRM\x27 } });
+    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: 'TUTOR_CONFIRM' } });
 
     expect(confirmResponse.ok()).toBeFalsy();
     expect([400, 422]).toContain(confirmResponse.status());
