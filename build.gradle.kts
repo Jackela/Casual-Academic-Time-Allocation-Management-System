@@ -107,6 +107,7 @@ tasks.withType<Test> {
         showStandardStreams = true
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
+    reports.junitXml.required.set(true)
     // Fail fast on first failure and keep tests responsive
     failFast = false  // Temporarily disabled to run all tests for coverage
     // A conservative global timeout so hanging tests don't block CI/dev
@@ -491,7 +492,6 @@ tasks.register("cleanAll") {
         logger.lifecycle("Note: Project .gradle/ directory is not deleted by this task to avoid locking issues. Remove it manually if needed.")
     }
 }
-
 
 
 

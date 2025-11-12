@@ -24,7 +24,9 @@ for xml_file in root.rglob('TEST-*.xml'):
   except ET.ParseError:
     continue
   for case in tree.findall('.//testcase'):
-    failure = case.find('failure') or case.find('error')
+    failure = case.find('failure')
+    if failure is None:
+      failure = case.find('error')
     if failure is None:
       continue
     classname = case.get('classname', '<unknown>')
