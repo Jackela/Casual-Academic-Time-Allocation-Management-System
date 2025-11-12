@@ -118,7 +118,7 @@ public class DecisionApplicationService implements DecisionService {
     
     @Override
     public CompletableFuture<DecisionResult> evaluateAsync(DecisionRequest request) {
-        return CompletableFuture.supplyAsync(() -> evaluate(request));
+        return CompletableFuture.completedFuture(evaluate(request));
     }
     
     @Override
