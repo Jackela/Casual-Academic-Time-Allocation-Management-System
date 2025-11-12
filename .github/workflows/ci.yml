@@ -73,6 +73,7 @@ jobs:
         env:
           E2E_BACKEND_MODE: docker
           E2E_BACKEND_URL: http://127.0.0.1:8084
+          E2E_BACKEND_PORT: '8084'
           E2E_FRONTEND_URL: http://127.0.0.1:5174
           CI: '1'
         run: bash tools/ci/run-e2e.sh
