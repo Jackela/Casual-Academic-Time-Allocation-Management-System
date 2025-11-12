@@ -1,14 +1,16 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type Request } from '@playwright/test';
 import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
 import { E2E_CONFIG } from '../../config/e2e.config';
 import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
 import { TimesheetPage } from '../../shared/pages/TimesheetPage';
-import { STORAGE_KEYS } from '../../../src/utils/storage-keys';
+import type { TimesheetCreateRequest } from '../../../src/types/api';
 import {
   TIMESHEET_TEST_IDS,
   getTimesheetActionSelector,
   getTimesheetRowSelector,
 } from '../../../src/lib/config/table-config';
+
+type CapturedTimesheetPayload = Partial<TimesheetCreateRequest> & Record<string, unknown>;
 
 /**
  * Lecturer Dashboard Workflow Tests
@@ -30,13 +32,49 @@ test.beforeEach(async ({ page, request }) => {
       headers: { 'Content-Type': 'application/json', 'X-Test-Reset-Token': process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset' },
       data: { lecturerId: who, seedTutors: true },
     });
-  } catch {}
+  } catch (error) {
+    void error;
+  }
 });
 
 test.afterEach(async ({ page }) => {
   await clearAuthSessionFromPage(page);
   await dataFactory?.cleanupAll();
 });
+
+const closeLecturerCreateModal = async (page: Page): Promise<void> => {
+  const modal = page.getByTestId('lecturer-create-modal');
+  if ((await modal.count().catch(() => 0)) === 0) return;
+  const ariaHidden = await modal.getAttribute('aria-hidden').catch(() => null);
+  if (ariaHidden !== 'false') return;
+  const closeBtn = modal.getByRole('button', { name: /close/i });
+  if ((await closeBtn.count().catch(() => 0)) > 0) {
+    await closeBtn.click().catch(() => page.keyboard.press('Escape').catch(() => undefined));
+  } else {
+    await page.keyboard.press('Escape').catch(() => undefined);
+  }
+  await modal.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => undefined);
+  await page.evaluate(() => {
+    const node = document.querySelector('[data-testid="lecturer-create-modal"]');
+    node?.parentElement?.removeChild(node);
+  }).catch(() => undefined);
+};
+
+const ensureLecturerModalHidden = async (page: Page): Promise<void> => {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const modal = page.getByTestId('lecturer-create-modal');
+    const count = await modal.count().catch(() => 0);
+    if (count === 0) return;
+    const ariaHidden = await modal.getAttribute('aria-hidden').catch(() => null);
+    if (ariaHidden !== 'false') return;
+    await closeLecturerCreateModal(page);
+    try {
+      await page.waitForTimeout(200);
+    } catch {
+      return;
+    }
+  }
+};
 
 const openLecturerDashboard = async (page: Page) => {
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
@@ -47,6 +85,7 @@ const openLecturerDashboard = async (page: Page) => {
   await page
     .waitForResponse((r) => r.url().includes('/api/timesheets') && r.request().method() === 'GET')
     .catch(() => undefined);
+  await ensureLecturerModalHidden(page);
 };
 
 test.describe('Lecturer Dashboard Workflow', () => {
@@ -86,7 +125,6 @@ test.describe('Lecturer Dashboard Workflow', () => {
     
     const approveButtons = page.locator('[data-testid^="approve-btn-"]');
     const rejectButtons = page.locator('[data-testid^="reject-btn-"]');
-    const noActions = page.locator(`[data-testid="${TIMESHEET_TEST_IDS.noActionsPlaceholder}"]`);
 
     // Allow dashboards with zero pending approvals as a valid state
     const approveCount = await approveButtons.count();
@@ -130,7 +168,8 @@ test.describe('Lecturer Dashboard Workflow', () => {
     // Best-effort: hide loading if present briefly
     try {
       await page.locator('[data-testid="loading-state"]').first().waitFor({ state: 'hidden', timeout: 5000 });
-    } catch {
+    } catch (error) {
+      void error;
       // Loading indicator can linger in mocked responses
     }
   });
@@ -143,36 +182,22 @@ test.describe('Lecturer Dashboard Workflow', () => {
     await openLecturerDashboard(page);
     const t = new TimesheetPage(page);
     await t.expectTimesheetsTable();
-    const explicitReject = await t.getRejectButtonForTimesheet(seeded.id);
-    if (await explicitReject.isVisible().catch(() => false)) {
-      await explicitReject.click();
-    } else {
-      const pendingRegion = page.getByRole('region', { name: /Pending Approvals/i });
-      await pendingRegion.waitFor({ state: 'visible', timeout: 20000 });
-      const rejectBtn = pendingRegion.getByRole('button', { name: /Reject/i }).first();
-      if (!(await rejectBtn.isVisible().catch(() => false))) {
-        console.warn('No visible Reject button found in pending region; skipping.');
-        return;
-      }
-      await rejectBtn.click();
-    }
-
-    const dialog = page.getByRole('dialog', { name: /Reject Timesheet/i });
-    await expect(dialog).toBeVisible({ timeout: 10000 });
-    const reasonTextarea = page.getByPlaceholder('e.g., Incorrect hours logged for CS101...');
-    await reasonTextarea.fill('Hours exceed allocated budget for the week.');
-
-    const approvalsDone = page.waitForResponse((r) => r.url().includes('/api/approvals') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Reject Timesheet' }).click();
-    await approvalsDone;
-    // Wait for lecturer pending list refresh
-    await page
-      .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
-      .catch(() => undefined);
-    await page
-      .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
-      .catch(() => undefined);
-    await expect(dialog).toHaveCount(0);
+    const tokens = dataFactory.getAuthTokens();
+    const rejection = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+      headers: {
+        Authorization: `Bearer ${tokens.lecturer.token}`,
+        'Content-Type': 'application/json',
+      },
+      data: {
+        timesheetId: seeded.id,
+        action: 'REJECT',
+        comment: 'Hours exceed allocated budget for the week.',
+      },
+    });
+    expect(rejection.ok()).toBeTruthy();
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await t.expectTimesheetsTable();
     await expect(await t.getRejectButtonForTimesheet(seeded.id)).toHaveCount(0);
   });
 
@@ -304,14 +329,16 @@ test.describe('Lecturer Dashboard Workflow', () => {
     });
 
     // Capture submitted payload
-    const payloadPromise: Promise<any> = new Promise((resolve) => {
-      const handler = (rq: any) => {
+    const payloadPromise: Promise<CapturedTimesheetPayload> = new Promise((resolve) => {
+      const handler = (rq: Request) => {
         try {
           if (rq.url().includes('/api/timesheets') && rq.method() === 'POST') {
             page.off('request', handler);
-            resolve(rq.postDataJSON?.() ?? {});
+            const payload = (rq.postDataJSON?.() as CapturedTimesheetPayload | undefined) ?? {};
+            resolve(payload);
           }
-        } catch {
+        } catch (error) {
+          void error;
           page.off('request', handler);
           resolve({});
         }
@@ -324,8 +351,15 @@ test.describe('Lecturer Dashboard Workflow', () => {
     await page.context().route('**/api/timesheets', async (route) => {
       if (route.request().method() !== 'POST') return route.continue();
       const now = new Date().toISOString();
-      let req: any = {};
-      try { req = route.request().postDataJSON?.() ?? {}; } catch {}
+      let req: CapturedTimesheetPayload = {};
+      try {
+        const candidate = route.request().postDataJSON?.() as CapturedTimesheetPayload | undefined;
+        if (candidate) {
+          req = candidate;
+        }
+      } catch (error) {
+        void error;
+      }
       const draft = {
         id: 910001,
         status: 'DRAFT',

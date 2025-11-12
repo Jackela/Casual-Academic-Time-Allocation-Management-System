@@ -7,7 +7,7 @@ export type SecureLogValue =
   | Error
   | Date;
 
-export type SecureLogPayload = SecureLogValue | Record<string, SecureLogValue>;
+export type SecureLogPayload = SecureLogValue | Record<string, SecureLogValue> | unknown;
 
 export interface EnvironmentDebugInfo {
   mode: string;

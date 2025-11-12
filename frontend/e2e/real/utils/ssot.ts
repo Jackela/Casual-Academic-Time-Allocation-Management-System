@@ -18,10 +18,14 @@ export function expectNoFinancialFields(payload: Record<string, unknown>) {
   }
 }
 
+type CalculatedResponseBody = Record<string, unknown> & {
+  calculated?: Record<string, unknown>;
+};
+
 export function expectServerFinancials(responseBody: Record<string, unknown>) {
   // Presence check only; exact semantics covered by contract assertions
   expect(responseBody).toHaveProperty('calculated');
-  const calc = (responseBody as any).calculated;
+  const calc = (responseBody as CalculatedResponseBody).calculated;
   expect(calc).toHaveProperty('payableHours');
   expect(calc).toHaveProperty('totalPay');
 }

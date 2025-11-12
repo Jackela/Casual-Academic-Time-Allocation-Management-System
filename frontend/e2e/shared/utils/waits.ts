@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page, type APIResponse } from '@playwright/test';
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 /**
  * Wait helpers for SPA-safe, UI-first readiness.
  *
@@ -76,7 +78,7 @@ export async function waitForIdleAfter(page: Page, action: () => Promise<void>, 
   await action();
   // Small network idle heuristic for UI transitions; not a sleep – relies on stable expectations above
   await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => undefined);
-  await page.waitForTimeout(idleMs);
+  await sleep(idleMs);
 }
 
 // App readiness: wait for role-specific shell where available
@@ -163,19 +165,18 @@ export async function waitForAuthAndWhoamiOk(page: Page, timeoutMs = 5000): Prom
     } catch {}
     // bounded backoff, capped small; this helper is only used once per spec after navigation
     const backoff = Math.min(250 + attempt * 100, 600);
-    try { await page.waitForTimeout(backoff); } catch {}
+    await sleep(backoff);
   }
   return false;
 }
 
 // Optional micro-stability after sentinel; never a primary wait
 export async function waitForStableVisible(locator: Locator, windowMs = 400): Promise<boolean> {
-  const page: Page | undefined = (locator as any).page?.() as any;
   const start = Date.now();
   while (Date.now() - start < windowMs) {
     const ok = await locator.isVisible().catch(() => false);
     if (!ok) return false;
-    try { await page?.waitForTimeout?.(50); } catch {}
+    await sleep(50);
   }
   return true;
 }

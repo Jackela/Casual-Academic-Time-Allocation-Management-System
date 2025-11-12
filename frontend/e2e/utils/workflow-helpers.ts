@@ -1,5 +1,6 @@
 import { APIRequestContext, APIResponse, expect } from "@playwright/test";
 import { E2E_CONFIG } from '../config/e2e.config';
+import { getDefaultCourseIds } from './course-catalog';
 
 export interface AuthContext {
   admin: { token: string; userId: number };
@@ -295,7 +296,8 @@ async function submitApproval(
   });
 
   if (!response.ok()) {
-    throw new Error(`Approval ${action} failed for timesheet ${timesheetId}: ${response.status()} ${await response.text()}`);
+    const payloadDebug = JSON.stringify({ timesheetId, action, comment });
+    throw new Error(`Approval ${action} failed for timesheet ${timesheetId}: ${response.status()} ${await response.text()} payload=${payloadDebug}`);
   }
 
   return response.json();
@@ -306,12 +308,27 @@ interface CandidateSeed {
   weekStartDate: string;
 }
 
-function buildCandidates(options: TimesheetSeedOptions): CandidateSeed[] {
+async function resolveSeedCourseIds(
+  request: APIRequestContext,
+  tokens: AuthContext,
+  preferred?: number,
+): Promise<number[]> {
+  if (preferred) {
+    return [preferred];
+  }
+  return getDefaultCourseIds(request, tokens.admin.token, 2);
+}
+
+async function buildCandidates(
+  request: APIRequestContext,
+  tokens: AuthContext,
+  options: TimesheetSeedOptions,
+): Promise<CandidateSeed[]> {
+  const courseIds = await resolveSeedCourseIds(request, tokens, options.courseId);
   if (options.weekStartDate) {
-    return [{ courseId: options.courseId ?? 1, weekStartDate: options.weekStartDate }];
+    return courseIds.map((courseId) => ({ courseId, weekStartDate: options.weekStartDate! }));
   }
 
-  const courseIds = options.courseId ? [options.courseId] : [1, 2];
   const baseWeek = startOfWeek(new Date());
   const workerBucket = Math.abs(WORKER_INDEX) % 12;
   const startOffset = workerBucket * WORKER_WEEK_STRIDE + RUN_WEEK_SHIFT + seedSequence;
@@ -331,10 +348,13 @@ export async function createTimesheetWithStatus(
   options: TimesheetSeedOptions = {}
 ): Promise<SeededTimesheet> {
   const description = options.description ?? uniqueDescription('E2E Timesheet');
-  const candidates = buildCandidates(options);
+  const candidates = await buildCandidates(request, tokens, options);
+  if (!candidates.length) {
+    throw new Error('Unable to resolve candidate timesheet seeds (no courses available)');
+  }
 
   let createResponse: APIResponse | null = null;
-  let selectedCourse = candidates[0]?.courseId ?? (options.courseId ?? 1);
+  let selectedCourse = candidates[0]?.courseId ?? (options.courseId ?? candidates[0]?.courseId ?? 0);
   let selectedWeek = candidates[0]?.weekStartDate ?? (options.weekStartDate ?? startOfWeek(mondayReference));
   let lastError: { status: number; body: string } | null = null;
 

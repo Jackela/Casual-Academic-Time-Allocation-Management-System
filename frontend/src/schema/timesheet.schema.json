@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "timesheet.schema.json",
+  "title": "Timesheet Schema",
+  "type": "object",
+  "properties": {
+    "id": { "type": "number" },
+    "tutorId": { "type": "number" },
+    "courseId": { "type": "number" },
+    "weekStartDate": { "type": "string", "format": "date" },
+    "sessionDate": { "type": "string", "format": "date" },
+    "hours": { "type": "number", "minimum": 0 },
+    "hourlyRate": { "type": "number", "minimum": 0 },
+    "deliveryHours": { "type": "number", "minimum": 0 },
+    "associatedHours": { "type": "number", "minimum": 0 },
+    "totalPay": { "type": "number", "minimum": 0 },
+    "description": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["DRAFT", "PENDING_TUTOR_CONFIRMATION", "TUTOR_CONFIRMED", "LECTURER_CONFIRMED", "FINAL_CONFIRMED", "REJECTED", "MODIFICATION_REQUESTED"]
+    },
+    "taskType": {
+      "type": "string",
+      "enum": ["LECTURE", "TUTORIAL", "ORAA", "DEMO", "MARKING", "OTHER"]
+    },
+    "isRepeat": { "type": "boolean" },
+    "qualification": {
+      "type": "string",
+      "enum": ["PHD", "COORDINATOR", "STANDARD"]
+    },
+    "createdAt": { "type": "string" },
+    "updatedAt": { "type": "string" }
+  },
+  "required": ["tutorId", "courseId", "weekStartDate", "hours", "description", "status"]
+}

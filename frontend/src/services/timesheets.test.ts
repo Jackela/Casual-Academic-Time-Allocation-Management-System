@@ -465,7 +465,7 @@ describe('TimesheetService EA-compliant endpoints', () => {
 
   it('getMyPendingTimesheets should default to /pending-approval when no token', async () => {
     const originalGetItem = global.localStorage.getItem;
-    global.localStorage.getItem = vi.fn((key) => null);
+    global.localStorage.getItem = vi.fn((_key) => null);
 
     const page = createMockTimesheetPage(0);
     mockApiClient.get.mockResolvedValue(createMockApiResponse(page));

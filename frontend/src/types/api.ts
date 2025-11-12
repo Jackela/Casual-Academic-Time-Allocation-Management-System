@@ -366,6 +366,16 @@ export interface UpdateUserRequest {
   active?: boolean;
 }
 
+export interface TutorAssignmentPayload {
+  tutorId: number;
+  courseIds: number[];
+}
+
+export interface TutorDefaultsPayload {
+  tutorId: number;
+  defaultQualification: TutorQualification;
+}
+
 // =============================================================================
 // Type Guards & Utilities
 // =============================================================================

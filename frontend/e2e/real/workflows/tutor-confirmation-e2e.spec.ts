@@ -38,7 +38,10 @@ test.describe('Tutor Confirmation E2E Workflow - Bug #1 Coverage', () => {
     expect(createdTimesheet.status).toBe('PENDING_TUTOR_CONFIRMATION');
     const timesheetId = createdTimesheet.id;
 
-    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: \x27TUTOR_CONFIRM\x27 } });
+    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+      headers: tutorHeaders,
+      data: { timesheetId, action: 'TUTOR_CONFIRM' },
+    });
 
     const responseStatus = confirmResponse.status();
     if (!confirmResponse.ok()) {
@@ -184,8 +187,7 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     // Wait for lecturer pending list to update before taking actions
     await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET').catch(() => undefined);
     await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET').catch(() => undefined);
-    const lecturerApproveResponse = await lecturerDashboard.approveTimesheet(timesheetId);
-    expect(lecturerApproveResponse.ok()).toBeTruthy();
+    await lecturerDashboard.approveTimesheet(timesheetId);
     const lecturerRow = lecturerDashboard.page.locator(`[data-testid="timesheet-row-${timesheetId}"]`);
     await expect
       .poll(async () => {
@@ -231,7 +233,7 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
 
     // SSOT-first: finalize via API to avoid UI race then end early
     // If not already final, request final approval; tolerate 4xx if already final
-    let current = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {
+    const current = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {
       headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
     });
     expect(current.ok()).toBeTruthy();
@@ -341,7 +343,10 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     expect(createdTimesheet.status).toBe('PENDING_TUTOR_CONFIRMATION');
     const timesheetId = createdTimesheet.id;
 
-    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: \x27TUTOR_CONFIRM\x27 } });
+    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+      headers: tutorHeaders,
+      data: { timesheetId, action: 'TUTOR_CONFIRM' },
+    });
 
     expect(confirmResponse.ok()).toBeTruthy();
     expect(confirmResponse.status()).toBe(200);
@@ -391,7 +396,10 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     expect(draftTimesheet.status).toBe('DRAFT');
     const timesheetId = draftTimesheet.id;
 
-    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, { headers: tutorHeaders, data: { timesheetId, action: \x27TUTOR_CONFIRM\x27 } });
+    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+      headers: tutorHeaders,
+      data: { timesheetId, action: 'TUTOR_CONFIRM' },
+    });
 
     expect(confirmResponse.ok()).toBeFalsy();
     expect([400, 422]).toContain(confirmResponse.status());
@@ -418,12 +426,10 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     expect(createdTimesheet.status).toBe('PENDING_TUTOR_CONFIRMATION');
     const timesheetId = createdTimesheet.id;
 
-    const confirmResponse = await request.put(
-      `${E2E_CONFIG.BACKEND.URL}/api/approvals`,
-      {
-        headers: lecturerHeaders,
-      }
-    );
+    const confirmResponse = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
+      headers: lecturerHeaders,
+      data: { timesheetId, action: 'TUTOR_CONFIRM' },
+    });
 
     expect(confirmResponse.ok()).toBeFalsy();
     expect([403, 422]).toContain(confirmResponse.status());

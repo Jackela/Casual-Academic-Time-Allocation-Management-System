@@ -25,6 +25,12 @@ import type {
 import type { TimesheetStatistics } from '../../../../hooks/timesheets';
 import type { SessionStatus } from '../../../../types/auth';
 
+type AdminDashboardWindow = typeof window & { __admin_dashboard_last_updated_at?: number | null };
+type DashboardSummaryLike = Partial<AdminSummaryMetrics> & {
+  pendingApproval?: number;
+  totalPayroll?: number;
+};
+
 interface RejectionModalState {
   open: boolean;
   timesheetId: number | null;
@@ -86,6 +92,8 @@ export interface UseAdminDashboardDataResult {
   refreshTimesheets: () => Promise<void>;
   refetchDashboard: () => Promise<void>;
   resetApproval: () => void;
+  lastActionSuccess: string | null;
+  clearLastActionSuccess: () => void;
   adminStats: TimesheetStatistics;
   setFilterQuery: (update: Partial<TimesheetQuery>) => void;
 }
@@ -174,7 +182,9 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
     refetch: refetchDashboard,
   } = useTimesheetDashboardSummary({ scope: 'admin', refetchOnWindowFocus: true, refetchInterval: 30000 });
   useEffect(() => {
-    (window as any).__admin_dashboard_last_updated_at = lastUpdatedAt ?? (window as any).__admin_dashboard_last_updated_at ?? null;
+    const adminWindow = window as AdminDashboardWindow;
+    const previous = adminWindow.__admin_dashboard_last_updated_at ?? null;
+    adminWindow.__admin_dashboard_last_updated_at = lastUpdatedAt ?? previous ?? null;
   }, [lastUpdatedAt]);
 
   const {
@@ -444,7 +454,7 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
   ], []);
 
   const metrics: AdminSummaryMetrics = useMemo(() => {
-    const summary = dashboardData ?? {};
+    const summary: DashboardSummaryLike = dashboardData ?? {};
     const pendingApprovals =
       typeof summary.pendingApprovals === 'number'
         ? summary.pendingApprovals
@@ -465,9 +475,8 @@ export function useAdminDashboardData(): UseAdminDashboardDataResult {
       totalHours: summary.totalHours ?? 0,
       totalPay,
       tutorCount,
-      // propagate optional fields if present (used by Admin metrics tests)
-      statusBreakdown: (summary as any)?.statusBreakdown ?? null,
-      systemMetrics: (summary as any)?.systemMetrics ?? null,
+      statusBreakdown: summary.statusBreakdown ?? null,
+      systemMetrics: summary.systemMetrics ?? null,
     };
   }, [dashboardData]);
 

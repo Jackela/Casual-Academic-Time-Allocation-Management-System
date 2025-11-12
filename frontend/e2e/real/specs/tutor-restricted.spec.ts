@@ -11,8 +11,11 @@ test.describe('@p0 US2: Tutor restricted', () => {
       try {
         localStorage.setItem('token', sess.token);
         localStorage.setItem('user', JSON.stringify(sess.user));
-        (window as any).__E2E_SET_AUTH__?.(sess);
-      } catch {}
+        const authWindow = window as Window & { __E2E_SET_AUTH__?: (payload: typeof sess) => void };
+        authWindow.__E2E_SET_AUTH__?.(sess);
+      } catch (error) {
+        void error;
+      }
     }, session);
     const base = new BasePage(page);
     await base.goto('/dashboard');

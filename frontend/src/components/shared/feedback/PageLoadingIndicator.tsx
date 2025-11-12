@@ -1,6 +1,5 @@
 import { Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 
 export interface PageLoadingIndicatorProps {
   message?: string;

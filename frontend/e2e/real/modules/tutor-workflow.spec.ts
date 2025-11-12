@@ -4,7 +4,6 @@ import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
 import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
 import { E2E_CONFIG } from '../../config/e2e.config';
 import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
-import { statusLabel, statusLabelPattern } from '../../utils/status-labels';
 
 type TimesheetRecord = {
   id: number;
@@ -46,25 +45,8 @@ type TimesheetPagePayload = {
   };
 };
 
-const TIMESHEETS_LIST_ROUTE = /\/api\/timesheets(?:\?.*)?$/;
-const DASHBOARD_SUMMARY_ROUTE = '**/api/dashboard/summary';
-
 const clonePage = (page: TimesheetPagePayload): TimesheetPagePayload =>
   JSON.parse(JSON.stringify(page));
-
-const buildSummary = (timesheets: TimesheetRecord[]) => {
-  const totalTimesheets = timesheets.length;
-  const totalHours = timesheets.reduce((sum, row) => sum + row.hours, 0);
-  const totalPayroll = timesheets.reduce((sum, row) => sum + row.hours * row.hourlyRate, 0);
-  const pendingApprovals = timesheets.filter(row => row.status === 'PENDING_TUTOR_CONFIRMATION').length;
-
-  return {
-    totalTimesheets,
-    pendingApprovals,
-    totalHours,
-    totalPayroll,
-  };
-};
 
 const mockTimesheets: { default: TimesheetPagePayload; empty: TimesheetPagePayload } = {
   default: {
@@ -212,10 +194,6 @@ test.afterEach(async ({ page }) => {
 test.describe('Tutor dashboard workflow', () => {
   let tutorDashboard: TutorDashboardPage;
   let currentTimesheetPage: TimesheetPagePayload;
-  let respondWithError = false;
-  let nextResponseDelay = 0;
-  let lastUpdateRequest: { timesheetId: number; payload: Partial<TimesheetRecord>; method: string } | null;
-
   const gotoTutorDashboard = async (page: Page) => {
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const waits = await import('../../shared/utils/waits');
@@ -224,53 +202,12 @@ test.describe('Tutor dashboard workflow', () => {
     await tutorDashboard.expectToBeLoaded();
   };
 
-  const replaceTimesheets = (timesheets: TimesheetRecord[]) => {
-    currentTimesheetPage = {
-      ...currentTimesheetPage,
-      timesheets,
-      pageInfo: {
-        ...currentTimesheetPage.pageInfo,
-        totalElements: timesheets.length,
-        numberOfElements: timesheets.length,
-        empty: timesheets.length === 0,
-      },
-    };
-  };
-
-  const updateTimesheetInState = (timesheetId: number, changes: Partial<TimesheetRecord>) => {
-    const updatedTimesheets = currentTimesheetPage.timesheets.map(timesheet =>
-      timesheet.id === timesheetId
-        ? {
-            ...timesheet,
-            ...changes,
-            updatedAt: new Date().toISOString(),
-          }
-        : timesheet
-    );
-    replaceTimesheets(updatedTimesheets);
-  };
-
   test.beforeEach(async ({ page }) => {
     tutorDashboard = new TutorDashboardPage(page);
 
     currentTimesheetPage = clonePage(mockTimesheets.default);
-    respondWithError = false;
-    nextResponseDelay = 0;
-    lastUpdateRequest = null;
 
     // Real backend only: no route interception
-
-    // Real backend only: record last update request via request event
-    page.on('request', (rq) => {
-      try {
-        if (/\/api\/timesheets\/(\d+)$/.test(rq.url()) && rq.method() === 'PUT') {
-          const match = rq.url().match(/\/(\d+)$/);
-          const timesheetId = match ? Number(match[1]) : -1;
-          const payload = rq.postDataJSON?.() ?? {};
-          lastUpdateRequest = { timesheetId, payload, method: rq.method() };
-        }
-      } catch {}
-    });
 
     // Real backend only: no quote interception
 

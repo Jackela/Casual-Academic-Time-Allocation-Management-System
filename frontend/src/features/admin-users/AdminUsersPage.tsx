@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { User } from '../../types/api';
 import { createUser, fetchUsers, updateUser, setTutorAssignments, setTutorDefaultQualification, getTutorAssignments, getTutorDefaults, setLecturerAssignments, getLecturerAssignments } from '../../services/users';
-import { fetchLecturerCourses, fetchAllCourses } from '../../services/courses';
-import type { TutorQualification, User as ApiUser } from '../../types/api';
+import { fetchAllCourses } from '../../services/courses';
+import type { TutorQualification } from '../../types/api';
 
 type FormState = {
   firstName: string;
@@ -57,7 +57,7 @@ const generateSecurePassword = (): string => {
   };
 
   const baseCharacters = PASSWORD_CHARSETS.join('');
-  const requiredCharacters = PASSWORD_CHARSETS.map((charset, index) => {
+  const requiredCharacters = PASSWORD_CHARSETS.map((charset, _index) => {
     const randomIndex = getRandomValues(1)[0] % charset.length;
     return charset.charAt(randomIndex);
   });
@@ -720,9 +720,25 @@ export default function AdminUsersPage() {
               {(formState.role === 'TUTOR' || formState.role === 'LECTURER') && (
                 <div className="space-y-4 border-t border-slate-200 pt-4">
                   <div className="flex flex-col">
-                    <label className="text-sm font-medium text-slate-700 mb-2">
+                    <label htmlFor="assigned-courses" className="text-sm font-medium text-slate-700 mb-2">
                       Visible Courses (assignments)
                     </label>
+                    {/* Hidden multi-select for accessibility and legacy test selectors */}
+                    <select
+                      id="assigned-courses"
+                      multiple
+                      aria-hidden="true"
+                      style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
+                      value={(formState.assignedCourseIds ?? []).map(String)}
+                      onChange={(e) => {
+                        const opts = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
+                        setFormState((prev) => ({ ...prev, assignedCourseIds: opts }));
+                      }}
+                    >
+                      {availableCourses.map((c) => (
+                        <option key={c.id} value={String(c.id)}>{c.label}</option>
+                      ))}
+                    </select>
                     <div className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm min-h-[6rem] max-h-[12rem] overflow-y-auto space-y-2" data-testid="admin-user-assigned-courses">
                       {availableCourses.map((c) => (
                         <label key={c.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
@@ -825,9 +841,25 @@ export default function AdminUsersPage() {
               {(editingUser.role === 'TUTOR' || editingUser.role === 'LECTURER') && (
                 <div className="space-y-4">
                   <div className="flex flex-col">
-                    <label className="text-sm font-medium text-slate-700 mb-2">
+                    <label htmlFor="edit-assigned-courses" className="text-sm font-medium text-slate-700 mb-2">
                       Visible Courses (assignments)
                     </label>
+                    {/* Hidden multi-select for accessibility and legacy test selectors */}
+                    <select
+                      id="edit-assigned-courses"
+                      multiple
+                      aria-hidden="true"
+                      style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
+                      value={editAssignedCourseIds.map(String)}
+                      onChange={(e) => {
+                        const opts = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
+                        setEditAssignedCourseIds(opts);
+                      }}
+                    >
+                      {editCourseOptions.map((co) => (
+                        <option key={co.id} value={String(co.id)}>{co.label}</option>
+                      ))}
+                    </select>
                     <div className="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm min-h-[6rem] max-h-[12rem] overflow-y-auto space-y-2" data-testid="admin-edit-user-assigned-courses">
                       {editCourseOptions.map((co) => (
                         <label key={co.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded">

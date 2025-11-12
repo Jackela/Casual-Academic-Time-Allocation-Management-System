@@ -249,6 +249,8 @@ export function createMockApiResponse<T>(
 ) {
   return {
     data,
+    success: true as const,
+    timestamp: new Date().toISOString(),
     status: overrides.status ?? 200,
     statusText: overrides.statusText ?? 'OK',
     headers: overrides.headers ?? {},

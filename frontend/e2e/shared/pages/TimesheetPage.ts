@@ -9,6 +9,8 @@ import {
   getTimesheetTotalPaySelector,
 } from '../../../src/lib/config/table-config';
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export class TimesheetPage {
   readonly page: Page;
   readonly timesheetsTable: Locator;
@@ -75,7 +77,7 @@ export class TimesheetPage {
 
     const result = await Promise.race([
       ...watchers,
-      this.page.waitForTimeout(timeout).then(() => null),
+      sleep(timeout).then(() => null),
     ]);
 
     if (!result) {

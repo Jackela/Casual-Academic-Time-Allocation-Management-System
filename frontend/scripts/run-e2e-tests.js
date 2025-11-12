@@ -102,6 +102,19 @@ function logError(message) {
   log(`${colors.red}❌ ${message}${colors.reset}`);
 }
 
+async function dumpDockerLogs(env = {}, services = ['api']) {
+  try {
+    logWarning(`Collecting docker compose logs for services: ${services.join(', ')}`);
+    await runCommand('docker', ['compose', 'ps'], { env, stdio: 'inherit' });
+    await runCommand('docker', ['compose', 'logs', '--tail', '200', ...services], {
+      env,
+      stdio: 'inherit',
+    });
+  } catch (error) {
+    logWarning(`Unable to collect docker compose logs: ${error.message}`);
+  }
+}
+
 function isTruthy(value) {
   if (typeof value !== 'string') {
     return false;
@@ -532,26 +545,32 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
     logWarning('Skipping backend startup (E2E_SKIP_BACKEND detected)');
     return;
   }
-  if (await isServiceHealthy(backendHealthUrl)) {
+  const backendMode = (process.env.E2E_BACKEND_MODE || '').toLowerCase();
+  const allowReuse = backendMode !== 'docker';
+  if (allowReuse && await isServiceHealthy(backendHealthUrl)) {
     logSuccess(`Detected healthy backend at ${backendHealthUrl}. Reusing existing instance.`);
     return;
   }
 
   // Docker-backed backend mode
-  if ((process.env.E2E_BACKEND_MODE || '').toLowerCase() === 'docker') {
+  if (backendMode === 'docker') {
     logStep('STEP 2', 'Starting backend via Docker Compose...');
+    const composeEnv = { API_PORT: String(backendPort) };
     try {
+      if (isTruthy(process.env.CI) || process.env.ACT_TOOLSDIRECTORY) {
+        await runCommand('docker', ['compose', 'down', '-v'], { env: composeEnv, stdio: 'ignore' });
+      }
       // Bring up DB then API
-      await runCommand('docker', ['compose', 'up', '-d', 'db']);
-      await runCommand('docker', ['compose', 'up', '-d', 'api']);
+      await runCommand('docker', ['compose', 'up', '-d', 'db'], { env: composeEnv });
+      await runCommand('docker', ['compose', 'up', '-d', 'api'], { env: composeEnv });
+      const healthConfig = createHealthConfig('BACKEND');
+      await waitForHttpHealth({ url: backendHealthUrl, label: 'backend', config: healthConfig });
+      logSuccess('Backend (Docker) is healthy and ready.');
+      return;
     } catch (error) {
+      await dumpDockerLogs(composeEnv, ['api', 'db']);
       throw new Error(`Docker Compose startup failed: ${error.message}`);
     }
-
-    const healthConfig = createHealthConfig('BACKEND');
-    await waitForHttpHealth({ url: backendHealthUrl, label: 'backend', config: healthConfig });
-    logSuccess('Backend (Docker) is healthy and ready.');
-    return;
   }
 
   if (await tcpPortUsed.check(backendPort, backendHost)) {
@@ -641,7 +660,8 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
 
 async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, backendPort, backendUrl }) {
   const frontendAlreadyHealthy = await isServiceHealthy(frontendHealthUrl);
-  if (frontendAlreadyHealthy) {
+  const allowReuse = isTruthy(process.env.E2E_ALLOW_FRONTEND_REUSE);
+  if (frontendAlreadyHealthy && allowReuse) {
     logSuccess(`Detected healthy frontend at ${frontendHealthUrl}. Reusing existing instance.`);
     return;
   }
@@ -672,6 +692,7 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
     VITE_API_BASE_URL: frontendOrigin,
     VITE_API_PROXY_TARGET: backendUrl,
     VITE_E2E: 'true',
+    VITE_E2E_DISABLE_LECTURER_MODAL: 'true',
     E2E_FRONTEND_HOST: frontendHost,
     NODE_ENV: 'test',
   };

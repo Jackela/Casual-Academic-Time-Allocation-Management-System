@@ -1,11 +1,11 @@
 /**
  * Timesheet Action Buttons Component
- * 
+ *
  * Enforces the "one primary action per row" rule from UI standards
  * and provides consistent action button layout across the application.
  */
 
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Button } from '../../ui/button';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import type { Timesheet } from '../../../types/api';
@@ -25,17 +25,17 @@ interface TimesheetActionsProps {
   loading?: boolean;
   disabled?: boolean;
   disabledReason?: string;
-  onEdit?: () => void;
-  onSubmit?: () => void;
-  onConfirm?: () => void;
-  onApprove?: () => void;
-  onReject?: () => void;
-  onRequestModification?: () => void;
+  onEdit?: (e?: React.MouseEvent) => void;
+  onSubmit?: (e?: React.MouseEvent) => void;
+  onConfirm?: (e?: React.MouseEvent) => void;
+  onApprove?: (e?: React.MouseEvent) => void;
+  onReject?: (e?: React.MouseEvent) => void;
+  onRequestModification?: (e?: React.MouseEvent) => void;
 }
 
 interface ActionButton extends ActionConfig {
   id: string;
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent) => void;
   visible: boolean;
 }
 
@@ -100,9 +100,9 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
       }
     } else if (mode === 'lecturer' || mode === 'admin') {
       // Lecturer/Admin actions
-      const canApprove = timesheet.status === 'TUTOR_CONFIRMED' ||
+      const canApprove = (mode === 'lecturer' && timesheet.status === 'TUTOR_CONFIRMED') ||
         (mode === 'admin' && (timesheet.status === 'LECTURER_CONFIRMED' || timesheet.status === 'TUTOR_CONFIRMED'));
-      const canRequestChanges = timesheet.status === 'TUTOR_CONFIRMED' ||
+      const canRequestChanges = (mode === 'lecturer' && timesheet.status === 'TUTOR_CONFIRMED') ||
         (mode === 'admin' && (timesheet.status === 'LECTURER_CONFIRMED' || timesheet.status === 'TUTOR_CONFIRMED'));
 
       // Primary action: Approve
@@ -198,7 +198,7 @@ const TimesheetActions = memo<TimesheetActionsProps>(({
           <Button
             key={action.id}
             type="button"
-            onClick={action.onClick}
+            onClick={(e) => action.onClick?.(e)}
             disabled={actionDisabled}
             variant={resolvedVariant}
             size={action.size ?? 'xs'}

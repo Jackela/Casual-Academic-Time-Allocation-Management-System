@@ -1,4 +1,3 @@
-import { request as pwRequest } from '@playwright/test';
 import axios from 'axios';
 import http from 'node:http';
 import https from 'node:https';
@@ -178,12 +177,23 @@ export async function signInAsRole(page: Page, role: UserRole): Promise<void> {
         if (localStorage.getItem('__E2E_DISABLE_AUTH_SEED__') === '1') return;
         localStorage.setItem(keys.TOKEN, sess.token);
         localStorage.setItem(keys.USER, JSON.stringify(sess.user));
-        if (sess.refreshToken) localStorage.setItem(keys.REFRESH_TOKEN, sess.refreshToken); else localStorage.removeItem(keys.REFRESH_TOKEN);
-        if (typeof sess.expiresAt === 'number') localStorage.setItem(keys.TOKEN_EXPIRY, String(sess.expiresAt)); else localStorage.removeItem(keys.TOKEN_EXPIRY);
-      } catch {}
+        if (sess.refreshToken) {
+          localStorage.setItem(keys.REFRESH_TOKEN, sess.refreshToken);
+        } else {
+          localStorage.removeItem(keys.REFRESH_TOKEN);
+        }
+        if (typeof sess.expiresAt === 'number') {
+          localStorage.setItem(keys.TOKEN_EXPIRY, String(sess.expiresAt));
+        } else {
+          localStorage.removeItem(keys.TOKEN_EXPIRY);
+        }
+      } catch (error) {
+        void error; // swallow to allow runtime fallback
+      }
     }, { keys: STORAGE_KEYS, sess: session });
-  } catch {
+  } catch (error) {
     // Fallback: will set storage after navigation below
+    void error;
   }
 
   // Navigate; then ensure storage is set even if addInitScript was skipped
@@ -193,9 +203,13 @@ export async function signInAsRole(page: Page, role: UserRole): Promise<void> {
       try {
         localStorage.setItem(keys.TOKEN, sess.token);
         localStorage.setItem(keys.USER, JSON.stringify(sess.user));
-      } catch {}
+      } catch (error) {
+        void error;
+      }
     }, { keys: STORAGE_KEYS, sess: session });
-  } catch {}
+  } catch (error) {
+    void error;
+  }
 }
 
 /**
@@ -251,7 +265,6 @@ export async function programmaticLoginApi(role: UserRole): Promise<{ ok: true; 
     `${E2E_CONFIG.BACKEND.URL}/auth/login`,
   ];
 
-  const agentsByProto = getKeepAliveAgents(candidates[0]);
   let endpointUsed = '';
   let session: AuthSession | null = null;
   for (const candidate of candidates) {
@@ -269,8 +282,9 @@ export async function programmaticLoginApi(role: UserRole): Promise<{ ok: true; 
       session = extracted;
       endpointUsed = candidate;
       break;
-    } catch {
-      // try next
+    } catch (error) {
+      // Try the next candidate endpoint on error
+      void error;
     }
   }
 

@@ -7,11 +7,16 @@ let dataFactory: TestDataFactory;
 const getTutorAssignmentsUrl = (tutorId: number) => `${E2E_CONFIG.BACKEND.URL}/api/admin/tutors/${tutorId}/assignments`;
 const postTutorAssignmentsUrl = () => `${E2E_CONFIG.BACKEND.URL}/api/admin/tutors/assignments`;
 
+type TutorAssignmentPayload = {
+  tutorId: number;
+  courseIds: number[];
+};
+
 async function getWithAuth(request: APIRequestContext, url: string, token: string) {
   return request.get(url, { headers: { Authorization: `Bearer ${token}` } });
 }
 
-async function postWithAuth(request: APIRequestContext, url: string, token: string, data: any) {
+async function postWithAuth(request: APIRequestContext, url: string, token: string, data: TutorAssignmentPayload) {
   return request.post(url, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -51,9 +56,10 @@ test.describe('Admin Tutor Assignments endpoint alignment', { tag: ['@api', '@al
     const tutorId = sessions.tutor.user.id;
     const initialGet = await getWithAuth(request, getTutorAssignmentsUrl(tutorId), tokens.admin.token);
     const initialPayload = initialGet.ok() ? await initialGet.json() : { courseIds: [] };
+    const defaultCourse = dataFactory.getDefaultCourseIds()[0];
     const nextCourseIds: number[] = Array.isArray(initialPayload.courseIds) && initialPayload.courseIds.length
       ? initialPayload.courseIds.slice(0, 1) // shrink set to force change
-      : [1];
+      : [defaultCourse];
 
     const postUrl = postTutorAssignmentsUrl();
     const postRes = await postWithAuth(request, postUrl, tokens.admin.token, { tutorId, courseIds: nextCourseIds });
@@ -70,7 +76,9 @@ test.describe('Admin Tutor Assignments endpoint alignment', { tag: ['@api', '@al
           expect(body.courseIds).toEqual(nextCourseIds);
           return;
         }
-      } catch {}
+      } catch (error) {
+        void error;
+      }
     }
 
     // Allow brief commit/consistency window; poll for up to 1s
@@ -86,7 +94,9 @@ test.describe('Admin Tutor Assignments endpoint alignment', { tag: ['@api', '@al
           if (Array.isArray(payload.courseIds) && payload.courseIds.length === nextCourseIds.length && payload.courseIds.every((v: number, i: number) => v === nextCourseIds[i])) {
             break;
           }
-        } catch {}
+        } catch (error) {
+          void error;
+        }
       }
       await new Promise((r) => setTimeout(r, 100));
     }
@@ -119,10 +129,14 @@ test.describe('Admin Tutor Assignments endpoint alignment', { tag: ['@api', '@al
   test('POST unauthorized role is forbidden for tutor assignments', async ({ request }) => {
     const tokens = dataFactory.getAuthTokens();
     const sessions = dataFactory.getAuthSessions();
+    const defaultCourse = dataFactory.getDefaultCourseIds()[0];
+    if (!defaultCourse) {
+      throw new Error('No default course id available for tutor assignments negative test');
+    }
     const url = `${E2E_CONFIG.BACKEND.URL}/api/admin/tutors/assignments`;
     const res = await request.post(url, {
       headers: { Authorization: `Bearer ${tokens.lecturer.token}`, 'Content-Type': 'application/json' },
-      data: { tutorId: sessions.tutor.user.id, courseIds: [1] },
+      data: { tutorId: sessions.tutor.user.id, courseIds: [defaultCourse] },
     });
     expect([401, 403]).toContain(res.status());
   });

@@ -65,7 +65,7 @@ export const formatCurrency = (amount: number): string => {
  */
 export const formatRelativeTime = (
   date: Date | string,
-  context: 'deadline' | 'reminder' | 'alert',
+  _context: 'deadline' | 'reminder' | 'alert',
 ): string => {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   const now = new Date();
