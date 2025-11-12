@@ -101,9 +101,20 @@ public class CourseBuilder {
     }
 
     public Course build() {
-        Course course = new Course(new CourseCode(code), name, semester, lecturerId, new Money(budgetAllocated));
+        // Handle null budget allocated - use zero for Money value object
+        Money budgetAllocatedMoney = budgetAllocated != null
+            ? new Money(budgetAllocated)
+            : new Money(BigDecimal.ZERO);
+
+        Course course = new Course(new CourseCode(code), name, semester, lecturerId, budgetAllocatedMoney);
         course.setId(id);
-        course.setBudgetUsed(new Money(budgetUsed));
+
+        // Handle null budget used - use zero for Money value object
+        Money budgetUsedMoney = budgetUsed != null
+            ? new Money(budgetUsed)
+            : new Money(BigDecimal.ZERO);
+        course.setBudgetUsed(budgetUsedMoney);
+
         course.setIsActive(isActive);
         course.setCreatedAt(createdAt);
         course.setUpdatedAt(updatedAt);

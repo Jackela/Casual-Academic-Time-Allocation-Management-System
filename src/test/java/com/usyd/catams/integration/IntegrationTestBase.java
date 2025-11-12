@@ -8,6 +8,8 @@ import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.security.JwtTokenProvider;
 import com.usyd.catams.testdata.TestDataBuilder;
 import com.usyd.catams.testing.PostgresTestContainer;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 public abstract class IntegrationTestBase {
 
+    private static final boolean RUNNING_IN_ACT = System.getenv("ACT_TOOLSDIRECTORY") != null || System.getenv("ACT") != null;
+
+    static {
+        if (RUNNING_IN_ACT) {
+            System.setProperty("testcontainers.ryuk.disabled", "true");
+        }
+    }
+
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         // Default to Testcontainers/Postgres. Allow explicit H2 opt-in via IT_DB_ENGINE=h2 or -Dcatams.it.db=h2
@@ -50,7 +60,11 @@ public abstract class IntegrationTestBase {
                 if (!postgres.isRunning()) {
                     postgres.start();
                 }
-                registry.add("spring.datasource.url", postgres::getJdbcUrl);
+                // Disable prepared statement caching and force JDBC to resubmit statements after schema changes
+                String baseJdbcUrl = postgres.getJdbcUrl();
+                String separator = baseJdbcUrl.contains("?") ? "&" : "?";
+                String jdbcUrl = baseJdbcUrl + separator + "prepareThreshold=0&autosave=always&preferQueryMode=simple";
+                registry.add("spring.datasource.url", () -> jdbcUrl);
                 registry.add("spring.datasource.username", postgres::getUsername);
                 registry.add("spring.datasource.password", postgres::getPassword);
                 registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
@@ -78,9 +92,12 @@ public abstract class IntegrationTestBase {
     
     @Autowired
     protected UserRepository userRepository;
-    
+
     @Autowired
     protected PasswordEncoder passwordEncoder;
+
+    @PersistenceContext
+    protected EntityManager entityManager;
 
     protected String lecturerToken;
     protected String tutorToken;
@@ -95,61 +112,50 @@ public abstract class IntegrationTestBase {
      * Seeds test users in the database to support JWT authentication validation.
      * Creates users that match the JWT token emails from TestAuthenticationHelper.
      * This method can be called by individual test classes that need these base users.
+     * Flushes and clears the EntityManager to avoid PostgreSQL prepared statement cache issues.
      */
     protected void seedTestUsers() {
+        // Clear any cached statements from previous operations
+        entityManager.flush();
+        entityManager.clear();
+
         String defaultPassword = "testPassword123";
         String hashedPassword = passwordEncoder.encode(defaultPassword);
-        
+
           var testAdmin = TestDataBuilder.anAdmin()
-              .withId(1L)
               .withEmail("admin@integration.test")
             .withName("Test Admin")
             .withHashedPassword(hashedPassword)
             .build();
         userRepository.save(testAdmin);
-        
+
           var testLecturer = TestDataBuilder.aLecturer()
-              .withId(2L)
-              .withEmail("lecturer1@integration.test")
-              .withName("Test Lecturer 1")
+              .withEmail("lecturer@integration.test")
+              .withName("Test Lecturer")
               .withHashedPassword(hashedPassword)
               .build();
           userRepository.save(testLecturer);
-          // Also seed token-mapped lecturer
-          var tokenLecturer = TestDataBuilder.aLecturer()
-              .withId(2L)
-              .withEmail("lecturer@integration.test")
-              .withName("Lecturer Token User")
-              .withHashedPassword(hashedPassword)
-              .build();
-          userRepository.save(tokenLecturer);
-        
+
           var testTutor = TestDataBuilder.aTutor()
-              .withId(3L)
-              .withEmail("tutor1@integration.test")
-              .withName("Test Tutor 1")
+              .withEmail("tutor@integration.test")
+              .withName("Test Tutor")
               .withHashedPassword(hashedPassword)
               .build();
           userRepository.save(testTutor);
-          // Also seed token-mapped tutor
-          var tokenTutor = TestDataBuilder.aTutor()
-              .withId(3L)
-              .withEmail("tutor@integration.test")
-              .withName("Tutor Token User")
-              .withHashedPassword(hashedPassword)
-              .build();
-          userRepository.save(tokenTutor);
+
+        // Flush to ensure saves are executed immediately
+        entityManager.flush();
     }
 
     private void setupAuthTokens() {
-        var testLecturer = TestDataBuilder.aLecturer().withId(2L).withEmail("lecturer@integration.test").build();
-        lecturerToken = "Bearer " + jwtTokenProvider.generateToken(testLecturer.getId(), testLecturer.getEmail(), testLecturer.getRole().name());
+        var testLecturer = TestDataBuilder.aLecturer().withEmail("lecturer@integration.test").build();
+        lecturerToken = "Bearer " + jwtTokenProvider.generateToken(999L, testLecturer.getEmail(), testLecturer.getRole().name());
 
-        var testTutor = TestDataBuilder.aTutor().withId(3L).withEmail("tutor@integration.test").build();
-        tutorToken = "Bearer " + jwtTokenProvider.generateToken(testTutor.getId(), testTutor.getEmail(), testTutor.getRole().name());
+        var testTutor = TestDataBuilder.aTutor().withEmail("tutor@integration.test").build();
+        tutorToken = "Bearer " + jwtTokenProvider.generateToken(998L, testTutor.getEmail(), testTutor.getRole().name());
 
-        var testAdmin = TestDataBuilder.anAdmin().withId(1L).withEmail("admin@integration.test").build();
-        adminToken = "Bearer " + jwtTokenProvider.generateToken(testAdmin.getId(), testAdmin.getEmail(), testAdmin.getRole().name());
+        var testAdmin = TestDataBuilder.anAdmin().withEmail("admin@integration.test").build();
+        adminToken = "Bearer " + jwtTokenProvider.generateToken(997L, testAdmin.getEmail(), testAdmin.getRole().name());
     }
 
     protected ResultActions performGet(String endpoint, String authToken) throws Exception {

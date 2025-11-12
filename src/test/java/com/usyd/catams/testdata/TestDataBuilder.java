@@ -65,6 +65,14 @@ public class TestDataBuilder {
     }
 
     /**
+     * Creates a new UserBuilder instance configured as HR.
+     * @return a UserBuilder instance configured as HR
+     */
+    public static UserBuilder aHR() {
+        return new UserBuilder().asHR();
+    }
+
+    /**
      * Creates a new CourseBuilder instance.
      * @return a CourseBuilder instance
      */    public static CourseBuilder aCourse() {

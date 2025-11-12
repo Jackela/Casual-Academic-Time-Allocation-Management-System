@@ -291,16 +291,14 @@ public class CourseApplicationService implements CourseManagementService {
     }
     
     private Integer extractYearFromSemester(String semester) {
-        if (semester == null) {
-            return null;
+        if (semester == null || semester.trim().isEmpty()) {
+            return LocalDate.now().getYear();
         }
-        
-        // Try to extract year from semester string (e.g., "2024-S1" -> 2024)
+
+        // Try to extract year from semester string
         try {
-            if (semester.contains("-")) {
-                String[] parts = semester.split("-");
-                return Integer.parseInt(parts[0]);
-            } else if (semester.matches(".*\\d{4}.*")) {
+            // Check if string contains a 4-digit year anywhere
+            if (semester.matches(".*\\d{4}.*")) {
                 // Extract 4-digit year from string
                 String yearStr = semester.replaceAll(".*?(\\d{4}).*", "$1");
                 return Integer.parseInt(yearStr);
@@ -309,7 +307,7 @@ public class CourseApplicationService implements CourseManagementService {
             // If parsing fails, return current year as default
             return LocalDate.now().getYear();
         }
-        
+
         return LocalDate.now().getYear(); // Default to current year
     }
     
