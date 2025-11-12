@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Pre-push hook - runs fast checks before pushing to remote
+# Install with: make install-hooks
+# Remove with: rm .git/hooks/pre-push
+
+set -euo pipefail
+
+echo "Running pre-push checks..."
+echo ""
+
+# Run fast checks (unit tests + lint)
+if command -v make > /dev/null 2>&1; then
+    make fast
+else
+    # Fallback if make is not installed
+    echo "[1/2] Backend unit tests..."
+    ./gradlew test --no-daemon
+
+    echo ""
+    echo "[2/2] Frontend lint..."
+    cd frontend && npm run lint
+fi
+
+echo ""
+echo "Pre-push checks passed! Proceeding with push..."
