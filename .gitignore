@@ -20,7 +20,6 @@ buildNumber.properties
 # Gradle (if used in future)
 .gradle
 build/
-!gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
 
@@ -28,6 +27,7 @@ build/
 *.class
 *.log
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.war
 *.nar
 *.ear
