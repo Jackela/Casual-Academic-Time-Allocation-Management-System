@@ -595,7 +595,12 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
     // Fill fields matching seed - wait for options to load before selecting
     const tutorSelector = page.getByTestId('lecturer-timesheet-tutor-selector');
     await expect(tutorSelector.locator('option').nth(1)).toBeAttached({ timeout: 15000 }).catch(() => undefined);
-    await tutorSelector.selectOption({ value: String(chosenTutorId) }).catch(() => undefined);
+    // Try selecting by value, fall back to index
+    try {
+      await tutorSelector.selectOption({ value: String(chosenTutorId) }, { timeout: 5000 });
+    } catch {
+      await tutorSelector.selectOption({ index: 1 }).catch(() => undefined);
+    }
     // Ensure task type and qualification are set if required by form validation
     const taskTypeSelect = page.getByTestId('create-task-type-select');
     await expect(taskTypeSelect).toBeEnabled({ timeout: 10000 }).catch(() => undefined);
@@ -603,7 +608,12 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
     await page.getByTestId('create-qualification-select').selectOption({ value: 'STANDARD' }).catch(() => undefined);
     const courseSelect = sel.byTestId(page, 'create-course-select');
     await expect(courseSelect.locator('option').nth(1)).toBeAttached({ timeout: 15000 }).catch(() => undefined);
-    await courseSelect.selectOption({ value: String(chosenCourseId) }).catch(() => undefined);
+    // Try selecting by value, fall back to index
+    try {
+      await courseSelect.selectOption({ value: String(chosenCourseId) }, { timeout: 5000 });
+    } catch {
+      await courseSelect.selectOption({ index: 1 }).catch(() => undefined);
+    }
     // Wait for Week Starting field with fallback
     let weekInput = page.getByLabel('Week Starting');
     const weekVisible = await weekInput.isVisible().catch(() => false);

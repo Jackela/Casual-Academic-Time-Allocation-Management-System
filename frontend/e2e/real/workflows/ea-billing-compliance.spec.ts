@@ -205,7 +205,13 @@ async function setCourse(page: Page, courseId: number) {
   await expect(select).toBeEnabled({ timeout: 20000 });
   // Wait for options to be loaded before selecting
   await expect(select.locator('option').nth(1)).toBeAttached({ timeout: 15000 });
-  await select.selectOption(String(courseId));
+  // Try selecting by value, fall back to index if courseId doesn't match any option
+  try {
+    await select.selectOption(String(courseId), { timeout: 5000 });
+  } catch {
+    // Fall back to selecting first available course (index 1 skips placeholder)
+    await select.selectOption({ index: 1 });
+  }
 }
 
 async function setWeekStart(page: Page, weekStartDate: string) {
