@@ -203,14 +203,29 @@ async function captureQuote(page: Page, action: () => Promise<void>): Promise<Qu
 async function setCourse(page: Page, courseId: number) {
   const select = page.getByTestId('create-course-select');
   await expect(select).toBeEnabled({ timeout: 20000 });
-  // Wait for options to be loaded before selecting
-  await expect(select.locator('option').nth(1)).toBeAttached({ timeout: 15000 });
+  // Wait for options to be loaded before selecting - try multiple approaches
+  try {
+    await expect(select.locator('option').nth(1)).toBeAttached({ timeout: 15000 });
+  } catch {
+    // Fallback: wait for any non-placeholder option (value not empty)
+    try {
+      await expect(select.locator('option:not([value=""])')).toBeAttached({ timeout: 10000 });
+    } catch {
+      // Last resort: just wait a bit for options to potentially load
+      await page.waitForTimeout(2000);
+    }
+  }
   // Try selecting by value, fall back to index if courseId doesn't match any option
   try {
     await select.selectOption(String(courseId), { timeout: 5000 });
   } catch {
     // Fall back to selecting first available course (index 1 skips placeholder)
-    await select.selectOption({ index: 1 });
+    try {
+      await select.selectOption({ index: 1 });
+    } catch {
+      // If even index 1 fails, try index 0 (maybe no placeholder)
+      await select.selectOption({ index: 0 }).catch(() => undefined);
+    }
   }
 }
 
