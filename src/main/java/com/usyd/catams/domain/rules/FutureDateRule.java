@@ -21,9 +21,9 @@ public class FutureDateRule implements Specification<TimesheetValidationContext>
             @Value("${app.rules.future-date.enabled:true}") boolean enabled,
             Environment environment
     ) {
-        // Environment override (e.g., APP_RULES_FUTURE_DATE_ENABLED=false). Default to FALSE for demos.
-        String envOverride = System.getenv().getOrDefault("APP_RULES_FUTURE_DATE_ENABLED", "false");
-        boolean resolvedEnabled = Boolean.parseBoolean(envOverride);
+        // Environment override (e.g., APP_RULES_FUTURE_DATE_ENABLED=false). Use config property as default.
+        String envOverride = System.getenv().get("APP_RULES_FUTURE_DATE_ENABLED");
+        boolean resolvedEnabled = envOverride != null ? Boolean.parseBoolean(envOverride) : enabled;
 
         // Always relax this rule in demo/e2e profiles regardless of property resolution.
         boolean isE2EProfile = Arrays.stream(environment.getActiveProfiles())
