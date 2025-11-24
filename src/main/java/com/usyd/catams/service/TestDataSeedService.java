@@ -52,10 +52,11 @@ public class TestDataSeedService {
         }
 
         // Idempotent upsert by globally-unique course code to avoid unique constraint conflicts
-        ensureCourseByCode("EDEV1001", "E2E Course 101", lecturerId, new BigDecimal("10000"));
-        ensureCourseByCode("EDEV1002", "E2E Course 102", lecturerId, new BigDecimal("5000"));
+        // Using real University of Sydney course codes for demo authenticity
+        ensureCourseByCode("COMP1001", "Introduction to Programming", lecturerId, new BigDecimal("15000"));
+        ensureCourseByCode("INFO1110", "Introduction to Programming", lecturerId, new BigDecimal("12000"));
 
-        LOGGER.info("Ensured courses for lecturer {} exist and are active: EDEV1001, EDEV1002", lecturerId);
+        LOGGER.info("Ensured courses for lecturer {} exist and are active: COMP1001, INFO1110", lecturerId);
 
         // Ensure lecturer assignments match courses for test determinism
         var courses = courseRepository.findByLecturerIdAndIsActive(lecturerId, true);
@@ -127,7 +128,7 @@ public class TestDataSeedService {
         if (courses == null || courses.isEmpty()) return;
 
         Long courseId = courses.get(0).getId();
-        // Prefer the canonical tutor; fallback到第二个
+        // Prefer the canonical tutor; fallback to the second one
         Long tutorId = userRepository.findByEmail("tutor@example.com").map(com.usyd.catams.entity.User::getId)
                 .or(() -> userRepository.findByEmail("tutor2@example.com").map(com.usyd.catams.entity.User::getId))
                 .orElse(null);
@@ -251,5 +252,29 @@ public class TestDataSeedService {
     private String currentSemester() {
         // A simple placeholder semester code for seeded courses
         return "E2E";
+    }
+
+    /**
+     * Update course ownership to a different lecturer.
+     * This updates both the Course.lecturerId field (for approval permission checks)
+     * and ensures LecturerAssignment exists for the new owner.
+     * Used in E2E tests to properly transfer course ownership.
+     *
+     * @param courseCode The course code to update
+     * @param lecturerId The new lecturer owner ID
+     * @return true if updated, false if course not found
+     */
+    @Transactional
+    public boolean updateCourseOwnership(String courseCode, Long lecturerId) {
+        return courseRepository.findByCode(courseCode).map(course -> {
+            course.setLecturerId(lecturerId);
+            courseRepository.save(course);
+            LOGGER.info("Updated course {} ownership to lecturer {}", courseCode, lecturerId);
+            // Also ensure LecturerAssignment exists for the new owner
+            if (!lecturerAssignmentRepository.existsByLecturerIdAndCourseId(lecturerId, course.getId())) {
+                lecturerAssignmentRepository.save(new com.usyd.catams.entity.LecturerAssignment(lecturerId, course.getId()));
+            }
+            return true;
+        }).orElse(false);
     }
 }

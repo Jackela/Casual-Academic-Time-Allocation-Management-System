@@ -168,13 +168,18 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
     }
   });
   const [isCreateOpening, setCreateOpening] = useState(false);
+  // Track if we've already auto-opened once to prevent infinite loop
+  const hasAutoOpenedRef = useRef(false);
 
-  // E2E safety: if未打开且为e2e模式，挂载后强制打开一次，避免点击时机竞态
+  // E2E safety: if not open and in e2e mode, force open once on mount to avoid click timing race
+  // IMPORTANT: Only auto-open ONCE to prevent infinite loop when user closes modal
   useEffect(() => {
+    if (hasAutoOpenedRef.current) return; // Already auto-opened once, don't re-open
     try {
       const autoOpenEnabled = isLecturerModalAutoOpenEnabled();
       const isE2E = import.meta.env.VITE_E2E === 'true';
       if (autoOpenEnabled && isE2E && !isCreateModalOpen) {
+        hasAutoOpenedRef.current = true; // Mark as auto-opened
         const id = requestAnimationFrame(() => {
           setCreateOpening(true);
           setCreateModalOpen(true);
@@ -184,6 +189,7 @@ const LecturerDashboardShell = memo<LecturerDashboardShellProps>(({ className = 
       // Allow query param or localStorage flag to force open in test/dev
       if (!isCreateModalOpen && typeof window !== 'undefined') {
         if (shouldForceLecturerModalOpen()) {
+          hasAutoOpenedRef.current = true; // Mark as auto-opened
           const id = requestAnimationFrame(() => {
             setCreateOpening(true);
             setCreateModalOpen(true);

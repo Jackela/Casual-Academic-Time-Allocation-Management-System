@@ -43,6 +43,27 @@ public class TestDataResetService {
         resetIdentities();
     }
 
+    private static final List<String> DEMO_USER_PATTERNS = List.of(
+        "alice.wang.%@%", "bob.zhang.%@%", "sarah.chen.%@%", "carol.li.%@%"
+    );
+
+    @Transactional
+    public int cleanupDemoUsers() {
+        int totalDeleted = 0;
+        for (String pattern : DEMO_USER_PATTERNS) {
+            try {
+                int deleted = jdbcTemplate.update(
+                    "DELETE FROM users WHERE email_value LIKE ?", pattern
+                );
+                totalDeleted += deleted;
+            } catch (Exception ex) {
+                LOGGER.warn("Failed to delete demo users matching {}: {}", pattern, ex.getMessage());
+            }
+        }
+        LOGGER.info("Cleaned up {} demo users", totalDeleted);
+        return totalDeleted;
+    }
+
     private void resetIdentities() {
         String productName = jdbcTemplate.execute((ConnectionCallback<String>) connection -> {
             try {

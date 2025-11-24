@@ -4,7 +4,7 @@ This directory contains comprehensive utilities for managing resources and preve
 
 ## 📋 Overview
 
-The cleanup system follows the **Resource Cleanup Protocol (资源清理原则)** with two-layer defense:
+The cleanup system follows the **Resource Cleanup Protocol** with two-layer defense:
 1. **Internal test cleanup** - Strict teardown within tests
 2. **Session-level cleanup** - One-click recovery scripts
 3. **CI monitoring** - Handle leak detection as test failures

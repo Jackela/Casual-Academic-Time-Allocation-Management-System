@@ -213,6 +213,152 @@ export async function signInAsRole(page: Page, role: UserRole): Promise<void> {
 }
 
 /**
+ * Sign in via UI login page for presentation demos
+ * 
+ * @param page - Playwright page instance
+ * @param role - User role to sign in as
+ * @param options - Optional configuration for login behavior
+ * @param options.pauseAfterLogin - Milliseconds to pause after successful login (default: 2000)
+ * @param options.showTyping - Show typing animation for email input (default: false)
+ * @param options.typingDelay - Delay between keystrokes in ms (default: 100)
+ */
+export async function signInViaUI(
+  page: Page,
+  role: UserRole,
+  options: {
+    pauseAfterLogin?: number;
+    showTyping?: boolean;
+    typingDelay?: number;
+  } = {}
+): Promise<void> {
+  const {
+    pauseAfterLogin = 2000,
+    showTyping = false,
+    typingDelay = 100,
+  } = options;
+
+  const credentials = roleCredentials(role);
+  
+  console.log(`\n🎬 NARRATION CUE: "Logging in as ${role.toUpperCase()}..."`);
+  
+  // Navigate to login page
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(500);
+  
+  // Wait for login form to be visible
+  const loginForm = page.getByTestId('login-form');
+  await loginForm.waitFor({ state: 'visible', timeout: 10000 });
+  
+  // Fill email (with optional typing animation)
+  const emailInput = page.getByLabel(/email/i);
+  await emailInput.waitFor({ state: 'visible', timeout: 5000 });
+  
+  if (showTyping) {
+    // Type with visible animation
+    await emailInput.click();
+    await emailInput.type(credentials.email, { delay: typingDelay });
+  } else {
+    // Fast fill
+    await emailInput.fill(credentials.email);
+  }
+  
+  // Fill password (always fast for security)
+  const passwordInput = page.getByLabel(/password/i);
+  await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
+  await passwordInput.fill(credentials.password);
+  
+  // Click login button
+  const loginButton = page.getByRole('button', { name: /sign in|login/i });
+  await loginButton.waitFor({ state: 'visible', timeout: 5000 });
+  await loginButton.click();
+  
+  // Wait for successful navigation to dashboard
+  await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+  
+  console.log(`✅ Logged in as ${role.toUpperCase()}`);
+  
+  // Pause after login for audience to observe
+  if (pauseAfterLogin > 0) {
+    await page.waitForTimeout(pauseAfterLogin);
+  }
+}
+
+/**
+ * Sign out via UI logout button for presentation demos
+ * 
+ * @param page - Playwright page instance
+ * @param options - Optional configuration for logout behavior
+ * @param options.pauseAfterLogout - Milliseconds to pause after successful logout (default: 1500)
+ */
+export async function signOutViaUI(
+  page: Page,
+  options: { pauseAfterLogout?: number } = {}
+): Promise<void> {
+  const { pauseAfterLogout = 1500 } = options;
+  
+  console.log(`\n🎬 NARRATION CUE: "Logging out to switch roles..."`);
+  
+  // Dismiss any blocking modals first (especially lecturer create modal)
+  await dismissBlockingModals(page);
+  
+  // Find logout button (try multiple selectors)
+  const logoutButton = page.getByTestId('logout-button')
+    .or(page.getByRole('button', { name: /logout|sign out/i }));
+  
+  // Ensure button is visible and clickable
+  await logoutButton.waitFor({ state: 'visible', timeout: 10000 });
+  await logoutButton.scrollIntoViewIfNeeded().catch(() => undefined);
+  
+  // Click logout button
+  await logoutButton.click();
+  
+  // Wait for redirect to login page
+  await page.waitForURL(/\/login/, { timeout: 10000 });
+  
+  console.log(`✅ Logged out successfully`);
+  
+  // Pause after logout for audience to observe
+  if (pauseAfterLogout > 0) {
+    await page.waitForTimeout(pauseAfterLogout);
+  }
+}
+
+/**
+ * Helper function to dismiss blocking modals (aggressive multi-strategy approach)
+ */
+async function dismissBlockingModals(page: Page): Promise<void> {
+  // Try multiple strategies to dismiss modals
+  
+  // Strategy 1: Set localStorage flag to prevent auto-open
+  await page.evaluate(() => {
+    window.localStorage.setItem('__E2E_DISABLE_LECTURER_MODAL__', '1');
+  }).catch(() => undefined);
+  
+  // Strategy 2: Press Escape key multiple times
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press('Escape').catch(() => undefined);
+    await page.waitForTimeout(300);
+  }
+  
+  // Strategy 3: Click close button if exists
+  const closeButton = page.locator('[data-testid$="modal"] button').filter({ hasText: /cancel|close|×/i });
+  if (await closeButton.isVisible().catch(() => false)) {
+    await closeButton.click({ force: true }).catch(() => undefined);
+    await page.waitForTimeout(500);
+  }
+  
+  // Strategy 4: Click backdrop overlay to close modal
+  const backdrop = page.locator('[data-testid$="modal"]').first();
+  if (await backdrop.isVisible().catch(() => false)) {
+    await backdrop.click({ position: { x: 5, y: 5 }, force: true }).catch(() => undefined);
+    await page.waitForTimeout(500);
+  }
+  
+  // Final verification: wait for all modals to be hidden
+  await page.waitForTimeout(1000);
+}
+
+/**
  * Programmatic-only API login that persists a working storageState for ADMIN.
  * - Discovers login endpoint among candidates and authenticates using env creds.
  * - Persists synthetic storageState with localStorage token+user for the frontend origin.

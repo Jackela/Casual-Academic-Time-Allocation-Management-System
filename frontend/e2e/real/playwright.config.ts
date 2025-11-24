@@ -52,6 +52,17 @@ export default defineConfig({
       // Run the real project with a single worker for stability (avoid page/context closure)
       workers: 1,
     },
+    {
+      name: 'presentation',
+      use: {
+        ...devices['Desktop Chrome'],
+        // Presentation demos start logged out - no storageState
+        storageState: undefined,
+      },
+      // Only run presentation demos in this project
+      testMatch: /presentation\/.*\.spec\.ts$/,
+      workers: 1,
+    },
   ],
   outputDir: '../../test-results',
 });

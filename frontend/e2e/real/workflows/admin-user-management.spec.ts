@@ -25,8 +25,8 @@ test.describe('Admin User Management', () => {
     await expect(page.getByText(/Use at least 12 characters/i)).toBeVisible();
 
     await users.fillCreateForm({
-      firstName: 'Ada',
-      lastName: 'Lovelace',
+      firstName: 'Grace',
+      lastName: 'Hopper',
       email,
       role: 'TUTOR',
       password: 'ChangeMe123!'
@@ -45,7 +45,7 @@ test.describe('Admin User Management', () => {
       const adminSess = await loginAsRole(page.request, 'admin');
       const resp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/users`, {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminSess.token}` },
-        data: { email, name: 'Ada Lovelace', role: 'TUTOR', password: 'Aa1!Aa1!Aa1!' }
+        data: { email, name: 'Grace Hopper', role: 'TUTOR', password: 'Aa1!Aa1!Aa1!' }
       });
       if (!resp.ok()) {
         throw new Error(`API fallback user create failed: ${resp.status()} ${await resp.text()}`);

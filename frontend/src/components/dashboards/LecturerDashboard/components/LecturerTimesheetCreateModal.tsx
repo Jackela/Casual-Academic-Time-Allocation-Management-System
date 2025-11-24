@@ -361,10 +361,6 @@ const LecturerTimesheetCreateModal = memo<LecturerTimesheetCreateModalProps>(
                   To create a timesheet, an Administrator must set up course ↔ tutor assignments in the Admin UI (Users → Assignments).
                   If you have admin access, please add the assignment(s) first, then return here.
                 </p>
-                {/* zh-CN helper */}
-                <p className="mt-2 text-xs text-slate-600">
-                  提示：需先在 Admin 界面的「Users」中完成课程与导师（Assignment）的关联后，才能在此创建 Timesheet。
-                </p>
               </div>
             )}
 

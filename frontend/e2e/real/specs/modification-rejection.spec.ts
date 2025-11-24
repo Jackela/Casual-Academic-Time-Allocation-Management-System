@@ -16,14 +16,14 @@ test.describe('@p1 US4: Modification & Rejection (aligned to current UI)', () =>
     await dataFactory?.cleanupAll();
   });
 
-  test('lecturer requests modification → tutor看到状态为 MODIFICATION_REQUESTED', async ({ page }) => {
-    // 1) 种子：生成可由讲师处理的工单（TUTOR_CONFIRMED）
+  test('lecturer requests modification → tutor sees MODIFICATION_REQUESTED status', async ({ page }) => {
+    // 1) Seed: create a timesheet that lecturer can act on (TUTOR_CONFIRMED)
     const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'TUTOR_CONFIRMED' });
 
-    // 2) 讲师发起“请求修改”（使用API保证确定性）
+    // 2) Lecturer requests modification (using API for determinism)
     await dataFactory.transitionTimesheet(seeded.id, 'REQUEST_MODIFICATION', 'Please adjust hours', 'LECTURER');
 
-    // 3) 导师端查看到 MODIFICATION_REQUESTED 状态
+    // 3) Tutor sees MODIFICATION_REQUESTED status
     await signInAsRole(page, 'tutor');
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const tutorDashboard = new TutorDashboardPage(page);
@@ -38,14 +38,14 @@ test.describe('@p1 US4: Modification & Rejection (aligned to current UI)', () =>
     );
   });
 
-  test('admin 拒绝后 → 导师看到 REJECTED 且不可再次提交', async ({ page }) => {
-    // 1) 种子：生成已由讲师确认的工单（LECTURER_CONFIRMED）
+  test('admin rejects → tutor sees REJECTED and cannot resubmit', async ({ page }) => {
+    // 1) Seed: create a timesheet already confirmed by lecturer (LECTURER_CONFIRMED)
     const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'LECTURER_CONFIRMED' });
 
-    // 2) 管理员发起 REJECT（API 确定性）
+    // 2) Admin rejects (using API for determinism)
     await dataFactory.transitionTimesheet(seeded.id, 'REJECT', 'Policy mismatch', 'admin');
 
-    // 3) 导师端查看 REJECTED 且无“提交”按钮
+    // 3) Tutor sees REJECTED and no Submit button
     await signInAsRole(page, 'tutor');
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const tutorDashboard = new TutorDashboardPage(page);
