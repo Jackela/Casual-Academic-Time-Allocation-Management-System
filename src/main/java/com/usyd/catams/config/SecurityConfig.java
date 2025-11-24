@@ -70,6 +70,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/auth/login").permitAll()
                     .requestMatchers("/actuator/health").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/test-data/reset").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/test-data/cleanup-demo-users").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/test-data/seed/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/timesheets/config").permitAll()
                     .requestMatchers(HttpMethod.POST, "/actuator/shutdown").hasRole("ADMIN");
@@ -77,7 +78,10 @@ public class SecurityConfig {
                 if (relaxedReadProfile) {
                     // Allow read-only listing endpoints during e2e/test profiles (exclude course-user edges)
                     auth.requestMatchers(HttpMethod.GET,
-                        "/api/users", "/api/users/**").permitAll();
+                        "/api/users",
+                        "/api/users/**",
+                        "/api/admin/lecturers/**" // allow lecturer assignment reads in demo/e2e
+                    ).permitAll();
                 }
 
                 auth.anyRequest().authenticated();

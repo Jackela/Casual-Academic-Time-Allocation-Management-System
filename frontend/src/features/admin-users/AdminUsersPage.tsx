@@ -761,7 +761,7 @@ export default function AdminUsersPage() {
                         </label>
                       ))}
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">Lecturers see tutors/records in assigned courses；Tutors只能看到被分配的课程。</p>
+                    <p className="mt-1 text-xs text-slate-500">Lecturers see tutors/records in assigned courses; Tutors can only see their assigned courses.</p>
                   </div>
                   {formState.role === 'TUTOR' && (<div className="flex flex-col">
                     <label htmlFor="default-qualification" className="text-sm font-medium text-slate-700">

@@ -98,5 +98,45 @@ public class TestDataSeedController {
                 "accounts", accounts
         ));
     }
+
+    public record CourseOwnershipRequest(String courseCode, Long lecturerId) {}
+
+    /**
+     * Updates a course's lecturerId to transfer ownership to a different lecturer.
+     * Used in E2E tests to set up proper course ownership for approval workflows.
+     */
+    @PostMapping("/course-ownership")
+    public ResponseEntity<Map<String, Object>> updateCourseOwnership(
+            @RequestHeader(name = "X-Test-Reset-Token", required = false) String providedToken,
+            @RequestBody CourseOwnershipRequest body
+    ) {
+        if (providedToken == null || !providedToken.equals(resetToken)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "success", false,
+                    "message", "Invalid or missing reset token"
+            ));
+        }
+
+        if (body == null || body.courseCode() == null || body.lecturerId() == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "courseCode and lecturerId are required"
+            ));
+        }
+
+        boolean updated = seedService.updateCourseOwnership(body.courseCode(), body.lecturerId());
+        if (!updated) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Course not found: " + body.courseCode()
+            ));
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "courseCode", body.courseCode(),
+                "lecturerId", body.lecturerId()
+        ));
+    }
 }
 

@@ -19,6 +19,11 @@ public class E2ERoleGuardFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String uri = request.getRequestURI();
         if (uri != null && uri.matches("^/api/admin/lecturers/\\d+/assignments$")) {
+            // In e2e profile we allow read-only access to lecturer assignments for demo flows
+            if ("GET".equalsIgnoreCase(request.getMethod())) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
             boolean isAdmin = auth != null && auth.getAuthorities() != null && auth.getAuthorities().stream()
                     .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));

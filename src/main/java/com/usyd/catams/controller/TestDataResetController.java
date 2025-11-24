@@ -54,4 +54,23 @@ public class TestDataResetController {
             "resetAt", Instant.now().toString()
         ));
     }
+
+    @PostMapping("/cleanup-demo-users")
+    public ResponseEntity<Map<String, Object>> cleanupDemoUsers(
+        @RequestHeader(name = "X-Test-Reset-Token", required = false) String providedToken
+    ) {
+        if (providedToken == null || !providedToken.equals(resetToken)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "success", false,
+                "message", "Invalid or missing reset token"
+            ));
+        }
+
+        int deletedCount = resetService.cleanupDemoUsers();
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "deletedCount", deletedCount,
+            "cleanedAt", Instant.now().toString()
+        ));
+    }
 }

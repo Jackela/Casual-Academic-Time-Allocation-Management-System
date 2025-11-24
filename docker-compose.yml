@@ -28,6 +28,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/catams
       SPRING_DATASOURCE_USERNAME: catams_user
       SPRING_DATASOURCE_PASSWORD: catams_password
+      APP_RULES_FUTURE_DATE_ENABLED: 'false'
       JWT_SECRET: ${JWT_SECRET:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:5174}
     ports:

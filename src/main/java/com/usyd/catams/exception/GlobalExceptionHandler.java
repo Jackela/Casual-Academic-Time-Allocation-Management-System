@@ -13,6 +13,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -184,6 +185,19 @@ public class GlobalExceptionHandler {
         String message = "Validation failed: " + e.getMessage();
         logger.warn("Constraint violation: {}", message);
         ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, message, request);
+        return problemResponse(HttpStatus.BAD_REQUEST, problem);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ProblemDetail> handleDataIntegrityViolation(DataIntegrityViolationException e, HttpServletRequest request) {
+        String rootMessage = e.getMostSpecificCause() != null ? e.getMostSpecificCause().getMessage() : e.getMessage();
+        boolean emailConflict = rootMessage != null && rootMessage.toLowerCase().contains("users_email_value_key");
+        if (emailConflict) {
+            ProblemDetail problem = buildProblemDetail(HttpStatus.CONFLICT, ErrorCodes.RESOURCE_CONFLICT, "User with this email already exists.", request);
+            return problemResponse(HttpStatus.CONFLICT, problem);
+        }
+        logger.warn("Data integrity violation: {}", rootMessage);
+        ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, rootMessage, request);
         return problemResponse(HttpStatus.BAD_REQUEST, problem);
     }
 
