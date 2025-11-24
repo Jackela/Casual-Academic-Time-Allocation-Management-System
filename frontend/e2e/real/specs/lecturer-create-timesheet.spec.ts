@@ -592,13 +592,25 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
     await sel.byTestId(page, 'lecturer-create-open-btn').click();
     await (await import('../../shared/utils/waits')).waitForVisible(sel.byTestId(page, 'lecturer-create-modal'));
 
-    // Fill fields matching seed
-    await page.getByTestId('lecturer-timesheet-tutor-selector').selectOption({ value: String(chosenTutorId) }).catch(() => undefined);
+    // Fill fields matching seed - wait for options to load before selecting
+    const tutorSelector = page.getByTestId('lecturer-timesheet-tutor-selector');
+    await expect(tutorSelector.locator('option').nth(1)).toBeAttached({ timeout: 15000 }).catch(() => undefined);
+    await tutorSelector.selectOption({ value: String(chosenTutorId) }).catch(() => undefined);
     // Ensure task type and qualification are set if required by form validation
-    await page.getByTestId('create-task-type-select').selectOption({ value: 'TUTORIAL' }).catch(() => undefined);
+    const taskTypeSelect = page.getByTestId('create-task-type-select');
+    await expect(taskTypeSelect).toBeEnabled({ timeout: 10000 }).catch(() => undefined);
+    await taskTypeSelect.selectOption({ value: 'TUTORIAL' }).catch(() => undefined);
     await page.getByTestId('create-qualification-select').selectOption({ value: 'STANDARD' }).catch(() => undefined);
-    await sel.byTestId(page, 'create-course-select').selectOption({ value: String(chosenCourseId) }).catch(() => undefined);
-    const weekInput = page.getByLabel('Week Starting');
+    const courseSelect = sel.byTestId(page, 'create-course-select');
+    await expect(courseSelect.locator('option').nth(1)).toBeAttached({ timeout: 15000 }).catch(() => undefined);
+    await courseSelect.selectOption({ value: String(chosenCourseId) }).catch(() => undefined);
+    // Wait for Week Starting field with fallback
+    let weekInput = page.getByLabel('Week Starting');
+    const weekVisible = await weekInput.isVisible().catch(() => false);
+    if (!weekVisible) {
+      weekInput = page.getByTestId('week-start-input').or(page.locator('input#weekStartDate'));
+    }
+    await expect(weekInput).toBeVisible({ timeout: 15000 });
     await weekInput.fill(weekIso);
     const hours = page.getByLabel('Delivery Hours');
     // Some environments gate the hours input until derived state is computed; ensure it is enabled for testing

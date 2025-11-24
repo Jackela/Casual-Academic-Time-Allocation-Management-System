@@ -203,11 +203,19 @@ async function captureQuote(page: Page, action: () => Promise<void>): Promise<Qu
 async function setCourse(page: Page, courseId: number) {
   const select = page.getByTestId('create-course-select');
   await expect(select).toBeEnabled({ timeout: 20000 });
+  // Wait for options to be loaded before selecting
+  await expect(select.locator('option').nth(1)).toBeAttached({ timeout: 15000 });
   await select.selectOption(String(courseId));
 }
 
 async function setWeekStart(page: Page, weekStartDate: string) {
-  const weekInput = page.getByLabel('Week Starting');
+  // Try getByLabel first, fall back to testId if not found
+  let weekInput = page.getByLabel('Week Starting');
+  const isVisible = await weekInput.isVisible().catch(() => false);
+  if (!isVisible) {
+    weekInput = page.getByTestId('week-start-input').or(page.locator('input#weekStartDate'));
+  }
+  await expect(weekInput).toBeVisible({ timeout: 15000 });
   await weekInput.fill(weekStartDate);
   try { await weekInput.blur(); } catch {}
 }

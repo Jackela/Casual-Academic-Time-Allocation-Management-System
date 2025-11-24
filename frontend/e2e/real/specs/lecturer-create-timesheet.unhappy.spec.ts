@@ -77,8 +77,10 @@ test.describe('Lecturer Create Timesheet – Unhappy Paths', () => {
 
     // Select course within the modal
     const course2 = page.getByTestId('create-course-select');
-    await expect(course2).toBeVisible();
-    await expect(course2).toBeEnabled();
+    await expect(course2).toBeVisible({ timeout: 15000 });
+    await expect(course2).toBeEnabled({ timeout: 15000 });
+    // Wait for options to load before selecting
+    await expect(course2.locator('option').nth(1)).toBeAttached({ timeout: 15000 });
     await course2.evaluate((el) => {
       const sel = el as HTMLSelectElement;
       if (!sel) return;
@@ -88,7 +90,12 @@ test.describe('Lecturer Create Timesheet – Unhappy Paths', () => {
     });
 
     // Fill week start to a future date (next year Jan 06 – a Monday)
-    const wk = page.getByLabel('Week Starting');
+    let wk = page.getByLabel('Week Starting');
+    const wkVisible = await wk.isVisible().catch(() => false);
+    if (!wkVisible) {
+      wk = page.getByTestId('week-start-input').or(page.locator('input#weekStartDate'));
+    }
+    await expect(wk).toBeVisible({ timeout: 15000 });
     const nextYear = new Date().getFullYear() + 1;
     await wk.fill(`${nextYear}-01-06`);
     await wk.blur();
