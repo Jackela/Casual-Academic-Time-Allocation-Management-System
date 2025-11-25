@@ -22,11 +22,25 @@ test.describe('@p0 US1: Lecturer creates timesheet', () => {
     }, session);
 
     // Register resource routes early to avoid backend 403/500 blocks in e2e-local profile
+    // Mock all course endpoints: with query params, without query params, and by assignments
+    const mockCourses = [
+      { id: 1, name: 'E2E Course', code: 'E2E-101', active: true },
+    ];
     await page.context().route('**/api/courses?**', async (route) => {
-      const body = [
-        { id: 1, name: 'E2E Course', code: 'E2E-101', active: true },
-      ];
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockCourses) });
+    });
+    await page.context().route('**/api/courses', async (route) => {
+      // Only intercept exact match (no trailing path)
+      const url = route.request().url();
+      if (url.endsWith('/api/courses') || url.includes('/api/courses?')) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockCourses) });
+      } else {
+        await route.continue();
+      }
+    });
+    // Mock lecturer assignments endpoint to return course ID 1
+    await page.context().route('**/api/users/*/assignments', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([1]) });
     });
     // Ensure tutor-course association is present for edit modal validation paths
     await page.context().route('**/api/courses/*/tutors', async (route) => {
