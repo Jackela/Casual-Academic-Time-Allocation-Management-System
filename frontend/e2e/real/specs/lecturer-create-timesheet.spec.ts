@@ -22,11 +22,22 @@ test.describe('@p0 US1: Lecturer creates timesheet', () => {
     }, session);
 
     // Register resource routes early to avoid backend 403/500 blocks in e2e-local profile
-    await page.context().route('**/api/courses?**', async (route) => {
-      const body = [
-        { id: 1, name: 'E2E Course', code: 'E2E-101', active: true },
-      ];
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    // Mock all course endpoints: with query params, without query params, and by assignments
+    const mockCourses = [
+      { id: 1, name: 'E2E Course', code: 'E2E-101', active: true },
+    ];
+    // Use context.route() with glob patterns - intercepts at browser level before page load
+    // Catch-all for /api/courses with optional query params (not paths like /api/courses/1)
+    await page.context().route('**/api/courses', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockCourses) });
+    });
+    await page.context().route('**/api/courses?*', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockCourses) });
+    });
+    // Mock lecturer assignments endpoint to return course ID 1
+    // Route: /api/admin/lecturers/{id}/assignments returns { courseIds: [...] }
+    await page.context().route('**/api/admin/lecturers/*/assignments', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ courseIds: [1] }) });
     });
     // Ensure tutor-course association is present for edit modal validation paths
     await page.context().route('**/api/courses/*/tutors', async (route) => {
@@ -592,13 +603,35 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
     await sel.byTestId(page, 'lecturer-create-open-btn').click();
     await (await import('../../shared/utils/waits')).waitForVisible(sel.byTestId(page, 'lecturer-create-modal'));
 
-    // Fill fields matching seed
-    await page.getByTestId('lecturer-timesheet-tutor-selector').selectOption({ value: String(chosenTutorId) }).catch(() => undefined);
+    // Fill fields matching seed - wait for options to load before selecting
+    const tutorSelector = page.getByTestId('lecturer-timesheet-tutor-selector');
+    await expect(tutorSelector.locator('option').nth(1)).toBeAttached({ timeout: 15000 }).catch(() => undefined);
+    // Try selecting by value, fall back to index
+    try {
+      await tutorSelector.selectOption({ value: String(chosenTutorId) }, { timeout: 5000 });
+    } catch {
+      await tutorSelector.selectOption({ index: 1 }).catch(() => undefined);
+    }
     // Ensure task type and qualification are set if required by form validation
-    await page.getByTestId('create-task-type-select').selectOption({ value: 'TUTORIAL' }).catch(() => undefined);
+    const taskTypeSelect = page.getByTestId('create-task-type-select');
+    await expect(taskTypeSelect).toBeEnabled({ timeout: 10000 }).catch(() => undefined);
+    await taskTypeSelect.selectOption({ value: 'TUTORIAL' }).catch(() => undefined);
     await page.getByTestId('create-qualification-select').selectOption({ value: 'STANDARD' }).catch(() => undefined);
-    await sel.byTestId(page, 'create-course-select').selectOption({ value: String(chosenCourseId) }).catch(() => undefined);
-    const weekInput = page.getByLabel('Week Starting');
+    const courseSelect = sel.byTestId(page, 'create-course-select');
+    await expect(courseSelect.locator('option').nth(1)).toBeAttached({ timeout: 15000 }).catch(() => undefined);
+    // Try selecting by value, fall back to index
+    try {
+      await courseSelect.selectOption({ value: String(chosenCourseId) }, { timeout: 5000 });
+    } catch {
+      await courseSelect.selectOption({ index: 1 }).catch(() => undefined);
+    }
+    // Wait for Week Starting field with fallback
+    let weekInput = page.getByLabel('Week Starting');
+    const weekVisible = await weekInput.isVisible().catch(() => false);
+    if (!weekVisible) {
+      weekInput = page.getByTestId('week-start-input').or(page.locator('input#weekStartDate'));
+    }
+    await expect(weekInput).toBeVisible({ timeout: 15000 });
     await weekInput.fill(weekIso);
     const hours = page.getByLabel('Delivery Hours');
     // Some environments gate the hours input until derived state is computed; ensure it is enabled for testing

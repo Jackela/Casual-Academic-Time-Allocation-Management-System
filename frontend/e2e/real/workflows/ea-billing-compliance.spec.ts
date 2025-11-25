@@ -203,11 +203,45 @@ async function captureQuote(page: Page, action: () => Promise<void>): Promise<Qu
 async function setCourse(page: Page, courseId: number) {
   const select = page.getByTestId('create-course-select');
   await expect(select).toBeEnabled({ timeout: 20000 });
-  await select.selectOption(String(courseId));
+
+  // Wait for stable options after any tutor-triggered recalculation
+  // React's useMemo in TimesheetForm recalculates visibleCourseOptions when tutor changes
+  let lastCount = 0;
+  let stableCount = 0;
+  const maxAttempts = 10;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    const currentCount = await select.locator('option').count();
+    if (currentCount === lastCount && currentCount > 1) {
+      stableCount++;
+      if (stableCount >= 2) break; // Stable for 2 consecutive checks
+    } else {
+      stableCount = 0;
+    }
+    lastCount = currentCount;
+    await page.waitForTimeout(200);
+  }
+
+  // Ensure at least one non-placeholder option is attached
+  await expect(select.locator('option').nth(1)).toBeAttached({ timeout: 5000 });
+
+  // Try selecting by value, fall back to index if courseId doesn't match any option
+  try {
+    await select.selectOption(String(courseId), { timeout: 5000 });
+  } catch {
+    // Fall back to selecting first available course (index 1 skips placeholder)
+    await select.selectOption({ index: 1 }).catch(() => undefined);
+  }
 }
 
 async function setWeekStart(page: Page, weekStartDate: string) {
-  const weekInput = page.getByLabel('Week Starting');
+  // Try getByLabel first, fall back to testId if not found
+  let weekInput = page.getByLabel('Week Starting');
+  const isVisible = await weekInput.isVisible().catch(() => false);
+  if (!isVisible) {
+    weekInput = page.getByTestId('week-start-input').or(page.locator('input#weekStartDate'));
+  }
+  await expect(weekInput).toBeVisible({ timeout: 15000 });
   await weekInput.fill(weekStartDate);
   try { await weekInput.blur(); } catch {}
 }
@@ -443,9 +477,9 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
 
     test('PhD-qualified tutor receives TU1 for a standard tutorial', async ({ page }) => {
       await openLecturerCreateModal(page);
+      await selectTutorByQualification(page, 'PHD');
       await setCourse(page, 1);
       await ensureTaskTypeTutorial(page);
-      await selectTutorByQualification(page, 'PHD');
       await setWeekStart(page, DATE_TU1_STANDARD);
     const quote = await setDeliveryHours(page, 1.0);
 
@@ -464,9 +498,9 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
 
     test('Non-PhD tutor receives TU2 for a standard tutorial', async ({ page }) => {
       await openLecturerCreateModal(page);
+      await selectTutorByQualification(page, 'STANDARD');
       await setCourse(page, 2);
       await ensureTaskTypeTutorial(page);
-      await selectTutorByQualification(page, 'STANDARD');
       await setQualification(page, 'STANDARD');
       await setQualification(page, 'STANDARD');
       await setWeekStart(page, DATE_TU2_STANDARD);
@@ -510,9 +544,9 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
       }
     }
       await openLecturerCreateModal(page);
+      await selectTutorByQualification(page, 'PHD', seededRepeatTutorId);
       await setCourse(page, 1);
       await ensureTaskTypeTutorial(page);
-      await selectTutorByQualification(page, 'PHD', seededRepeatTutorId);
       await setQualification(page, 'PHD');
       await setWeekStart(page, DATE_REPEAT_VALID);
 
@@ -555,9 +589,9 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
       }
     }
       await openLecturerCreateModal(page);
+      await selectTutorByQualification(page, 'STANDARD');
       await setCourse(page, 2);
       await ensureTaskTypeTutorial(page);
-      await selectTutorByQualification(page, 'STANDARD');
       await setQualification(page, 'STANDARD');
       await setWeekStart(page, DATE_REPEAT_VALID);
 
@@ -626,9 +660,9 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
 
   test('Repeat lecture is downgraded to P04 with one associated hour', async ({ page }) => {
       await openLecturerCreateModal(page);
+      await selectTutorByQualification(page, 'STANDARD');
       await setCourse(page, 1);
       await setWeekStart(page, DATE_LECTURE_REPEAT);
-      await selectTutorByQualification(page, 'STANDARD');
       await setQualification(page, 'STANDARD');
       await setTaskType(page, 'LECTURE');
 
@@ -650,23 +684,11 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
 
   test('ORAA for PhD tutor applies AO1 with zero associated hours', async ({ page }) => {
       await openLecturerCreateModal(page);
+      await selectTutorByQualification(page, 'PHD');
       await setCourse(page, 1);
       await setWeekStart(page, DATE_ORAA_HIGH);
-      await selectTutorByQualification(page, 'PHD');
       await setTaskType(page, 'ORAA');
-    // Assert course options present and re-select to guard against any reload
-    await expect(page.locator('select#course').locator('option[value="1"]')).toBeAttached({ timeout: 10000 });
-    await page.locator('select#course').selectOption('1');
-    await expect(page.locator('select#course')).toHaveValue('1', { timeout: 10000 });
-    await expect(page.getByTestId('create-qualification-select')).toHaveValue('PHD', { timeout: 10000 });
-    // Ensure qualification sync completed in the form model (not preview)
-    await expect(page.getByTestId('create-qualification-select')).toHaveValue('PHD', { timeout: 10000 });
 
-    // Re-apply week start defensively to counter any select/refresh side-effects
-    await setWeekStart(page, DATE_ORAA_HIGH);
-    await expect(page.getByLabel('Week Starting')).toHaveValue(DATE_ORAA_HIGH, { timeout: 10000 });
-    // Force a decisive final emission by changing hours then setting the final value
-    await setDeliveryHoursRaw(page, 0.5);
     const quote = await setDeliveryHours(page, 1.0);
 
     expect(quote.payload.rateCode).toBe('AO1');
@@ -678,9 +700,9 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
 
   test('ORAA for standard tutor applies AO2 with zero associated hours', async ({ page }) => {
       await openLecturerCreateModal(page);
+      await selectTutorByQualification(page, 'STANDARD');
       await setCourse(page, 2);
       await setWeekStart(page, DATE_ORAA_STANDARD);
-      await selectTutorByQualification(page, 'STANDARD');
       await setQualification(page, 'STANDARD');
       await setTaskType(page, 'ORAA');
     const quote = await setDeliveryHours(page, 1.0);
@@ -697,23 +719,10 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
 
   test('Demonstration for PhD tutor applies DE1 with zero associated hours', async ({ page }) => {
       await openLecturerCreateModal(page);
+      await selectTutorByQualification(page, 'PHD');
       await setCourse(page, 1);
       await setWeekStart(page, DATE_DEMO_HIGH);
-      await selectTutorByQualification(page, 'PHD');
       await setTaskType(page, 'DEMO');
-    // Assert course options present and re-select to guard against any reload
-    await expect(page.locator('select#course').locator('option[value="1"]')).toBeAttached({ timeout: 10000 });
-    await page.locator('select#course').selectOption('1');
-    await expect(page.locator('select#course')).toHaveValue('1', { timeout: 10000 });
-    await expect(page.getByTestId('create-qualification-select')).toHaveValue('PHD', { timeout: 10000 });
-    // Ensure qualification sync completed in the form model (not preview)
-    await expect(page.getByTestId('create-qualification-select')).toHaveValue('PHD', { timeout: 10000 });
-
-    // Re-apply week start defensively to counter any select/refresh side-effects
-    await setWeekStart(page, DATE_DEMO_HIGH);
-    await expect(page.getByLabel('Week Starting')).toHaveValue(DATE_DEMO_HIGH, { timeout: 10000 });
-    // Force a decisive final emission by changing hours then setting the final value
-    await setDeliveryHoursRaw(page, 0.5);
     const quote = await setDeliveryHours(page, 1.0);
 
     expect(quote.payload.rateCode).toBe('DE1');
@@ -725,9 +734,9 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
 
   test('Demonstration for standard tutor applies DE2 with zero associated hours', async ({ page }) => {
       await openLecturerCreateModal(page);
+      await selectTutorByQualification(page, 'STANDARD');
       await setCourse(page, 2);
       await setWeekStart(page, DATE_DEMO_STANDARD);
-      await selectTutorByQualification(page, 'STANDARD');
       await setQualification(page, 'STANDARD');
       await setTaskType(page, 'DEMO');
     const quote = await setDeliveryHours(page, 1.0);

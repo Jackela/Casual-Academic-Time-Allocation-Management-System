@@ -51,6 +51,8 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       // Run the real project with a single worker for stability (avoid page/context closure)
       workers: 1,
+      // Exclude presentation tests - they require separate project config (no storageState)
+      testIgnore: /presentation\/.*\.spec\.ts$/,
     },
     {
       name: 'presentation',

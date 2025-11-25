@@ -71,6 +71,7 @@ export default defineConfig({
     {
       name: 'real',
       testDir: './e2e/real',
+      testIgnore: ['**/presentation/**'],
       retries: process.env.CI ? 2 : 0,
       fullyParallel: false,
       workers: 1,
@@ -90,6 +91,29 @@ export default defineConfig({
         }),
         baseURL: E2E_CONFIG.FRONTEND.URL,
         headless: true,
+      },
+    },
+    {
+      name: 'presentation',
+      testDir: './e2e/real/presentation',
+      retries: 0,
+      fullyParallel: false,
+      workers: 1,
+      timeout: 300_000,
+      use: {
+        // Presentation demos start logged out - no storageState
+        storageState: undefined,
+        baseURL: E2E_CONFIG.FRONTEND.URL,
+        headless: false,
+        slowMo: 2500,
+        // Allow browser window to control viewport so --start-fullscreen uses the host screen size
+        viewport: null,
+        launchOptions: {
+          args: ['--start-fullscreen'],
+        },
+        // Record video for backup/review
+        video: 'retain-on-failure',
+        screenshot: 'only-on-failure',
       },
     },
   ],
