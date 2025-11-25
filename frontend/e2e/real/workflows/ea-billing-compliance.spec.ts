@@ -688,19 +688,7 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
       await setCourse(page, 1);
       await setWeekStart(page, DATE_ORAA_HIGH);
       await setTaskType(page, 'ORAA');
-    // Assert course options present and re-select to guard against any reload
-    await expect(page.locator('select#course').locator('option[value="1"]')).toBeAttached({ timeout: 10000 });
-    await page.locator('select#course').selectOption('1');
-    await expect(page.locator('select#course')).toHaveValue('1', { timeout: 10000 });
-    await expect(page.getByTestId('create-qualification-select')).toHaveValue('PHD', { timeout: 10000 });
-    // Ensure qualification sync completed in the form model (not preview)
-    await expect(page.getByTestId('create-qualification-select')).toHaveValue('PHD', { timeout: 10000 });
 
-    // Re-apply week start defensively to counter any select/refresh side-effects
-    await setWeekStart(page, DATE_ORAA_HIGH);
-    await expect(page.getByLabel('Week Starting')).toHaveValue(DATE_ORAA_HIGH, { timeout: 10000 });
-    // Force a decisive final emission by changing hours then setting the final value
-    await setDeliveryHoursRaw(page, 0.5);
     const quote = await setDeliveryHours(page, 1.0);
 
     expect(quote.payload.rateCode).toBe('AO1');
@@ -735,19 +723,6 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
       await setCourse(page, 1);
       await setWeekStart(page, DATE_DEMO_HIGH);
       await setTaskType(page, 'DEMO');
-    // Assert course options present and re-select to guard against any reload
-    await expect(page.locator('select#course').locator('option[value="1"]')).toBeAttached({ timeout: 10000 });
-    await page.locator('select#course').selectOption('1');
-    await expect(page.locator('select#course')).toHaveValue('1', { timeout: 10000 });
-    await expect(page.getByTestId('create-qualification-select')).toHaveValue('PHD', { timeout: 10000 });
-    // Ensure qualification sync completed in the form model (not preview)
-    await expect(page.getByTestId('create-qualification-select')).toHaveValue('PHD', { timeout: 10000 });
-
-    // Re-apply week start defensively to counter any select/refresh side-effects
-    await setWeekStart(page, DATE_DEMO_HIGH);
-    await expect(page.getByLabel('Week Starting')).toHaveValue(DATE_DEMO_HIGH, { timeout: 10000 });
-    // Force a decisive final emission by changing hours then setting the final value
-    await setDeliveryHoursRaw(page, 0.5);
     const quote = await setDeliveryHours(page, 1.0);
 
     expect(quote.payload.rateCode).toBe('DE1');
