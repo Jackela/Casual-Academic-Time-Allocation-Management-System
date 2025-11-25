@@ -35,8 +35,9 @@ test.describe('@p0 US1: Lecturer creates timesheet', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockCourses) });
     });
     // Mock lecturer assignments endpoint to return course ID 1
-    await page.context().route('**/api/users/*/assignments', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([1]) });
+    // Route: /api/admin/lecturers/{id}/assignments returns { courseIds: [...] }
+    await page.context().route('**/api/admin/lecturers/*/assignments', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ courseIds: [1] }) });
     });
     // Ensure tutor-course association is present for edit modal validation paths
     await page.context().route('**/api/courses/*/tutors', async (route) => {
