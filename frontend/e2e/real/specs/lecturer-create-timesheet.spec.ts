@@ -526,6 +526,16 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
       } catch {}
     }, session);
     // Route minimal resources to stabilize selectors
+    // Mock lecturer assignments endpoint - returns courseIds for lecturer
+    await page.context().route('**/api/admin/lecturers/*/assignments', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ courseIds: [1] }) });
+    });
+    // Mock all courses (no query params) for lecturer assignments lookup
+    await page.context().route('**/api/courses', async (route) => {
+      const url = route.request().url();
+      if (url.includes('?')) { await route.continue(); return; }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 1, name: 'E2E Course', code: 'E2E-101', active: true }]) });
+    });
     await page.context().route('**/api/courses?**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 1, name: 'E2E Course', code: 'E2E-101', active: true }]) });
     });
@@ -534,6 +544,14 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
         { id: 3, email: 'tutor3@example.com', name: 'Tutor Three', role: 'TUTOR', isActive: true, qualification: 'STANDARD', courseIds: [1] },
         { id: 4, email: 'tutor4@example.com', name: 'Tutor Four', role: 'TUTOR', isActive: true, qualification: 'STANDARD', courseIds: [1] },
       ]) });
+    });
+    // Mock course tutors assignment endpoint
+    await page.context().route('**/api/courses/*/tutors', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tutorIds: [3, 4] }) });
+    });
+    // Mock bulk assignments endpoint
+    await page.context().route('**/api/admin/courses/assignments/bulk**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ '1': [3, 4] }) });
     });
     await page.context().route('**/api/timesheets/quote', async (route) => {
       const req = route.request().postDataJSON?.() ?? {} as any;

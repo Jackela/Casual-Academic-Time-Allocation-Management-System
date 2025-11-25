@@ -401,12 +401,15 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
     test.beforeEach(async ({ page, request }) => {
       dataFactory = await createTestDataFactory(request);
       await signInAsRole(page, 'lecturer');
-      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-      const { waitForAppReady } = await import('../../shared/utils/waits');
-      await waitForAppReady(page, 'LECTURER', 20000);
-      // whoami warm-up once before any protected fetches
-      await waitForAuthAndWhoamiOk(page).catch(() => undefined);
-      // Provide deterministic resource lists to unblock create modal in e2e-local
+
+      // IMPORTANT: Set up route handlers BEFORE navigation so mocks are active for initial requests
+      // Mock lecturer assignments endpoint - returns courseIds for lecturer
+      await page.context().route('**/api/admin/lecturers/*/assignments', async (route) => {
+        try {
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ courseIds: [1, 2] }) });
+        } catch { await route.abort(); }
+      });
+      // Mock courses list
       await page.context().route('**/api/courses?**', async (route) => {
         try {
           const body = [
@@ -416,6 +419,23 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
           await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
         } catch { await route.abort(); }
       });
+      // Mock all courses (for filtering by lecturer assignments)
+      await page.context().route('**/api/courses', async (route) => {
+        // Only intercept exact /api/courses without query params
+        const url = route.request().url();
+        if (url.includes('?')) {
+          await route.continue();
+          return;
+        }
+        try {
+          const body = [
+            { id: 1, name: 'Course 1', code: 'C-1', active: true },
+            { id: 2, name: 'Course 2', code: 'C-2', active: true },
+          ];
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+        } catch { await route.abort(); }
+      });
+      // Mock users/tutors list
       await page.context().route('**/api/users?**', async (route) => {
         try {
           const tutors = [
@@ -426,14 +446,28 @@ test.describe('EA Billing Compliance – Tutorial rates', () => {
           await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tutors) });
         } catch { await route.abort(); }
       });
+      // Mock course tutors assignment endpoint
       await page.context().route('**/api/courses/*/tutors', async (route) => {
         try {
-          const url = route.request().url();
           // Default to returning all tutors for the selected course id
           const tutorIds = [3,4,5];
           await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tutorIds }) });
         } catch { await route.abort(); }
       });
+      // Mock bulk assignments endpoint
+      await page.context().route('**/api/admin/courses/assignments/bulk**', async (route) => {
+        try {
+          // Return assignment map: courseId -> tutorIds
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ '1': [3,4,5], '2': [3,4,5] }) });
+        } catch { await route.abort(); }
+      });
+
+      // NOW navigate after routes are set up
+      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+      const { waitForAppReady } = await import('../../shared/utils/waits');
+      await waitForAppReady(page, 'LECTURER', 20000);
+      // whoami warm-up once before any protected fetches
+      await waitForAuthAndWhoamiOk(page).catch(() => undefined);
     });
 
   test.afterEach(async ({ page }) => {
