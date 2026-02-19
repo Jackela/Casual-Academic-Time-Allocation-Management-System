@@ -216,7 +216,7 @@
         "Tests pass: ./gradlew test"
       ],
       "priority": 14,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/main/java/com/usyd/catams/application/user/UserApplicationService.java"],
       "verificationCommand": "./gradlew test"
     },

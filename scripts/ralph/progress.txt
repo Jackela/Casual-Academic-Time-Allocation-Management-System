@@ -22,6 +22,20 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - No changes needed - implementation already meets acceptance criteria
 ---
 
+## [2026-02-20] - US-014
+- Added Objects.requireNonNull() for critical parameters in UserApplicationService.java
+- Changes made:
+  - Constructor: Added null checks for userRepository and courseRepository
+  - mapToDto(): Added null check for user parameter
+- Added Javadoc for constructor and mapToDto method
+- Files changed: src/main/java/com/usyd/catams/application/user/UserApplicationService.java
+- Typecheck passes: ./gradlew compileJava
+- Tests pass: ./gradlew test --tests '*UserApplicationServiceTest*'
+- **Learnings for future iterations:**
+  - Codebase uses Objects.requireNonNull() for runtime null checks (not @NonNull annotations)
+  - jakarta.validation.constraints.NotNull is used for Bean Validation on entities
+  - Pattern: requireNonNull with descriptive message for fail-fast behavior
+---
 ## [2026-02-20] - US-013
 - Added null safety to UserApplicationService.java
 - Replaced .equals() calls with Objects.equals() for null-safe comparisons
