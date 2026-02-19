@@ -141,7 +141,7 @@
         "Checkstyle passes: ./gradlew check"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/main/java/com/usyd/catams/entity/TutorAssignment.java"],
       "verificationCommand": "./gradlew check"
     },

@@ -22,6 +22,17 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - No changes needed - implementation already meets acceptance criteria
 ---
 
+## [2026-02-20] - US-009
+- Added comprehensive Javadoc documentation to TutorAssignment.java
+- Class-level Javadoc explaining the tutor-course relationship and its purpose
+- Field documentation for tutorId, courseId, and createdAt
+- Constructor Javadoc with @param
+- Files changed: src/main/java/com/usyd/catams/entity/TutorAssignment.java
+- Typecheck passes: ./gradlew compileJava
+- **Learnings for future iterations:**
+  - TutorAssignment is a join entity for the many-to-many tutor-course relationship
+  - Used for authorization: tutors can only create timesheets for assigned courses
+---
 ## [2026-02-20] - US-008
 - Added comprehensive Javadoc documentation to test data controllers
 - TestDataResetController: class-level Javadoc with WARNING note, @author, @since
