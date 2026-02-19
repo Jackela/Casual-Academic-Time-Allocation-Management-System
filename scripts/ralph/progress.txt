@@ -22,6 +22,18 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - No changes needed - implementation already meets acceptance criteria
 ---
 
+## [2026-02-20] - US-012
+- Added comprehensive Javadoc documentation to TutorProfileDefaults.java
+- Class-level Javadoc explaining the purpose of default profile settings
+- Field documentation for tutorId and defaultQualification
+- Constructor Javadoc with @param
+- Files changed: src/main/java/com/usyd/catams/entity/TutorProfileDefaults.java
+- Typecheck passes: ./gradlew compileJava
+- **Learnings for future iterations:**
+  - TutorProfileDefaults uses tutorId as both primary key and foreign key
+  - One-to-one relationship with User (tutor) entity
+  - Stores user preferences for pre-populating timesheet forms
+---
 ## [2026-02-20] - US-011
 - Enhanced Javadoc documentation in Approval.java
 - Class-level Javadoc was already comprehensive - added @author, @since, @see tags
