@@ -29,7 +29,7 @@
         "Typecheck passes: ./gradlew compileJava"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/main/java/com/usyd/catams/entity/Course.java"],
       "verificationCommand": "./gradlew compileJava"
     },
@@ -45,7 +45,7 @@
         "Typecheck passes: ./gradlew compileJava"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/main/java/com/usyd/catams/entity/Approval.java"],
       "verificationCommand": "./gradlew compileJava"
     },
@@ -61,7 +61,7 @@
         "Typecheck passes: ./gradlew compileJava"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/main/java/com/usyd/catams/entity/TutorAssignment.java"],
       "verificationCommand": "./gradlew compileJava"
     },
@@ -77,7 +77,7 @@
         "Typecheck passes: ./gradlew compileJava"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/main/java/com/usyd/catams/entity/LecturerAssignment.java"],
       "verificationCommand": "./gradlew compileJava"
     },

@@ -21,3 +21,28 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - equals/hashCode pattern: id-based with null-id fallback to identity hash
   - No changes needed - implementation already meets acceptance criteria
 ---
+
+## [2026-02-20] - US-003 through US-005
+- Verified that Approval.java, TutorAssignment.java, and LecturerAssignment.java all already have proper equals() and hashCode() methods implemented
+- All entities follow the codebase pattern: id-based equality with null-id fallback to identity hash
+- Typecheck passes: ./gradlew compileJava
+- Files verified:
+  - src/main/java/com/usyd/catams/entity/Approval.java
+  - src/main/java/com/usyd/catams/entity/TutorAssignment.java
+  - src/main/java/com/usyd/catams/entity/LecturerAssignment.java
+- **Learnings for future iterations:**
+  - All entity classes already have equals/hashCode implemented correctly
+  - US-001 through US-005 were already completed in a previous sprint (see commit 2ee38c0)
+  - The PRD was outdated - these stories should have been marked as passing
+---
+
+## [2026-02-20] - US-002
+- Verified that Course.java already has proper equals() and hashCode() methods implemented
+- Methods use Objects.equals() for null-safe id comparison
+- hashCode uses Objects.hash() for persisted entities and System.identityHashCode for new entities
+- Typecheck passes: ./gradlew compileJava
+- Files verified: src/main/java/com/usyd/catams/entity/Course.java
+- **Learnings for future iterations:**
+  - Course entity already follows the codebase pattern documented in progress.txt
+  - No changes needed - implementation already meets acceptance criteria
+---
