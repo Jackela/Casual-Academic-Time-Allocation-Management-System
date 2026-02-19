@@ -171,7 +171,7 @@
         "Checkstyle passes: ./gradlew check"
       ],
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/main/java/com/usyd/catams/entity/Approval.java"],
       "verificationCommand": "./gradlew check"
     },

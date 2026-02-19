@@ -9,13 +9,28 @@ import java.util.Objects;
 
 /**
  * Approval entity representing approval actions performed on timesheets.
- * 
- * This entity tracks the complete audit trail of all approval actions
+ *
+ * <p>This entity tracks the complete audit trail of all approval actions
  * performed on timesheets, including submissions, approvals, rejections,
- * and modification requests.
- * 
- * Each record represents a single approval action at a point in time,
- * providing complete traceability of the approval workflow.
+ * and modification requests.</p>
+ *
+ * <p>Each record represents a single approval action at a point in time,
+ * providing complete traceability of the approval workflow. The approval
+ * workflow follows a state machine pattern with defined status transitions:</p>
+ *
+ * <ul>
+ *   <li>DRAFT → PENDING_TUTOR_CONFIRMATION (submit for approval)</li>
+ *   <li>PENDING_TUTOR_CONFIRMATION → TUTOR_CONFIRMED (tutor confirms)</li>
+ *   <li>TUTOR_CONFIRMED → LECTURER_CONFIRMED (lecturer confirms)</li>
+ *   <li>LECTURER_CONFIRMED → FINAL_CONFIRMED (HR confirms)</li>
+ *   <li>Various states → DRAFT (request modification or reject)</li>
+ * </ul>
+ *
+ * @author CAS Team
+ * @since 1.0
+ * @see Timesheet
+ * @see ApprovalAction
+ * @see ApprovalStatus
  */
 @Entity
 @Table(name = "approvals", 

@@ -22,6 +22,18 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - No changes needed - implementation already meets acceptance criteria
 ---
 
+## [2026-02-20] - US-011
+- Enhanced Javadoc documentation in Approval.java
+- Class-level Javadoc was already comprehensive - added @author, @since, @see tags
+- Added detailed description of the approval workflow state machine
+- Field and method documentation was already present
+- Files changed: src/main/java/com/usyd/catams/entity/Approval.java
+- Typecheck passes: ./gradlew compileJava
+- **Learnings for future iterations:**
+  - Approval entity already had good Javadoc - only needed standard tags
+  - The approval workflow follows a state machine with defined transitions
+  - Status transitions validated via ApprovalStateMachineHolder
+---
 ## [2026-02-20] - US-010
 - Added comprehensive Javadoc documentation to LecturerAssignment.java
 - Class-level Javadoc explaining the lecturer-course relationship and its purpose
