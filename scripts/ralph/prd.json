@@ -123,7 +123,7 @@
         "Checkstyle passes: ./gradlew check"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "filesToModify": [
         "src/main/java/com/usyd/catams/controller/TestDataResetController.java",
         "src/main/java/com/usyd/catams/controller/TestDataSeedController.java"

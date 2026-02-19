@@ -22,6 +22,22 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - No changes needed - implementation already meets acceptance criteria
 ---
 
+## [2026-02-20] - US-008
+- Added comprehensive Javadoc documentation to test data controllers
+- TestDataResetController: class-level Javadoc with WARNING note, @author, @since
+  - Added Javadoc to constructor and both methods (resetTestData, cleanupDemoUsers)
+- TestDataSeedController: class-level Javadoc with WARNING note, @author, @since
+  - Added Javadoc to constructor, record types, and all methods
+  - Methods: seedLecturerResources, getAccounts, updateCourseOwnership
+- Files changed:
+  - src/main/java/com/usyd/catams/controller/TestDataResetController.java
+  - src/main/java/com/usyd/catams/controller/TestDataSeedController.java
+- Typecheck passes: ./gradlew compileJava
+- **Learnings for future iterations:**
+  - Test controllers use @Profile annotation to restrict activation
+  - Both controllers require X-Test-Reset-Token header for authorization
+  - TestDataSeedController uses record types for request bodies
+---
 ## [2026-02-20] - US-007
 - Added comprehensive Javadoc documentation to CourseUsersController.java
 - Class-level Javadoc with @author, @since, and description
