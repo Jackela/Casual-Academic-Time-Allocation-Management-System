@@ -22,6 +22,19 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - No changes needed - implementation already meets acceptance criteria
 ---
 
+## [2026-02-20] - US-013
+- Added null safety to UserApplicationService.java
+- Replaced .equals() calls with Objects.equals() for null-safe comparisons
+- Changes made:
+  - Line 127: userId.equals(course.getLecturerId()) → Objects.equals(userId, course.getLecturerId())
+  - Line 244: user.getId().equals(resourceId) → Objects.equals(user.getId(), resourceId)
+- Files changed: src/main/java/com/usyd/catams/application/user/UserApplicationService.java
+- Typecheck passes: ./gradlew compileJava
+- Tests pass: ./gradlew test --tests '*UserApplicationServiceTest*'
+- **Learnings for future iterations:**
+  - Use Objects.equals() for any comparison where either operand could be null
+  - The service already had null checks for method parameters but needed them for internal comparisons
+---
 ## [2026-02-20] - US-012
 - Added comprehensive Javadoc documentation to TutorProfileDefaults.java
 - Class-level Javadoc explaining the purpose of default profile settings

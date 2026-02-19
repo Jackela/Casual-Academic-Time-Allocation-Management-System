@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -124,7 +125,7 @@ public class UserApplicationService implements UserManagementService {
         }
         
         return courseRepository.findById(courseId)
-            .map(course -> userId.equals(course.getLecturerId()))
+            .map(course -> Objects.equals(userId, course.getLecturerId()))
             .orElse(false);
     }
     
@@ -241,7 +242,7 @@ public class UserApplicationService implements UserManagementService {
         
         return switch (resourceType) {
             case "TIMESHEET" -> checkTimesheetActionPermission(user, action, resourceId);
-            case "USER" -> user.getRole() == UserRole.ADMIN || user.getId().equals(resourceId);
+            case "USER" -> user.getRole() == UserRole.ADMIN || Objects.equals(user.getId(), resourceId);
             case "COURSE" -> user.getRole() == UserRole.LECTURER && isLecturerOfCourse(user.getId(), resourceId);
             default -> false;
         };
