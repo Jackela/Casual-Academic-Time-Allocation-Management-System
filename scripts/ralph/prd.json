@@ -18,7 +18,7 @@
         "Tests pass: ./gradlew test"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "dependsOn": [],
       "filesToModify": [
         "src/main/java/com/usyd/catams/entity/Timesheet.java",
