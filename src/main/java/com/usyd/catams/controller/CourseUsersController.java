@@ -18,7 +18,18 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Course-related user endpoints used for API-alignment E2E tests.
+ * REST controller for course-related user endpoints.
+ *
+ * <p>This controller provides endpoints for retrieving user information
+ * associated with courses, such as tutor assignments. It is primarily used
+ * for API-alignment E2E tests and course management functionality.</p>
+ *
+ * <p>Authorization is enforced at both the method level (via {@code @PreAuthorize})
+ * and through additional runtime checks to ensure users can only access
+ * data for courses they are assigned to.</p>
+ *
+ * @author CAS Team
+ * @since 1.0
  */
 @RestController
 @RequestMapping("/api/courses")
@@ -32,6 +43,15 @@ public class CourseUsersController {
     private final Environment environment; // may be null in some contexts
     private final AuthenticationFacade authenticationFacade;
 
+    /**
+     * Constructs a new CourseUsersController with required dependencies.
+     *
+     * @param tutorAssignmentRepository repository for tutor assignment data
+     * @param lecturerAssignmentRepository repository for lecturer assignment data
+     * @param authenticationFacade facade for accessing authentication context
+     * @param e2eState optional E2E assignment state for deterministic testing
+     * @param environment optional Spring environment for profile checks
+     */
     public CourseUsersController(TutorAssignmentRepository tutorAssignmentRepository,
                                  LecturerAssignmentRepository lecturerAssignmentRepository,
                                  AuthenticationFacade authenticationFacade,
@@ -44,6 +64,18 @@ public class CourseUsersController {
         this.authenticationFacade = authenticationFacade;
     }
 
+    /**
+     * Lists all tutor IDs assigned to a specific course.
+     *
+     * <p>This endpoint returns the list of tutor user IDs who are assigned
+     * to the specified course. Access is restricted to ADMIN and LECTURER roles,
+     * with additional verification that lecturers are assigned to the course.</p>
+     *
+     * @param courseId the ID of the course to retrieve tutors for
+     * @param request the HTTP servlet request for authorization header access
+     * @return ResponseEntity containing a map with "tutorIds" key and list of tutor IDs,
+     *         or 401 if unauthorized, or 403 if forbidden
+     */
     @PreAuthorize("hasRole('ADMIN') or hasRole('LECTURER')")
     @GetMapping("/{courseId}/tutors")
     public ResponseEntity<Map<String, List<Long>>> listTutorIdsForCourse(@PathVariable("courseId") Long courseId, HttpServletRequest request) {

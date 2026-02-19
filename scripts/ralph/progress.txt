@@ -22,6 +22,17 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - No changes needed - implementation already meets acceptance criteria
 ---
 
+## [2026-02-20] - US-007
+- Added comprehensive Javadoc documentation to CourseUsersController.java
+- Class-level Javadoc with @author, @since, and description
+- Constructor Javadoc with @param for all dependencies
+- Method-level Javadoc with @param and @return for listTutorIdsForCourse()
+- Files changed: src/main/java/com/usyd/catams/controller/CourseUsersController.java
+- Typecheck passes: ./gradlew compileJava
+- **Learnings for future iterations:**
+  - Controller handles both E2E state and repository lookups
+  - Authorization checks are done at multiple levels (annotation + runtime)
+---
 ## [2026-02-20] - US-006
 - Added comprehensive Javadoc documentation to TimesheetsConfigController.java
 - Class-level Javadoc with @author, @since, and description

@@ -107,7 +107,7 @@
         "Checkstyle passes: ./gradlew check"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/main/java/com/usyd/catams/controller/CourseUsersController.java"],
       "verificationCommand": "./gradlew check"
     },
