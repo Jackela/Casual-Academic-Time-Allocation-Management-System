@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -649,6 +650,25 @@ public class Timesheet {
         approvals.clear();
     }
     
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Timesheet timesheet = (Timesheet) o;
+        // If both have IDs, compare by ID; otherwise use identity
+        if (this.id != null && timesheet.id != null) {
+            return Objects.equals(this.id, timesheet.id);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        // If entity is new (no ID), use identity-based hash (System.identityHashCode)
+        // This ensures consistency: equal objects have same hash
+        return id != null ? Objects.hash(id) : System.identityHashCode(this);
+    }
+
     @Override
     public String toString() {
         return "Timesheet{" +

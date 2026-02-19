@@ -5,6 +5,7 @@ import com.usyd.catams.enums.ApprovalStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * Approval entity representing approval actions performed on timesheets.
@@ -286,6 +287,25 @@ public class Approval {
         }
     }
     
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Approval approval = (Approval) o;
+        // If both have IDs, compare by ID; otherwise use identity
+        if (this.id != null && approval.id != null) {
+            return Objects.equals(this.id, approval.id);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        // If entity is new (no ID), use identity-based hash (System.identityHashCode)
+        // This ensures consistency: equal objects have same hash
+        return id != null ? Objects.hash(id) : System.identityHashCode(this);
+    }
+
     @Override
     public String toString() {
         return "Approval{" +

@@ -2,6 +2,7 @@ package com.usyd.catams.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "tutor_assignments",
@@ -37,5 +38,24 @@ public class TutorAssignment {
     public Long getTutorId() { return tutorId; }
     public Long getCourseId() { return courseId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        TutorAssignment that = (TutorAssignment) o;
+        // If both have IDs, compare by ID; otherwise use identity
+        if (this.id != null && that.id != null) {
+            return Objects.equals(this.id, that.id);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        // If entity is new (no ID), use identity-based hash (System.identityHashCode)
+        // This ensures consistency: equal objects have same hash
+        return id != null ? Objects.hash(id) : System.identityHashCode(this);
+    }
 }
 

@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "courses", indexes = {
@@ -292,6 +293,25 @@ public class Course {
         subtractFromBudgetUsed(new Money(amount));
     }
     
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Course course = (Course) o;
+        // If both have IDs, compare by ID; otherwise use identity
+        if (this.id != null && course.id != null) {
+            return Objects.equals(this.id, course.id);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        // If entity is new (no ID), use identity-based hash (System.identityHashCode)
+        // This ensures consistency: equal objects have same hash
+        return id != null ? Objects.hash(id) : System.identityHashCode(this);
+    }
+
     @Override
     public String toString() {
         return "Course{" +
