@@ -24,3 +24,20 @@ Started: Thu Feb 19 14:54:14 CST 2026
   - Pattern: Import java.util.Objects for null-safe equals/hash utilities
   - Note: DashboardControllerTest.shouldBuildCurrentSemesterDateRangeByDefault() is a flaky test due to hardcoded 2025 dates - not related to entity changes
 ---
+
+## Thu Feb 19 20:45:00 CST 2026 - US-CQ-006
+- Verified that hardcoded strings are already externalized to enums/constants:
+  - ApprovalStatus enum exists with all status values (DRAFT, PENDING_TUTOR_CONFIRMATION, TUTOR_CONFIRMED, LECTURER_CONFIRMED, FINAL_CONFIRMED, REJECTED, MODIFICATION_REQUESTED)
+  - TimesheetRepository uses ApprovalStatus enum throughout - no string literals for status
+  - JwtAuthenticationFilter has PUBLIC_PATHS as private static final Set<String> and AUTHORIZATION_HEADER constant
+  - DefaultTimesheetPermissionPolicy uses UserRole enum and ApprovalStatus enum - no magic strings
+- Files verified (no changes needed):
+  - src/main/java/com/usyd/catams/repository/TimesheetRepository.java
+  - src/main/java/com/usyd/catams/security/JwtAuthenticationFilter.java
+  - src/main/java/com/usyd/catams/policy/impl/DefaultTimesheetPermissionPolicy.java
+- **Learnings for future iterations:**
+  - Pattern: Use enums (ApprovalStatus, UserRole) for all status/role values instead of string literals
+  - Pattern: Path constants should be grouped in Set<String> for cleaner membership checks
+  - Note: The PRD file path for JwtAuthenticationFilter was incorrect (config/ vs security/) - actual location is security/
+  - Note: DashboardControllerTest.shouldBuildCurrentSemesterDateRangeByDefault() flaky test persists (hardcoded 2025 dates)
+---

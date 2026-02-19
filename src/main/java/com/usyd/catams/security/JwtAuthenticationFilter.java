@@ -18,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * JWT Authentication Filter
@@ -30,9 +31,20 @@ import java.util.Optional;
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
     private static final String AUTHORIZATION_HEADER = "Authorization";
+
+    /**
+     * Public paths that do not require JWT authentication.
+     * These endpoints are accessible without authentication for login, health checks, and test data reset.
+     */
+    private static final Set<String> PUBLIC_PATHS = Set.of(
+        "/api/auth/login",
+        "/auth/login",
+        "/api/test-data/reset",
+        "/actuator/health"
+    );
     
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
@@ -110,13 +122,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
-        
+
         // Skip JWT filter for public endpoints
-        return path.equals("/api/auth/login") ||
-               path.equals("/auth/login") ||
-               path.equals("/api/test-data/reset") ||
-               path.equals("/actuator/health") ||
-               path.startsWith("/actuator/health/");
+        return PUBLIC_PATHS.contains(path) || path.startsWith("/actuator/health/");
     }
 }
 

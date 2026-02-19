@@ -43,7 +43,7 @@
         "Tests pass: ./gradlew test"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": [],
       "filesToModify": [
         "src/main/java/com/usyd/catams/repository/TimesheetRepository.java",
