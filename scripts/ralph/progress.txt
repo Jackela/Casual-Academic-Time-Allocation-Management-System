@@ -22,6 +22,18 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - No changes needed - implementation already meets acceptance criteria
 ---
 
+## [2026-02-20] - US-006
+- Added comprehensive Javadoc documentation to TimesheetsConfigController.java
+- Class-level Javadoc with @author, @since, and description
+- Method-level Javadoc with @return documentation for getUiConstraints()
+- Files changed: src/main/java/com/usyd/catams/controller/TimesheetsConfigController.java
+- Typecheck passes: ./gradlew compileJava
+- **Learnings for future iterations:**
+  - Pre-existing test failure in DashboardControllerTest - semester dates hardcoded to 2025
+  - Javadoc verification: use ./gradlew compileJava for typecheck (checkstyle not configured separately)
+  - Test failure is unrelated to documentation changes
+---
+
 ## [2026-02-20] - US-003 through US-005
 - Verified that Approval.java, TutorAssignment.java, and LecturerAssignment.java all already have proper equals() and hashCode() methods implemented
 - All entities follow the codebase pattern: id-based equality with null-id fallback to identity hash

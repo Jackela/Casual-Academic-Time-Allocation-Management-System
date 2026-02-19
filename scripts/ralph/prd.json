@@ -92,7 +92,7 @@
         "Checkstyle passes: ./gradlew check"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/main/java/com/usyd/catams/controller/TimesheetsConfigController.java"],
       "verificationCommand": "./gradlew check"
     },
