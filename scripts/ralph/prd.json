@@ -2,285 +2,474 @@
   "branchName": "ralph/quality-improvement-sprint-2",
   "stories": [
     {
-      "id": "US-CQ-005",
-      "title": "Add equals/hashCode to entity classes",
-      "description": "As a developer, I want proper equals() and hashCode() methods on entity classes so that equality semantics are consistent and collections work correctly.",
+      "id": "US-001",
+      "title": "Add equals/hashCode to Timesheet entity",
+      "description": "Add proper equals() and hashCode() methods to Timesheet.java using id field with null-safety.",
       "acceptanceCriteria": [
-        "Timesheet.java has equals() and hashCode() using id field",
-        "Course.java has equals() and hashCode() using id field",
-        "Approval.java has equals() and hashCode() using id field",
-        "TutorAssignment.java has equals() and hashCode() using id field",
-        "LecturerAssignment.java has equals() and hashCode() using id field",
-        "All methods have @Override annotation",
-        "Handle null id (new entities) by checking identity",
-        "Use Objects.equals() and Objects.hash() for null-safety",
-        "Typecheck passes",
-        "Tests pass: ./gradlew test"
+        "Timesheet.java has equals() using Objects.equals() for id comparison",
+        "Timesheet.java has hashCode() using Objects.hash() for id",
+        "Handle null id by returning false in equals",
+        "@Override annotation present on both methods",
+        "Typecheck passes: ./gradlew compileJava"
       ],
       "priority": 1,
       "passes": true,
-      "dependsOn": [],
-      "filesToModify": [
-        "src/main/java/com/usyd/catams/entity/Timesheet.java",
-        "src/main/java/com/usyd/catams/entity/Course.java",
-        "src/main/java/com/usyd/catams/entity/Approval.java",
-        "src/main/java/com/usyd/catams/entity/TutorAssignment.java",
-        "src/main/java/com/usyd/catams/entity/LecturerAssignment.java"
-      ],
-      "verificationCommand": "./gradlew test",
-      "rollback": "git checkout src/main/java/com/usyd/catams/entity/"
+      "filesToModify": ["src/main/java/com/usyd/catams/entity/Timesheet.java"],
+      "verificationCommand": "./gradlew compileJava"
     },
     {
-      "id": "US-CQ-006",
-      "title": "Externalize hardcoded strings to constants",
-      "description": "As a developer, I want hardcoded strings externalized so that magic strings are eliminated and typos are caught at compile time.",
+      "id": "US-002",
+      "title": "Add equals/hashCode to Course entity",
+      "description": "Add proper equals() and hashCode() methods to Course.java using id field with null-safety.",
       "acceptanceCriteria": [
-        "Create TimesheetStatus enum for status strings (DRAFT, SUBMITTED, APPROVED, REJECTED)",
-        "TimesheetRepository uses enum/constants instead of string literals",
-        "JwtAuthenticationFilter path strings moved to private static final Set<String> PUBLIC_PATHS",
-        "DefaultTimesheetPermissionPolicy has no magic strings",
-        "Typecheck passes",
-        "Tests pass: ./gradlew test"
+        "Course.java has equals() using Objects.equals() for id comparison",
+        "Course.java has hashCode() using Objects.hash() for id",
+        "Handle null id by returning false in equals",
+        "@Override annotation present on both methods",
+        "Typecheck passes: ./gradlew compileJava"
       ],
       "priority": 2,
-      "passes": true,
-      "dependsOn": [],
-      "filesToModify": [
-        "src/main/java/com/usyd/catams/repository/TimesheetRepository.java",
-        "src/main/java/com/usyd/catams/config/JwtAuthenticationFilter.java",
-        "src/main/java/com/usyd/catams/domain/policy/DefaultTimesheetPermissionPolicy.java"
-      ],
-      "verificationCommand": "./gradlew test",
-      "rollback": "git checkout src/main/java/com/usyd/catams/repository/TimesheetRepository.java src/main/java/com/usyd/catams/config/JwtAuthenticationFilter.java src/main/java/com/usyd/catams/domain/policy/DefaultTimesheetPermissionPolicy.java"
+      "passes": false,
+      "filesToModify": ["src/main/java/com/usyd/catams/entity/Course.java"],
+      "verificationCommand": "./gradlew compileJava"
     },
     {
-      "id": "US-CQ-007",
-      "title": "Add null safety checks to UserApplicationService",
-      "description": "As a developer, I want null safety checks added so that NullPointerException risks are minimized and errors are caught early.",
+      "id": "US-003",
+      "title": "Add equals/hashCode to Approval entity",
+      "description": "Add proper equals() and hashCode() methods to Approval.java using id field with null-safety.",
       "acceptanceCriteria": [
-        "Add null checks before .equals() calls using Objects.equals() or explicit null check",
-        "Use Objects.requireNonNull() for critical parameters in method entry points",
-        "Add @NonNull annotations on parameters where appropriate",
-        "Consistent null handling patterns throughout",
-        "Typecheck passes",
-        "Tests pass: ./gradlew test"
+        "Approval.java has equals() using Objects.equals() for id comparison",
+        "Approval.java has hashCode() using Objects.hash() for id",
+        "Handle null id by returning false in equals",
+        "@Override annotation present on both methods",
+        "Typecheck passes: ./gradlew compileJava"
       ],
       "priority": 3,
       "passes": false,
-      "dependsOn": [],
-      "filesToModify": [
-        "src/main/java/com/usyd/catams/application/user/UserApplicationService.java"
-      ],
-      "verificationCommand": "./gradlew test",
-      "rollback": "git checkout src/main/java/com/usyd/catams/application/user/UserApplicationService.java"
+      "filesToModify": ["src/main/java/com/usyd/catams/entity/Approval.java"],
+      "verificationCommand": "./gradlew compileJava"
     },
     {
-      "id": "US-CQ-008",
-      "title": "Add @Transactional(readOnly=true) to read methods",
-      "description": "As a developer, I want read-only service methods annotated so that database connection efficiency is improved and intent is clear.",
+      "id": "US-004",
+      "title": "Add equals/hashCode to TutorAssignment entity",
+      "description": "Add proper equals() and hashCode() methods to TutorAssignment.java using id field with null-safety.",
       "acceptanceCriteria": [
-        "Audit all service classes in src/main/java/com/usyd/catams/service/impl/",
-        "Add @Transactional(readOnly=true) to methods that only read data",
-        "Do NOT add to methods that modify data (create, update, delete)",
-        "Document which services were updated",
-        "Typecheck passes",
-        "Tests pass: ./gradlew test"
+        "TutorAssignment.java has equals() using Objects.equals() for id comparison",
+        "TutorAssignment.java has hashCode() using Objects.hash() for id",
+        "Handle null id by returning false in equals",
+        "@Override annotation present on both methods",
+        "Typecheck passes: ./gradlew compileJava"
       ],
       "priority": 4,
       "passes": false,
-      "dependsOn": [],
-      "filesToModify": [
-        "src/main/java/com/usyd/catams/service/impl/"
-      ],
-      "verificationCommand": "./gradlew test",
-      "rollback": "git checkout src/main/java/com/usyd/catams/service/impl/"
+      "filesToModify": ["src/main/java/com/usyd/catams/entity/TutorAssignment.java"],
+      "verificationCommand": "./gradlew compileJava"
     },
     {
-      "id": "US-CQ-009",
-      "title": "Add Javadoc to remaining controllers",
-      "description": "As a developer, I want comprehensive Javadoc on remaining controllers so that API behavior is fully documented.",
+      "id": "US-005",
+      "title": "Add equals/hashCode to LecturerAssignment entity",
+      "description": "Add proper equals() and hashCode() methods to LecturerAssignment.java using id field with null-safety.",
       "acceptanceCriteria": [
-        "TimesheetsConfigController.java has class-level Javadoc with @author, @since",
-        "TimesheetsConfigController.java has method-level Javadoc with @param, @return",
-        "CourseUsersController.java has class-level Javadoc with @author, @since",
-        "CourseUsersController.java has method-level Javadoc with @param, @return",
-        "TestDataResetController.java has class-level Javadoc noting it's for testing only",
-        "TestDataSeedController.java has class-level Javadoc noting it's for testing only",
-        "Typecheck passes",
-        "Checkstyle passes: ./gradlew check"
+        "LecturerAssignment.java has equals() using Objects.equals() for id comparison",
+        "LecturerAssignment.java has hashCode() using Objects.hash() for id",
+        "Handle null id by returning false in equals",
+        "@Override annotation present on both methods",
+        "Typecheck passes: ./gradlew compileJava"
       ],
       "priority": 5,
       "passes": false,
-      "dependsOn": [],
-      "filesToModify": [
-        "src/main/java/com/usyd/catams/controller/TimesheetsConfigController.java",
-        "src/main/java/com/usyd/catams/controller/CourseUsersController.java",
-        "src/main/java/com/usyd/catams/controller/TestDataResetController.java",
-        "src/main/java/com/usyd/catams/controller/TestDataSeedController.java"
-      ],
-      "verificationCommand": "./gradlew check",
-      "rollback": "git checkout src/main/java/com/usyd/catams/controller/TimesheetsConfigController.java src/main/java/com/usyd/catams/controller/CourseUsersController.java src/main/java/com/usyd/catams/controller/TestDataResetController.java src/main/java/com/usyd/catams/controller/TestDataSeedController.java"
+      "filesToModify": ["src/main/java/com/usyd/catams/entity/LecturerAssignment.java"],
+      "verificationCommand": "./gradlew compileJava"
     },
     {
-      "id": "US-CQ-010",
-      "title": "Add Javadoc to entity classes",
-      "description": "As a developer, I want Javadoc on entity classes so that entity purpose and relationships are documented.",
+      "id": "US-006",
+      "title": "Add Javadoc to TimesheetsConfigController",
+      "description": "Add comprehensive Javadoc documentation to TimesheetsConfigController.java.",
       "acceptanceCriteria": [
-        "TutorAssignment.java has class-level Javadoc explaining the tutor-course relationship",
-        "TutorProfileDefaults.java has class-level Javadoc explaining default settings",
-        "Approval.java has class-level Javadoc explaining the approval workflow entity",
-        "LecturerAssignment.java has class-level Javadoc explaining lecturer-course relationship",
-        "Field documentation for @ManyToOne and @OneToMany relationships",
-        "Typecheck passes",
+        "Class-level Javadoc with @author, @since, and description",
+        "Method-level Javadoc with @param, @return for all public methods",
+        "Typecheck passes: ./gradlew compileJava",
         "Checkstyle passes: ./gradlew check"
       ],
       "priority": 6,
       "passes": false,
-      "dependsOn": [],
-      "filesToModify": [
-        "src/main/java/com/usyd/catams/entity/TutorAssignment.java",
-        "src/main/java/com/usyd/catams/entity/TutorProfileDefaults.java",
-        "src/main/java/com/usyd/catams/entity/Approval.java",
-        "src/main/java/com/usyd/catams/entity/LecturerAssignment.java"
-      ],
-      "verificationCommand": "./gradlew check",
-      "rollback": "git checkout src/main/java/com/usyd/catams/entity/TutorAssignment.java src/main/java/com/usyd/catams/entity/TutorProfileDefaults.java src/main/java/com/usyd/catams/entity/Approval.java src/main/java/com/usyd/catams/entity/LecturerAssignment.java"
+      "filesToModify": ["src/main/java/com/usyd/catams/controller/TimesheetsConfigController.java"],
+      "verificationCommand": "./gradlew check"
     },
     {
-      "id": "US-TEST-003",
-      "title": "Add unit tests for ApprovalApplicationService",
-      "description": "As a QA engineer, I want unit tests for ApprovalApplicationService so that approval workflow logic is verified in isolation.",
+      "id": "US-007",
+      "title": "Add Javadoc to CourseUsersController",
+      "description": "Add comprehensive Javadoc documentation to CourseUsersController.java.",
       "acceptanceCriteria": [
-        "Create src/test/java/com/usyd/catams/application/ApprovalApplicationServiceTest.java",
-        "Test approve workflow (lecturer confirm, HR confirm)",
-        "Test reject workflow",
-        "Test request modification workflow",
-        "Test state transitions (DRAFT -> SUBMITTED -> APPROVED/REJECTED)",
-        "Test error scenarios (invalid state transitions, unauthorized access)",
-        "Use Mockito to mock dependencies",
-        "Typecheck passes",
-        "Tests pass: ./gradlew test --tests '*ApprovalApplicationServiceTest'"
+        "Class-level Javadoc with @author, @since, and description",
+        "Method-level Javadoc with @param, @return for all public methods",
+        "Typecheck passes: ./gradlew compileJava",
+        "Checkstyle passes: ./gradlew check"
       ],
       "priority": 7,
       "passes": false,
-      "dependsOn": [],
-      "filesToModify": [
-        "src/test/java/com/usyd/catams/application/ApprovalApplicationServiceTest.java"
-      ],
-      "verificationCommand": "./gradlew test --tests '*ApprovalApplicationServiceTest'",
-      "rollback": "rm src/test/java/com/usyd/catams/application/ApprovalApplicationServiceTest.java"
+      "filesToModify": ["src/main/java/com/usyd/catams/controller/CourseUsersController.java"],
+      "verificationCommand": "./gradlew check"
     },
     {
-      "id": "US-TEST-004",
-      "title": "Add unit tests for TimesheetApplicationService",
-      "description": "As a QA engineer, I want unit tests for TimesheetApplicationService so that timesheet business logic is verified in isolation.",
+      "id": "US-008",
+      "title": "Add Javadoc to test data controllers",
+      "description": "Add Javadoc documentation to TestDataResetController and TestDataSeedController noting they are for testing only.",
       "acceptanceCriteria": [
-        "Create src/test/java/com/usyd/catams/application/TimesheetApplicationServiceTest.java",
-        "Test CRUD operations (create, read, update, delete)",
-        "Test Schedule 1 calculation integration (verify calculator is called)",
-        "Test permission enforcement (user can only modify own timesheets)",
-        "Test validation errors (invalid hours, invalid status)",
-        "Use Mockito to mock dependencies",
-        "Typecheck passes",
-        "Tests pass: ./gradlew test --tests '*TimesheetApplicationServiceTest'"
+        "TestDataResetController has class-level Javadoc noting testing-only purpose",
+        "TestDataSeedController has class-level Javadoc noting testing-only purpose",
+        "@author and @since annotations present",
+        "Typecheck passes: ./gradlew compileJava",
+        "Checkstyle passes: ./gradlew check"
       ],
       "priority": 8,
       "passes": false,
-      "dependsOn": [],
       "filesToModify": [
-        "src/test/java/com/usyd/catams/application/TimesheetApplicationServiceTest.java"
+        "src/main/java/com/usyd/catams/controller/TestDataResetController.java",
+        "src/main/java/com/usyd/catams/controller/TestDataSeedController.java"
       ],
-      "verificationCommand": "./gradlew test --tests '*TimesheetApplicationServiceTest'",
-      "rollback": "rm src/test/java/com/usyd/catams/application/TimesheetApplicationServiceTest.java"
+      "verificationCommand": "./gradlew check"
     },
     {
-      "id": "US-TEST-006",
-      "title": "Extend GlobalExceptionHandlerTest coverage",
-      "description": "As a QA engineer, I want comprehensive tests for GlobalExceptionHandler so that all exception types are verified.",
+      "id": "US-009",
+      "title": "Add Javadoc to TutorAssignment entity",
+      "description": "Add Javadoc documentation explaining the tutor-course relationship in TutorAssignment.java.",
       "acceptanceCriteria": [
-        "Add test for ResourceNotFoundException -> 404 NOT_FOUND",
-        "Add test for BusinessRuleException -> 400 BAD_REQUEST",
-        "Add test for AuthorizationException -> 403 FORBIDDEN",
-        "Add test for RateLimitExceededException -> 429 TOO_MANY_REQUESTS",
-        "Verify all responses use RFC-7807 ProblemDetail format",
-        "Verify traceId and timestamp are present in all responses",
-        "Typecheck passes",
-        "Tests pass: ./gradlew test --tests '*GlobalExceptionHandlerTest'"
+        "Class-level Javadoc explaining entity purpose",
+        "Field documentation for @ManyToOne and @OneToMany relationships",
+        "Typecheck passes: ./gradlew compileJava",
+        "Checkstyle passes: ./gradlew check"
       ],
       "priority": 9,
       "passes": false,
-      "dependsOn": [],
-      "filesToModify": [
-        "src/test/java/com/usyd/catams/exception/GlobalExceptionHandlerTest.java"
-      ],
-      "verificationCommand": "./gradlew test --tests '*GlobalExceptionHandlerTest'",
-      "rollback": "git checkout src/test/java/com/usyd/catams/exception/GlobalExceptionHandlerTest.java"
+      "filesToModify": ["src/main/java/com/usyd/catams/entity/TutorAssignment.java"],
+      "verificationCommand": "./gradlew check"
     },
     {
-      "id": "US-TEST-007",
-      "title": "Refactor Thread.sleep() to Clock injection",
-      "description": "As a QA engineer, I want deterministic time-dependent tests so that tests pass consistently and quickly.",
+      "id": "US-010",
+      "title": "Add Javadoc to LecturerAssignment entity",
+      "description": "Add Javadoc documentation explaining the lecturer-course relationship in LecturerAssignment.java.",
       "acceptanceCriteria": [
-        "TimesheetRepositoryTest.java uses Clock.fixed() instead of Thread.sleep()",
-        "UserTest.java uses Clock.fixed() instead of Thread.sleep()",
-        "Use clock.instant().plusSeconds(n) to advance time instead of sleeping",
-        "Tests are deterministic and fast (no actual waiting)",
-        "Typecheck passes",
-        "Tests pass: ./gradlew test --tests '*TimesheetRepositoryTest' --tests '*UserTest'"
+        "Class-level Javadoc explaining entity purpose",
+        "Field documentation for @ManyToOne and @OneToMany relationships",
+        "Typecheck passes: ./gradlew compileJava",
+        "Checkstyle passes: ./gradlew check"
       ],
       "priority": 10,
       "passes": false,
-      "dependsOn": [],
-      "filesToModify": [
-        "src/test/java/com/usyd/catams/repository/TimesheetRepositoryTest.java",
-        "src/test/java/com/usyd/catams/entity/UserTest.java"
-      ],
-      "verificationCommand": "./gradlew test --tests '*TimesheetRepositoryTest' --tests '*UserTest'",
-      "rollback": "git checkout src/test/java/com/usyd/catams/repository/TimesheetRepositoryTest.java src/test/java/com/usyd/catams/entity/UserTest.java"
+      "filesToModify": ["src/main/java/com/usyd/catams/entity/LecturerAssignment.java"],
+      "verificationCommand": "./gradlew check"
     },
     {
-      "id": "US-DOC-004",
-      "title": "Create CONTRIBUTING.md",
-      "description": "As a new contributor, I want clear contribution guidelines so that I can follow project standards.",
+      "id": "US-011",
+      "title": "Add Javadoc to Approval entity",
+      "description": "Add Javadoc documentation explaining the approval workflow entity in Approval.java.",
       "acceptanceCriteria": [
-        "Create CONTRIBUTING.md at project root",
-        "Include code style guidelines (Java conventions, formatting)",
-        "Include PR submission process (branch naming, commit messages)",
-        "Include testing requirements (unit tests, integration tests)",
-        "Include development setup instructions",
-        "Link to existing documentation (README.md, development-guide.md)",
-        "File exists and is comprehensive"
+        "Class-level Javadoc explaining approval workflow",
+        "Field documentation for status transitions",
+        "Typecheck passes: ./gradlew compileJava",
+        "Checkstyle passes: ./gradlew check"
       ],
       "priority": 11,
       "passes": false,
-      "dependsOn": [],
-      "filesToModify": [
-        "CONTRIBUTING.md"
-      ],
-      "verificationCommand": "ls CONTRIBUTING.md && cat CONTRIBUTING.md | grep -q 'Code Style' && cat CONTRIBUTING.md | grep -q 'Pull Request'",
-      "rollback": "rm CONTRIBUTING.md"
+      "filesToModify": ["src/main/java/com/usyd/catams/entity/Approval.java"],
+      "verificationCommand": "./gradlew check"
     },
     {
-      "id": "US-DOC-005",
-      "title": "Add @DisplayName to tests missing them",
-      "description": "As a developer, I want descriptive @DisplayName annotations on tests so that test reports are readable in CI/CD.",
+      "id": "US-012",
+      "title": "Add Javadoc to TutorProfileDefaults entity",
+      "description": "Add Javadoc documentation explaining default settings in TutorProfileDefaults.java.",
       "acceptanceCriteria": [
-        "Scan all test files in src/test/java/com/usyd/catams/",
-        "Add @DisplayName to test methods that only use method names",
-        "Display names should be human-readable sentences describing the test",
-        "Focus on recently modified or high-value test files first",
-        "Do not change tests that already have good @DisplayName",
-        "Typecheck passes",
-        "Tests pass: ./gradlew test"
+        "Class-level Javadoc explaining default settings purpose",
+        "Field documentation for each default value",
+        "Typecheck passes: ./gradlew compileJava",
+        "Checkstyle passes: ./gradlew check"
       ],
       "priority": 12,
       "passes": false,
-      "dependsOn": [],
-      "filesToModify": [
-        "src/test/java/com/usyd/catams/"
+      "filesToModify": ["src/main/java/com/usyd/catams/entity/TutorProfileDefaults.java"],
+      "verificationCommand": "./gradlew check"
+    },
+    {
+      "id": "US-013",
+      "title": "Add null safety to UserApplicationService - null checks",
+      "description": "Add null checks before .equals() calls using Objects.equals() or explicit null checks in UserApplicationService.",
+      "acceptanceCriteria": [
+        "All .equals() calls protected with null checks",
+        "Use Objects.equals() for null-safe comparisons",
+        "Typecheck passes: ./gradlew compileJava",
+        "Tests pass: ./gradlew test"
       ],
-      "verificationCommand": "./gradlew test",
-      "rollback": "git checkout src/test/java/com/usyd/catams/"
+      "priority": 13,
+      "passes": false,
+      "filesToModify": ["src/main/java/com/usyd/catams/application/user/UserApplicationService.java"],
+      "verificationCommand": "./gradlew test"
+    },
+    {
+      "id": "US-014",
+      "title": "Add null safety to UserApplicationService - @NonNull annotations",
+      "description": "Add @NonNull annotations on critical parameters in UserApplicationService method entry points.",
+      "acceptanceCriteria": [
+        "Add @NonNull annotations on parameters that must not be null",
+        "Use Objects.requireNonNull() for critical parameters",
+        "Typecheck passes: ./gradlew compileJava",
+        "Tests pass: ./gradlew test"
+      ],
+      "priority": 14,
+      "passes": false,
+      "filesToModify": ["src/main/java/com/usyd/catams/application/user/UserApplicationService.java"],
+      "verificationCommand": "./gradlew test"
+    },
+    {
+      "id": "US-015",
+      "title": "Add @Transactional(readOnly=true) to CourseServiceImpl",
+      "description": "Add @Transactional(readOnly=true) annotation to read-only methods in CourseServiceImpl.",
+      "acceptanceCriteria": [
+        "Identify all read-only methods in CourseServiceImpl",
+        "Add @Transactional(readOnly=true) to read methods only",
+        "Do NOT annotate create, update, delete methods",
+        "Typecheck passes: ./gradlew compileJava",
+        "Tests pass: ./gradlew test"
+      ],
+      "priority": 15,
+      "passes": false,
+      "filesToModify": ["src/main/java/com/usyd/catams/service/impl/CourseServiceImpl.java"],
+      "verificationCommand": "./gradlew test"
+    },
+    {
+      "id": "US-016",
+      "title": "Add @Transactional(readOnly=true) to UserServiceImpl",
+      "description": "Add @Transactional(readOnly=true) annotation to read-only methods in UserServiceImpl.",
+      "acceptanceCriteria": [
+        "Identify all read-only methods in UserServiceImpl",
+        "Add @Transactional(readOnly=true) to read methods only",
+        "Do NOT annotate create, update, delete methods",
+        "Typecheck passes: ./gradlew compileJava",
+        "Tests pass: ./gradlew test"
+      ],
+      "priority": 16,
+      "passes": false,
+      "filesToModify": ["src/main/java/com/usyd/catams/service/impl/UserServiceImpl.java"],
+      "verificationCommand": "./gradlew test"
+    },
+    {
+      "id": "US-017",
+      "title": "Add @Transactional(readOnly=true) to TimesheetServiceImpl",
+      "description": "Add @Transactional(readOnly=true) annotation to read-only methods in TimesheetServiceImpl.",
+      "acceptanceCriteria": [
+        "Identify all read-only methods in TimesheetServiceImpl",
+        "Add @Transactional(readOnly=true) to read methods only",
+        "Do NOT annotate create, update, delete methods",
+        "Typecheck passes: ./gradlew compileJava",
+        "Tests pass: ./gradlew test"
+      ],
+      "priority": 17,
+      "passes": false,
+      "filesToModify": ["src/main/java/com/usyd/catams/service/impl/TimesheetServiceImpl.java"],
+      "verificationCommand": "./gradlew test"
+    },
+    {
+      "id": "US-018",
+      "title": "Create ApprovalApplicationServiceTest - basic setup",
+      "description": "Create the test class with Mockito setup and basic test structure for ApprovalApplicationService.",
+      "acceptanceCriteria": [
+        "Create src/test/java/com/usyd/catams/application/ApprovalApplicationServiceTest.java",
+        "Setup @ExtendWith(MockitoExtension.class)",
+        "Mock all dependencies (repositories, services)",
+        "Setup @InjectMocks for ApprovalApplicationService",
+        "Typecheck passes: ./gradlew compileTestJava"
+      ],
+      "priority": 18,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/application/ApprovalApplicationServiceTest.java"],
+      "verificationCommand": "./gradlew compileTestJava"
+    },
+    {
+      "id": "US-019",
+      "title": "Add approval workflow tests to ApprovalApplicationServiceTest",
+      "description": "Add tests for approve, reject, and request modification workflows.",
+      "acceptanceCriteria": [
+        "Test approve workflow (lecturer confirm, HR confirm)",
+        "Test reject workflow",
+        "Test request modification workflow",
+        "Use Mockito verify() to check interactions",
+        "Tests pass: ./gradlew test --tests '*ApprovalApplicationServiceTest'"
+      ],
+      "priority": 19,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/application/ApprovalApplicationServiceTest.java"],
+      "verificationCommand": "./gradlew test --tests '*ApprovalApplicationServiceTest'"
+    },
+    {
+      "id": "US-020",
+      "title": "Add error scenario tests to ApprovalApplicationServiceTest",
+      "description": "Add tests for error scenarios: invalid state transitions, unauthorized access.",
+      "acceptanceCriteria": [
+        "Test invalid state transitions throw appropriate exceptions",
+        "Test unauthorized access throws AuthorizationException",
+        "Verify error messages are meaningful",
+        "Tests pass: ./gradlew test --tests '*ApprovalApplicationServiceTest'"
+      ],
+      "priority": 20,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/application/ApprovalApplicationServiceTest.java"],
+      "verificationCommand": "./gradlew test --tests '*ApprovalApplicationServiceTest'"
+    },
+    {
+      "id": "US-021",
+      "title": "Create TimesheetApplicationServiceTest - basic setup",
+      "description": "Create the test class with Mockito setup and basic test structure for TimesheetApplicationService.",
+      "acceptanceCriteria": [
+        "Create src/test/java/com/usyd/catams/application/TimesheetApplicationServiceTest.java",
+        "Setup @ExtendWith(MockitoExtension.class)",
+        "Mock all dependencies",
+        "Setup @InjectMocks for TimesheetApplicationService",
+        "Typecheck passes: ./gradlew compileTestJava"
+      ],
+      "priority": 21,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/application/TimesheetApplicationServiceTest.java"],
+      "verificationCommand": "./gradlew compileTestJava"
+    },
+    {
+      "id": "US-022",
+      "title": "Add CRUD tests to TimesheetApplicationServiceTest",
+      "description": "Add tests for create, read, update, delete operations.",
+      "acceptanceCriteria": [
+        "Test create timesheet",
+        "Test read timesheet by ID",
+        "Test update timesheet",
+        "Test delete timesheet",
+        "Tests pass: ./gradlew test --tests '*TimesheetApplicationServiceTest'"
+      ],
+      "priority": 22,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/application/TimesheetApplicationServiceTest.java"],
+      "verificationCommand": "./gradlew test --tests '*TimesheetApplicationServiceTest'"
+    },
+    {
+      "id": "US-023",
+      "title": "Add permission and validation tests to TimesheetApplicationServiceTest",
+      "description": "Add tests for permission enforcement and validation errors.",
+      "acceptanceCriteria": [
+        "Test user can only modify own timesheets",
+        "Test validation errors for invalid hours",
+        "Test validation errors for invalid status",
+        "Tests pass: ./gradlew test --tests '*TimesheetApplicationServiceTest'"
+      ],
+      "priority": 23,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/application/TimesheetApplicationServiceTest.java"],
+      "verificationCommand": "./gradlew test --tests '*TimesheetApplicationServiceTest'"
+    },
+    {
+      "id": "US-024",
+      "title": "Add exception tests to GlobalExceptionHandlerTest",
+      "description": "Add tests for ResourceNotFoundException, BusinessRuleException, AuthorizationException in GlobalExceptionHandlerTest.",
+      "acceptanceCriteria": [
+        "Test ResourceNotFoundException -> 404 NOT_FOUND",
+        "Test BusinessRuleException -> 400 BAD_REQUEST",
+        "Test AuthorizationException -> 403 FORBIDDEN",
+        "Verify RFC-7807 ProblemDetail format",
+        "Tests pass: ./gradlew test --tests '*GlobalExceptionHandlerTest'"
+      ],
+      "priority": 24,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/exception/GlobalExceptionHandlerTest.java"],
+      "verificationCommand": "./gradlew test --tests '*GlobalExceptionHandlerTest'"
+    },
+    {
+      "id": "US-025",
+      "title": "Add RateLimitExceededException test to GlobalExceptionHandlerTest",
+      "description": "Add test for RateLimitExceededException -> 429 TOO_MANY_REQUESTS with ProblemDetail verification.",
+      "acceptanceCriteria": [
+        "Test RateLimitExceededException -> 429 TOO_MANY_REQUESTS",
+        "Verify traceId and timestamp in response",
+        "Verify RFC-7807 ProblemDetail format",
+        "Tests pass: ./gradlew test --tests '*GlobalExceptionHandlerTest'"
+      ],
+      "priority": 25,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/exception/GlobalExceptionHandlerTest.java"],
+      "verificationCommand": "./gradlew test --tests '*GlobalExceptionHandlerTest'"
+    },
+    {
+      "id": "US-026",
+      "title": "Refactor Thread.sleep in TimesheetRepositoryTest",
+      "description": "Replace Thread.sleep() with Clock.fixed() in TimesheetRepositoryTest for deterministic testing.",
+      "acceptanceCriteria": [
+        "Remove all Thread.sleep() calls",
+        "Use Clock.fixed() for time control",
+        "Use clock.instant().plusSeconds() to advance time",
+        "Tests are fast and deterministic",
+        "Tests pass: ./gradlew test --tests '*TimesheetRepositoryTest'"
+      ],
+      "priority": 26,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/repository/TimesheetRepositoryTest.java"],
+      "verificationCommand": "./gradlew test --tests '*TimesheetRepositoryTest'"
+    },
+    {
+      "id": "US-027",
+      "title": "Refactor Thread.sleep in UserTest",
+      "description": "Replace Thread.sleep() with Clock.fixed() in UserTest for deterministic testing.",
+      "acceptanceCriteria": [
+        "Remove all Thread.sleep() calls",
+        "Use Clock.fixed() for time control",
+        "Tests are fast and deterministic",
+        "Tests pass: ./gradlew test --tests '*UserTest'"
+      ],
+      "priority": 27,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/entity/UserTest.java"],
+      "verificationCommand": "./gradlew test --tests '*UserTest'"
+    },
+    {
+      "id": "US-028",
+      "title": "Create CONTRIBUTING.md",
+      "description": "Create CONTRIBUTING.md with code style, PR process, and testing requirements.",
+      "acceptanceCriteria": [
+        "Create CONTRIBUTING.md at project root",
+        "Include code style guidelines",
+        "Include PR submission process",
+        "Include testing requirements",
+        "Include development setup instructions",
+        "File exists and contains required sections"
+      ],
+      "priority": 28,
+      "passes": false,
+      "filesToModify": ["CONTRIBUTING.md"],
+      "verificationCommand": "test -f CONTRIBUTING.md"
+    },
+    {
+      "id": "US-029",
+      "title": "Add @DisplayName to entity tests",
+      "description": "Add @DisplayName annotations to test methods in entity test classes.",
+      "acceptanceCriteria": [
+        "Scan src/test/java/com/usyd/catams/entity/ for tests",
+        "Add human-readable @DisplayName to test methods",
+        "Do not change existing good @DisplayName",
+        "Tests pass: ./gradlew test"
+      ],
+      "priority": 29,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/entity/"],
+      "verificationCommand": "./gradlew test"
+    },
+    {
+      "id": "US-030",
+      "title": "Add @DisplayName to repository tests",
+      "description": "Add @DisplayName annotations to test methods in repository test classes.",
+      "acceptanceCriteria": [
+        "Scan src/test/java/com/usyd/catams/repository/ for tests",
+        "Add human-readable @DisplayName to test methods",
+        "Do not change existing good @DisplayName",
+        "Tests pass: ./gradlew test"
+      ],
+      "priority": 30,
+      "passes": false,
+      "filesToModify": ["src/test/java/com/usyd/catams/repository/"],
+      "verificationCommand": "./gradlew test"
     }
   ]
 }

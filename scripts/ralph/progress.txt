@@ -1,43 +1,23 @@
 # Ralph Progress Log
-Started: Thu Feb 19 14:54:14 CST 2026
+Started: Wed Feb 19 21:00:00 CST 2026
 
 ## Codebase Patterns
 - Entity equality: Use id-based equality with null-id fallback to identity (System.identityHashCode)
 - All entities use `Objects.equals()` and `Objects.hash()` for null-safety in equals/hashCode
 - New entities (no ID) are never equal to each other - equality only works after persistence
+- Pattern: Use enums (ApprovalStatus, UserRole) for all status/role values instead of string literals
+- Pattern: Path constants should be grouped in Set<String> for cleaner membership checks
 
 ---
 
-## Thu Feb 19 15:07:00 CST 2026 - US-CQ-005
-- Added equals() and hashCode() methods to 5 entity classes:
-  - Timesheet.java
-  - Course.java
-  - Approval.java
-  - TutorAssignment.java
-  - LecturerAssignment.java
-- Implementation pattern: compare by ID if both have IDs, otherwise return false (identity-based)
-- hashCode uses System.identityHashCode for new entities to maintain consistency
-- Files changed: 5 entity files in src/main/java/com/usyd/catams/entity/
+## [2026-02-20] - US-001
+- Verified that Timesheet.java already has proper equals() and hashCode() methods implemented
+- Methods use Objects.equals() for null-safe id comparison
+- hashCode uses Objects.hash() for persisted entities and System.identityHashCode for new entities
+- Typecheck passes: ./gradlew compileJava
+- Files verified: src/main/java/com/usyd/catams/entity/Timesheet.java
 - **Learnings for future iterations:**
-  - Pattern: Entity equality uses id field only, not business fields
-  - Pattern: Handle null id by using identity hash code for new entities
-  - Pattern: Import java.util.Objects for null-safe equals/hash utilities
-  - Note: DashboardControllerTest.shouldBuildCurrentSemesterDateRangeByDefault() is a flaky test due to hardcoded 2025 dates - not related to entity changes
----
-
-## Thu Feb 19 20:45:00 CST 2026 - US-CQ-006
-- Verified that hardcoded strings are already externalized to enums/constants:
-  - ApprovalStatus enum exists with all status values (DRAFT, PENDING_TUTOR_CONFIRMATION, TUTOR_CONFIRMED, LECTURER_CONFIRMED, FINAL_CONFIRMED, REJECTED, MODIFICATION_REQUESTED)
-  - TimesheetRepository uses ApprovalStatus enum throughout - no string literals for status
-  - JwtAuthenticationFilter has PUBLIC_PATHS as private static final Set<String> and AUTHORIZATION_HEADER constant
-  - DefaultTimesheetPermissionPolicy uses UserRole enum and ApprovalStatus enum - no magic strings
-- Files verified (no changes needed):
-  - src/main/java/com/usyd/catams/repository/TimesheetRepository.java
-  - src/main/java/com/usyd/catams/security/JwtAuthenticationFilter.java
-  - src/main/java/com/usyd/catams/policy/impl/DefaultTimesheetPermissionPolicy.java
-- **Learnings for future iterations:**
-  - Pattern: Use enums (ApprovalStatus, UserRole) for all status/role values instead of string literals
-  - Pattern: Path constants should be grouped in Set<String> for cleaner membership checks
-  - Note: The PRD file path for JwtAuthenticationFilter was incorrect (config/ vs security/) - actual location is security/
-  - Note: DashboardControllerTest.shouldBuildCurrentSemesterDateRangeByDefault() flaky test persists (hardcoded 2025 dates)
+  - Entity already follows the codebase pattern documented in progress.txt
+  - equals/hashCode pattern: id-based with null-id fallback to identity hash
+  - No changes needed - implementation already meets acceptance criteria
 ---
