@@ -22,6 +22,18 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - No changes needed - implementation already meets acceptance criteria
 ---
 
+## [2026-02-20] - US-010
+- Added comprehensive Javadoc documentation to LecturerAssignment.java
+- Class-level Javadoc explaining the lecturer-course relationship and its purpose
+- Field documentation for lecturerId and courseId
+- Constructor Javadoc with @param
+- Files changed: src/main/java/com/usyd/catams/entity/LecturerAssignment.java
+- Typecheck passes: ./gradlew compileJava
+- **Learnings for future iterations:**
+  - LecturerAssignment is a join entity for the many-to-many lecturer-course relationship
+  - Used for authorization: lecturers can only approve timesheets for assigned courses
+  - Also tracks course ownership for budget and reporting purposes
+---
 ## [2026-02-20] - US-009
 - Added comprehensive Javadoc documentation to TutorAssignment.java
 - Class-level Javadoc explaining the tutor-course relationship and its purpose
