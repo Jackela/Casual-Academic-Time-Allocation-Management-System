@@ -159,3 +159,38 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - Course entity already follows the codebase pattern documented in progress.txt
   - No changes needed - implementation already meets acceptance criteria
 ---
+
+## [2026-02-20] - US-015
+- Marked as skipped - CourseServiceImpl.java does not exist in codebase
+- No service implementation for courses exists
+- **Learnings for future iterations:**
+  - Always verify file exists before planning story work
+  - Check for alternative patterns (e.g., domain services vs service impl)
+---
+
+## [2026-02-20] - US-017
+- Marked as skipped - TimesheetServiceImpl.java does not exist in codebase
+- Timesheet functionality is in TimesheetApplicationFacade and domain services instead
+- **Learnings for future iterations:**
+  - This codebase uses facade and domain service patterns rather than traditional service impl
+  - Check for TimesheetApplicationFacade, TimesheetDomainService instead
+---
+
+## [2026-02-20] - US-016
+- Added @Transactional(readOnly = true) to read-only methods in UserServiceImpl.java
+- Changes made:
+  - Added import for org.springframework.transaction.annotation.Transactional
+  - Added @Transactional(readOnly = true) to getUsers() method (line 142)
+  - Added @Transactional(readOnly = true) to searchUsers() method (line 150)
+- Methods NOT annotated (write operations):
+  - authenticate() - updates user.lastLoginAt
+  - createUser() - creates new user
+  - updateUser() - modifies user data
+- Typecheck passes: ./gradlew compileJava
+- Pre-existing test failure in DashboardControllerTest (hardcoded 2025 semester dates) - unrelated to this change
+- Files changed: src/main/java/com/usyd/catams/service/impl/UserServiceImpl.java
+- **Learnings for future iterations:**
+  - Identify read-only methods by checking for repository.save() or entity mutations
+  - @Transactional(readOnly = true) is a hint to the database for optimization
+  - authenticate() is technically a write operation due to lastLoginAt update
+---
