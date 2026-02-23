@@ -259,3 +259,20 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - Use any(BigDecimal.class) for BigDecimal comparisons to avoid scale mismatch issues
   - TutorQualification enum values: PHD, COORDINATOR, STANDARD
 ---
+
+## [2026-02-23] - US-024
+- Added comprehensive exception tests to GlobalExceptionHandlerTest.java
+- Added 17 new tests across 3 nested test classes:
+  - ResourceNotFoundExceptionTests (5 tests): 404 NOT_FOUND, error code, message, RFC-7807 format, Content-Type
+  - BusinessRuleExceptionTests (6 tests): 400 BAD_REQUEST, error code, default error code, message, RFC-7807 format, Content-Type
+  - AuthorizationExceptionTests (6 tests): 403 FORBIDDEN, error code, default error code, message, RFC-7807 format, Content-Type
+- Refactored existing test to use shared setup (@BeforeEach, constants)
+- All 18 tests pass: ./gradlew test --tests '*GlobalExceptionHandlerTest'
+- Files changed: src/test/java/com/usyd/catams/exception/GlobalExceptionHandlerTest.java
+- **Learnings for future iterations:**
+  - GlobalExceptionHandler uses RFC-7807 ProblemDetail format with CATAMS-specific extensions (traceId, timestamp, path, success)
+  - Error type URIs follow pattern: urn:catams:error:{error_code_lowercase}
+  - Content-Type is application/problem+json for all error responses
+  - Each exception type has custom error code extraction via getErrorCode() method
+  - Default error codes used when exception constructed without specific code
+---

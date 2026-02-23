@@ -23,6 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -112,10 +113,12 @@ class TimesheetRepositoryTest {
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Older work", lecturer.getId());
         Timesheet newer = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(1),
                 new BigDecimal("3.0"), new BigDecimal("25.00"), "Newer work", lecturer.getId());
-        
+
         entityManager.persistAndFlush(older);
-        // Ensure createdAt timestamps differ for DESC ordering determinism
-        try { Thread.sleep(5); } catch (InterruptedException e) { }
+        // Use deterministic timestamps instead of Thread.sleep
+        older.setCreatedAt(LocalDateTime.of(2024, 3, 1, 10, 0, 0));
+        entityManager.persistAndFlush(older);
+
         Timesheet draft = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(2),
                 new BigDecimal("2.0"), new BigDecimal("25.00"), "Draft work", lecturer.getId());
         Timesheet pending = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(3),
@@ -462,14 +465,19 @@ class TimesheetRepositoryTest {
         Timesheet older = new Timesheet(tutor.getId(), course.getId(), weekStartDate,
                 new BigDecimal("5.0"), new BigDecimal("25.00"), "Older pending", lecturer.getId());
         older.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
-        
+
         Timesheet newer = new Timesheet(tutor.getId(), course.getId(), weekStartDate.plusWeeks(1),
                 new BigDecimal("3.0"), new BigDecimal("25.00"), "Newer pending", lecturer.getId());
-        newer.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);        
+        newer.setStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+
         entityManager.persistAndFlush(older);
-        entityManager.flush();
-        // Small delay to ensure different creation times
-        try { Thread.sleep(10); } catch (InterruptedException e) { }
+        // Use deterministic timestamps instead of Thread.sleep
+        older.setCreatedAt(LocalDateTime.of(2024, 3, 1, 10, 0, 0));
+        entityManager.persistAndFlush(older);
+
+        entityManager.persistAndFlush(newer);
+        // Use deterministic timestamps instead of Thread.sleep
+        newer.setCreatedAt(LocalDateTime.of(2024, 3, 1, 10, 0, 1));
         entityManager.persistAndFlush(newer);
 
         // When
