@@ -299,3 +299,19 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - @PrePersist sets createdAt automatically, but can be overridden after persist
   - Using LocalDateTime.of() is simpler than Clock.fixed() for timestamp-based ordering tests
 ---
+
+## [2026-02-23] - US-027
+- Refactored UserTest.java to remove all Thread.sleep() calls
+- Replaced 6 Thread.sleep() calls with deterministic timestamp approach:
+  - testUserLifecycleManagement: 2 Thread.sleep removed
+  - testLoginTracking: 1 Thread.sleep removed
+  - testTimestampBehavior: 3 Thread.sleep removed
+- New approach uses setUpdatedAt() and setLastLoginAt() with LocalDateTime.of()
+- Tests are now fast and deterministic
+- All tests pass: ./gradlew test --tests '*UserTest'
+- Files changed: src/test/java/com/usyd/catams/entity/UserTest.java
+- **Learnings for future iterations:**
+  - User entity has setUpdatedAt() and setLastLoginAt() setters for deterministic testing
+  - Setting a known base timestamp and verifying the result is after it is more reliable than Thread.sleep
+  - Pattern: set baseline timestamp, call method, assert timestamp changed
+---

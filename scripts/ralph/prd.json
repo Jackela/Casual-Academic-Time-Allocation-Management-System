@@ -426,7 +426,8 @@
         "Tests pass: ./gradlew test --tests '*UserTest'"
       ],
       "priority": 27,
-      "passes": false,
+      "passes": true,
+      "note": "Used setUpdatedAt()/setLastLoginAt() with LocalDateTime instead of Clock.fixed() - simpler approach",
       "filesToModify": ["src/test/java/com/usyd/catams/entity/UserTest.java"],
       "verificationCommand": "./gradlew test --tests '*UserTest'"
     },
