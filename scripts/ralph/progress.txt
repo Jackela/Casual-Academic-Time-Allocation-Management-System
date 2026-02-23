@@ -225,3 +225,37 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - Nested test classes with @DisplayName provide clear test organization
   - Tests cover both success and failure paths for each workflow action
 ---
+
+## [2026-02-23] - US-021, US-022, US-023
+- Created comprehensive TimesheetApplicationServiceTest.java with 31 unit tests
+- Coverage includes:
+  - Mockito setup with @ExtendWith(MockitoExtension.class)
+  - Mock dependencies: TimesheetRepository, UserRepository, CourseRepository, TimesheetDomainService,
+    TimesheetValidationService, TimesheetMapper, TimesheetPermissionPolicy, TutorAssignmentRepository,
+    Schedule1PolicyProvider
+  - @InjectMocks for TimesheetApplicationService
+- CRUD tests:
+  - Create timesheet with authorization and validation
+  - Read timesheet by ID with permission checks
+  - Update timesheet with status-aware permissions
+  - Delete timesheet with authorization
+  - List timesheets with filtering and pagination
+- Permission and validation tests:
+  - User can only modify own timesheets
+  - Tutor can only update/delete REJECTED status timesheets
+  - AuthorizationException for unauthorized access
+  - IllegalArgumentException for validation failures
+  - Week start must be Monday
+  - Tutor role validation
+- Schedule1CalculationResult helper method for test data
+- All 31 tests pass: ./gradlew test --tests '*TimesheetApplicationServiceTest*'
+- Files changed: src/test/java/com/usyd/catams/application/TimesheetApplicationServiceTest.java
+- **Learnings for future iterations:**
+  - TimesheetApplicationService has postcondition validation that checks createdBy matches
+  - Use thenAnswer(invocation -> invocation.getArgument(0)) to return saved entity for postcondition checks
+  - Use thenReturn(false, true) pattern when same mock method called twice with different expectations
+  - Schedule1CalculationResult constructor order: sessionDate, rateCode, qualification, repeat,
+    deliveryHours, associatedHours, payableHours, hourlyRate, amount, formula, clauseReference
+  - Use any(BigDecimal.class) for BigDecimal comparisons to avoid scale mismatch issues
+  - TutorQualification enum values: PHD, COORDINATOR, STANDARD
+---

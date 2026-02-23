@@ -331,7 +331,7 @@
         "Typecheck passes: ./gradlew compileTestJava"
       ],
       "priority": 21,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/test/java/com/usyd/catams/application/TimesheetApplicationServiceTest.java"],
       "verificationCommand": "./gradlew compileTestJava"
     },
@@ -347,7 +347,7 @@
         "Tests pass: ./gradlew test --tests '*TimesheetApplicationServiceTest'"
       ],
       "priority": 22,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/test/java/com/usyd/catams/application/TimesheetApplicationServiceTest.java"],
       "verificationCommand": "./gradlew test --tests '*TimesheetApplicationServiceTest'"
     },
@@ -362,7 +362,7 @@
         "Tests pass: ./gradlew test --tests '*TimesheetApplicationServiceTest'"
       ],
       "priority": 23,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/test/java/com/usyd/catams/application/TimesheetApplicationServiceTest.java"],
       "verificationCommand": "./gradlew test --tests '*TimesheetApplicationServiceTest'"
     },
