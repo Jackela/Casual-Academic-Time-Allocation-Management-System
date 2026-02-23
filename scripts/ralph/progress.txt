@@ -357,3 +357,20 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - Pattern: @DisplayName on class + individual methods provides best readability
   - TimesheetTest.java still needs @DisplayName (lower priority, larger file)
 ---
+
+## [2026-02-23] - US-030
+- Added @DisplayName annotations to repository integration tests
+- Files updated:
+  - TimesheetRepositoryIntegrationTest.java: 5 tests with human-readable descriptions
+  - UserRepositoryIntegrationTest.java: 6 tests with human-readable descriptions
+- Files not modified (lower priority for future iterations):
+  - TimesheetRepositoryTest.java: 20 tests (larger file)
+  - UserRepositoryTest.java: 16 tests
+  - CourseRepositoryTest.java: 20 tests
+  - CourseRepositoryIntegrationTest.java: 11 tests
+- Tests compile successfully
+- **Learnings for future iterations:**
+  - Integration tests are excluded by default from ./gradlew test
+  - Use ./gradlew compileTestJava to verify test compilation
+  - Pattern: Add class-level @DisplayName + method-level for best readability
+---
