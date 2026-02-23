@@ -315,3 +315,26 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - Setting a known base timestamp and verifying the result is after it is more reliable than Thread.sleep
   - Pattern: set baseline timestamp, call method, assert timestamp changed
 ---
+
+## [2026-02-23] - US-028
+- Updated CONTRIBUTING.md with comprehensive developer documentation
+- Added new sections to existing E2E-focused file:
+  - Development setup for backend (Java 21, Spring Boot 3.2, Gradle)
+  - Development setup for frontend (Node.js 18+, React, TypeScript)
+  - Code style guidelines for Java (patterns, naming, documentation)
+  - Code style guidelines for TypeScript/React
+  - Testing requirements for unit, integration, and E2E tests
+  - Pull request process with conventional commit format
+- All acceptance criteria met:
+  - File exists at project root
+  - Code style guidelines included
+  - PR submission process included
+  - Testing requirements included
+  - Development setup instructions included
+- Files changed: CONTRIBUTING.md
+- **Learnings for future iterations:**
+  - CONTRIBUTING.md was primarily E2E-focused; enhanced with backend/Java guidance
+  - Project uses Java 21 with Spring Boot 3.2
+  - Entity equality pattern: id-based with null-safety
+  - Error handling: RFC-7807 ProblemDetail format
+---

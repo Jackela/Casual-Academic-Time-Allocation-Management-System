@@ -3,12 +3,14 @@ package com.usyd.catams.entity;
 import com.usyd.catams.common.domain.model.Email;
 import com.usyd.catams.enums.UserRole;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@DisplayName("User Entity Tests")
 class UserTest {
 
     private User user;
@@ -23,11 +25,12 @@ class UserTest {
         name = "Test User";
         hashedPassword = "hashedPassword123";
         role = UserRole.TUTOR;
-        
+
         user = new User(email, name, hashedPassword, role);
     }
 
     @Test
+    @DisplayName("Default constructor should initialize all fields to null")
     void testDefaultConstructor() {
         // When
         User emptyUser = new User();
@@ -45,6 +48,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("Constructor with Email object should set all fields correctly")
     void testConstructorWithEmailObject() {
         // When
         User user = new User(email, name, hashedPassword, role);
@@ -62,6 +66,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("Constructor with string email should set all fields correctly")
     void testConstructorWithStringEmail() {
         // Given
         String emailString = "string@usyd.edu.au";
@@ -79,6 +84,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("Getters and setters should work correctly for all fields")
     void testGettersAndSetters() {
         // Given
         Long id = 123L;
@@ -114,11 +120,12 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("Email methods should handle string and Email objects")
     void testEmailMethods() {
         // Test setting email with string
         String newEmailString = "newemail@usyd.edu.au";
         user.setEmail(newEmailString);
-        
+
         assertThat(user.getEmail()).isEqualTo(newEmailString);
         assertThat(user.getEmailValue()).isEqualTo(newEmailString);
         assertThat(user.getEmailObject().getValue()).isEqualTo(newEmailString);
@@ -126,13 +133,14 @@ class UserTest {
         // Test setting email with Email object
         Email emailObject = new Email("object@usyd.edu.au");
         user.setEmail(emailObject);
-        
+
         assertThat(user.getEmailObject()).isEqualTo(emailObject);
         assertThat(user.getEmail()).isEqualTo(emailObject.getValue());
         assertThat(user.getEmailValue()).isEqualTo(emailObject.getValue());
     }
 
     @Test
+    @DisplayName("Active methods should consistently report user status")
     void testActiveMethods() {
         // Test setActive method (alternative to setIsActive)
         user.setActive(false);
@@ -147,6 +155,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("updateLastLogin should set lastLoginAt and updatedAt timestamps")
     void testUpdateLastLogin() {
         // Given
         LocalDateTime before = LocalDateTime.now().minusSeconds(1);
@@ -162,6 +171,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("isAccountActive should handle null, true, and false values correctly")
     void testIsAccountActive() {
         // Test with null (should be false)
         user.setIsActive(null);
@@ -177,6 +187,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("isActive should handle null, true, and false values correctly")
     void testIsActive() {
         // Test with null (should be false)
         user.setIsActive(null);
@@ -192,6 +203,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("deactivate should set user to inactive and update timestamp")
     void testDeactivate() {
         // Given
         user.setIsActive(true);
@@ -208,6 +220,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("activate should set user to active and update timestamp")
     void testActivate() {
         // Given
         user.setIsActive(false);
@@ -224,12 +237,13 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("equals should compare users by ID and email")
     void testEquals() {
         // Given
         User user1 = new User(new Email("user1@usyd.edu.au"), "User 1", "pass1", UserRole.TUTOR);
         User user2 = new User(new Email("user2@usyd.edu.au"), "User 2", "pass2", UserRole.LECTURER);
         User user3 = new User(new Email("user1@usyd.edu.au"), "User 1 Different Name", "pass3", UserRole.ADMIN);
-        
+
         user1.setId(1L);
         user2.setId(2L);
         user3.setId(1L); // Same ID as user1
@@ -252,11 +266,12 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("hashCode should be consistent with equals based on ID and email")
     void testHashCode() {
         // Given
         User user1 = new User(new Email("user1@usyd.edu.au"), "User 1", "pass1", UserRole.TUTOR);
         User user2 = new User(new Email("user1@usyd.edu.au"), "User 2", "pass2", UserRole.LECTURER);
-        
+
         user1.setId(1L);
         user2.setId(1L);
 
@@ -270,6 +285,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("toString should contain all relevant fields")
     void testToString() {
         // Given
         user.setId(123L);
@@ -289,6 +305,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("Different user roles should be assignable correctly")
     void testDifferentUserRoles() {
         // Test TUTOR role
         User tutor = new User("tutor@usyd.edu.au", "Tutor", "pass", UserRole.TUTOR);
@@ -304,6 +321,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("User lifecycle management should handle activation and deactivation")
     void testUserLifecycleManagement() {
         // Test creation with default active status
         User newUser = new User("lifecycle@usyd.edu.au", "Lifecycle User", "pass", UserRole.TUTOR);
@@ -327,6 +345,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("Login tracking should update lastLoginAt timestamp")
     void testLoginTracking() {
         // Initially no login
         assertThat(user.getLastLoginAt()).isNull();
@@ -348,6 +367,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("Email null handling should work correctly")
     void testEmailNullHandling() {
         // Test with null email object
         user.setEmail((Email) null);
@@ -357,6 +377,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("Active status methods should return consistent results")
     void testActiveStatusConsistency() {
         // Test all methods return consistent results
         user.setIsActive(true);
@@ -376,6 +397,7 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("Timestamp behavior should be correct for all user operations")
     void testTimestampBehavior() {
         // Test that timestamps are set during construction
         User newUser = new User("timestamp@usyd.edu.au", "Timestamp User", "pass", UserRole.TUTOR);

@@ -444,7 +444,7 @@
         "File exists and contains required sections"
       ],
       "priority": 28,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["CONTRIBUTING.md"],
       "verificationCommand": "test -f CONTRIBUTING.md"
     },
