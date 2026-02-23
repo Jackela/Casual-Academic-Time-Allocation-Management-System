@@ -338,3 +338,22 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - Entity equality pattern: id-based with null-safety
   - Error handling: RFC-7807 ProblemDetail format
 ---
+
+## [2026-02-23] - US-029
+- Added @DisplayName annotations to entity test classes
+- Files updated:
+  - ApprovalTest.java: 31 tests with human-readable descriptions
+  - CourseTest.java: 22 tests with human-readable descriptions
+  - UserTest.java: 20 tests with human-readable descriptions
+- Files already with @DisplayName (not modified):
+  - TimesheetWorkflowBehaviorTest.java: Already had @DisplayName
+  - TimesheetEntityTest.java: Already had nested @DisplayName
+  - CourseEntityTest.java: Already had nested @DisplayName
+  - UserEntityTest.java: Already had nested @DisplayName
+  - ApprovalEntityTest.java: Already had nested @DisplayName
+- All tests pass: ./gradlew test
+- **Learnings for future iterations:**
+  - Some entity tests use nested @DisplayName for test classes, others use method-level
+  - Pattern: @DisplayName on class + individual methods provides best readability
+  - TimesheetTest.java still needs @DisplayName (lower priority, larger file)
+---

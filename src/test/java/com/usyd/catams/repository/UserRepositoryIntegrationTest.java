@@ -9,6 +9,7 @@ import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.LecturerAssignmentRepository;
 import com.usyd.catams.repository.TutorAssignmentRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.persistence.EntityManager;
@@ -18,6 +19,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@DisplayName("User Repository Integration Tests")
 class UserRepositoryIntegrationTest extends IntegrationTestBase {
 
     @Autowired
@@ -72,6 +74,7 @@ class UserRepositoryIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("findByEmail should return user by email address")
     void findByEmail_ShouldReturnUser() {
         Optional<User> found = userRepository.findByEmail("tutor@example.com");
         assertThat(found).isPresent();
@@ -79,12 +82,14 @@ class UserRepositoryIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("existsByEmail should check email existence correctly")
     void existsByEmail_ShouldWork() {
         assertThat(userRepository.existsByEmail("admin@example.com")).isTrue();
         assertThat(userRepository.existsByEmail("nope@example.com")).isFalse();
     }
 
     @Test
+    @DisplayName("Role and active queries should filter users correctly")
     void roleQueries_ShouldFilter() {
         List<User> tutors = userRepository.findByRole(UserRole.TUTOR);
         List<User> actives = userRepository.findByIsActive(true);
@@ -95,6 +100,7 @@ class UserRepositoryIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("findByEmailAndIsActive should respect active flag")
     void findByEmailAndIsActive_ShouldRespectActiveFlag() {
         assertThat(userRepository.findByEmailAndIsActive("tutor@example.com", true)).isPresent();
         assertThat(userRepository.findByEmailAndIsActive("inactive@example.com", true)).isEmpty();
@@ -102,12 +108,14 @@ class UserRepositoryIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("Count queries should return correct counts")
     void countQueries_ShouldWork() {
         assertThat(userRepository.countByRole(UserRole.TUTOR)).isGreaterThanOrEqualTo(1);
         assertThat(userRepository.countByIsActive(true)).isGreaterThanOrEqualTo(3);
     }
 
     @Test
+    @DisplayName("Search by name should be case insensitive")
     void searchByName_ShouldBeCaseInsensitive() {
         List<User> results = userRepository.findByNameContainingIgnoreCase("doe");
         assertThat(results)

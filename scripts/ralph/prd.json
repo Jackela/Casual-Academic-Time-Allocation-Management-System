@@ -459,7 +459,7 @@
         "Tests pass: ./gradlew test"
       ],
       "priority": 29,
-      "passes": false,
+      "passes": true,
       "filesToModify": ["src/test/java/com/usyd/catams/entity/"],
       "verificationCommand": "./gradlew test"
     },

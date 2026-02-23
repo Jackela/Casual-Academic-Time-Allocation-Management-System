@@ -10,6 +10,7 @@ import com.usyd.catams.common.domain.model.Money;
 import com.usyd.catams.common.domain.model.WeekPeriod;
 import com.usyd.catams.integration.IntegrationTestBase;
 import com.usyd.catams.testdata.TestDataBuilder;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,7 @@ import com.usyd.catams.repository.LecturerAssignmentRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@DisplayName("Timesheet Repository Integration Tests")
 public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
 
     @Autowired
@@ -138,6 +140,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("findByTutorId should return all timesheets for a tutor")
     void findByTutorId_ShouldReturnAllForTutor() {
         List<Timesheet> found = timesheetRepository.findByTutorId(tutor1Id);
         assertThat(found).extracting(Timesheet::getTutorId).containsOnly(tutor1Id);
@@ -145,6 +148,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("findByCourseId should return all timesheets for a course")
     void findByCourseId_ShouldReturnAllForCourse() {
         List<Timesheet> found = timesheetRepository.findByCourseId(course1Id);
         assertThat(found).hasSize(2);
@@ -152,6 +156,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("findByStatus should return timesheets filtered by status")
     void findByStatus_ShouldReturnByStatus() {
         List<Timesheet> drafts = timesheetRepository.findByStatus(ApprovalStatus.DRAFT);
         List<Timesheet> pending = timesheetRepository.findByStatus(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
@@ -162,6 +167,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("Paging and filtering should work together")
     void pagingAndFilters_ShouldWork() {
         Pageable pageable = PageRequest.of(0, 10);
         Page<Timesheet> byTutor = timesheetRepository.findByTutorId(tutor1Id, pageable);
@@ -171,6 +177,7 @@ public class TimesheetRepositoryIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("countTutorialsForRepeatRule should count tutorials within 7-day window")
     void countTutorialsForRepeatRule_inclusiveSevenDayWindow_countsPriorTutorial() {
         // Arrange: create a TUTORIAL entry on 2024-06-17 for course 1
         Timesheet tutorial = new Timesheet(
