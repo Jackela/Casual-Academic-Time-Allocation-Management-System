@@ -194,3 +194,34 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - @Transactional(readOnly = true) is a hint to the database for optimization
   - authenticate() is technically a write operation due to lastLoginAt update
 ---
+
+## [2026-02-23] - US-018, US-019, US-020
+- Created comprehensive ApprovalApplicationServiceTest.java with 25 unit tests
+- Coverage includes:
+  - Mockito setup with @ExtendWith(MockitoExtension.class)
+  - Mock dependencies: TimesheetRepository, UserRepository, CourseRepository, ApprovalDomainService
+  - @InjectMocks for ApprovalApplicationService
+- Workflow tests:
+  - Submit for approval workflow (SUBMIT_FOR_APPROVAL)
+  - Tutor confirmation workflow (TUTOR_CONFIRM)
+  - Lecturer confirmation workflow (LECTURER_CONFIRM)
+  - HR confirmation workflow (HR_CONFIRM)
+  - Rejection workflow (REJECT)
+  - Request modification workflow (REQUEST_MODIFICATION)
+  - Approval history retrieval
+  - Pending approvals retrieval
+- Error scenario tests:
+  - ResourceNotFoundException when timesheet not found
+  - IllegalArgumentException when requester/course not found
+  - SecurityException for unauthorized access
+  - IllegalArgumentException for invalid state transitions
+  - SecurityException for unauthorized role actions
+- All 25 tests pass: ./gradlew test --tests '*ApprovalApplicationServiceTest*'
+- Files changed: src/test/java/com/usyd/catams/application/ApprovalApplicationServiceTest.java
+- **Learnings for future iterations:**
+  - ApprovalApplicationService delegates validation to ApprovalDomainService
+  - Test data uses TestDataBuilder pattern for consistent entity creation
+  - Use doNothing().when() for void methods, doThrow() for exception scenarios
+  - Nested test classes with @DisplayName provide clear test organization
+  - Tests cover both success and failure paths for each workflow action
+---
