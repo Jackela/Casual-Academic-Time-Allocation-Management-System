@@ -394,3 +394,7 @@ test-results/
 
 # temp doc copies
 *.copy
+
+# Ralph agent internal files
+scripts/ralph/.last-branch
+scripts/ralph/*.backup

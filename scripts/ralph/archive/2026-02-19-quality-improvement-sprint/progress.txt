@@ -1,0 +1,34 @@
+# Ralph Progress Log - Quality Improvement Sprint 2
+# Started: 2026-02-19
+# Branch: ralph/quality-improvement-sprint-2
+
+## Session Context
+- Project: CATAMS (Casual Academic Time Allocation Management System)
+- Total Stories: 14
+- Goal: Code quality improvements, testing coverage, documentation
+
+## Codebase Patterns
+- Pattern: Use MockMvc with @SpringBootTest for testing Spring Security/CORS configuration
+- Pattern: CORS tests should use OPTIONS preflight requests with Access-Control-Request-Headers
+- Pattern: @EntityGraph(attributePaths = {"approvals"}) prevents N+1 queries on Timesheet relationships
+- Pattern: @Version field should be placed immediately after @Id field for optimistic locking
+- Pattern: Use @Transient Clock field with Clock.fixed() in tests for deterministic timestamps
+- Pattern: Clock field defaults to Clock.systemDefaultZone() for production, Clock.fixed() for testing
+- Pattern: Reset timestamps in test setUp() to fixed clock time to avoid system clock leakage
+- Pattern: Extend oncePerRequestFilter for Spring filters that should execute once per request
+- Pattern: Use ConcurrentHashMap for thread-safe per-client rate limit tracking
+- Pattern: MockFilterChain can only be called once - create new instance for each test request
+- Pattern: HttpServletResponse.SC_TOO_MANY_REQUESTS not available in older Servlet - use 429 directly
+- The project uses Jakarta EE (jakarta.*), not javax.*
+- Tests run with @ActiveProfiles("test") for simplified authentication
+- Application services are in src/main/java/com/usyd/catams/application/ (not service/)
+  - TimesheetApplicationService.java
+  - ApprovalApplicationService.java
+  - user/UserApplicationService.java
+
+## Completed Stories
+(none yet)
+
+## Current Iteration
+(ready to start)
+

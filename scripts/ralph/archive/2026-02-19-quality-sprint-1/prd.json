@@ -1,0 +1,322 @@
+{
+  "branchName": "ralph/quality-improvement-sprint",
+  "stories": [
+    {
+      "id": "US-SEC-001",
+      "title": "Configure HikariCP connection pool",
+      "description": "As a DevOps engineer, I want explicit database connection pool settings so that production performance is predictable.",
+      "acceptanceCriteria": [
+        "application.yml contains HikariCP section with maximum-pool-size=20, minimum-idle=5, idle-timeout=30000",
+        "Application starts successfully with HikariCP configuration",
+        "HikariDataSource bean has correct pool properties",
+        "Typecheck passes",
+        "Tests pass: ./gradlew test"
+      ],
+      "priority": 1,
+      "passes": true,
+      "dependsOn": [],
+      "filesToModify": [
+        "src/main/resources/application.yml"
+      ],
+      "verificationCommand": "./gradlew test",
+      "rollback": "git checkout src/main/resources/application.yml"
+    },
+    {
+      "id": "US-SEC-002",
+      "title": "Restrict CORS allowed headers",
+      "description": "As a security engineer, I want CORS configuration to only allow specific headers so that the API is not overly permissive.",
+      "acceptanceCriteria": [
+        "SecurityConfig.java restricts allowedHeaders to: Accept, Content-Type, Authorization, X-Requested-With, X-Trace-Id",
+        "SecurityConfigTest.java has test for allowed headers returning 200",
+        "SecurityConfigTest.java has test for forbidden headers returning 403",
+        "Typecheck passes",
+        "Tests pass: ./gradlew test --tests 'com.usyd.catams.config.SecurityConfigTest'"
+      ],
+      "priority": 2,
+      "passes": true,
+      "dependsOn": [],
+      "filesToModify": [
+        "src/main/java/com/usyd/catams/config/SecurityConfig.java"
+      ],
+      "verificationCommand": "./gradlew test --tests 'com.usyd.catams.config.SecurityConfigTest'",
+      "rollback": "git checkout src/main/java/com/usyd/catams/config/SecurityConfig.java"
+    },
+    {
+      "id": "US-PERF-001",
+      "title": "Optimize getLastApproval() from O(n) to O(1)",
+      "description": "As a developer, I want O(1) retrieval of the last approval by replacing reduce() with direct list access.",
+      "acceptanceCriteria": [
+        "Timesheet.getLastApproval() uses approvals.get(approvals.size() - 1) instead of reduce()",
+        "Method handles empty list with Optional.empty()",
+        "Method maintains same return type Optional<Approval>",
+        "Typecheck passes",
+        "Tests pass: ./gradlew test --tests 'com.usyd.catams.entity.TimesheetTest'"
+      ],
+      "priority": 3,
+      "passes": true,
+      "dependsOn": [],
+      "filesToModify": [
+        "src/main/java/com/usyd/catams/entity/Timesheet.java"
+      ],
+      "verificationCommand": "./gradlew test --tests 'com.usyd.catams.entity.TimesheetTest'",
+      "rollback": "git checkout src/main/java/com/usyd/catams/entity/Timesheet.java"
+    },
+    {
+      "id": "US-PERF-002",
+      "title": "Add EntityGraph annotation to TimesheetRepository",
+      "description": "As a developer, I want to prevent N+1 queries by adding @EntityGraph for approvals relationship.",
+      "acceptanceCriteria": [
+        "TimesheetRepository has @EntityGraph(attributePaths = {\"approvals\"}) on findById method",
+        "EntityGraph annotation imports jakarta.persistence.EntityGraph",
+        "Typecheck passes",
+        "Tests pass: ./gradlew test --tests '*TimesheetRepository*'"
+      ],
+      "priority": 4,
+      "passes": true,
+      "dependsOn": [
+        "US-PERF-001"
+      ],
+      "filesToModify": [
+        "src/main/java/com/usyd/catams/repository/TimesheetRepository.java"
+      ],
+      "verificationCommand": "./gradlew test --tests '*TimesheetRepository*'",
+      "rollback": "git checkout src/main/java/com/usyd/catams/repository/TimesheetRepository.java"
+    },
+    {
+      "id": "US-ARCH-001",
+      "title": "Add @Version to TimesheetJpaEntity",
+      "description": "As a developer, I want optimistic locking on TimesheetJpaEntity by adding @Version field.",
+      "acceptanceCriteria": [
+        "TimesheetJpaEntity has @Version private Long version field",
+        "Default constructor initializes version = 0L",
+        "Getter and setter for version field added",
+        "Typecheck passes",
+        "Tests pass: ./gradlew :timesheet-module:test"
+      ],
+      "priority": 5,
+      "passes": true,
+      "dependsOn": [],
+      "filesToModify": [
+        "timesheet-module/src/main/java/com/usyd/catams/timesheet/infrastructure/jpa/TimesheetJpaEntity.java"
+      ],
+      "verificationCommand": "./gradlew :timesheet-module:test",
+      "rollback": "git checkout timesheet-module/src/main/java/com/usyd/catams/timesheet/infrastructure/jpa/TimesheetJpaEntity.java"
+    },
+    {
+      "id": "US-ARCH-002",
+      "title": "Add @Version to Course entity",
+      "description": "As a developer, I want optimistic locking on Course entity by adding @Version field.",
+      "acceptanceCriteria": [
+        "Course.java has @Version private Long version field",
+        "Default constructor initializes version = 0L",
+        "Getter and setter for version field added",
+        "Typecheck passes",
+        "Tests pass: ./gradlew test --tests '*Course*Test'"
+      ],
+      "priority": 6,
+      "passes": true,
+      "dependsOn": [],
+      "filesToModify": [
+        "src/main/java/com/usyd/catams/entity/Course.java"
+      ],
+      "verificationCommand": "./gradlew test --tests '*Course*Test'",
+      "rollback": "git checkout src/main/java/com/usyd/catams/entity/Course.java"
+    },
+    {
+      "id": "US-CQ-001",
+      "title": "Create TimesheetValidationService interface",
+      "description": "As a developer, I want a domain service interface for timesheet validation so that validation logic is separated from entity.",
+      "acceptanceCriteria": [
+        "TimesheetValidationService interface created in domain/service package",
+        "Interface has validateBusinessRules(Timesheet timesheet) method",
+        "Interface has validateHours(BigDecimal hours) method",
+        "Typecheck passes",
+        "Tests pass: ./gradlew test"
+      ],
+      "priority": 7,
+      "passes": true,
+      "dependsOn": [],
+      "filesToModify": [
+        "src/main/java/com/usyd/catams/domain/service/TimesheetValidationService.java"
+      ],
+      "verificationCommand": "./gradlew test",
+      "rollback": "rm src/main/java/com/usyd/catams/domain/service/TimesheetValidationService.java"
+    },
+    {
+      "id": "US-CQ-002",
+      "title": "Implement TimesheetValidationService with externalized properties",
+      "description": "As a developer, I want validation service to use TimesheetValidationProperties instead of magic numbers.",
+      "acceptanceCriteria": [
+        "TimesheetValidationServiceImpl uses TimesheetValidationProperties",
+        "No magic numbers (0.1, 38.0, 10.00, 200.00) in implementation",
+        "Service validates hours against min/max from properties",
+        "Service validates rate against min/max from properties",
+        "Typecheck passes",
+        "Tests pass: ./gradlew test"
+      ],
+      "priority": 8,
+      "passes": true,
+      "dependsOn": [
+        "US-CQ-001"
+      ],
+      "filesToModify": [
+        "src/main/java/com/usyd/catams/domain/service/impl/TimesheetValidationServiceImpl.java",
+        "src/main/java/com/usyd/catams/common/validation/TimesheetValidationProperties.java"
+      ],
+      "verificationCommand": "./gradlew test",
+      "rollback": "git checkout src/main/java/com/usyd/catams/domain/service/impl/ src/main/java/com/usyd/catams/common/validation/"
+    },
+    {
+      "id": "US-CQ-003",
+      "title": "Create BusinessRuleException for domain errors",
+      "description": "As a developer, I want a domain-specific exception so that business rule violations are distinct from generic errors.",
+      "acceptanceCriteria": [
+        "BusinessRuleException class created in exception package",
+        "Exception extends RuntimeException",
+        "Exception has constructor with message parameter",
+        "Exception has constructor with message and cause parameters",
+        "Typecheck passes",
+        "Tests pass: ./gradlew test"
+      ],
+      "priority": 9,
+      "passes": true,
+      "dependsOn": [],
+      "filesToModify": [
+        "src/main/java/com/usyd/catams/exception/BusinessRuleException.java"
+      ],
+      "verificationCommand": "./gradlew test",
+      "rollback": "rm src/main/java/com/usyd/catams/exception/BusinessRuleException.java"
+    },
+    {
+      "id": "US-CQ-004",
+      "title": "Add BusinessRuleException handler to GlobalExceptionHandler",
+      "description": "As a developer, I want GlobalExceptionHandler to handle BusinessRuleException with 400 status and proper error response.",
+      "acceptanceCriteria": [
+        "GlobalExceptionHandler has @ExceptionHandler(BusinessRuleException.class) method",
+        "Handler returns 400 Bad Request status",
+        "Handler returns ApiErrorResponse with exception message",
+        "Handler logs exception at WARN level",
+        "Typecheck passes",
+        "Tests pass: ./gradlew test --tests '*GlobalExceptionHandler*'"
+      ],
+      "priority": 10,
+      "passes": true,
+      "dependsOn": [
+        "US-CQ-003"
+      ],
+      "filesToModify": [
+        "src/main/java/com/usyd/catams/exception/GlobalExceptionHandler.java"
+      ],
+      "verificationCommand": "./gradlew test --tests '*GlobalExceptionHandler*'",
+      "rollback": "git checkout src/main/java/com/usyd/catams/exception/GlobalExceptionHandler.java"
+    },
+    {
+      "id": "US-TEST-001",
+      "title": "Add RateLimitingFilter threshold test",
+      "description": "As a QA engineer, I want a test for rate limiting threshold behavior so that the feature is verified.",
+      "acceptanceCriteria": [
+        "RateLimitingFilterTest has test for requests at threshold limit (exactly 100)",
+        "Test verifies 200 OK response at threshold",
+        "Test verifies 429 response at threshold + 1",
+        "Test verifies X-RateLimit-Remaining header value",
+        "Typecheck passes",
+        "Tests pass: ./gradlew test --tests 'com.usyd.catams.config.filter.RateLimitingFilterTest'"
+      ],
+      "priority": 11,
+      "passes": true,
+      "dependsOn": [],
+      "filesToModify": [
+        "src/test/java/com/usyd/catams/config/filter/RateLimitingFilterTest.java"
+      ],
+      "verificationCommand": "./gradlew test --tests 'com.usyd.catams.config.filter.RateLimitingFilterTest'",
+      "rollback": "git checkout src/test/java/com/usyd/catams/config/filter/RateLimitingFilterTest.java"
+    },
+    {
+      "id": "US-TEST-002",
+      "title": "Fix UserEntityTest timestamp test with Clock injection",
+      "description": "As a QA engineer, I want deterministic timestamps in UserEntityTest so that tests pass consistently.",
+      "acceptanceCriteria": [
+        "UserEntityTest uses Clock.fixed() for time-dependent tests",
+        "Test uses Instant.now(Clock) instead of Instant.now()",
+        "Test verifies createdAt timestamp matches fixed clock",
+        "Test verifies updatedAt is strictly after createdAt",
+        "Typecheck passes",
+        "Tests pass: ./gradlew test --tests 'com.usyd.catams.entity.UserEntityTest'"
+      ],
+      "priority": 12,
+      "passes": true,
+      "dependsOn": [],
+      "filesToModify": [
+        "src/test/java/com/usyd/catams/entity/UserEntityTest.java"
+      ],
+      "verificationCommand": "./gradlew test --tests 'com.usyd.catams.entity.UserEntityTest'",
+      "rollback": "git checkout src/test/java/com/usyd/catams/entity/UserEntityTest.java"
+    },
+    {
+      "id": "US-DOC-001",
+      "title": "Add Javadoc to TimesheetController public methods",
+      "description": "As a developer, I want comprehensive Javadoc on TimesheetController so that API behavior is documented.",
+      "acceptanceCriteria": [
+        "All public methods in TimesheetController have Javadoc",
+        "Javadoc includes @param for all parameters",
+        "Javadoc includes @return for return values",
+        "Javadoc includes @throws for exceptions",
+        "Typecheck passes",
+        "Checkstyle passes: ./gradlew check"
+      ],
+      "priority": 13,
+      "passes": true,
+      "dependsOn": [],
+      "filesToModify": [
+        "src/main/java/com/usyd/catams/controller/TimesheetController.java"
+      ],
+      "verificationCommand": "./gradlew check",
+      "rollback": "git checkout src/main/java/com/usyd/catams/controller/TimesheetController.java"
+    },
+    {
+      "id": "US-DOC-002",
+      "title": "Add Javadoc to ApprovalController public methods",
+      "description": "As a developer, I want comprehensive Javadoc on ApprovalController so that API behavior is documented.",
+      "acceptanceCriteria": [
+        "All public methods in ApprovalController have Javadoc",
+        "Javadoc includes @param for all parameters",
+        "Javadoc includes @return for return values",
+        "Javadoc includes @throws for exceptions",
+        "Typecheck passes",
+        "Checkstyle passes: ./gradlew check"
+      ],
+      "priority": 14,
+      "passes": true,
+      "dependsOn": [],
+      "filesToModify": [
+        "src/main/java/com/usyd/catams/controller/ApprovalController.java"
+      ],
+      "verificationCommand": "./gradlew check",
+      "rollback": "git checkout src/main/java/com/usyd/catams/controller/ApprovalController.java"
+    },
+    {
+      "id": "US-DOC-003",
+      "title": "Create API overview documentation",
+      "description": "As a frontend developer, I want an API overview document so that I understand the system endpoints.",
+      "acceptanceCriteria": [
+        "docs/api/README.md file created",
+        "Document includes API base URL and versioning",
+        "Document includes authentication flow description",
+        "Document includes link to OpenAPI spec",
+        "Document includes rate limiting section",
+        "File exists: ls docs/api/README.md"
+      ],
+      "priority": 15,
+      "passes": true,
+      "dependsOn": [
+        "US-DOC-001",
+        "US-DOC-002"
+      ],
+      "filesToModify": [
+        "docs/api/README.md"
+      ],
+      "verificationCommand": "ls docs/api/README.md && cat docs/api/README.md | grep -q 'Authentication'",
+      "rollback": "rm docs/api/README.md"
+    }
+  ]
+}
