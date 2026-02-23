@@ -111,11 +111,10 @@ class UserEntityTest {
 
         @Test
         void deactivate_ShouldSetActiveToFalseAndUpdateTimestamp() {
-            LocalDateTime beforeDeactivation = user.getUpdatedAt();
-            
-            // Wait a bit to ensure timestamp difference
-            try { Thread.sleep(10); } catch (InterruptedException e) {}
-            
+            // Set a known earlier time
+            LocalDateTime beforeDeactivation = LocalDateTime.now().minusSeconds(1);
+            user.setUpdatedAt(beforeDeactivation);
+
             user.deactivate();
 
             assertThat(user.getIsActive()).isFalse();
@@ -127,11 +126,10 @@ class UserEntityTest {
         @Test
         void activate_ShouldSetActiveToTrueAndUpdateTimestamp() {
             user.setIsActive(false);
-            LocalDateTime beforeActivation = user.getUpdatedAt();
-            
-            // Wait a bit to ensure timestamp difference
-            try { Thread.sleep(10); } catch (InterruptedException e) {}
-            
+            // Set a known earlier time
+            LocalDateTime beforeActivation = LocalDateTime.now().minusSeconds(1);
+            user.setUpdatedAt(beforeActivation);
+
             user.activate();
 
             assertThat(user.getIsActive()).isTrue();
@@ -157,11 +155,10 @@ class UserEntityTest {
         @Test
         void updateLastLogin_ShouldSetLastLoginTimeAndUpdateTimestamp() {
             assertThat(user.getLastLoginAt()).isNull();
-            LocalDateTime beforeUpdate = user.getUpdatedAt();
-            
-            // Wait a bit to ensure timestamp difference
-            try { Thread.sleep(10); } catch (InterruptedException e) {}
-            
+            // Set a known earlier time
+            LocalDateTime beforeUpdate = LocalDateTime.now().minusSeconds(1);
+            user.setUpdatedAt(beforeUpdate);
+
             user.updateLastLogin();
 
             assertThat(user.getLastLoginAt()).isNotNull();
@@ -185,9 +182,10 @@ class UserEntityTest {
         void multipleLoginUpdates_ShouldKeepUpdatingTimestamp() {
             user.updateLastLogin();
             LocalDateTime firstLogin = user.getLastLoginAt();
-            
-            try { Thread.sleep(10); } catch (InterruptedException e) {}
-            
+
+            // Set a known earlier time to ensure second login is after
+            user.setLastLoginAt(LocalDateTime.now().minusSeconds(1));
+
             user.updateLastLogin();
             LocalDateTime secondLogin = user.getLastLoginAt();
 
@@ -312,10 +310,10 @@ class UserEntityTest {
 
         @Test
         void onUpdate_ShouldUpdateTimestamp() {
-            LocalDateTime originalUpdatedAt = user.getUpdatedAt();
-            
-            try { Thread.sleep(10); } catch (InterruptedException e) {}
-            
+            // Set a known earlier time
+            LocalDateTime originalUpdatedAt = LocalDateTime.now().minusSeconds(1);
+            user.setUpdatedAt(originalUpdatedAt);
+
             user.onUpdate();
 
             assertThat(user.getUpdatedAt()).isAfter(originalUpdatedAt);
@@ -421,8 +419,8 @@ class UserEntityTest {
             assertThat(newUser.getLastLoginAt()).isNotNull();
             LocalDateTime firstLogin = newUser.getLastLoginAt();
 
-            // Subsequent login
-            try { Thread.sleep(10); } catch (InterruptedException e) {}
+            // Set a known earlier time to ensure second login is after
+            newUser.setLastLoginAt(LocalDateTime.now().minusSeconds(1));
             newUser.updateLastLogin();
             assertThat(newUser.getLastLoginAt()).isAfter(firstLogin);
 

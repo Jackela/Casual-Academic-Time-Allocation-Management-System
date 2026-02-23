@@ -1,17 +1,19 @@
+/* eslint-disable no-restricted-syntax */
+// Presentation demos require visual timing for demo flow
 /**
  * Demo Script 2: Rejection Path and Constraint Validation
  * Demo Duration: ~3.0 minutes
- * 
+ *
  * Purpose:
  * Demonstrate the system's error handling capability - complete handling workflow after timesheet rejection
- * 
+ *
  * Demo Flow:
  * 1. Lecturer creates timesheet via UI and assigns to Tutor
  * 2. Tutor confirms timesheet via UI
  * 3. Lecturer rejects timesheet via UI with rejection reason
  * 4. Tutor views rejection status and reason
  * 5. Verify key constraint: REJECTED status only shows Edit button, no Submit/Resubmit buttons
- * 
+ *
  * Key Features:
  * - Rejection reason recording and display
  * - State machine constraint validation (REJECTED → Edit only, no Submit/Resubmit)

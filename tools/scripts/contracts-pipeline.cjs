@@ -206,11 +206,14 @@ const writeArtifacts = async (artifacts) => {
       }
     }
 
+    // Post-process TypeScript content to fix quicktype issues
+    const processedTsContent = postProcessTsContent(artifact.tsContent, artifact.typeName);
+
     await fs.mkdir(path.dirname(tsOutputPath), { recursive: true });
-    await fs.writeFile(tsOutputPath, `${artifact.tsContent}\n`, "utf8");
+    await fs.writeFile(tsOutputPath, `${processedTsContent}\n`, "utf8");
 
     await fs.mkdir(path.dirname(frontendTsPath), { recursive: true });
-    await fs.writeFile(frontendTsPath, `${artifact.tsContent}\n`, "utf8");
+    await fs.writeFile(frontendTsPath, `${processedTsContent}\n`, "utf8");
   }
 
   const exportLines = artifacts.map(
@@ -256,14 +259,35 @@ const verifyLockFile = (fingerprint, existingLock) => {
   }
 };
 
+const postProcessTsContent = (content, typeName) => {
+  // Remove unused CommonSchema type alias (generated when schemas reference each other)
+  let processed = content.replace(/^type CommonSchema = any;\n?/gm, "");
+
+  // Extract the main type name from the generated content (e.g., TimesheetSchema)
+  const mainTypeMatch = processed.match(/export (?:interface|type) (\w+)/);
+  const generatedTypeName = mainTypeMatch ? mainTypeMatch[1] : null;
+
+  // Add type alias for expected name if different from generated name
+  if (generatedTypeName && generatedTypeName !== typeName) {
+    // Only add alias if the generated type is not just 'any'
+    if (!processed.includes(`type ${generatedTypeName} = any`)) {
+      processed += `\n// Type alias for backward compatibility\nexport type ${typeName} = ${generatedTypeName};\n`;
+    }
+  }
+
+  return processed;
+};
+
 const verifyTypeScriptArtifacts = async (artifacts) => {
   for (const artifact of artifacts) {
     const frontendTsPath = path.join(frontendContractsDir, `${artifact.tsFileStem}.ts`);
     try {
       const existing = await fs.readFile(frontendTsPath, "utf8");
-      if (existing.trim() !== artifact.tsContent.trim()) {
+      // Apply same post-processing as writeArtifacts to ensure fair comparison
+      const expectedContent = postProcessTsContent(artifact.tsContent, artifact.typeName);
+      if (existing.trim() !== expectedContent.trim()) {
         throw new Error(
-          `TypeScript contract drift detected for ${artifact.tsFileStem}.ts. Run "./gradlew generateContracts".`,
+          `TypeScript contract drift detected for ${artifact.tsFileStem}.ts. Run "./gradlew generateContracts".`
         );
       }
     } catch (error) {

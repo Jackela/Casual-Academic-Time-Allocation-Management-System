@@ -1,3 +1,5 @@
+/* eslint-disable no-restricted-syntax */
+// Visual login helpers for presentation demos require timing for demo flow
 import axios from 'axios';
 import http from 'node:http';
 import https from 'node:https';

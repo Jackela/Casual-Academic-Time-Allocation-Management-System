@@ -1,3 +1,5 @@
+/* eslint-disable no-restricted-syntax */
+// Presentation demos require visual timing for demo flow
 import { test, expect, Page } from '@playwright/test';
 import { clearAuthSessionFromPage, signOutViaUI } from '../../api/auth-helper';
 import { E2E_CONFIG } from '../../config/e2e.config';
@@ -99,7 +101,7 @@ test.describe('Presentation Grand Tour: Full UI-Driven Multi-Role Demo', () => {
   let bobId: number | null = null;
   let carolId: number | null = null;
   let sarahId: number | null = null;
-  let courseId: number | null = null;
+  const courseId: number | null = null;
   
   // Store created timesheet IDs
   const createdTimesheets: { id: number | null; tutor: string; taskType: string; rateCode: string }[] = [];

@@ -1,16 +1,18 @@
+/* eslint-disable no-restricted-syntax */
+// Presentation demos require visual timing for demo flow
 /**
  * Demo Script 3: EA Billing Compliance Demonstration
  * Demo Duration: ~2.5 minutes
- * 
+ *
  * Purpose:
  * Demonstrate the system's EA Schedule 1 automated billing engine
- * 
+ *
  * Demo Scenarios:
  * 1. Tutorial Standard (TU2): 1.0h delivery + 2.0h associated
  * 2. Tutorial Repeat (TU4): 1.0h delivery + 1.0h associated (repeat within 7 days)
  * 3. Marking (M05): actual hours, 0h associated
  * 4. Real-time rate preview panel updates
- * 
+ *
  * Key Features:
  * - EA rules automatic recognition
  * - Rate Code automatic calculation

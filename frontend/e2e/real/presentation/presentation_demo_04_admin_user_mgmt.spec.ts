@@ -1,16 +1,18 @@
+/* eslint-disable no-restricted-syntax */
+// Presentation demos require visual timing for demo flow
 /**
  * Demo Script 4: Admin User Management
  * Demo Duration: ~1.5 minutes
- * 
+ *
  * Purpose:
  * Demonstrate the system's user management capabilities and permission control
- * 
+ *
  * Demo Flow:
  * 1. Admin creates new user (Demo Tutor)
  * 2. Verify user appears in user list
  * 3. Deactivate user
  * 4. Reactivate user
- * 
+ *
  * Key Features:
  * - User lifecycle management
  * - Role permission assignment

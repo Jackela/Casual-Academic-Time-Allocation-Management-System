@@ -244,16 +244,16 @@ const TimesheetRow = memo<TimesheetRowProps>(({
     onApprovalAction(timesheet.id, 'SUBMIT_DRAFT');
   }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
 
-  const handleConfirm = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
+  const handleConfirm = useCallback((event?: React.MouseEvent) => {
+    event?.stopPropagation();
     if (actionLoading || actionsDisabled || !onApprovalAction) {
       return;
     }
     onApprovalAction(timesheet.id, 'TUTOR_CONFIRM');
   }, [actionLoading, actionsDisabled, onApprovalAction, timesheet.id]);
 
-  const handleToggleDetails = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
+  const handleToggleDetails = useCallback((event?: React.MouseEvent) => {
+    event?.stopPropagation();
     if (!hasDetailColumns) {
       return;
     }
@@ -408,19 +408,19 @@ const TimesheetRow = memo<TimesheetRowProps>(({
 TimesheetRow.displayName = 'TimesheetRow';
 
 interface CellRendererProps {
-  onApprove: (event: React.MouseEvent) => void;
-  onReject: (event: React.MouseEvent) => void;
-  onRequestModification?: (event: React.MouseEvent) => void;
-  onEdit?: (event: React.MouseEvent) => void;
-  onSubmitDraft?: (event: React.MouseEvent) => void;
-  onConfirm?: (event: React.MouseEvent) => void;
+  onApprove?: (e?: React.MouseEvent) => void;
+  onReject?: (e?: React.MouseEvent) => void;
+  onRequestModification?: (e?: React.MouseEvent) => void;
+  onEdit?: (e?: React.MouseEvent) => void;
+  onSubmitDraft?: (e?: React.MouseEvent) => void;
+  onConfirm?: (e?: React.MouseEvent) => void;
   actionLoading: boolean;
   totalPay: number;
   actionMode: 'approval' | 'tutor';
   approvalRole?: ApprovalRole;
   actionsDisabled: boolean;
   actionsDisabledReason?: string;
-  onToggleDetails?: (event: React.MouseEvent) => void;
+  onToggleDetails?: (e?: React.MouseEvent) => void;
   detailsId?: string;
   detailsExpanded?: boolean;
   detailsAvailable?: boolean;

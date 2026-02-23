@@ -204,23 +204,11 @@ async function setCourse(page: Page, courseId: number) {
   const select = page.getByTestId('create-course-select');
   await expect(select).toBeEnabled({ timeout: 20000 });
 
-  // Wait for stable options after any tutor-triggered recalculation
-  // React's useMemo in TimesheetForm recalculates visibleCourseOptions when tutor changes
-  let lastCount = 0;
-  let stableCount = 0;
-  const maxAttempts = 10;
-
-  for (let i = 0; i < maxAttempts; i++) {
-    const currentCount = await select.locator('option').count();
-    if (currentCount === lastCount && currentCount > 1) {
-      stableCount++;
-      if (stableCount >= 2) break; // Stable for 2 consecutive checks
-    } else {
-      stableCount = 0;
-    }
-    lastCount = currentCount;
-    await page.waitForTimeout(200);
-  }
+  // Wait for options to be populated (at least placeholder + 1 course)
+  await expect(async () => {
+    const count = await select.locator('option').count();
+    expect(count).toBeGreaterThan(1);
+  }).toPass({ timeout: 5000 });
 
   // Ensure at least one non-placeholder option is attached
   await expect(select.locator('option').nth(1)).toBeAttached({ timeout: 5000 });

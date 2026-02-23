@@ -62,6 +62,9 @@ public abstract class PerformanceTestBase extends IntegrationTestBase {
     @Value("${test.performance.warmup-duration:5s}")
     protected Duration warmupDuration;
 
+    @Value("${test.performance.request-delay-ms:10}")
+    protected long requestDelayMs;
+
     protected MeterRegistry meterRegistry;
     protected ExecutorService executorService;
 
@@ -192,8 +195,10 @@ public abstract class PerformanceTestBase extends IntegrationTestBase {
                             responseTimes.add(responseTime); // Still record time for failed requests
                         }
                         
-                        // Small delay to prevent overwhelming the system
-                        Thread.sleep(10);
+                        // Small delay to prevent overwhelming the system (configurable)
+                        if (requestDelayMs > 0) {
+                            Thread.sleep(requestDelayMs);
+                        }
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();

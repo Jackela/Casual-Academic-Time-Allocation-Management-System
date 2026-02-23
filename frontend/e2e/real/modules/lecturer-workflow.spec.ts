@@ -68,11 +68,8 @@ const ensureLecturerModalHidden = async (page: Page): Promise<void> => {
     const ariaHidden = await modal.getAttribute('aria-hidden').catch(() => null);
     if (ariaHidden !== 'false') return;
     await closeLecturerCreateModal(page);
-    try {
-      await page.waitForTimeout(200);
-    } catch {
-      return;
-    }
+    // Wait for modal to be hidden before retrying
+    await modal.waitFor({ state: 'hidden', timeout: 500 }).catch(() => undefined);
   }
 };
 

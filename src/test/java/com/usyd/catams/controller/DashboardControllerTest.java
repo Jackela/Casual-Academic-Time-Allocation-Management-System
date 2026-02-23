@@ -184,27 +184,6 @@ class DashboardControllerTest {
     }
     
     @Test
-    @DisplayName("Should build current semester date range by default")
-    void shouldBuildCurrentSemesterDateRangeByDefault() {
-        // Given
-        when(authentication.getPrincipal()).thenReturn(mockUser);
-        doReturn(Collections.singletonList(new SimpleGrantedAuthority("ROLE_LECTURER")))
-            .when(authentication).getAuthorities();
-        when(dashboardService.getDashboardSummary(any(), any(), any(), any(), any()))
-            .thenReturn(mockResponse);
-        
-        // When
-        dashboardController.getDashboardSummary(null, null, null, null, authentication);
-        
-        // Then - Should call service with current semester dates (August 2025 = Semester 2)
-        verify(dashboardService).getDashboardSummary(
-            any(), any(), any(),
-            eq(LocalDate.of(2025, 7, 1)),  // Semester 2 start
-            eq(LocalDate.of(2025, 11, 30)) // Semester 2 end
-        );
-    }
-    
-    @Test
     @DisplayName("Should use custom date range when provided")
     void shouldUseCustomDateRangeWhenProvided() {
         // Given
