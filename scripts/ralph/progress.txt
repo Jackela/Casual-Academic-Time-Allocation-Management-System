@@ -276,3 +276,26 @@ Started: Wed Feb 19 21:00:00 CST 2026
   - Each exception type has custom error code extraction via getErrorCode() method
   - Default error codes used when exception constructed without specific code
 ---
+
+## [2026-02-23] - US-025
+- Marked as skipped - RateLimitExceededException does not exist in codebase
+- No 429 TOO_MANY_REQUESTS handling in GlobalExceptionHandler
+- **Learnings for future iterations:**
+  - Always verify exception class exists before creating tests
+  - Rate limiting may be handled at infrastructure level (not application level)
+---
+
+## [2026-02-23] - US-026
+- Refactored TimesheetRepositoryTest.java to remove Thread.sleep() calls
+- Replaced 2 Thread.sleep() calls with deterministic setCreatedAt() approach:
+  - testFindByTutorIdOrderByCreatedAtDesc: Line 118 (was Thread.sleep(5))
+  - testFindByStatusOrderByCreatedAtAsc: Line 472 (was Thread.sleep(10))
+- New approach uses LocalDateTime.of() for deterministic timestamps
+- Tests are now fast and deterministic
+- All tests pass: ./gradlew test --tests '*TimesheetRepositoryTest'
+- Files changed: src/test/java/com/usyd/catams/repository/TimesheetRepositoryTest.java
+- **Learnings for future iterations:**
+  - Timesheet entity has setCreatedAt() setter that can be used for deterministic testing
+  - @PrePersist sets createdAt automatically, but can be overridden after persist
+  - Using LocalDateTime.of() is simpler than Clock.fixed() for timestamp-based ordering tests
+---

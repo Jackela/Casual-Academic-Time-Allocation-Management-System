@@ -311,16 +311,16 @@ class UserTest {
         assertThat(newUser.getCreatedAt()).isNotNull();
         assertThat(newUser.getUpdatedAt()).isNotNull();
 
-        // Test deactivation
-        LocalDateTime beforeDeactivate = newUser.getUpdatedAt();
-        try { Thread.sleep(10); } catch (InterruptedException e) { }
+        // Test deactivation - use deterministic timestamps instead of Thread.sleep
+        LocalDateTime beforeDeactivate = LocalDateTime.of(2024, 3, 1, 10, 0, 0);
+        newUser.setUpdatedAt(beforeDeactivate);
         newUser.deactivate();
         assertThat(newUser.isActive()).isFalse();
         assertThat(newUser.getUpdatedAt()).isAfter(beforeDeactivate);
 
-        // Test reactivation
-        LocalDateTime beforeReactivate = newUser.getUpdatedAt();
-        try { Thread.sleep(10); } catch (InterruptedException e) { }
+        // Test reactivation - use deterministic timestamps instead of Thread.sleep
+        LocalDateTime beforeReactivate = LocalDateTime.of(2024, 3, 1, 10, 0, 1);
+        newUser.setUpdatedAt(beforeReactivate);
         newUser.activate();
         assertThat(newUser.isActive()).isTrue();
         assertThat(newUser.getUpdatedAt()).isAfter(beforeReactivate);
@@ -335,14 +335,15 @@ class UserTest {
         LocalDateTime beforeLogin = LocalDateTime.now().minusSeconds(1);
         user.updateLastLogin();
         LocalDateTime afterLogin = LocalDateTime.now().plusSeconds(1);
-        
+
         assertThat(user.getLastLoginAt()).isBetween(beforeLogin, afterLogin);
         LocalDateTime firstLogin = user.getLastLoginAt();
 
-        // Second login after some time
-        try { Thread.sleep(10); } catch (InterruptedException e) { }
+        // Second login after some time - use deterministic timestamp instead of Thread.sleep
+        user.setLastLoginAt(LocalDateTime.of(2024, 3, 1, 10, 0, 0));
+        firstLogin = user.getLastLoginAt();
         user.updateLastLogin();
-        
+
         assertThat(user.getLastLoginAt()).isAfter(firstLogin);
     }
 
@@ -383,18 +384,19 @@ class UserTest {
         assertThat(newUser.getCreatedAt()).isEqualTo(newUser.getUpdatedAt());
 
         // Test that methods update the timestamp appropriately
-        LocalDateTime originalUpdated = newUser.getUpdatedAt();
-        
-        try { Thread.sleep(10); } catch (InterruptedException e) { }
+        // Use deterministic timestamps instead of Thread.sleep
+        LocalDateTime baseTime = LocalDateTime.of(2024, 3, 1, 10, 0, 0);
+        newUser.setUpdatedAt(baseTime);
+
         newUser.updateLastLogin();
-        assertThat(newUser.getUpdatedAt()).isAfter(originalUpdated);
-        
-        try { Thread.sleep(10); } catch (InterruptedException e) { }
+        assertThat(newUser.getUpdatedAt()).isAfter(baseTime);
+
+        newUser.setUpdatedAt(baseTime);
         newUser.activate();
-        assertThat(newUser.getUpdatedAt()).isAfter(originalUpdated);
-        
-        try { Thread.sleep(10); } catch (InterruptedException e) { }
+        assertThat(newUser.getUpdatedAt()).isAfter(baseTime);
+
+        newUser.setUpdatedAt(baseTime);
         newUser.deactivate();
-        assertThat(newUser.getUpdatedAt()).isAfter(originalUpdated);
+        assertThat(newUser.getUpdatedAt()).isAfter(baseTime);
     }
 }

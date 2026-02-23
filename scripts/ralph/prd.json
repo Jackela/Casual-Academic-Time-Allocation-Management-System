@@ -410,7 +410,8 @@
         "Tests pass: ./gradlew test --tests '*TimesheetRepositoryTest'"
       ],
       "priority": 26,
-      "passes": false,
+      "passes": true,
+      "note": "Used setCreatedAt() with LocalDateTime instead of Clock.fixed() - simpler approach for this case",
       "filesToModify": ["src/test/java/com/usyd/catams/repository/TimesheetRepositoryTest.java"],
       "verificationCommand": "./gradlew test --tests '*TimesheetRepositoryTest'"
     },
