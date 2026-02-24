@@ -11,6 +11,20 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Test-only controller for seeding test data.
+ *
+ * <p><strong>WARNING:</strong> This controller is for testing purposes only and is
+ * active exclusively for test and E2E Spring profiles. It should NEVER be enabled
+ * in production environments.</p>
+ *
+ * <p>This controller provides endpoints for seeding test data including lecturer
+ * resources, tutor assignments, and test accounts for deterministic E2E testing.</p>
+ *
+ * @author CAS Team
+ * @since 1.0
+ * @see TestDataSeedService
+ */
 @RestController
 @RequestMapping("/api/test-data/seed")
 @Profile({"test", "e2e", "e2e-local"})
@@ -19,6 +33,13 @@ public class TestDataSeedController {
     private final TestDataSeedService seedService;
     private final String resetToken;
 
+    /**
+     * Constructs a new TestDataSeedController.
+     *
+     * @param seedService the service for seeding test data
+     * @param resetToken the token required for authorization (from app.testing.reset-token)
+     * @throws IllegalStateException if resetToken is not configured
+     */
     public TestDataSeedController(TestDataSeedService seedService,
                                   @Value("${app.testing.reset-token:}") String resetToken) {
         this.seedService = seedService;
@@ -28,8 +49,29 @@ public class TestDataSeedController {
         this.resetToken = resetToken;
     }
 
+    /**
+     * Request record for seeding lecturer resources.
+     *
+     * @param lecturerId the ID of the lecturer to seed resources for
+     * @param seedTutors whether to also seed basic tutor accounts
+     */
     public record LecturerSeedRequest(Long lecturerId, boolean seedTutors) {}
 
+    /**
+     * Seeds test resources for a lecturer including courses, tutors, and approval samples.
+     *
+     * <p>This endpoint creates a deterministic set of test data including:</p>
+     * <ul>
+     *   <li>Courses owned by the specified lecturer</li>
+     *   <li>Basic tutor accounts (if seedTutors is true)</li>
+     *   <li>Tutor assignments to the lecturer's courses</li>
+     *   <li>Sample approval records for testing approval workflows</li>
+     * </ul>
+     *
+     * @param providedToken the authorization token from the request header
+     * @param body the seed request containing lecturerId and seedTutors flag
+     * @return ResponseEntity with success status, seeded lecturer ID, and account manifest
+     */
     @PostMapping("/lecturer-resources")
     public ResponseEntity<Map<String, Object>> seedLecturerResources(
             @RequestHeader(name = "X-Test-Reset-Token", required = false) String providedToken,
@@ -81,6 +123,9 @@ public class TestDataSeedController {
 
     /**
      * Returns a manifest of baseline test accounts (role, email, id, password hint).
+     *
+     * @param providedToken the authorization token from the request header
+     * @return ResponseEntity with success status and list of test accounts
      */
     @GetMapping("/accounts")
     public ResponseEntity<Map<String, Object>> getAccounts(
@@ -99,11 +144,24 @@ public class TestDataSeedController {
         ));
     }
 
+    /**
+     * Request record for updating course ownership.
+     *
+     * @param courseCode the code of the course to update
+     * @param lecturerId the ID of the lecturer to transfer ownership to
+     */
     public record CourseOwnershipRequest(String courseCode, Long lecturerId) {}
 
     /**
      * Updates a course's lecturerId to transfer ownership to a different lecturer.
-     * Used in E2E tests to set up proper course ownership for approval workflows.
+     *
+     * <p>Used in E2E tests to set up proper course ownership for approval workflows.
+     * This allows tests to dynamically assign course ownership without modifying
+     * the database directly.</p>
+     *
+     * @param providedToken the authorization token from the request header
+     * @param body the request containing courseCode and lecturerId
+     * @return ResponseEntity with success status and updated ownership details
      */
     @PostMapping("/course-ownership")
     public ResponseEntity<Map<String, Object>> updateCourseOwnership(

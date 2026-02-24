@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
 /**
@@ -139,6 +140,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<UserResponse> getUsers() {
         return userRepository.findAll().stream()
             .sorted(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER))
@@ -147,6 +149,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<UserResponse> searchUsers(String role, Boolean active) {
         List<User> users;
         try {

@@ -1,6 +1,8 @@
+/* eslint-disable no-restricted-syntax */
+// Presentation demos require visual timing for demo flow
 /**
  * Visual Enhancement Helpers for Presentation Demos
- * 
+ *
  * Provides visual feedback for demo presentations:
  * - Custom mouse cursor with click ripple effect
  * - Input field focus highlighting

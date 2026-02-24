@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -41,10 +42,17 @@ public class UserApplicationService implements UserManagementService {
     
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
-    
+
+    /**
+     * Constructs a new UserApplicationService.
+     *
+     * @param userRepository the user repository (must not be null)
+     * @param courseRepository the course repository (must not be null)
+     * @throws NullPointerException if userRepository or courseRepository is null
+     */
     public UserApplicationService(UserRepository userRepository, CourseRepository courseRepository) {
-        this.userRepository = userRepository;
-        this.courseRepository = courseRepository;
+        this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
+        this.courseRepository = Objects.requireNonNull(courseRepository, "courseRepository must not be null");
     }
     
     @Override
@@ -124,7 +132,7 @@ public class UserApplicationService implements UserManagementService {
         }
         
         return courseRepository.findById(courseId)
-            .map(course -> userId.equals(course.getLecturerId()))
+            .map(course -> Objects.equals(userId, course.getLecturerId()))
             .orElse(false);
     }
     
@@ -187,11 +195,18 @@ public class UserApplicationService implements UserManagementService {
     
     /**
      * Maps User entity to UserDto for external communication
-     * 
+     *
      * Following DDD principles: The entity handles its own domain logic
      * for name parsing. If the entity is invalid, we fail fast.
+     *
+     * @param user the user entity to map (must not be null)
+     * @return the mapped UserDto
+     * @throws NullPointerException if user is null
+     * @throws IllegalStateException if user has an invalid name
      */
     private UserDto mapToDto(User user) {
+        Objects.requireNonNull(user, "user must not be null");
+
         // Validate domain invariants before mapping
         if (!user.hasValidName()) {
             throw new IllegalStateException("Cannot map user with invalid name: " + user.getId());
@@ -241,7 +256,7 @@ public class UserApplicationService implements UserManagementService {
         
         return switch (resourceType) {
             case "TIMESHEET" -> checkTimesheetActionPermission(user, action, resourceId);
-            case "USER" -> user.getRole() == UserRole.ADMIN || user.getId().equals(resourceId);
+            case "USER" -> user.getRole() == UserRole.ADMIN || Objects.equals(user.getId(), resourceId);
             case "COURSE" -> user.getRole() == UserRole.LECTURER && isLecturerOfCourse(user.getId(), resourceId);
             default -> false;
         };

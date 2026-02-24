@@ -3,6 +3,7 @@ package com.usyd.catams.entity;
 import com.usyd.catams.common.domain.model.CourseCode;
 import com.usyd.catams.common.domain.model.Money;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@DisplayName("Course Entity Tests")
 class CourseTest {
 
     private Course course;
@@ -27,11 +29,12 @@ class CourseTest {
         semester = "2024S1";
         lecturerId = 123L;
         budgetAllocated = new Money(new BigDecimal("5000.00"));
-        
+
         course = new Course(courseCode, name, semester, lecturerId, budgetAllocated);
     }
 
     @Test
+    @DisplayName("Default constructor should initialize all fields to null")
     void testDefaultConstructor() {
         // When
         Course emptyCourse = new Course();
@@ -50,6 +53,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Constructor with CourseCode and Money should set all fields correctly")
     void testConstructorWithCourseCodeAndMoney() {
         // When
         Course course = new Course(courseCode, name, semester, lecturerId, budgetAllocated);
@@ -68,6 +72,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Constructor with primitives should work correctly")
     void testConstructorWithPrimitives() {
         // Given
         String codeString = "MATH2001";
@@ -85,6 +90,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Getters and setters should work correctly for all fields")
     void testGettersAndSetters() {
         // Given
         Long id = 456L;
@@ -124,11 +130,12 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Course code methods should handle string and CourseCode objects")
     void testCourseCodeMethods() {
         // Test setting code with string
         String newCodeString = "PHYS1001";
         course.setCode(newCodeString);
-        
+
         assertThat(course.getCode()).isEqualTo(newCodeString);
         assertThat(course.getCodeValue()).isEqualTo(newCodeString);
         assertThat(course.getCourseCodeObject().getValue()).isEqualTo(newCodeString);
@@ -136,21 +143,22 @@ class CourseTest {
         // Test setting code with CourseCode object
         CourseCode codeObject = new CourseCode("CHEM2001");
         course.setCode(codeObject);
-        
+
         assertThat(course.getCourseCodeObject()).isEqualTo(codeObject);
         assertThat(course.getCode()).isEqualTo(codeObject.getValue());
         assertThat(course.getCodeValue()).isEqualTo(codeObject.getValue());
     }
 
     @Test
+    @DisplayName("Budget methods should handle Money and BigDecimal objects")
     void testBudgetMethods() {
         // Test setting budget with Money objects
         Money newAllocated = new Money(new BigDecimal("6000.00"));
         Money newUsed = new Money(new BigDecimal("2000.00"));
-        
+
         course.setBudgetAllocated(newAllocated);
         course.setBudgetUsed(newUsed);
-        
+
         assertThat(course.getBudgetAllocatedMoney()).isEqualTo(newAllocated);
         assertThat(course.getBudgetAllocated()).isEqualByComparingTo(new BigDecimal("6000.00"));
         assertThat(course.getBudgetUsedMoney()).isEqualTo(newUsed);
@@ -159,12 +167,13 @@ class CourseTest {
         // Test setting budget with BigDecimal
         course.setBudgetAllocated(new BigDecimal("7000.00"));
         course.setBudgetUsed(new BigDecimal("2500.00"));
-        
+
         assertThat(course.getBudgetAllocated()).isEqualByComparingTo(new BigDecimal("7000.00"));
         assertThat(course.getBudgetUsed()).isEqualByComparingTo(new BigDecimal("2500.00"));
     }
 
     @Test
+    @DisplayName("getBudgetRemaining should calculate remaining budget correctly")
     void testGetBudgetRemaining() {
         // Given
         course.setBudgetAllocated(new BigDecimal("5000.00"));
@@ -180,6 +189,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("hasSufficientBudget should correctly determine if amount can be covered")
     void testHasSufficientBudget() {
         // Given
         course.setBudgetAllocated(new BigDecimal("5000.00"));
@@ -199,6 +209,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("addToBudgetUsed should increase budget used correctly")
     void testAddToBudgetUsed() {
         // Given
         course.setBudgetUsed(new BigDecimal("1000.00"));
@@ -217,6 +228,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("addToBudgetUsed should throw exception when amount is null")
     void testAddToBudgetUsedWithNull() {
         // When & Then
         assertThatThrownBy(() -> course.addToBudgetUsed((Money) null))
@@ -225,6 +237,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("subtractFromBudgetUsed should decrease budget used correctly")
     void testSubtractFromBudgetUsed() {
         // Given
         course.setBudgetUsed(new BigDecimal("2000.00"));
@@ -243,6 +256,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("subtractFromBudgetUsed should throw exception when amount is null")
     void testSubtractFromBudgetUsedWithNull() {
         // When & Then
         assertThatThrownBy(() -> course.subtractFromBudgetUsed((Money) null))
@@ -251,6 +265,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("toString should contain all relevant fields")
     void testToString() {
         // Given
         course.setId(123L);
@@ -271,6 +286,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Budget calculation scenarios should work correctly")
     void testBudgetCalculationScenarios() {
         // Scenario 1: Fresh course with no budget used
         course.setBudgetAllocated(new BigDecimal("10000.00"));
@@ -292,6 +308,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Budget modification operations should work correctly")
     void testBudgetModificationOperations() {
         // Given - Start with some budget used
         course.setBudgetAllocated(new BigDecimal("5000.00"));
@@ -311,6 +328,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Null budget handling should work correctly")
     void testNullBudgetHandling() {
         // Test with null budget allocated
         course.setBudgetAllocated((Money) null);
@@ -324,6 +342,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Null course code handling should work correctly")
     void testCodeNullHandling() {
         // Test with null course code object
         course.setCode((CourseCode) null);
@@ -333,6 +352,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Budget precision handling should maintain decimal accuracy")
     void testBudgetPrecisionHandling() {
         // Test with precise decimal values
         course.setBudgetAllocated(new BigDecimal("1000.56"));
@@ -348,10 +368,11 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Different semester formats should be accepted")
     void testDifferentSemesterFormats() {
         // Test various semester formats
         String[] semesters = {"2024S1", "2024S2", "2024Summer", "2025S1", "2023S2"};
-        
+
         for (String sem : semesters) {
             course.setSemester(sem);
             assertThat(course.getSemester()).isEqualTo(sem);
@@ -359,6 +380,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Active course management should work correctly")
     void testActiveCourseManagement() {
         // Test course starts as active
         assertThat(course.getIsActive()).isTrue();
@@ -377,6 +399,7 @@ class CourseTest {
     }
 
     @Test
+    @DisplayName("Budget operations should support chaining logically")
     void testBudgetOperationsChaining() {
         // Test that budget operations can be chained logically
         course.setBudgetAllocated(new BigDecimal("10000.00"));
@@ -386,23 +409,24 @@ class CourseTest {
         course.addToBudgetUsed(new BigDecimal("500.00")); // Timesheet 1
         course.addToBudgetUsed(new BigDecimal("750.00")); // Timesheet 2
         course.addToBudgetUsed(new BigDecimal("1200.00")); // Timesheet 3
-        
+
         assertThat(course.getBudgetUsed()).isEqualByComparingTo(new BigDecimal("3450.00"));
         assertThat(course.getBudgetRemainingAmount()).isEqualByComparingTo(new BigDecimal("6550.00"));
 
         // Simulate a refund/adjustment
         course.subtractFromBudgetUsed(new BigDecimal("200.00"));
-        
+
         assertThat(course.getBudgetUsed()).isEqualByComparingTo(new BigDecimal("3250.00"));
         assertThat(course.getBudgetRemainingAmount()).isEqualByComparingTo(new BigDecimal("6750.00"));
     }
 
     @Test
+    @DisplayName("Edge case budget scenarios should be handled correctly")
     void testEdgeCaseBudgetScenarios() {
         // Test zero budget allocated
         course.setBudgetAllocated(BigDecimal.ZERO);
         course.setBudgetUsed(BigDecimal.ZERO);
-        
+
         assertThat(course.getBudgetRemainingAmount()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(course.hasSufficientBudget(BigDecimal.ZERO)).isTrue();
         assertThat(course.hasSufficientBudget(new BigDecimal("0.01"))).isFalse();
@@ -410,7 +434,7 @@ class CourseTest {
         // Test exact budget match
         course.setBudgetAllocated(new BigDecimal("1000.00"));
         course.setBudgetUsed(new BigDecimal("1000.00"));
-        
+
         assertThat(course.getBudgetRemainingAmount()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(course.hasSufficientBudget(BigDecimal.ZERO)).isTrue();
         assertThat(course.hasSufficientBudget(new BigDecimal("0.01"))).isFalse();

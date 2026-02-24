@@ -93,9 +93,11 @@ const resolveTimesheetConfigEndpoints = (): string[] => {
     } catch {}
     if (isE2E || isLocalDev) {
       // Prefer direct backend endpoints to avoid proxy gaps in dev/e2e (omit relative path)
+      // Use environment variable for backend port if available (CI uses 8084)
+      const backendPort = import.meta.env.E2E_BACKEND_PORT || '8080';
       return [
-        'http://localhost:8080/api/timesheets/config',
-        'http://127.0.0.1:8080/api/timesheets/config',
+        `http://localhost:${backendPort}/api/timesheets/config`,
+        `http://127.0.0.1:${backendPort}/api/timesheets/config`,
       ];
     }
   } catch {

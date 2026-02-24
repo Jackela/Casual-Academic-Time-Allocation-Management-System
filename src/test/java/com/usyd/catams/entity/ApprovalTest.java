@@ -3,6 +3,7 @@ package com.usyd.catams.entity;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@DisplayName("Approval Entity Tests")
 class ApprovalTest {
 
     private Approval approval;
@@ -28,11 +30,12 @@ class ApprovalTest {
         previousStatus = ApprovalStatus.DRAFT;
         newStatus = ApprovalStatus.PENDING_TUTOR_CONFIRMATION;
         comment = "Submitting timesheet for confirmation";
-        
+
         approval = new Approval(timesheetId, approverId, action, previousStatus, newStatus, comment);
     }
 
     @Test
+    @DisplayName("Default constructor should initialize all fields to null")
     void testDefaultConstructor() {
         // When
         Approval emptyApproval = new Approval();
@@ -50,6 +53,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("Parameterized constructor should set all provided fields correctly")
     void testParameterizedConstructor() {
         // When
         Approval approval = new Approval(timesheetId, approverId, action, previousStatus, newStatus, comment);
@@ -66,6 +70,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("Getters and setters should work correctly for all fields")
     void testGettersAndSetters() {
         // Given
         Long id = 789L;
@@ -102,6 +107,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("isSubmission should return true only for SUBMIT_FOR_APPROVAL action")
     void testIsSubmission() {
         // Test true case
         approval.setAction(ApprovalAction.SUBMIT_FOR_APPROVAL);
@@ -119,6 +125,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("isConfirmation should return true only for confirmation actions")
     void testIsApproval() {
         // Test true case
         approval.setAction(ApprovalAction.TUTOR_CONFIRM);
@@ -136,6 +143,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("isRejection should return true only for REJECT action")
     void testIsRejection() {
         // Test true case
         approval.setAction(ApprovalAction.REJECT);
@@ -153,6 +161,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("isModificationRequest should return true only for REQUEST_MODIFICATION action")
     void testIsModificationRequest() {
         // Test true case
         approval.setAction(ApprovalAction.REQUEST_MODIFICATION);
@@ -170,12 +179,14 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("validateBusinessRules should pass for valid approval")
     void testValidateBusinessRulesSuccess() {
         // When & Then - Should not throw exception
         approval.validateBusinessRules();
     }
 
     @Test
+    @DisplayName("validateBusinessRules should fail when timesheet ID is null")
     void testValidateBusinessRulesFailsWithNullTimesheetId() {
         // Given
         approval.setTimesheetId(null);
@@ -187,6 +198,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("validateBusinessRules should fail when approver ID is null")
     void testValidateBusinessRulesFailsWithNullApproverId() {
         // Given
         approval.setApproverId(null);
@@ -198,6 +210,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("validateBusinessRules should fail when action is null")
     void testValidateBusinessRulesFailsWithNullAction() {
         // Given
         approval.setAction(null);
@@ -209,6 +222,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("validateBusinessRules should fail when previous status is null")
     void testValidateBusinessRulesFailsWithNullPreviousStatus() {
         // Given
         approval.setPreviousStatus(null);
@@ -220,6 +234,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("validateBusinessRules should fail when new status is null")
     void testValidateBusinessRulesFailsWithNullNewStatus() {
         // Given
         approval.setNewStatus(null);
@@ -231,6 +246,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("validateBusinessRules should fail when comment exceeds 500 characters")
     void testValidateBusinessRulesFailsWithTooLongComment() {
         // Given - Comment with more than 500 characters
         String longComment = "x".repeat(501);
@@ -243,6 +259,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("validateBusinessRules should accept comment with exactly 500 characters")
     void testValidateBusinessRulesAcceptsMaxLengthComment() {
         // Given - Comment with exactly 500 characters
         String maxComment = "x".repeat(500);
@@ -254,6 +271,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("validateBusinessRules should accept null comment")
     void testValidateBusinessRulesAcceptsNullComment() {
         // Given
         approval.setComment(null);
@@ -264,6 +282,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("toString should contain all relevant fields")
     void testToString() {
         // Given
         approval.setId(123L);
@@ -286,6 +305,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("Different approval actions should correctly identify their type")
     void testDifferentApprovalActions() {
         // Test SUBMIT_FOR_APPROVAL
         Approval submission = new Approval(1L, 100L, ApprovalAction.SUBMIT_FOR_APPROVAL,
@@ -321,6 +341,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("Approval workflow scenarios should work correctly")
     void testApprovalWorkflowScenarios() {
         // Scenario 1: Initial submission (now goes to PENDING_TUTOR_CONFIRMATION)
         Approval submission = new Approval(1L, 100L, ApprovalAction.SUBMIT_FOR_APPROVAL,
@@ -354,6 +375,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("Active status should be manageable through setter")
     void testActiveStatusManagement() {
         // Test default active status
         assertThat(approval.getIsActive()).isTrue();
@@ -372,6 +394,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("Comment handling should accept null, empty, and valid comments")
     void testCommentHandling() {
         // Test with no comment
         approval.setComment(null);
@@ -395,9 +418,10 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("Timestamp should be null until set by @PrePersist or manually")
     void testTimestampHandling() {
         // Test that timestamp is initially null (set by @PrePersist)
-        Approval newApproval = new Approval(1L, 100L, ApprovalAction.SUBMIT_FOR_APPROVAL, 
+        Approval newApproval = new Approval(1L, 100L, ApprovalAction.SUBMIT_FOR_APPROVAL,
                 ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_CONFIRMATION, null);        assertThat(newApproval.getTimestamp()).isNull();
 
         // Test setting timestamp manually
@@ -407,6 +431,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("Complete audit trail scenario should work end-to-end")
     void testAuditTrailScenario() {
         // Simulate a complete audit trail for a timesheet
         Long timesheetId = 1L;
@@ -454,6 +479,7 @@ class ApprovalTest {
     }
 
     @Test
+    @DisplayName("Edge case validation should handle minimum and maximum valid values")
     void testEdgeCaseValidation() {
         // Test with minimum valid values
         Approval minimalApproval = new Approval(1L, 1L, ApprovalAction.SUBMIT_FOR_APPROVAL,

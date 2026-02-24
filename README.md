@@ -24,7 +24,7 @@ CATAMS is a full‑stack system for managing casual academic timesheets and appr
 ## Running Locally (with Docker Testcontainers)
 
 ### Prerequisites
-- Java 17+ (or 21)
+- Java 21 (required)
 - Node.js 20+
 - Docker Desktop (for Testcontainers and E2E)
 

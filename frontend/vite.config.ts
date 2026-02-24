@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, process.cwd(), ['VITE_', 'E2E_']);
   // Prefer Vite-loaded envs; fall back to process.env for CI shells
   const apiProxyTarget = env.VITE_API_PROXY_TARGET || env.VITE_API_BASE_URL || process.env.VITE_API_PROXY_TARGET || process.env.VITE_API_BASE_URL;
   const apiProxyOrigin = apiProxyTarget ? new URL(apiProxyTarget).origin : undefined;

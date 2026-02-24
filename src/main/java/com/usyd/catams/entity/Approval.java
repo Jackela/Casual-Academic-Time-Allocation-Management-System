@@ -5,16 +5,32 @@ import com.usyd.catams.enums.ApprovalStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * Approval entity representing approval actions performed on timesheets.
- * 
- * This entity tracks the complete audit trail of all approval actions
+ *
+ * <p>This entity tracks the complete audit trail of all approval actions
  * performed on timesheets, including submissions, approvals, rejections,
- * and modification requests.
- * 
- * Each record represents a single approval action at a point in time,
- * providing complete traceability of the approval workflow.
+ * and modification requests.</p>
+ *
+ * <p>Each record represents a single approval action at a point in time,
+ * providing complete traceability of the approval workflow. The approval
+ * workflow follows a state machine pattern with defined status transitions:</p>
+ *
+ * <ul>
+ *   <li>DRAFT → PENDING_TUTOR_CONFIRMATION (submit for approval)</li>
+ *   <li>PENDING_TUTOR_CONFIRMATION → TUTOR_CONFIRMED (tutor confirms)</li>
+ *   <li>TUTOR_CONFIRMED → LECTURER_CONFIRMED (lecturer confirms)</li>
+ *   <li>LECTURER_CONFIRMED → FINAL_CONFIRMED (HR confirms)</li>
+ *   <li>Various states → DRAFT (request modification or reject)</li>
+ * </ul>
+ *
+ * @author CAS Team
+ * @since 1.0
+ * @see Timesheet
+ * @see ApprovalAction
+ * @see ApprovalStatus
  */
 @Entity
 @Table(name = "approvals", 
@@ -286,6 +302,25 @@ public class Approval {
         }
     }
     
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Approval approval = (Approval) o;
+        // If both have IDs, compare by ID; otherwise use identity
+        if (this.id != null && approval.id != null) {
+            return Objects.equals(this.id, approval.id);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        // If entity is new (no ID), use identity-based hash (System.identityHashCode)
+        // This ensures consistency: equal objects have same hash
+        return id != null ? Objects.hash(id) : System.identityHashCode(this);
+    }
+
     @Override
     public String toString() {
         return "Approval{" +

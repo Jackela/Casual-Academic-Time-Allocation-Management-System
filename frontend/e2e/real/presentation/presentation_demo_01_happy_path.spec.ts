@@ -1,16 +1,18 @@
+/* eslint-disable no-restricted-syntax */
+// Presentation demos require visual timing for demo flow
 /**
  * Demo Script 1: Complete "Happy Path" Four-Level Approval Workflow
  * Demo Duration: ~5.0 minutes
- * 
+ *
  * Purpose:
  * Demonstrate the system's core business value - complete Lecturer → Tutor → Lecturer → Admin four-level approval workflow
- * 
+ *
  * Demo Flow:
  * 1. Lecturer creates timesheet via UI and assigns to Tutor
  * 2. Tutor confirms timesheet via UI
  * 3. Lecturer approves confirmation via UI
  * 4. Admin performs final confirmation via UI
- * 
+ *
  * Key Features:
  * - State machine-driven approval transitions
  * - Multi-role permission isolation
@@ -122,6 +124,7 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
     if (!firstCourseValue) {
       throw new Error('No course options available');
     }
+    // eslint-disable-next-line prefer-const -- assigned conditionally from async selection
     courseId = parseInt(firstCourseValue, 10);
     await highlightAndSelect(courseSelect, firstCourseValue, `Selecting ${courseOptions[1]}`, { pauseBefore: 1000, pauseAfter: 1500 });
 
