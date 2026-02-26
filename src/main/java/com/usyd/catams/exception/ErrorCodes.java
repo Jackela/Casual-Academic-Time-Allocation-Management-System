@@ -65,7 +65,10 @@ public final class ErrorCodes {
     // ========================================
     
     /** General validation failure */
-    public static final String VALIDATION_FAILED = "VAL_VALIDATION_FAILED";
+    public static final String VALIDATION_FAILED = "VALIDATION_FAILED";
+    
+    /** General validation failure (new format) */
+    public static final String VAL_VALIDATION_FAILED = "VAL_VALIDATION_FAILED";
     
     /** Email already exists */
     public static final String EMAIL_EXISTS = "VAL_EMAIL_EXISTS";
