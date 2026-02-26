@@ -93,7 +93,10 @@ public final class ErrorCodes {
     // ========================================
     
     /** Resource not found */
-    public static final String RESOURCE_NOT_FOUND = "RES_NOT_FOUND";
+    public static final String RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND";
+    
+    /** Resource not found (new format) */
+    public static final String RES_NOT_FOUND = "RES_NOT_FOUND";
     
     /** Resource already exists */
     public static final String RESOURCE_EXISTS = "RES_EXISTS";
