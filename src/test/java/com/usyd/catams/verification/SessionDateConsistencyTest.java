@@ -15,6 +15,8 @@ import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
 /**
  * 验证sessionDate重计算一致性问题
  * 测试当timesheet编辑时，是否保持原始的sessionDate用于费率计算
@@ -23,14 +25,15 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("test")
 public class SessionDateConsistencyTest {
 
+    @Autowired
+    private Schedule1Calculator calculator;
+
     @Test
     @DisplayName("验证编辑时sessionDate保持一致 - 费率政策未变化场景")
     public void testSessionDateConsistency_SamePolicyPeriod() {
         // Given: 创建时使用特定sessionDate
         LocalDate originalSessionDate = LocalDate.of(2024, 1, 15); // 原始日期
         LocalDate editSessionDate = LocalDate.of(2024, 1, 22);     // 编辑日期(同一政策期)
-        
-        Schedule1Calculator calculator = new Schedule1Calculator(null);
         
         // 原始计算
         Schedule1CalculationResult originalCalc = calculator.calculate(
@@ -68,7 +71,9 @@ public class SessionDateConsistencyTest {
         LocalDate oldPolicyDate = LocalDate.of(2023, 6, 5);    // 旧政策期
         LocalDate newPolicyDate = LocalDate.of(2024, 1, 15);   // 新政策期
         
-        Schedule1Calculator calculator = new Schedule1Calculator(null);
+        // Note: This test would need a properly initialized calculator with strategy factory
+        // For now, skipping this test or using @Autowired would be better
+        // Schedule1Calculator calculator = new Schedule1Calculator(null, strategyFactory);
         
         // 原始计算(旧政策期)
         Schedule1CalculationResult originalCalc = calculator.calculate(
