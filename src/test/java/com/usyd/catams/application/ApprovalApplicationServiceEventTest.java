@@ -95,19 +95,19 @@ class ApprovalApplicationServiceEventTest {
     }
 
     @Test
-    @DisplayName("should publish event when approving")
-    void shouldPublishEventWhenApproving() {
+    @DisplayName("should publish event when confirming by tutor")
+    void shouldPublishEventWhenConfirmingByTutor() {
         // Given
         Timesheet timesheet = createTimesheet(ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
-        User requester = createUser(2L, UserRole.LECTURER);
+        User requester = createUser(1L, UserRole.TUTOR);
         Course course = createCourse();
         
         when(timesheetRepository.findById(1L)).thenReturn(Optional.of(timesheet));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(requester));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
         when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
         
         // When
-        service.performApprovalAction(1L, ApprovalAction.LECTURER_CONFIRM, "Approved", 2L);
+        service.performApprovalAction(1L, ApprovalAction.TUTOR_CONFIRM, "Confirmed", 1L);
         
         // Then
         verify(eventPublisher).publish(any(TimesheetEvent.TimesheetApprovalProcessedEvent.class));
