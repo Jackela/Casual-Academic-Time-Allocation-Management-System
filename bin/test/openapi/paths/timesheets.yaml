@@ -1,0 +1,376 @@
+POST:
+  get:
+    tags:
+      - Timesheets
+    summary: List timesheets
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: tutorId
+        in: query
+        schema:
+          type: integer
+          format: int64
+      - name: courseId
+        in: query
+        schema:
+          type: integer
+          format: int64
+      - name: status
+        in: query
+        schema:
+          $ref: '../schemas/approvals.yaml#/ApprovalStatus'
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+    responses:
+      '200':
+        description: Timesheets retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetPageResponse'
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+  post:
+    tags:
+      - Timesheets
+    summary: Create timesheet
+    description: |
+      Create a timesheet by submitting the instructional data only.  
+      Financial values (payable hours, hourly rate, amount) are computed on the server using the EA Schedule 1 calculator and must **not** be supplied by clients.
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/timesheets.yaml#/TimesheetCreateRequest'
+    responses:
+      '201':
+        description: Timesheet created
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetResponse'
+      '400':
+        description: Validation failure
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+
+POST_QUOTE:
+  post:
+    tags:
+      - Timesheets
+    summary: Quote timesheet
+    description: Returns EA-compliant financial values for a prospective timesheet.
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/timesheets.yaml#/TimesheetQuoteRequest'
+    responses:
+      '200':
+        description: Quote generated
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetQuoteResponse'
+      '400':
+        description: Invalid input or calculator rule violation
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '404':
+        description: No policy data available for the supplied inputs
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+
+GET_BY_ID:
+  get:
+    tags:
+      - Timesheets
+    summary: Get timesheet by ID
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    responses:
+      '200':
+        description: Timesheet found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetResponse'
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '404':
+        description: Timesheet not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+  put:
+    tags:
+      - Timesheets
+    summary: Update timesheet
+    description: Client submits instructional fields only. Financial values are recalculated server-side.
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/timesheets.yaml#/TimesheetUpdateRequest'
+    responses:
+      '200':
+        description: Timesheet updated
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetResponse'
+      '400':
+        description: Validation failure
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '404':
+        description: Timesheet not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+
+GET_PENDING_FINAL:
+  get:
+    tags:
+      - Timesheets
+    summary: Get timesheets pending final approval
+    description: Returns timesheets that have been confirmed by lecturers and are awaiting administrator (HR) action.
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+    responses:
+      '200':
+        description: Pending timesheets retrieved
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetPageResponse'
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+
+GET_PENDING:
+  get:
+    tags:
+      - Timesheets
+    summary: Get timesheets pending first-level approval
+    description: Returns timesheets pending first-level approval. Accessible to Tutor (own) and Admin roles.
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+    responses:
+      '200':
+        description: Pending timesheets retrieved
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetPageResponse'
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+
+GET_ME:
+  get:
+    tags:
+      - Timesheets
+    summary: Get current tutor's timesheets
+    description: Returns a paged list of timesheets for the current authenticated tutor.
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: sort
+        in: query
+        schema:
+          type: string
+          example: createdAt,desc
+      - name: status
+        in: query
+        schema:
+          $ref: '../schemas/approvals.yaml#/ApprovalStatus'
+    responses:
+      '200':
+        description: Timesheets retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/timesheets.yaml#/TimesheetPageResponse'
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+
+GET_CONFIG:
+  get:
+    tags:
+      - Timesheets
+    summary: Get timesheets UI constraints
+    description: Publishes server-side SSOT config for UI validation (hours range, weekStart rules, currency).
+    security:
+      - bearerAuth: []
+    responses:
+      '200':
+        description: Config retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hours:
+                  type: object
+                  properties:
+                    min:
+                      type: number
+                    max:
+                      type: number
+                    step:
+                      type: number
+                weekStart:
+                  type: object
+                  properties:
+                    mondayOnly:
+                      type: boolean
+                currency:
+                  type: string
+  delete:
+    tags:
+      - Timesheets
+    summary: Delete timesheet
+    description: Deletes a timesheet by ID. Authorization and business rule validation are enforced server-side.
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    responses:
+      '204':
+        description: Timesheet deleted
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'
+      '404':
+        description: Timesheet not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/errors.yaml#/ErrorResponse'

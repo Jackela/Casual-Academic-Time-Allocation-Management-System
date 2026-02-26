@@ -1,0 +1,113 @@
+post:
+  tags:
+    - Approvals
+  summary: Perform approval action
+  description: |
+    Perform an approval workflow action (confirm, request modification, reject, final confirmation).
+    
+    **Access rules**:
+    - **TUTOR**: May `SUBMIT_FOR_APPROVAL` drafts they own, `TUTOR_CONFIRM` pending confirmations, or respond with `REJECT` / `REQUEST_MODIFICATION`.
+    - **LECTURER**: May `LECTURER_CONFIRM`, `REJECT`, or `REQUEST_MODIFICATION` for timesheets belonging to the courses they coordinate.
+    - **HR/ADMIN**: May `HR_CONFIRM`, `REJECT`, or `REQUEST_MODIFICATION` once a timesheet is lecturer-confirmed. Administrators may also perform overrides when necessary.
+    
+    **Workflow states**:
+    - `DRAFT` → `PENDING_TUTOR_CONFIRMATION` (`SUBMIT_FOR_APPROVAL`)
+    - `PENDING_TUTOR_CONFIRMATION` → `TUTOR_CONFIRMED` (`TUTOR_CONFIRM`) | `REJECTED` (`REJECT`) | `MODIFICATION_REQUESTED` (`REQUEST_MODIFICATION`)
+    - `TUTOR_CONFIRMED` → `LECTURER_CONFIRMED` (`LECTURER_CONFIRM`) | `REJECTED` (`REJECT`) | `MODIFICATION_REQUESTED` (`REQUEST_MODIFICATION`)
+    - `LECTURER_CONFIRMED` → `FINAL_CONFIRMED` (`HR_CONFIRM`) | `REJECTED` (`REJECT`) | `MODIFICATION_REQUESTED` (`REQUEST_MODIFICATION`)
+  operationId: performApprovalAction
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/approvals.yaml#/ApprovalActionRequest'
+        examples:
+          confirm_timesheet:
+            summary: Lecturer confirms a tutor-approved timesheet
+            value:
+              timesheetId: 789
+              action: "LECTURER_CONFIRM"
+              comment: "All good from my side."
+          reject_timesheet:
+            summary: Reject timesheet
+            value:
+              timesheetId: 789
+              action: "REJECT"
+              comment: "Rejected - hours seem excessive for the described work"
+          request_modification:
+            summary: Request modification
+            value:
+              timesheetId: 789
+              action: "REQUEST_MODIFICATION"
+              comment: "Please provide more detailed description of the tutorial work"
+  responses:
+    '200':
+      description: Approval action completed successfully
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/approvals.yaml#/ApprovalActionResponse'
+          examples:
+            lecturer_confirmation:
+              summary: Successful lecturer confirmation
+              value:
+                timesheetId: 789
+                action: "LECTURER_CONFIRM"
+                newStatus: "LECTURER_CONFIRMED"
+                approverId: 999
+                approverName: "Dr. Jane Smith"
+                comment: "Approved for HR processing"
+                timestamp: "2025-08-01T16:30:00Z"
+                nextSteps:
+                  - "Timesheet has moved to HR for final confirmation"
+    '400':
+      description: Invalid approval action or business rule violation
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+          examples:
+            invalid_transition:
+              summary: Invalid state transition
+              value:
+                timestamp: "2025-08-01T10:15:30.123Z"
+                status: 400
+                error: "INVALID_STATE_TRANSITION"
+                message: "Cannot approve timesheet in current state: DRAFT"
+                path: "/api/approvals"
+    '401':
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+    '403':
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+          examples:
+            not_authorized:
+              summary: Not authorized for this timesheet
+              value:
+                timestamp: "2025-08-01T10:15:30.123Z"
+                status: 403
+                error: "ACCESS_DENIED"
+                message: "You are not authorized to approve this timesheet"
+                path: "/api/approvals"
+    '404':
+      description: Timesheet not found
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
+    '500':
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/errors.yaml#/ErrorResponse'
