@@ -1,0 +1,402 @@
+TimesheetQuoteRequest:
+  type: object
+  required:
+    - tutorId
+    - courseId
+    - taskType
+    - qualification
+    - isRepeat
+    - deliveryHours
+    - sessionDate
+  properties:
+    tutorId:
+      type: integer
+      format: int64
+    courseId:
+      type: integer
+      format: int64
+    taskType:
+      type: string
+      enum:
+        - LECTURE
+        - TUTORIAL
+        - ORAA
+        - DEMO
+        - MARKING
+        - OTHER
+    qualification:
+      type: string
+      enum:
+        - STANDARD
+        - COORDINATOR
+        - PHD
+    isRepeat:
+      type: boolean
+    deliveryHours:
+      type: number
+      format: float
+      minimum: 0.1
+      maximum: 10.0
+    sessionDate:
+      type: string
+      format: date
+    description:
+      type: string
+      maxLength: 1000
+      description: Optional user note included in persistence payloads.
+
+TimesheetQuoteResponse:
+  type: object
+  required:
+    - taskType
+    - rateCode
+    - qualification
+    - isRepeat
+    - deliveryHours
+    - associatedHours
+    - payableHours
+    - hourlyRate
+    - amount
+    - formula
+    - clauseReference
+    - sessionDate
+  properties:
+    taskType:
+      type: string
+    rateCode:
+      type: string
+      example: TU1
+    qualification:
+      type: string
+    isRepeat:
+      type: boolean
+    deliveryHours:
+      type: number
+      format: float
+    associatedHours:
+      type: number
+      format: float
+    payableHours:
+      type: number
+      format: float
+    hourlyRate:
+      type: number
+      format: float
+    amount:
+      type: number
+      format: float
+    formula:
+      type: string
+      example: 1h delivery + 2h associated
+    clauseReference:
+      type: string
+      example: Schedule 1 Item 1
+    sessionDate:
+      type: string
+      format: date
+
+TimesheetInstructionRequest:
+  type: object
+  required:
+    - tutorId
+    - courseId
+    - weekStartDate
+    - taskType
+    - qualification
+    - isRepeat
+    - deliveryHours
+    - description
+  properties:
+    tutorId:
+      type: integer
+      format: int64
+      description: Identifier of the tutor the timesheet belongs to.
+    courseId:
+      type: integer
+      format: int64
+      description: Identifier of the course the work relates to.
+    weekStartDate:
+      type: string
+      format: date
+      description: |
+        Week the work belongs to. Must be a Monday and ensures uniqueness per tutor/course/week.
+    sessionDate:
+      type: string
+      format: date
+      description: Optional session date; defaults to the week start date when omitted.
+    taskType:
+      type: string
+      enum:
+        - LECTURE
+        - TUTORIAL
+        - ORAA
+        - DEMO
+        - MARKING
+        - OTHER
+    qualification:
+      type: string
+      enum:
+        - STANDARD
+        - COORDINATOR
+        - PHD
+    isRepeat:
+      type: boolean
+      description: Whether the session is a repeat within seven days.
+    deliveryHours:
+      type: number
+      format: float
+      minimum: 0.1
+      maximum: 10.0
+      description: In-class delivery hours entered by the lecturer/tutor.
+    description:
+      type: string
+      maxLength: 1000
+      description: Free-form notes describing the work performed.
+
+TimesheetCreateRequest:
+  allOf:
+    - $ref: '#/TimesheetInstructionRequest'
+  description: |
+    Client submits instructional fields only; financial values are recalculated server-side.
+
+TimesheetUpdateRequest:
+  type: object
+  required:
+    - taskType
+    - qualification
+    - isRepeat
+    - deliveryHours
+    - description
+  properties:
+    taskType:
+      type: string
+      enum:
+        - LECTURE
+        - TUTORIAL
+        - ORAA
+        - DEMO
+        - MARKING
+        - OTHER
+    qualification:
+      type: string
+      enum:
+        - STANDARD
+        - COORDINATOR
+        - PHD
+    isRepeat:
+      type: boolean
+    deliveryHours:
+      type: number
+      format: float
+      minimum: 0.1
+      maximum: 10.0
+    sessionDate:
+      type: string
+      format: date
+      description: Updated session date, if applicable.
+    description:
+      type: string
+      maxLength: 1000
+      description: Updated notes describing the work performed.
+  description: |
+    Instructional fields that can be updated on an existing timesheet.  
+    Financial values remain server-calculated and must not be supplied.
+
+TimesheetResponse:
+  type: object
+  required:
+    - id
+    - tutorId
+    - tutorName
+    - courseId
+    - courseName
+    - weekStartDate
+    - sessionDate
+    - hours
+    - hourlyRate
+    - deliveryHours
+    - associatedHours
+    - totalPay
+    - taskType
+    - isRepeat
+    - qualification
+    - status
+    - createdAt
+    - updatedAt
+    - isEditable
+    - canBeApproved
+    - createdBy
+    - approvals
+  properties:
+    id:
+      type: integer
+      format: int64
+      description: Unique identifier for the timesheet.
+    tutorId:
+      type: integer
+      format: int64
+      description: Identifier of the tutor the timesheet belongs to.
+    tutorName:
+      type: string
+      description: Display name of the tutor.
+    courseId:
+      type: integer
+      format: int64
+      description: Identifier of the course associated with the timesheet.
+    courseName:
+      type: string
+      description: Display name of the associated course.
+    weekStartDate:
+      type: string
+      format: date
+      description: ISO week start date represented by the timesheet.
+    sessionDate:
+      type: string
+      format: date
+      description: Actual session date used for EA rate calculations.
+    hours:
+      type: number
+      format: float
+      description: Total payable hours captured for the week.
+    hourlyRate:
+      type: number
+      format: float
+      description: Hourly rate applied when the timesheet was calculated.
+    deliveryHours:
+      type: number
+      format: float
+      description: EA delivery hours component used in Schedule 1.
+    associatedHours:
+      type: number
+      format: float
+      description: EA associated hours component used in Schedule 1.
+    totalPay:
+      type: number
+      format: float
+      description: Total calculated pay for the timesheet based on EA rules.
+    taskType:
+      type: string
+      description: EA task category used to select rate codes.
+      enum:
+        - LECTURE
+        - TUTORIAL
+        - ORAA
+        - DEMO
+        - MARKING
+        - OTHER
+    isRepeat:
+      type: boolean
+      description: Indicates if the session is part of a recurring schedule.
+    qualification:
+      type: string
+      description: Tutor qualification applied when deriving the rate.
+      enum:
+        - STANDARD
+        - COORDINATOR
+        - PHD
+    rateCode:
+      type: string
+      nullable: true
+      description: EA rate code applied during calculation.
+    calculationFormula:
+      type: string
+      nullable: true
+      description: Human-readable formula describing the calculation steps.
+    clauseReference:
+      type: string
+      nullable: true
+      description: EA clause reference used for compliance.
+    description:
+      type: string
+      nullable: true
+      description: Lecturer supplied free-text description of work performed.
+    status:
+      $ref: '../schemas/approvals.yaml#/ApprovalStatus'
+    createdAt:
+      type: string
+      format: date-time
+      description: Timestamp when the timesheet was created.
+    updatedAt:
+      type: string
+      format: date-time
+      description: Timestamp when the timesheet was last updated.
+    isEditable:
+      type: boolean
+      description: Indicates whether the current user may edit the timesheet.
+    canBeApproved:
+      type: boolean
+      description: Indicates whether the timesheet is awaiting approval action.
+    createdBy:
+      type: integer
+      format: int64
+      description: Identifier of the user who originally created the timesheet.
+    rejectionReason:
+      type: string
+      nullable: true
+      description: Most recent rejection comment, present when status is REJECTED.
+    approvals:
+      type: array
+      description: Chronological list of approval actions taken on this timesheet.
+      items:
+        $ref: '../schemas/approvals.yaml#/ApprovalActionResponse'
+
+TimesheetPageResponse:
+  type: object
+  required:
+    - success
+    - timesheets
+    - pageInfo
+  properties:
+    success:
+      type: boolean
+      description: Indicates whether the request completed successfully.
+      example: true
+    timesheets:
+      type: array
+      description: Collection of timesheets for the requested page.
+      items:
+        $ref: '#/TimesheetResponse'
+    pageInfo:
+      $ref: '#/PagedMetadata'
+
+PagedMetadata:
+  type: object
+  required:
+    - currentPage
+    - pageSize
+    - totalElements
+    - totalPages
+    - first
+    - last
+    - numberOfElements
+    - empty
+  properties:
+    currentPage:
+      type: integer
+      minimum: 0
+      description: Zero-based index of the returned page.
+    pageSize:
+      type: integer
+      minimum: 1
+      description: Size of each page as requested.
+    totalElements:
+      type: integer
+      format: int64
+      description: Total number of available elements.
+    totalPages:
+      type: integer
+      minimum: 0
+      description: Total number of pages given current page size.
+    first:
+      type: boolean
+      description: True if this page is the first page.
+    last:
+      type: boolean
+      description: True if this page is the last page.
+    numberOfElements:
+      type: integer
+      minimum: 0
+      description: Number of elements present on this page.
+    empty:
+      type: boolean
+      description: True when the page content array is empty.

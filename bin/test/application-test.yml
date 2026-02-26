@@ -1,0 +1,50 @@
+# Unit Test Profile Configuration
+# Uses H2 in-memory database for fast unit test execution
+
+spring:
+  # Database Configuration (H2 for unit tests)
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+    
+  # JPA Configuration (test-specific)
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        
+  # Disable Flyway for unit tests
+  flyway:
+    enabled: false
+        
+  # Security Configuration (test JWT)
+  security:
+    jwt:
+      secret: dGVzdF9qd3Rfc2VjcmV0X2tleV9mb3JfY2F0YW1zX3Rlc3RpbmdfcHVycG9zZXNfb25seQ==
+      expiration: 3600000 # 1 hour
+      
+  # Disable banner for cleaner test output
+  main:
+    banner-mode: off
+    
+# Server configuration (random port for testing)
+server:
+  port: 0
+
+# Logging Configuration (test-appropriate levels)
+logging:
+  level:
+    com.usyd.catams: INFO
+    org.springframework.security: WARN
+    org.hibernate: WARN
+    org.springframework.web: WARN
+
+app:
+  testing:
+    reset-token: test-reset-token

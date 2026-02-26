@@ -167,6 +167,8 @@ git push origin main
 | `com.usyd.catams.application` | Application/facade layer |
 | `com.usyd.catams.dto` | Data transfer objects |
 | `com.usyd.catams.exception` | Custom exceptions |
+| `com.usyd.catams.common.logging` | Structured logging utilities |
+| `com.usyd.catams.common.constants` | Application-wide constants |
 
 #### Key Patterns
 
@@ -175,6 +177,8 @@ git push origin main
 - **Transactions**: Add `@Transactional(readOnly = true)` to read-only service methods
 - **Exceptions**: Use domain-specific exceptions (`ResourceNotFoundException`, `BusinessRuleException`, `AuthorizationException`)
 - **Error responses**: All errors return RFC-7807 `ProblemDetail` format via `GlobalExceptionHandler`
+- **Logging**: Use `StructuredLogger` for consistent, traceable logging
+- **Constants**: Use `ApplicationConstants` for magic strings and configuration values
 
 #### Naming Conventions
 
@@ -425,6 +429,58 @@ When writing code in this project:
 4. **Document Complex Logic**: Add comments for non-obvious business rules
 5. **Follow Existing Patterns**: Look at similar code in the codebase
 6. **Keep It Simple**: Simple code is easier for both humans and AI to maintain
+7. **Use Structured Logging**: Use `StructuredLogger` instead of raw SLF4J
+8. **Use Constants**: Reference `ApplicationConstants` for magic strings
+
+#### Using StructuredLogger
+
+```java
+// ✅ Good - Structured logging with trace context
+private static final StructuredLogger log = StructuredLogger.forClass(TimesheetService.class);
+
+public void processTimesheet(Long timesheetId, Long userId) {
+    log.operation("processTimesheet")
+        .with("timesheetId", timesheetId)
+        .withUserId(userId)
+        .info("Processing timesheet");
+    
+    try (var timer = log.startTimer("calculateHours")) {
+        // ... calculation logic
+        timer.success();
+    }
+}
+
+// ❌ Bad - Unstructured logging
+private static final Logger log = LoggerFactory.getLogger(TimesheetService.class);
+
+public void process(Long id, Long uid) {
+    log.info("Processing {} for {}", id, uid);
+}
+```
+
+#### Using ApplicationConstants
+
+```java
+// ✅ Good - Using constants
+import static com.usyd.catams.common.constants.ApplicationConstants.*;
+
+public String getApiPath() {
+    return API_TIMESHEETS + "/quote";
+}
+
+public String getRateCode() {
+    return RateCodes.TU1; // Standard tutorial
+}
+
+// ❌ Bad - Magic strings
+public String getApiPath() {
+    return "/api/timesheets/quote";
+}
+
+public String getRateCode() {
+    return "TU1";
+}
+```
 
 ### Example: Full Vibe Coding Implementation
 

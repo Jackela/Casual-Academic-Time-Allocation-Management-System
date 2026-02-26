@@ -1,0 +1,131 @@
+openapi: 3.0.3
+info:
+  title: CATAMS API
+  description: |
+    Casual Academic Time Allocation Management System (CATAMS) API specification.
+    
+    This API provides endpoints for managing academic staff time allocation, including:
+    - User authentication and management
+    - Timesheet creation and management
+    - Approval workflow management
+    
+    The system supports three main roles:
+    - **LECTURER**: Can create and approve timesheets for tutors
+    - **TUTOR**: Can view their timesheets and request modifications
+    - **ADMIN**: Has full system access including HR functions
+  version: 1.0.0
+  contact:
+    name: CATAMS Development Team
+    email: dev@catams.edu.au
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8084/api
+    description: Development server
+  - url: https://api.catams.edu.au
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization operations
+  - name: Users
+    description: User management operations
+  - name: Timesheets
+    description: Timesheet creation and management operations
+  - name: Approvals
+    description: Approval workflow operations
+  - name: Dashboard
+    description: Dashboard and reporting operations
+
+paths:
+  /auth/login:
+    $ref: './openapi/paths/auth.yaml'
+  /users:
+    $ref: './openapi/paths/users.yaml#/USERS'
+  /timesheets:
+    $ref: './openapi/paths/timesheets.yaml#/POST'
+  /timesheets/quote:
+    $ref: './openapi/paths/timesheets.yaml#/POST_QUOTE'
+  /timesheets/{id}:
+    $ref: './openapi/paths/timesheets.yaml#/GET_BY_ID'
+  /timesheets/pending-approval:
+    $ref: './openapi/paths/timesheets.yaml#/GET_PENDING'
+  /timesheets/pending-final-approval:
+    $ref: './openapi/paths/timesheets.yaml#/GET_PENDING_FINAL'
+  /timesheets/me:
+    $ref: './openapi/paths/timesheets.yaml#/GET_ME'
+  /timesheets/config:
+    $ref: './openapi/paths/timesheets.yaml#/GET_CONFIG'
+  /approvals:
+    $ref: './openapi/paths/approvals.yaml'
+  /dashboard/summary:
+    $ref: './openapi/paths/dashboard.yaml'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login endpoint
+
+  schemas:
+    AuthenticationRequest:
+      $ref: './openapi/schemas/authentication.yaml#/AuthenticationRequest'
+    AuthResult:
+      $ref: './openapi/schemas/authentication.yaml#/AuthResult'
+    UserCreateRequest:
+      $ref: './openapi/schemas/users.yaml#/UserCreateRequest'
+    UserUpdateRequest:
+      $ref: './openapi/schemas/users.yaml#/UserUpdateRequest'
+    UserResponse:
+      $ref: './openapi/schemas/users.yaml#/UserResponse'
+    UserRole:
+      $ref: './openapi/schemas/users.yaml#/UserRole'
+    TimesheetCreateRequest:
+      $ref: './openapi/schemas/timesheets.yaml#/TimesheetCreateRequest'
+    TimesheetUpdateRequest:
+      $ref: './openapi/schemas/timesheets.yaml#/TimesheetUpdateRequest'
+    TimesheetQuoteRequest:
+      $ref: './openapi/schemas/timesheets.yaml#/TimesheetQuoteRequest'
+    TimesheetQuoteResponse:
+      $ref: './openapi/schemas/timesheets.yaml#/TimesheetQuoteResponse'
+    TimesheetResponse:
+      $ref: './openapi/schemas/timesheets.yaml#/TimesheetResponse'
+    TimesheetPageResponse:
+      $ref: './openapi/schemas/timesheets.yaml#/TimesheetPageResponse'
+    PagedMetadata:
+      $ref: './openapi/schemas/timesheets.yaml#/PagedMetadata'
+    ApprovalStatus:
+      $ref: './openapi/schemas/approvals.yaml#/ApprovalStatus'
+    ApprovalActionRequest:
+      $ref: './openapi/schemas/approvals.yaml#/ApprovalActionRequest'
+    ApprovalAction:
+      $ref: './openapi/schemas/approvals.yaml#/ApprovalAction'
+    ApprovalActionResponse:
+      $ref: './openapi/schemas/approvals.yaml#/ApprovalActionResponse'
+    ApprovalHistoryEntry:
+      $ref: './openapi/schemas/approvals.yaml#/ApprovalHistoryEntry'
+    DashboardSummaryResponse:
+      $ref: './openapi/schemas/dashboard.yaml#/DashboardSummaryResponse'
+    BudgetUsage:
+      $ref: './openapi/schemas/dashboard.yaml#/BudgetUsage'
+    RecentActivity:
+      $ref: './openapi/schemas/dashboard.yaml#/RecentActivity'
+    ActivityType:
+      $ref: './openapi/schemas/dashboard.yaml#/ActivityType'
+    PendingItem:
+      $ref: './openapi/schemas/dashboard.yaml#/PendingItem'
+    PendingItemType:
+      $ref: './openapi/schemas/dashboard.yaml#/PendingItemType'
+    Priority:
+      $ref: './openapi/schemas/dashboard.yaml#/Priority'
+    WorkloadAnalysis:
+      $ref: './openapi/schemas/dashboard.yaml#/WorkloadAnalysis'
+    ErrorResponse:
+      $ref: './openapi/schemas/errors.yaml#/ErrorResponse'
+
+security:
+  - bearerAuth: []
