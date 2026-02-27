@@ -2,6 +2,8 @@ package com.usyd.catams.service;
 
 import com.usyd.catams.enums.TimesheetTaskType;
 import com.usyd.catams.enums.TutorQualification;
+import com.usyd.catams.service.strategy.TaskCalculationStrategy;
+import com.usyd.catams.service.strategy.TaskCalculationStrategyFactory;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -11,14 +13,22 @@ import org.springframework.stereotype.Service;
 
 /**
  * Core Schedule 1 calculator encapsulating EA-compliant logic across key casual academic activities.
+ * 
+ * Uses Strategy Pattern to delegate task-specific calculation logic to appropriate strategies.
+ * 
+ * @author Development Team
+ * @since 1.0
  */
 @Service
 public class Schedule1Calculator {
 
     private final Schedule1PolicyProvider policyProvider;
+    private final TaskCalculationStrategyFactory strategyFactory;
 
-    public Schedule1Calculator(@Nullable Schedule1PolicyProvider policyProvider) {
+    public Schedule1Calculator(@Nullable Schedule1PolicyProvider policyProvider,
+                               TaskCalculationStrategyFactory strategyFactory) {
         this.policyProvider = policyProvider != null ? policyProvider : new Schedule1PolicyProvider(null, null);
+        this.strategyFactory = Objects.requireNonNull(strategyFactory, "strategyFactory");
     }
 
     /**
@@ -78,89 +88,8 @@ public class Schedule1Calculator {
     }
 
     private Schedule1PolicyProvider.RatePolicy resolvePolicy(CalculationInput input) {
-        TimesheetTaskType taskType = input.getTaskType();
-        TutorQualification qualification = normaliseQualification(input.getQualification());
-        LocalDate sessionDate = input.getSessionDate();
-
-        return switch (taskType) {
-            case TUTORIAL -> {
-                boolean highBand = isHighBand(qualification);
-                String rateCode = input.isRepeat()
-                        ? (highBand ? "TU3" : "TU4")
-                        : (highBand ? "TU1" : "TU2");
-                TutorQualification policyQualification = highBand
-                        ? resolveHighBandQualification(qualification)
-                        : TutorQualification.STANDARD;
-                TutorQualification fallbackQualification = highBand && qualification == TutorQualification.COORDINATOR
-                        ? TutorQualification.PHD
-                        : policyQualification;
-                try {
-                    yield policyProvider.resolvePolicyByRateCode(rateCode, policyQualification, sessionDate);
-                } catch (Schedule1PolicyProvider.RatePolicyNotFoundException ex) {
-                    try {
-                        yield policyProvider.resolveTutorialPolicy(
-                                policyQualification,
-                                input.isRepeat(),
-                                sessionDate
-                        );
-                    } catch (Schedule1PolicyProvider.RatePolicyNotFoundException nested) {
-                        if (policyQualification != fallbackQualification) {
-                            yield policyProvider.resolveTutorialPolicy(
-                                    fallbackQualification,
-                                    input.isRepeat(),
-                                    sessionDate
-                            );
-                        }
-                        throw nested;
-                    }
-                }
-            }
-            case LECTURE -> {
-                BigDecimal deliveryHours = normaliseHours(input.getDeliveryHours());
-                String rateCode;
-                if (input.isRepeat()) {
-                    rateCode = "P04";
-                } else if (isDevelopedLecture(deliveryHours, qualification)) {
-                    rateCode = "P02";
-                } else {
-                    rateCode = "P03";
-                }
-                yield policyProvider.resolvePolicyByRateCode(rateCode, null, sessionDate);
-            }
-            case ORAA -> {
-                boolean highBand = isHighBand(qualification);
-                String rateCode = highBand ? "AO1_DE1" : "AO2_DE2";
-                TutorQualification policyQualification = highBand
-                        ? resolveHighBandQualification(qualification)
-                        : TutorQualification.STANDARD;
-                yield policyProvider.resolvePolicyByRateCode(rateCode, policyQualification, sessionDate);
-            }
-            case DEMO -> {
-                boolean highBand = isHighBand(qualification);
-                String rateCode = highBand ? "DE1" : "DE2";
-                TutorQualification policyQualification = highBand
-                        ? resolveHighBandQualification(qualification)
-                        : TutorQualification.STANDARD;
-                yield policyProvider.resolvePolicyByRateCode(rateCode, policyQualification, sessionDate);
-            }
-            case MARKING -> {
-                boolean highBand = isHighBand(qualification);
-                String rateCode = highBand ? "M04" : "M05";
-                TutorQualification policyQualification = highBand
-                        ? resolveHighBandQualification(qualification)
-                        : TutorQualification.STANDARD;
-                yield policyProvider.resolvePolicyByRateCode(rateCode, policyQualification, sessionDate);
-            }
-            case OTHER -> {
-                // OTHER task type maps to standard ORAA rate as a fallback for miscellaneous academic activities
-                boolean highBand = isHighBand(qualification);
-                String rateCode = highBand ? "AO1_DE1" : "AO2_DE2";
-                TutorQualification policyQualification = highBand
-                        ? resolveHighBandQualification(qualification)
-                        : TutorQualification.STANDARD;
-                yield policyProvider.resolvePolicyByRateCode(rateCode, policyQualification, sessionDate);
-            }
-        };
+        TaskCalculationStrategy strategy = strategyFactory.getStrategy(input.getTaskType());
+        return strategy.resolvePolicy(input, policyProvider);
     }
 
     private boolean isDevelopedLecture(BigDecimal deliveryHours, TutorQualification qualification) {
@@ -177,28 +106,12 @@ public class Schedule1Calculator {
                                      String rawRateCode,
                                      boolean repeat,
                                      TutorQualification qualification) {
-        if (taskType == TimesheetTaskType.ORAA) {
-            if ("AO1_DE1".equals(rawRateCode)) {
-                return "AO1";
-            }
-            if ("AO2_DE2".equals(rawRateCode)) {
-                return "AO2";
-            }
-        }
-        return rawRateCode;
-    }
-
-    private TutorQualification resolveHighBandQualification(TutorQualification qualification) {
-        return qualification == TutorQualification.COORDINATOR ? TutorQualification.COORDINATOR : TutorQualification.PHD;
-    }
-
-    private TutorQualification normaliseQualification(TutorQualification qualification) {
-        return qualification == null ? TutorQualification.STANDARD : qualification;
-    }
-
-    private boolean isHighBand(TutorQualification qualification) {
-        TutorQualification normalised = normaliseQualification(qualification);
-        return normalised == TutorQualification.PHD || normalised == TutorQualification.COORDINATOR;
+        // Delegate to strategy for task-specific normalization
+        TaskCalculationStrategy strategy = strategyFactory.getStrategy(taskType);
+        CalculationInput tempInput = new CalculationInput(
+            taskType, null, null, repeat, qualification
+        );
+        return strategy.normalizeRateCode(rawRateCode, tempInput);
     }
 
     private BigDecimal normaliseHours(BigDecimal hours) {

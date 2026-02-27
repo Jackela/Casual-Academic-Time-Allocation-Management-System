@@ -1,5 +1,7 @@
 package com.usyd.catams.application;
 
+import com.usyd.catams.common.domain.event.TimesheetEvent;
+import com.usyd.catams.common.infrastructure.event.DomainEventPublisher;
 import com.usyd.catams.domain.service.ApprovalDomainService;
 import com.usyd.catams.dto.response.ApprovalActionResponse;
 import com.usyd.catams.entity.Approval;
@@ -21,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -44,16 +47,19 @@ public class ApprovalApplicationService implements ApprovalService {
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
     private final ApprovalDomainService approvalDomainService;
+    private final DomainEventPublisher eventPublisher;
 
     @Autowired
     public ApprovalApplicationService(TimesheetRepository timesheetRepository,
                                     UserRepository userRepository,
                                     CourseRepository courseRepository,
-                                    ApprovalDomainService approvalDomainService) {
+                                    ApprovalDomainService approvalDomainService,
+                                    DomainEventPublisher eventPublisher) {
         this.timesheetRepository = timesheetRepository;
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
         this.approvalDomainService = approvalDomainService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -108,6 +114,10 @@ public class ApprovalApplicationService implements ApprovalService {
 
             // 5. Save the timesheet aggregate (which cascades to save approvals)
             timesheetRepository.save(timesheet);
+            
+            // 6. Publish domain event for approval processed
+            publishApprovalEvent(timesheet, approval, action, requesterId, comment);
+            
             logger.info(
                 "Approval succeeded: action={}, timesheetId={}, approverId={}, fromStatus={}, toStatus={}",
                 action, timesheetId, requesterId, approval.getPreviousStatus(), approval.getNewStatus()
@@ -297,5 +307,27 @@ public class ApprovalApplicationService implements ApprovalService {
         response.setNextSteps(ApprovalActionResponse.generateNextStepsForStatus(approval.getNewStatus()));
 
         return response;
+    }
+
+    /**
+     * Publish TimesheetApprovalProcessedEvent after successful approval action.
+     */
+    private void publishApprovalEvent(Timesheet timesheet, Approval approval, 
+                                       ApprovalAction action, Long requesterId, String comment) {
+        TimesheetEvent.TimesheetApprovalProcessedEvent event = new TimesheetEvent.TimesheetApprovalProcessedEvent(
+            timesheet.getId().toString(),
+            timesheet.getTutorId(),
+            timesheet.getCourseId(),
+            timesheet.getWeekStartDate(),
+            requesterId,
+            action,
+            approval.getPreviousStatus(),
+            approval.getNewStatus(),
+            comment,
+            null,  // nextApproverId - could be determined from workflow rules
+            requesterId.toString(),
+            UUID.randomUUID().toString()
+        );
+        eventPublisher.publish(event);
     }
 }

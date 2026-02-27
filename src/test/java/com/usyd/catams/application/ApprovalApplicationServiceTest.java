@@ -1,5 +1,6 @@
 package com.usyd.catams.application;
 
+import com.usyd.catams.common.infrastructure.event.DomainEventPublisher;
 import com.usyd.catams.domain.service.ApprovalDomainService;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
@@ -71,6 +72,9 @@ class ApprovalApplicationServiceTest {
 
     @Mock
     private ApprovalDomainService approvalDomainService;
+
+    @Mock
+    private DomainEventPublisher eventPublisher;
 
     @InjectMocks
     private ApprovalApplicationService service;
