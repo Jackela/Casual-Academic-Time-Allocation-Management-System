@@ -1,0 +1,17 @@
+# Global owner
+* @Jackela
+
+# Backend ownership
+/src/main/java/com/usyd/catams/ @Jackela
+/src/test/java/com/usyd/catams/ @Jackela
+/src/main/resources/ @Jackela
+
+# Frontend ownership
+/frontend/ @Jackela
+
+# Contracts, specs, and governance
+/schema/ @Jackela
+/openspec/ @Jackela
+/docs/ @Jackela
+/tools/ @Jackela
+/scripts/ @Jackela

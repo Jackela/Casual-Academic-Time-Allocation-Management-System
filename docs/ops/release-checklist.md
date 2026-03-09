@@ -1,22 +1,39 @@
 # Release Checklist
 
-1. **Code Quality**
-   - [ ] `./gradlew test` passes locally
-   - [ ] `npm run test:e2e` (mock or real depending on release) passes
-2. **Database**
-   - [ ] Flyway migrations reviewed and applied to staging
-   - [ ] Seeded rates verified (`SELECT COUNT(*) FROM rate_amount;`)
-3. **API Contracts**
-   - [ ] OpenAPI docs updated (`docs/openapi/` regenerated if endpoints changed)
-   - [ ] Timesheet integration tests green
-4. **Frontend**
-   - [ ] Quote flow manually smoke-tested
-   - [ ] Visual snapshots regenerated/approved if UI changed
-5. **Documentation**
-   - [ ] `docs/index.md` highlights new release in Latest Updates
-   - [ ] Release notes appended (`docs/product/release-notes.md`)
-6. **Post-Deploy**
-   - [ ] Monitor logs for calculator warnings
-   - [ ] Verify one full tutor submission end-to-end
+## 1. Versioning and Tagging
 
-Sign off requires all boxes checked by Engineering and Operations.
+- [ ] Version follows SemVer (`vMAJOR.MINOR.PATCH`).
+- [ ] Release tag is annotated (`git tag -a vX.Y.Z -m "..."`).
+- [ ] Tag pushed to origin (`git push origin vX.Y.Z`).
+
+## 2. Quality Gate
+
+- [ ] `./gradlew test --rerun-tasks`
+- [ ] `npm --prefix frontend run lint`
+- [ ] `npm --prefix frontend run test`
+- [ ] `npm --prefix frontend run test:e2e:full`
+- [ ] `openspec validate --strict`
+
+## 3. Data and Contracts
+
+- [ ] Flyway migrations reviewed for backward compatibility.
+- [ ] Required rate/policy data exists in target environment.
+- [ ] OpenAPI contract updated when API behavior changes.
+
+## 4. Governance
+
+- [ ] `main` branch protection is active and includes required checks.
+- [ ] PR linked to release notes and migration notes.
+- [ ] Security-impacting changes documented.
+
+## 5. Publish
+
+- [ ] Push tag to trigger `.github/workflows/release.yml`.
+- [ ] GitHub Release auto-created with generated notes.
+- [ ] `CHANGELOG.md` updated with released version summary.
+
+## 6. Post-Release Verification
+
+- [ ] Smoke test tutor submit/approve path.
+- [ ] Smoke test payroll quote/create/update path.
+- [ ] Monitor application logs and alert channel for 30 minutes.

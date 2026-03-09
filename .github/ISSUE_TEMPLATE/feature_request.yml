@@ -1,0 +1,42 @@
+name: Feature request
+description: Propose a new capability or significant improvement.
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for product or engineering improvements.
+        For architecture-impacting changes, include OpenSpec change ID.
+  - type: input
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What user/business problem are we solving?
+      placeholder: "Tutors cannot ... because ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe desired behavior and high-level scope.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Bullet list of verifiable outcomes.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: input
+    id: openspec_change
+    attributes:
+      label: OpenSpec change ID
+      description: Required for breaking or architecture-impacting work.
+      placeholder: "refactor-architecture-purity-final"

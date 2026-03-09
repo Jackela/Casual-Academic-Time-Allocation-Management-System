@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a reproducible defect.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Provide enough details to reproduce and verify a fix.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One-sentence defect summary.
+      placeholder: "Timesheet submission returns 500 on valid input"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List exact steps, including role/account and environment.
+      placeholder: |
+        1. Login as tutor
+        2. Open timesheet for week ...
+        3. Submit with ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Tag/commit/SHA where this issue is observed.
+      placeholder: "v1.0.0 or 30fb98d"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Include sanitized logs, stack traces, or screenshots if available.
