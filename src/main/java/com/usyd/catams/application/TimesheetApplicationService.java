@@ -17,8 +17,10 @@ import com.usyd.catams.policy.TimesheetPermissionPolicy;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
+import com.usyd.catams.service.TimesheetAuthorizationService;
 import com.usyd.catams.service.TimesheetApplicationFacade;
-import com.usyd.catams.service.TimesheetService;
+import com.usyd.catams.service.TimesheetCommandService;
+import com.usyd.catams.service.TimesheetQueryService;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -79,7 +81,6 @@ import java.util.Optional;
  * @invariant Transaction boundaries must be respected for data consistency
  * @invariant Domain entities must be valid before mapping to DTOs
  * 
- * @see TimesheetService for service contract documentation
  * @see TimesheetPermissionPolicy for authorization rules
  * @see TimesheetDomainService for domain business logic
  * @see TimesheetValidationService for business rule validation
@@ -89,7 +90,8 @@ import java.util.Optional;
  */
 @Service
 @Transactional
-public class TimesheetApplicationService implements TimesheetApplicationFacade {
+public class TimesheetApplicationService implements TimesheetApplicationFacade,
+    TimesheetCommandService, TimesheetQueryService, TimesheetAuthorizationService {
 
     private final TimesheetRepository timesheetRepository;
     private final UserRepository userRepository;
@@ -153,23 +155,14 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         validateTimesheetUniqueness(tutorId, courseId, weekStartDate);
 
         // Enforce repeat tutorial eligibility window and same-content approximation
-        if (taskType == TimesheetTaskType.TUTORIAL && calculation.isRepeat()) {
-            LocalDate session = calculation.getSessionDate();
-            int windowDays = policyProvider != null ? policyProvider.getRepeatEligibilityWindowDays() : 7;
-            LocalDate from = session.minusDays(windowDays);
-            LocalDate to = session.minusDays(1);
-            long priorCount = timesheetRepository.countTutorialsForRepeatRule(
-                courseId,
-                from,
-                to,
-                null // Allow any prior tutorial within window; UI conveys "same content" guidance
+        if (taskType == TimesheetTaskType.TUTORIAL
+                && calculation.isRepeat()
+                && !isTutorialRepeatEligible(courseId, calculation.getSessionDate())) {
+            int windowDays = getRepeatEligibilityWindowDays();
+            throw new com.usyd.catams.exception.BusinessRuleException(
+                "Repeat Tutorial requires same content delivered within the last " + windowDays + " days to a different group.",
+                com.usyd.catams.exception.ErrorCodes.VALIDATION_FAILED
             );
-            if (priorCount == 0) {
-                throw new com.usyd.catams.exception.BusinessRuleException(
-                    "Repeat Tutorial requires same content delivered within the last " + windowDays + " days to a different group.",
-                    com.usyd.catams.exception.ErrorCodes.VALIDATION_FAILED
-                );
-            }
         }
 
         // Enforce tutor-course assignment for visibility/authorization (ADMIN bypass)
@@ -196,6 +189,28 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         return savedTimesheet;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isTutorialRepeatEligible(Long courseId, LocalDate sessionDate) {
+        Objects.requireNonNull(courseId, "courseId");
+        Objects.requireNonNull(sessionDate, "sessionDate");
+
+        int windowDays = getRepeatEligibilityWindowDays();
+        LocalDate from = sessionDate.minusDays(windowDays);
+        LocalDate to = sessionDate.minusDays(1);
+        long priorCount = timesheetRepository.countTutorialsForRepeatRule(
+            courseId,
+            from,
+            to,
+            null
+        );
+        return priorCount > 0;
+    }
+
+    private int getRepeatEligibilityWindowDays() {
+        return policyProvider.getRepeatEligibilityWindowDays();
+    }
+
     private void applySchedule1Calculation(Timesheet timesheet,
                                            Schedule1CalculationResult calculation,
                                            TimesheetTaskType taskType) {
@@ -219,25 +234,18 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
                                         BigDecimal hours, BigDecimal hourlyRate, String description,
                                         Long creatorId) {
         
-        User creator = userRepository.findById(creatorId)
-            .orElseThrow(() -> new IllegalArgumentException("Creator user not found with ID: " + creatorId));
-        User tutor = userRepository.findById(tutorId)
-            .orElseThrow(() -> new IllegalArgumentException("Tutor user not found with ID: " + tutorId));
-        Course course = courseRepository.findById(courseId)
-            .orElseThrow(() -> new IllegalArgumentException("Course not found with ID: " + courseId));
+        User creator = findUserByIdOrThrow(creatorId, "User");
+        User tutor = findUserByIdOrThrow(tutorId, "User");
+        Course course = findCourseByIdOrThrow(courseId, "Course");
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canCreateTimesheetFor(creator, tutor, course)) {
             throw new com.usyd.catams.exception.AuthorizationException("User " + creator.getId() + " (" + creator.getRole() + ") is not authorized to create timesheet for tutor " + tutorId + " in course " + courseId);
         }
         
-        if (tutor.getRole() != UserRole.TUTOR) {
-            throw new IllegalArgumentException("User assigned as tutor must have TUTOR role. User role: " + tutor.getRole());
-        }
+        validateTutorRole(tutor);
 
-        if (weekStartDate.getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
-            throw new IllegalArgumentException("Week start date must be a Monday. Provided date: " + weekStartDate + " (" + weekStartDate.getDayOfWeek() + ")");
-        }
+        validateWeekStartDate(weekStartDate);
 
         if (timesheetRepository.existsByTutorIdAndCourseIdAndWeekPeriod_WeekStartDate(tutorId, courseId, weekStartDate)) {
             throw new com.usyd.catams.exception.BusinessConflictException(
@@ -256,8 +264,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     public Page<Timesheet> getTimesheets(Long tutorId, Long courseId, ApprovalStatus status,
                                         Long requesterId, Pageable pageable) {
         
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId, "User");
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewTimesheetsByFilters(requester, tutorId, courseId, status)) {
@@ -288,8 +295,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     @Transactional(readOnly = true)
     public Optional<Timesheet> getTimesheetById(Long timesheetId, Long requesterId) {
         
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId, "User");
 
         Optional<Timesheet> timesheetOpt = timesheetRepository.findByIdWithApprovals(timesheetId);
         
@@ -299,8 +305,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
 
         Timesheet timesheet = timesheetOpt.get();
         org.hibernate.Hibernate.initialize(timesheet.getApprovals());
-        Course course = courseRepository.findById(timesheet.getCourseId())
-            .orElseThrow(() -> new IllegalArgumentException("Course not found"));
+        Course course = findCourseByIdOrThrow(timesheet.getCourseId(), "Course");
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewTimesheet(requester, timesheet, course)) {
@@ -315,8 +320,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     public List<Timesheet> getTimesheetsByTutorAndDateRange(Long tutorId, LocalDate startDate,
                                                           LocalDate endDate, Long requesterId) {
         
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId, "User");
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewTimesheetsByDateRange(requester, tutorId, startDate, endDate)) {
@@ -341,8 +345,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     @Override
     @Transactional(readOnly = true)
     public List<Timesheet> getPendingTimesheetsForApprover(Long approverId) {
-        User approver = userRepository.findById(approverId)
-            .orElseThrow(() -> new IllegalArgumentException("Approver user not found with ID: " + approverId));
+        User approver = findUserByIdOrThrow(approverId, "User");
 
         boolean isHR = approver.getRole() == UserRole.ADMIN;
         
@@ -353,8 +356,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     @Transactional(readOnly = true)
     public BigDecimal getTotalHoursByTutorAndCourse(Long tutorId, Long courseId, Long requesterId) {
         
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId, "User");
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewTotalHours(requester, tutorId, courseId)) {
@@ -368,8 +370,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     @Transactional(readOnly = true)
     public BigDecimal getTotalApprovedBudgetUsedByCourse(Long courseId, Long requesterId) {
         
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId, "User");
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewCourseBudget(requester, courseId)) {
@@ -393,11 +394,9 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         Timesheet timesheet = timesheetRepository.findById(timesheetId)
             .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
 
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId, "User");
             
-        Course course = courseRepository.findById(timesheet.getCourseId())
-            .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
+        Course course = findCourseByIdOrThrow(timesheet.getCourseId(), "Course");
 
         // Step 1: Business rule check - Use AuthorizationException for tutor restrictions (403 if fails)
         if (!timesheetDomainService.canRoleEditTimesheetWithStatus(requester.getRole(), timesheet.getStatus())) {
@@ -418,6 +417,8 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         }
 
         timesheetDomainService.validateUpdateData(hours, hourlyRate, description);
+        LocalDate sessionDate = calculation.getSessionDate();
+        timesheetValidationService.validateMonday(sessionDate, "sessionDate");
 
         timesheet.setDescription(description);
         applySchedule1Calculation(timesheet, calculation, taskType);
@@ -435,11 +436,9 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         Timesheet timesheet = timesheetRepository.findById(timesheetId)
             .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
 
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId, "User");
             
-        Course course = courseRepository.findById(timesheet.getCourseId())
-            .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
+        Course course = findCourseByIdOrThrow(timesheet.getCourseId(), "Course");
 
         // Step 1: Authorization check (403 if fails)
         if (!permissionPolicy.canModifyTimesheet(requester, timesheet, course)) {
@@ -466,11 +465,9 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     @Transactional(readOnly = true)
     public boolean canUserModifyTimesheet(Timesheet timesheet, Long requesterId) {
         
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId, "User");
         
-        Course course = courseRepository.findById(timesheet.getCourseId())
-            .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
+        Course course = findCourseByIdOrThrow(timesheet.getCourseId(), "Course");
 
         // Use policy for authorization instead of embedded logic
         return permissionPolicy.canModifyTimesheet(requester, timesheet, course);
@@ -481,8 +478,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     @PreAuthorize("hasRole('TUTOR') or hasRole('LECTURER') or hasRole('ADMIN')")
     public Page<Timesheet> getPendingApprovalTimesheets(Long requesterId, Pageable pageable) {
         
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId, "User");
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewPendingApprovalQueue(requester)) {
@@ -506,12 +502,9 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     @Override
     @Transactional(readOnly = true)
     public Page<Timesheet> getTimesheetsByTutor(Long tutorId, Pageable pageable) {
-        User tutor = userRepository.findById(tutorId)
-            .orElseThrow(() -> new IllegalArgumentException("Tutor user not found with ID: " + tutorId));
+        User tutor = findUserByIdOrThrow(tutorId, "User");
         
-        if (tutor.getRole() != UserRole.TUTOR) {
-            throw new IllegalArgumentException("User must have TUTOR role. User role: " + tutor.getRole());
-        }
+        validateTutorRole(tutor);
         
         return timesheetRepository.findByTutorIdOrderByCreatedAtDesc(tutorId, pageable);
     }
@@ -522,11 +515,9 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
         Timesheet timesheet = timesheetRepository.findById(timesheetId)
             .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
         
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId, "User");
         
-        Course course = courseRepository.findById(timesheet.getCourseId())
-            .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
+        Course course = findCourseByIdOrThrow(timesheet.getCourseId(), "Course");
 
         // Use policy for authorization instead of embedded logic
         return permissionPolicy.canEditTimesheet(requester, timesheet, course);
@@ -621,8 +612,7 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
     @Transactional(readOnly = true)
     @Override
     public Page<Timesheet> getLecturerFinalApprovalQueue(Long requesterId, Pageable pageable) {
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId, "User");
 
         // Use policy for authorization instead of embedded logic
         if (!permissionPolicy.canViewLecturerFinalApprovalQueue(requester)) {
@@ -649,52 +639,51 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade {
                                                     BigDecimal hours, BigDecimal hourlyRate, String description, 
                                                     Long creatorId) {
         if (creatorId == null) {
-            throw new IllegalArgumentException("Precondition violated: Creator ID must be provided");
+            throw new com.usyd.catams.exception.BusinessRuleException(
+                "creatorId must be provided",
+                com.usyd.catams.exception.ErrorCodes.VALIDATION_FAILED
+            );
         }
         if (tutorId == null) {
-            throw new IllegalArgumentException("Precondition violated: Tutor ID must be provided");
+            throw new com.usyd.catams.exception.BusinessRuleException(
+                "tutorId must be provided",
+                com.usyd.catams.exception.ErrorCodes.VALIDATION_FAILED
+            );
         }
         if (courseId == null) {
-            throw new IllegalArgumentException("Precondition violated: Course ID must be provided");
+            throw new com.usyd.catams.exception.BusinessRuleException(
+                "courseId must be provided",
+                com.usyd.catams.exception.ErrorCodes.VALIDATION_FAILED
+            );
         }
-        if (weekStartDate == null) {
-            throw new IllegalArgumentException("Precondition violated: Week start date must be provided");
-        }
-        if (hours == null || hours.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Precondition violated: Hours must be positive. Provided: " + hours);
-        }
-        if (hourlyRate == null || hourlyRate.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Precondition violated: Hourly rate must be positive. Provided: " + hourlyRate);
-        }
-        if (description == null || description.trim().isEmpty()) {
-            throw new IllegalArgumentException("Precondition violated: Description must not be empty");
-        }
+        timesheetValidationService.validateMonday(weekStartDate, "weekStartDate");
+        timesheetValidationService.validateInputs(hours, hourlyRate);
+        timesheetValidationService.validateDescription(description);
     }
 
     private User findUserByIdOrThrow(Long userId, String errorMessage) {
         return userRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException(errorMessage + " with ID: " + userId));
+            .orElseThrow(() -> new ResourceNotFoundException(errorMessage, String.valueOf(userId)));
     }
 
     private Course findCourseByIdOrThrow(Long courseId, String errorMessage) {
         return courseRepository.findById(courseId)
-            .orElseThrow(() -> new IllegalArgumentException(errorMessage + " with ID: " + courseId));
+            .orElseThrow(() -> new ResourceNotFoundException(errorMessage, String.valueOf(courseId)));
     }
 
 
     private void validateTutorRole(User tutor) {
         if (tutor.getRole() != UserRole.TUTOR) {
-            throw new IllegalArgumentException("Business rule violated: User assigned as tutor must have TUTOR role. " +
-                "User role: " + tutor.getRole() + " (ID: " + tutor.getId() + ")");
+            throw new com.usyd.catams.exception.BusinessRuleException(
+                "User assigned as tutor must have TUTOR role. User role: " + tutor.getRole() + " (ID: " + tutor.getId() + ")",
+                com.usyd.catams.exception.ErrorCodes.VALIDATION_FAILED
+            );
         }
     }
 
 
     private void validateWeekStartDate(LocalDate weekStartDate) {
-        if (weekStartDate.getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
-            throw new IllegalArgumentException("Business rule violated: Week start date must be a Monday. " +
-                "Provided date: " + weekStartDate + " (" + weekStartDate.getDayOfWeek() + ")");
-        }
+        timesheetValidationService.validateMonday(weekStartDate, "weekStartDate");
     }
 
     private void validateTimesheetUniqueness(Long tutorId, Long courseId, LocalDate weekStartDate) {

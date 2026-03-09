@@ -13,7 +13,8 @@ import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.LecturerAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
-import com.usyd.catams.service.TimesheetService;
+import com.usyd.catams.service.TimesheetCommandService;
+import com.usyd.catams.service.TimesheetQueryService;
 import com.usyd.catams.service.Schedule1CalculationResult;
 import com.usyd.catams.policy.TimesheetPermissionPolicy;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +46,10 @@ public class CrossRoleDataAccessTest {
     private static final AtomicInteger COURSE_SEQUENCE = new AtomicInteger(1000);
 
     @Autowired
-    private TimesheetService timesheetService;
+    private TimesheetQueryService timesheetQueryService;
+
+    @Autowired
+    private TimesheetCommandService timesheetCommandService;
     
     @Autowired
     private UserRepository userRepository;
@@ -130,7 +134,7 @@ public class CrossRoleDataAccessTest {
     @DisplayName("Tutor can only access their own timesheets")
     public void testTutorCanOnlyAccessOwnTimesheets() {
         // TutorA should be able to access their own timesheets
-        Page<Timesheet> tutorAResults = timesheetService.getTimesheets(
+        Page<Timesheet> tutorAResults = timesheetQueryService.getTimesheets(
             tutorA.getId(), null, null, tutorA.getId(), PageRequest.of(0, 10));
         assertTrue(tutorAResults.getContent().stream()
                 .anyMatch(ts -> ts.getId().equals(timesheetA1.getId())),
@@ -140,7 +144,7 @@ public class CrossRoleDataAccessTest {
 
         // TutorA should not be able to view TutorB's timesheet
         assertThrows(AuthorizationException.class, () -> 
-            timesheetService.getTimesheetById(timesheetB1.getId(), tutorA.getId()),
+            timesheetQueryService.getTimesheetById(timesheetB1.getId(), tutorA.getId()),
             "TutorA should not be able to view TutorB's timesheet");
     }
 
@@ -148,7 +152,7 @@ public class CrossRoleDataAccessTest {
     @DisplayName("Lecturer can only access timesheets for their courses")
     public void testLecturerCanOnlyAccessOwnCourseTimesheets() {
         // LecturerA should be able to access timesheets for Course A
-        Page<Timesheet> lecturerAResults = timesheetService.getTimesheets(
+        Page<Timesheet> lecturerAResults = timesheetQueryService.getTimesheets(
             null, courseA.getId(), null, lecturerA.getId(), PageRequest.of(0, 10));
         assertTrue(lecturerAResults.getContent().stream()
                 .anyMatch(ts -> ts.getId().equals(timesheetA1.getId())),
@@ -158,7 +162,7 @@ public class CrossRoleDataAccessTest {
 
         // LecturerA should not be able to access timesheets from other courses
         assertThrows(AuthorizationException.class, () -> 
-            timesheetService.getTimesheetById(timesheetB1.getId(), lecturerA.getId()),
+            timesheetQueryService.getTimesheetById(timesheetB1.getId(), lecturerA.getId()),
             "LecturerA should not be able to view timesheets from other courses");
     }
 
@@ -166,12 +170,12 @@ public class CrossRoleDataAccessTest {
     @DisplayName("Admin can access all timesheets")
     public void testAdminCanAccessAllTimesheets() {
         // Admin应该能访问任何timesheet
-        Optional<Timesheet> timesheetA = timesheetService.getTimesheetById(
+        Optional<Timesheet> timesheetA = timesheetQueryService.getTimesheetById(
             timesheetA1.getId(), adminUser.getId());
         assertTrue(timesheetA.isPresent(), 
             "Admin应该能访问TutorA的timesheet");
 
-        Optional<Timesheet> timesheetB = timesheetService.getTimesheetById(
+        Optional<Timesheet> timesheetB = timesheetQueryService.getTimesheetById(
             timesheetB1.getId(), adminUser.getId());
         assertTrue(timesheetB.isPresent(), 
             "Admin应该能访问TutorB的timesheet");
@@ -181,7 +185,7 @@ public class CrossRoleDataAccessTest {
     @DisplayName("Pagination respects permission filters")
     public void testPaginatedQueriesRespectPermissions() {
         // TutorA查询timesheet时只应该看到自己的
-        Page<Timesheet> tutorATimesheets = timesheetService.getTimesheets(
+        Page<Timesheet> tutorATimesheets = timesheetQueryService.getTimesheets(
             tutorA.getId(), null, null, tutorA.getId(), PageRequest.of(0, 10));
         
         assertTrue(tutorATimesheets.getContent().stream()
@@ -189,7 +193,7 @@ public class CrossRoleDataAccessTest {
             "TutorA pagination result should only contain their own timesheets");
 
         // LecturerA查询时只应该看到自己课程的
-        Page<Timesheet> lecturerATimesheets = timesheetService.getTimesheets(
+        Page<Timesheet> lecturerATimesheets = timesheetQueryService.getTimesheets(
             null, courseA.getId(), null, lecturerA.getId(), PageRequest.of(0, 10));
         
         assertTrue(lecturerATimesheets.getContent().stream()
@@ -202,7 +206,7 @@ public class CrossRoleDataAccessTest {
     public void testCrossRoleOperationPermissions() {
         // TutorA should not be able to update TutorB's timesheet
         assertThrows(Exception.class, () -> {
-            timesheetService.updateTimesheet(
+            timesheetCommandService.updateTimesheet(
                 timesheetB1.getId(),
                 null, // calculation
                 null, // taskType
@@ -213,7 +217,7 @@ public class CrossRoleDataAccessTest {
 
         // LecturerA should not be able to delete timesheets from other courses
         assertThrows(Exception.class, () -> {
-            timesheetService.deleteTimesheet(timesheetB1.getId(), lecturerA.getId());
+            timesheetCommandService.deleteTimesheet(timesheetB1.getId(), lecturerA.getId());
         }, "LecturerA should not be able to delete timesheets from other courses");
     }
 
@@ -227,7 +231,7 @@ public class CrossRoleDataAccessTest {
         timesheetRepository.save(timesheetB1);
 
         // Query HR approval queue
-        Page<Timesheet> hrQueue = timesheetService.getLecturerFinalApprovalQueue(
+        Page<Timesheet> hrQueue = timesheetQueryService.getLecturerFinalApprovalQueue(
             adminUser.getId(), PageRequest.of(0, 10));
 
         // Ensure only lecturer confirmed timesheets are returned
@@ -245,7 +249,7 @@ public class CrossRoleDataAccessTest {
     @DisplayName("Data isolation protects sensitive fields")
     public void testDataIsolationSensitiveFields() {
         // Verify users cannot access sensitive data for other users
-        Optional<Timesheet> timesheet = timesheetService.getTimesheetById(
+        Optional<Timesheet> timesheet = timesheetQueryService.getTimesheetById(
             timesheetA1.getId(), tutorA.getId());
         
         if (timesheet.isPresent()) {
@@ -285,7 +289,7 @@ public class CrossRoleDataAccessTest {
             "Test Clause"
         );
 
-        Timesheet timesheet = timesheetService.createTimesheet(
+        Timesheet timesheet = timesheetCommandService.createTimesheet(
             tutorId,
             courseId,
             weekStart,
@@ -312,4 +316,3 @@ public class CrossRoleDataAccessTest {
         return String.format("%s%04d", letters, seq % 10000);
     }
 }
-

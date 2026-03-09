@@ -49,28 +49,20 @@ public class TimesheetServiceTest {
     private UserRepository userRepository;
     @Mock
     private CourseRepository courseRepository;
+    @Mock
+    private com.usyd.catams.domain.service.TimesheetValidationService timesheetValidationService;
 
     private TimesheetDomainService timesheetDomainService;
 
     @BeforeEach
     void setUp() {
-        // Create test properties for the constructor
-        com.usyd.catams.common.validation.TimesheetValidationProperties testProps = 
-            new com.usyd.catams.common.validation.TimesheetValidationProperties();
-        testProps.setMinHours(new BigDecimal("0.1"));
-        testProps.getHours().setMax(new BigDecimal("40"));
-        testProps.setMinHourlyRate(new BigDecimal("10.00"));
-        testProps.setMaxHourlyRate(new BigDecimal("200.00"));
-
         timesheetDomainService = new TimesheetDomainService(
             ruleEngine, 
             hoursRangeRule, 
             hourlyRateRangeRule, 
             futureDateRule, 
             budgetExceededRule,
-            userRepository, 
-            courseRepository,
-            testProps
+            timesheetValidationService
         );
     }
 
@@ -104,4 +96,3 @@ public class TimesheetServiceTest {
             budgetExceededRule
         );    }
 }
-

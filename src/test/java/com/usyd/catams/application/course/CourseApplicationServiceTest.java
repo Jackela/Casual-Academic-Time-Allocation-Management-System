@@ -1,8 +1,6 @@
 package com.usyd.catams.application.course;
 
 import com.usyd.catams.application.course.dto.CourseDto;
-import com.usyd.catams.application.decision.DecisionService;
-import com.usyd.catams.application.decision.dto.PermissionCheckRequest;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
@@ -63,9 +61,6 @@ class CourseApplicationServiceTest {
 
     @Mock
     private TimesheetRepository timesheetRepository;
-
-    @Mock
-    private DecisionService decisionService;
 
     @InjectMocks
     private CourseApplicationService service;
@@ -606,7 +601,7 @@ class CourseApplicationServiceTest {
             Course course = TestDataBuilder.aCourse()
                 .withId(1L)
                 .withCode("COMP1000")
-                .withBudgetAllocated(new BigDecimal("100.00"))
+                .withBudgetAllocated(BigDecimal.valueOf(100))
                 .withLecturerId(1L)
                 .build();
             when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
@@ -925,14 +920,13 @@ class CourseApplicationServiceTest {
         void shouldCheckUserCanPerformCourseOperation() {
             // Arrange
             when(userRepository.findById(1L)).thenReturn(Optional.of(testLecturer));
-            when(decisionService.checkPermission(any(PermissionCheckRequest.class))).thenReturn(true);
+            when(courseRepository.findById(100L)).thenReturn(Optional.of(testCourse));
 
             // Act
             boolean result = service.canUserPerformCourseOperation(100L, 1L, "EDIT_COURSE");
 
             // Assert
             assertThat(result).isTrue();
-            verify(decisionService).checkPermission(any(PermissionCheckRequest.class));
         }
 
         @Test
@@ -949,24 +943,22 @@ class CourseApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("Should return false on exception")
-        void shouldReturnFalseOnException() {
+        @DisplayName("Should propagate exception on repository failure")
+        void shouldPropagateExceptionOnRepositoryFailure() {
             // Arrange
             when(userRepository.findById(anyLong())).thenThrow(new RuntimeException("Database error"));
 
-            // Act
-            boolean result = service.canUserPerformCourseOperation(100L, 1L, "EDIT_COURSE");
-
-            // Assert
-            assertThat(result).isFalse();
+            // Act & Assert
+            assertThatThrownBy(() -> service.canUserPerformCourseOperation(100L, 1L, "EDIT_COURSE"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Database error");
         }
 
         @Test
-        @DisplayName("Should return false when decision service denies permission")
-        void shouldReturnFalseWhenDecisionServiceDeniesPermission() {
+        @DisplayName("Should return false when tutor attempts mutating operation")
+        void shouldReturnFalseWhenTutorAttemptsMutatingOperation() {
             // Arrange
             when(userRepository.findById(1L)).thenReturn(Optional.of(testTutor));
-            when(decisionService.checkPermission(any(PermissionCheckRequest.class))).thenReturn(false);
 
             // Act
             boolean result = service.canUserPerformCourseOperation(100L, 1L, "DELETE_COURSE");
@@ -976,18 +968,16 @@ class CourseApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("Should return false when decision service throws exception")
-        void shouldReturnFalseWhenDecisionServiceThrowsException() {
+        @DisplayName("Should propagate exception when lecturer-course lookup throws exception")
+        void shouldPropagateWhenLecturerCourseLookupThrowsException() {
             // Arrange
             when(userRepository.findById(1L)).thenReturn(Optional.of(testLecturer));
-            when(decisionService.checkPermission(any(PermissionCheckRequest.class)))
-                .thenThrow(new RuntimeException("Decision service error"));
+            when(courseRepository.findById(100L)).thenThrow(new RuntimeException("Course lookup error"));
 
-            // Act
-            boolean result = service.canUserPerformCourseOperation(100L, 1L, "EDIT_COURSE");
-
-            // Assert
-            assertThat(result).isFalse();
+            // Act & Assert
+            assertThatThrownBy(() -> service.canUserPerformCourseOperation(100L, 1L, "EDIT_COURSE"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Course lookup error");
         }
     }
 

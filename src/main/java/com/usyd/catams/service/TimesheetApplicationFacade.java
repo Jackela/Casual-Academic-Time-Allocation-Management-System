@@ -16,7 +16,7 @@ import java.util.Optional;
  * to depend on a stable contract while the underlying implementation is
  * refactored into smaller services.</p>
  */
-public interface TimesheetApplicationFacade extends TimesheetService {
+public interface TimesheetApplicationFacade {
 
     TimesheetResponse createTimesheetAndReturnDto(Long tutorId,
                                                   Long courseId,
@@ -40,10 +40,17 @@ public interface TimesheetApplicationFacade extends TimesheetService {
                                                   String description,
                                                   Long requesterId);
 
+    void deleteTimesheet(Long timesheetId, Long requesterId);
+
     PagedTimesheetResponse getTimesheetsByTutorAsDto(Long tutorId, Pageable pageable);
 
     PagedTimesheetResponse getPendingApprovalTimesheetsAsDto(Long requesterId, Pageable pageable);
 
     PagedTimesheetResponse getLecturerFinalApprovalQueueAsDto(Long requesterId, Pageable pageable);
-}
 
+    /**
+     * Resolve whether a tutorial repeat request is eligible against the configured
+     * rolling window policy.
+     */
+    boolean isTutorialRepeatEligible(Long courseId, LocalDate sessionDate);
+}

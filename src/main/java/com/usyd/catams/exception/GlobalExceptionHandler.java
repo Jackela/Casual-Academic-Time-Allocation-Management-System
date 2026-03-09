@@ -142,7 +142,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ProblemDetail> handleSecurityException(SecurityException e, HttpServletRequest request) {
         logger.warn("Security exception: {}", e.getMessage());
         ProblemDetail problem = buildProblemDetail(HttpStatus.FORBIDDEN, ErrorCodes.ACCESS_DENIED, e.getMessage(), request);
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
+        return problemResponse(HttpStatus.FORBIDDEN, problem);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -224,13 +224,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<?> handleGenericException(Exception e, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleGenericException(Exception e, HttpServletRequest request) {
         logger.error("System exception: {}", e.getMessage(), e);
-        String path = request != null ? request.getRequestURI() : null;
-        // Suppress errors for tutor defaults endpoint: return null defaults instead of 500 noise
-        if (path != null && path.matches("/api/admin/tutors/\\d+/defaults")) {
-            return ResponseEntity.ok(java.util.Map.of("defaultQualification", null));
-        }
         ProblemDetail problem = buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCodes.INTERNAL_ERROR, "Internal server error, please try again later", request);
         return problemResponse(HttpStatus.INTERNAL_SERVER_ERROR, problem);
     }

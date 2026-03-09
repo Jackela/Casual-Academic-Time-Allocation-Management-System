@@ -1,11 +1,10 @@
 package com.usyd.catams.application.course;
 
 import com.usyd.catams.application.course.dto.CourseDto;
-import com.usyd.catams.application.decision.DecisionService;
-import com.usyd.catams.application.decision.dto.PermissionCheckRequest;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.repository.TimesheetRepository;
@@ -30,7 +29,7 @@ import java.util.stream.Collectors;
  * - Integrates with existing repositories (Course, User, Timesheet)
  * - Provides rich DTO mapping with calculated fields
  * - Handles business logic for course operations
- * - Integrates with DecisionService for permission checks
+ * - Uses explicit role/course relationship checks for permission decisions
  * - Future-ready for microservices extraction
  * 
  * @author Development Team
@@ -42,17 +41,14 @@ public class CourseApplicationService implements CourseManagementService {
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
     private final TimesheetRepository timesheetRepository;
-    private final DecisionService decisionService;
     
     @Autowired
     public CourseApplicationService(CourseRepository courseRepository,
                                   UserRepository userRepository,
-                                  TimesheetRepository timesheetRepository,
-                                  DecisionService decisionService) {
+                                  TimesheetRepository timesheetRepository) {
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
         this.timesheetRepository = timesheetRepository;
-        this.decisionService = decisionService;
     }
     
     @Override
@@ -186,24 +182,22 @@ public class CourseApplicationService implements CourseManagementService {
     
     @Override
     public boolean canUserPerformCourseOperation(Long courseId, Long userId, String operation) {
-        try {
-            Optional<User> user = userRepository.findById(userId);
-            if (user.isEmpty()) {
-                return false;
-            }
-            
-            PermissionCheckRequest request = PermissionCheckRequest.builder()
-                .userId(userId.toString())
-                .userRole(user.get().getRole())
-                .action(operation)
-                .resourceType("COURSE")
-                .resourceId(courseId.toString())
-                .build();
-                
-            return decisionService.checkPermission(request);
-        } catch (Exception e) {
-            return false; // Deny access on error
+        Optional<User> user = userRepository.findById(userId);
+        if (user.isEmpty()) {
+            return false;
         }
+
+        UserRole role = user.get().getRole();
+        if (role == UserRole.ADMIN) {
+            return true;
+        }
+        if (role == UserRole.LECTURER) {
+            return isLecturerOfCourse(userId, courseId);
+        }
+        if (role == UserRole.TUTOR) {
+            return "VIEW_COURSE".equalsIgnoreCase(operation) && isTutorOfCourse(userId, courseId);
+        }
+        return false;
     }
     
     // Private helper methods for entity to DTO conversion

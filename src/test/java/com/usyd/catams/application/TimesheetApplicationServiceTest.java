@@ -46,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -132,7 +133,7 @@ class TimesheetApplicationServiceTest {
 
     private Schedule1CalculationResult createDefaultCalculation() {
         return new Schedule1CalculationResult(
-            LocalDate.now(),                    // sessionDate
+            LocalDate.now().with(java.time.DayOfWeek.MONDAY), // sessionDate
             "Standard Rate",                    // rateCode
             TutorQualification.STANDARD,        // qualification
             false,                              // isRepeat
@@ -223,8 +224,8 @@ class TimesheetApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw IllegalArgumentException when tutor has wrong role")
-        void shouldThrowIllegalArgumentExceptionWhenTutorHasWrongRole() {
+        @DisplayName("Should throw BusinessRuleException when tutor has wrong role")
+        void shouldThrowBusinessRuleExceptionWhenTutorHasWrongRole() {
             // Arrange
             User wrongRoleUser = TestDataBuilder.aLecturer().withId(1L).build();
             LocalDate weekStart = LocalDate.now().with(java.time.DayOfWeek.MONDAY);
@@ -237,7 +238,7 @@ class TimesheetApplicationServiceTest {
             assertThatThrownBy(() ->
                 service.createTimesheet(1L, 100L, weekStart, testCalculation,
                     TimesheetTaskType.TUTORIAL, "Test description", 2L))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("TUTOR role");
 
             verify(timesheetRepository, never()).save(any());
@@ -248,10 +249,8 @@ class TimesheetApplicationServiceTest {
         void shouldThrowIllegalArgumentExceptionWhenWeekStartNotMonday() {
             // Arrange
             LocalDate notMonday = LocalDate.now().with(java.time.DayOfWeek.TUESDAY);
-            when(userRepository.findById(2L)).thenReturn(Optional.of(testLecturer));
-            when(userRepository.findById(1L)).thenReturn(Optional.of(testTutor));
-            when(courseRepository.findById(100L)).thenReturn(Optional.of(testCourse));
-            when(permissionPolicy.canCreateTimesheetFor(testLecturer, testTutor, testCourse)).thenReturn(true);
+            doThrow(new IllegalArgumentException("weekStartDate must be a Monday"))
+                .when(timesheetValidationService).validateMonday(eq(notMonday), eq("weekStartDate"));
 
             // Act & Assert
             assertThatThrownBy(() ->
@@ -264,8 +263,8 @@ class TimesheetApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw IllegalArgumentException when creator not found")
-        void shouldThrowIllegalArgumentExceptionWhenCreatorNotFound() {
+        @DisplayName("Should throw ResourceNotFoundException when creator not found")
+        void shouldThrowResourceNotFoundExceptionWhenCreatorNotFound() {
             // Arrange
             LocalDate weekStart = LocalDate.now().with(java.time.DayOfWeek.MONDAY);
             when(userRepository.findById(999L)).thenReturn(Optional.empty());
@@ -274,7 +273,7 @@ class TimesheetApplicationServiceTest {
             assertThatThrownBy(() ->
                 service.createTimesheet(1L, 100L, weekStart, testCalculation,
                     TimesheetTaskType.TUTORIAL, "Test description", 999L))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Creator user not found");
         }
     }
@@ -636,15 +635,15 @@ class TimesheetApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw IllegalArgumentException when approver not found")
-        void shouldThrowIllegalArgumentExceptionWhenApproverNotFound() {
+        @DisplayName("Should throw ResourceNotFoundException when approver not found")
+        void shouldThrowResourceNotFoundExceptionWhenApproverNotFound() {
             // Arrange
             when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
             // Act & Assert
             assertThatThrownBy(() -> service.getPendingTimesheetsForApprover(999L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Approver user not found");
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("User");
         }
     }
 

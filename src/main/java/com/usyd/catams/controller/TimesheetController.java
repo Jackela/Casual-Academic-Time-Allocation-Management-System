@@ -1,7 +1,6 @@
 package com.usyd.catams.controller;
 
 import com.usyd.catams.service.TimesheetApplicationFacade;
-import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.dto.request.TimesheetCreateRequest;
 import com.usyd.catams.dto.request.TimesheetQuoteRequest;
 import com.usyd.catams.dto.request.TimesheetUpdateRequest;
@@ -16,20 +15,18 @@ import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.exception.ResourceNotFoundException;
 import com.usyd.catams.mapper.ApprovalMapper;
 import com.usyd.catams.policy.AuthenticationFacade;
+import com.usyd.catams.domain.service.TimesheetValidationService;
 import com.usyd.catams.service.ApprovalService;
 import com.usyd.catams.service.Schedule1CalculationResult;
 import com.usyd.catams.service.Schedule1Calculator;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -44,49 +41,39 @@ import java.util.Optional;
 @RequestMapping("/api/timesheets")
 public class TimesheetController {
 
-    private static final Logger log = LoggerFactory.getLogger(TimesheetController.class);
-
     private final TimesheetApplicationFacade timesheetService;
     private final AuthenticationFacade authenticationFacade;
     private final Schedule1Calculator schedule1Calculator;
+    private final TimesheetValidationService timesheetValidationService;
     private final ApprovalService approvalService;
     private final ApprovalMapper approvalMapper;
-    private final TimesheetRepository timesheetRepository;
 
     @Autowired
     public TimesheetController(TimesheetApplicationFacade timesheetService,
                                AuthenticationFacade authenticationFacade,
                                Schedule1Calculator schedule1Calculator,
+                               TimesheetValidationService timesheetValidationService,
                                ApprovalService approvalService,
-                               ApprovalMapper approvalMapper,
-                               TimesheetRepository timesheetRepository) {
+                               ApprovalMapper approvalMapper) {
         this.timesheetService = timesheetService;
         this.authenticationFacade = authenticationFacade;
         this.schedule1Calculator = schedule1Calculator;
+        this.timesheetValidationService = timesheetValidationService;
         this.approvalService = approvalService;
         this.approvalMapper = approvalMapper;
-        this.timesheetRepository = timesheetRepository;
     }
 
     @PostMapping("/quote")
     @PreAuthorize("hasAnyRole('LECTURER','TUTOR','ADMIN')")
     public ResponseEntity<TimesheetQuoteResponse> quoteTimesheet(
             @Valid @RequestBody TimesheetQuoteRequest request) {
-        // Enforce Monday session date policy (SSOT) for quotes
-        if (request.getSessionDate() == null || request.getSessionDate().getDayOfWeek().getValue() != 1) {
-            throw new IllegalArgumentException("Session date must be a Monday");
-        }
+        timesheetValidationService.validateMonday(request.getSessionDate(), "sessionDate");
         boolean effectiveRepeat = request.isRepeat();
-        if (request.getTaskType() == TimesheetTaskType.TUTORIAL && effectiveRepeat) {
-            // Enforce 7-day eligibility window for repeat tutorials at quote time
-            LocalDate sessionDate = request.getSessionDate();
-            LocalDate from = sessionDate.minusDays(7);
-            LocalDate to = sessionDate;
-            long prior = timesheetRepository.countTutorialsForRepeatRule(
-                    request.getCourseId(), from, to, null);
-            effectiveRepeat = prior > 0;
-            log.info("[QUOTE] repeat-window check: courseId={}, sessionDate={}, from={}, to={}, priorCount={}, effectiveRepeat={}",
-                    request.getCourseId(), sessionDate, from, to, prior, effectiveRepeat);
+        if (request.getTaskType() == TimesheetTaskType.TUTORIAL && request.isRepeat()) {
+            effectiveRepeat = timesheetService.isTutorialRepeatEligible(
+                    request.getCourseId(),
+                    request.getSessionDate()
+            );
         }
         Schedule1CalculationResult calculation = calculateSchedule1(
                 request.getTaskType(),
@@ -101,11 +88,7 @@ public class TimesheetController {
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
     public ResponseEntity<TimesheetResponse> createTimesheet(
-            @Valid @RequestBody TimesheetCreateRequest request,
-            Authentication authentication) {
-        if (!request.isWeekStartDateMonday()) {
-            throw new IllegalArgumentException("Week start date must be a Monday");
-        }
+            @Valid @RequestBody TimesheetCreateRequest request) {
         Long creatorId = authenticationFacade.getCurrentUserId();
         Schedule1CalculationResult calculation = calculateSchedule1(
                 request.getTaskType(),
@@ -183,28 +166,19 @@ public class TimesheetController {
             @PathVariable("id") Long id,
             @Valid @RequestBody TimesheetUpdateRequest request) {
         Long requesterId = authenticationFacade.getCurrentUserId();
-        com.usyd.catams.entity.Timesheet existing = timesheetService.getTimesheetById(id, requesterId)
-                .orElseThrow(() -> new ResourceNotFoundException("Timesheet", id.toString()));
-        TimesheetTaskType taskType = request.getTaskType() != null ? request.getTaskType() : existing.getTaskType();
-        TutorQualification qualification = request.getQualification() != null ? request.getQualification() : existing.getQualification();
-        BigDecimal deliveryHours = request.getDeliveryHours() != null ? request.getDeliveryHours() : existing.getDeliveryHours();
-        LocalDate sessionDate = request.getSessionDate() != null ? request.getSessionDate() : existing.getSessionDate();
-        if (sessionDate == null || sessionDate.getDayOfWeek().getValue() != 1) {
-            throw new IllegalArgumentException("Session date must be a Monday");
-        }
 
         Schedule1CalculationResult calculation = calculateSchedule1(
-                taskType,
-                sessionDate,
-                deliveryHours,
+                request.getTaskType(),
+                request.getSessionDate(),
+                request.getDeliveryHours(),
                 request.isRepeat(),
-                qualification
+                request.getQualification()
         );
         // Let the service handle both authorization and business rule validation with proper exceptions
         TimesheetResponse response = timesheetService.updateTimesheetAndReturnDto(
                 id,
                 calculation,
-                taskType,
+                request.getTaskType(),
                 request.getDescription(),
                 requesterId
         );
