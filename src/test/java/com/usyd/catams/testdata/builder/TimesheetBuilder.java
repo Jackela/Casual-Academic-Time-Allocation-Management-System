@@ -26,7 +26,7 @@ import java.time.LocalDateTime;
  * 
  * <h3>Domain Rules Enforced:</h3>
  * <ul>
- *   <li>Work hours must be between 0.5 and 40.0 per week</li>
+ *   <li>Work hours must be between 0.5 and 40 per week</li>
  *   <li>Hourly rates must align with institutional pay scales</li>
  *   <li>Week start dates must be Mondays (WeekPeriod enforcement)</li>
  *   <li>Approval status transitions follow SSOT workflow</li>

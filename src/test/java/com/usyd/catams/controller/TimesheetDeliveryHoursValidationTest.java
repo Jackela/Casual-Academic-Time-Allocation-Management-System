@@ -36,7 +36,7 @@ class TimesheetDeliveryHoursValidationTest {
         payload.put("sessionDate", monday.toString());
         payload.put("taskType", TimesheetTaskType.TUTORIAL.name());
         payload.put("qualification", TutorQualification.STANDARD.name());
-        payload.put("repeat", false);
+        payload.put("isRepeat", false);
         payload.put("deliveryHours", new BigDecimal("0.5"));
 
         mockMvc.perform(post("/api/timesheets/quote")
@@ -55,7 +55,7 @@ class TimesheetDeliveryHoursValidationTest {
         payload.put("sessionDate", monday.toString());
         payload.put("taskType", TimesheetTaskType.ORAA.name());
         payload.put("qualification", TutorQualification.STANDARD.name());
-        payload.put("repeat", false);
+        payload.put("isRepeat", false);
         payload.put("deliveryHours", new BigDecimal("1.5"));
 
         mockMvc.perform(post("/api/timesheets/quote")
@@ -64,4 +64,3 @@ class TimesheetDeliveryHoursValidationTest {
             .andExpect(status().isOk());
     }
 }
-

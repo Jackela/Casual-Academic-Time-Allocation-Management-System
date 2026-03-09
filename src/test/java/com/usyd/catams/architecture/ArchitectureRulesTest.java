@@ -31,6 +31,16 @@ public class ArchitectureRulesTest {
     }
 
     @Test
+    void controllers_should_not_depend_on_repositories() {
+        ArchRule rule = noClasses()
+            .that().haveSimpleName("ApprovalController")
+            .or().haveSimpleName("TimesheetController")
+            .should().dependOnClassesThat().resideInAnyPackage("..repository..")
+            .because("Refactored approval/timesheet controllers must stay at protocol-adapter boundary and delegate data access");
+        rule.check(classes);
+    }
+
+    @Test
     void web_layer_should_not_depend_on_security_impl_details() {
         ArchRule rule = noClasses()
             .that().resideInAPackage("..controller..")
@@ -48,6 +58,15 @@ public class ArchitectureRulesTest {
             .that().resideInAPackage("..domain..")
             .should().dependOnClassesThat().resideInAnyPackage("..controller..", "..config..")
             .because("Domain must be free from web/config concerns");
+        rule.check(classes);
+    }
+
+    @Test
+    void domain_should_not_depend_on_application_layer() {
+        ArchRule rule = noClasses()
+            .that().resideInAPackage("com.usyd.catams.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage("com.usyd.catams.application..")
+            .because("Domain rules/models must not depend on application orchestration classes");
         rule.check(classes);
     }
 }

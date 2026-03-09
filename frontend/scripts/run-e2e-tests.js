@@ -602,26 +602,62 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
 
   const gradleWrapper = resolveGradleCommand(projectRoot);
   const gradle = resolveCmdShim(gradleWrapper);
-  const springArgs = [
-    `--spring.profiles.active=${backendProfile}`,
-    `--server.port=${backendPort}`,
-    `--spring.flyway.enabled=false`,
-  ].join(' ');
-  const gradleArgs = [
-    ...gradle.args,
-    'bootRun',
-    '--no-daemon',
-    '--stacktrace',
-    '-i',
-    '-x', 'test',
-    `--args=${springArgs}`,
-  ];
   const backendEnv = {
     SPRING_PROFILES_ACTIVE: backendProfile,
     SERVER_PORT: String(backendPort),
     SPRING_OUTPUT_ANSI_ENABLED: 'never',
     E2E_BACKEND_PORT: String(backendPort),
+    JWT_SECRET:
+      process.env.JWT_SECRET
+      || 'Y2F0YW1zLWRlbW8tc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQtb25seS1ub3QtZm9yLXByb2R1Y3Rpb24=',
   };
+
+  // Local/dev fallback: if Docker/PostgreSQL is unavailable, run E2E backend on H2.
+  // This keeps `test:e2e:full` runnable in constrained environments.
+  const forceH2 = isTruthy(process.env.E2E_FORCE_H2);
+  const postgresAvailable = await tcpPortUsed.check(5433, '127.0.0.1');
+  const shouldFallbackToH2 = forceH2 || (!postgresAvailable && backendMode !== 'docker');
+  if (shouldFallbackToH2) {
+    logWarning('PostgreSQL is unavailable for local E2E. Falling back to in-memory H2 backend.');
+    const activeProfiles = (backendEnv.SPRING_PROFILES_ACTIVE || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (!activeProfiles.includes('test')) {
+      activeProfiles.push('test');
+    }
+    backendEnv.SPRING_PROFILES_ACTIVE = activeProfiles.join(',');
+    Object.assign(backendEnv, {
+      SPRING_DATASOURCE_URL:
+        process.env.SPRING_DATASOURCE_URL
+        || 'jdbc:h2:mem:e2e;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE',
+      SPRING_DATASOURCE_USERNAME: process.env.SPRING_DATASOURCE_USERNAME || 'sa',
+      SPRING_DATASOURCE_PASSWORD: process.env.SPRING_DATASOURCE_PASSWORD || '',
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: process.env.SPRING_DATASOURCE_DRIVER_CLASS_NAME || 'org.h2.Driver',
+      SPRING_FLYWAY_ENABLED: process.env.SPRING_FLYWAY_ENABLED || 'false',
+      SPRING_JPA_HIBERNATE_DDL_AUTO: process.env.SPRING_JPA_HIBERNATE_DDL_AUTO || 'create-drop',
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT:
+        process.env.SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT || 'org.hibernate.dialect.H2Dialect',
+      TEST_DATA_RESET_TOKEN: process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset',
+    });
+  }
+
+  const springArgs = [
+    `--spring.profiles.active=${backendEnv.SPRING_PROFILES_ACTIVE || backendProfile}`,
+    `--server.port=${backendPort}`,
+    `--spring.flyway.enabled=false`,
+  ].join(' ');
+
+  const gradleArgs = [
+    ...gradle.args,
+    'bootRun',
+    '--no-daemon',
+    '--no-configuration-cache',
+    '--stacktrace',
+    '-i',
+    '-x', 'test',
+    `--args=${springArgs}`,
+  ];
 
   const child = spawnBackground(gradle.command, gradleArgs, {
     cwd: projectRoot,

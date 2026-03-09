@@ -183,15 +183,11 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
       await expect(page.getByTestId('approval-success-banner')).toBeVisible({ timeout: 3000 });
     }
   } catch {}
-  // The seeded row should no longer be present (scope to table rows to avoid duplicate matches)
-  const tableAfter = pendingRegion.getByTestId('timesheets-table').first();
-  // Short stability poll to ensure the table is attached/visible post-refresh
-  await expect
-    .poll(async () => await tableAfter.isVisible().catch(() => false), { timeout: 2000 })
-    .toBe(true);
+  // The seeded row should no longer be present
+  const rowAfter = pendingRegion.getByTestId(`timesheet-row-${seeded.id}`);
   // If the row still appears briefly due to refresh cadence, issue one bounded manual refresh cycle
   for (let i = 0; i < 2; i += 1) {
-    const remaining = await tableAfter.getByTestId(`timesheet-row-${seeded.id}`).count().catch(() => 0);
+    const remaining = await rowAfter.count().catch(() => 0);
     if (remaining === 0) break;
     const refreshBtn2 = page.getByRole('button', { name: /^Refresh$/i }).first();
     if (await refreshBtn2.isVisible().catch(() => false)) {
@@ -200,18 +196,13 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
     await page
       .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
       .catch(() => undefined);
-    await expect
-      .poll(async () => await tableAfter.isVisible().catch(() => false), { timeout: 1000 })
-      .toBe(true);
   }
   // Final guard: prefer row-id disappearance, but accept backend FINAL_CONFIRMED + success banner as authoritative
-  let removed = false;
   try {
     await expect
-      .poll(async () => await tableAfter.getByTestId(`timesheet-row-${seeded.id}`).count().catch(() => 0), { timeout: 30000 })
+      .poll(async () => await rowAfter.count().catch(() => 0), { timeout: 30000 })
       .toBe(0);
-    await expect(pendingRegion.getByTestId(`timesheet-row-${seeded.id}`)).toHaveCount(0, { timeout: 15000 });
-    removed = true;
+    await expect(rowAfter).toHaveCount(0, { timeout: 15000 });
   } catch {
     // Fallback: verify backend state is FINAL_CONFIRMED for SSOT correctness
     const { E2E_CONFIG } = await import('../../config/e2e.config');
@@ -397,13 +388,10 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
         await expect(page.getByTestId('approval-success-banner')).toBeVisible({ timeout: 3000 });
       }
     } catch {}
-    // Stability poll on table presence before asserting removal
-    await expect
-      .poll(async () => await table.isVisible().catch(() => false), { timeout: 2000 })
-      .toBe(true);
+    const rowAfter = page.getByTestId(`timesheet-row-${seeded.id}`);
     // If the row persists briefly, perform one bounded manual refresh cycle to drive consistency
     for (let i = 0; i < 2; i += 1) {
-      const remaining = await table.getByTestId(`timesheet-row-${seeded.id}`).count().catch(() => 0);
+      const remaining = await rowAfter.count().catch(() => 0);
       if (remaining === 0) break;
       const refreshBtn2 = page.getByRole('button', { name: /^Refresh$/i }).first();
       if (await refreshBtn2.isVisible().catch(() => false)) {
@@ -412,14 +400,11 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
       await page
         .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
         .catch(() => undefined);
-      await expect
-        .poll(async () => await table.isVisible().catch(() => false), { timeout: 1000 })
-        .toBe(true);
     }
     // Prefer row-id disappearance; fallback to backend FINAL_CONFIRMED + success banner
     try {
       await expect
-        .poll(async () => await table.getByTestId(`timesheet-row-${seeded.id}`).count().catch(() => 0), { timeout: 30000 })
+        .poll(async () => await rowAfter.count().catch(() => 0), { timeout: 30000 })
         .toBe(0);
     } catch {
       const { E2E_CONFIG } = await import('../../config/e2e.config');

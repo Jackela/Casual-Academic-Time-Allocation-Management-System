@@ -583,7 +583,7 @@ class TestDataBuilderIntegrationTest {
 
             // Validate domain rules
             assertThat(validTimesheet.getHours()).isGreaterThan(BigDecimal.ZERO);
-            assertThat(validTimesheet.getHours()).isLessThanOrEqualTo(new BigDecimal("40.0"));
+            assertThat(validTimesheet.getHours()).isLessThanOrEqualTo(BigDecimal.valueOf(40));
             assertThat(validTimesheet.getHourlyRate()).isGreaterThan(BigDecimal.ZERO);
             assertThat(validTimesheet.getWeekStartDate().getDayOfWeek()).isEqualTo(java.time.DayOfWeek.MONDAY);
         }

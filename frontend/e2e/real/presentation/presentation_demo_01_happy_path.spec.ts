@@ -297,7 +297,7 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
       const token = await page.evaluate(() => window.localStorage.getItem('token'));
       const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8080';
       await page.request.post(`${backendUrl}/api/approvals`, {
-        data: { timesheetId, action: 'SUBMIT_DRAFT', comment: null },
+        data: { timesheetId, action: 'SUBMIT_FOR_APPROVAL', comment: null },
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       }).catch(() => undefined);
     } catch (error) {
@@ -373,7 +373,6 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
     // 15. Wait for dashboard to load (signInViaUI already navigates to dashboard)
     await page.waitForTimeout(2000);
     await lecturerDashboardReview.expectToBeLoaded('LECTURER');
-    await lecturerDashboardReview.waitForTimesheetData();
 
     // Close possibly opened create modal (auto-opens in E2E environment)
     // Since modal may auto-reopen, we need to wait for it to fully close
@@ -388,6 +387,7 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
       await page.waitForTimeout(1000);
       attempts++;
     }
+    await lecturerDashboardReview.waitForTimesheetData();
 
     // 16. Switch to Pending Review tab (UI interaction)
     narrateStep('Switching to Pending Review tab...', '📋');

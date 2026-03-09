@@ -123,6 +123,12 @@ export async function addVisualEnhancements(page: Page): Promise<void> {
         .demo-tooltip {
           pointer-events: none !important;
         }
+        /* Presentation demos do not interact with page banners; prevent click interception. */
+        [data-testid="notification-banner"],
+        .notification-banner,
+        .notification-banner-container {
+          pointer-events: none !important;
+        }
       `;
       document.head.appendChild(style);
     });

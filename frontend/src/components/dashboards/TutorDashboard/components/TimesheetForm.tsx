@@ -685,7 +685,7 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
 
         {/* Week Starting */}
         <div className="form-field space-y-1">
-          <label htmlFor="week-start" className="text-sm font-medium">Week Starting</label>
+          <label htmlFor="weekStartDate" className="text-sm font-medium">Week Starting</label>
           <div className="flex gap-2 items-center">
             <span data-testid="calendar-month-label" className="text-xs text-muted-foreground">
               {(() => {
@@ -958,4 +958,3 @@ export type TimesheetFormState = {
   qualification: TutorQualification;
   isRepeat: boolean;
 };
-

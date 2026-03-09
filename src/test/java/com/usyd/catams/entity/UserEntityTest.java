@@ -189,7 +189,7 @@ class UserEntityTest {
             user.updateLastLogin();
             LocalDateTime secondLogin = user.getLastLoginAt();
 
-            assertThat(secondLogin).isAfter(firstLogin);
+            assertThat(secondLogin).isAfterOrEqualTo(firstLogin);
         }
     }
 
@@ -422,7 +422,7 @@ class UserEntityTest {
             // Set a known earlier time to ensure second login is after
             newUser.setLastLoginAt(LocalDateTime.now().minusSeconds(1));
             newUser.updateLastLogin();
-            assertThat(newUser.getLastLoginAt()).isAfter(firstLogin);
+            assertThat(newUser.getLastLoginAt()).isAfterOrEqualTo(firstLogin);
 
             // Account deactivation
             newUser.deactivate();

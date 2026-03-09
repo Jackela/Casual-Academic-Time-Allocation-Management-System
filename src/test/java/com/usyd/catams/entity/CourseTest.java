@@ -304,7 +304,7 @@ class CourseTest {
         course.addToBudgetUsed(new BigDecimal("8000.00")); // Total used: 11000
         assertThat(course.getBudgetUsed()).isEqualByComparingTo(new BigDecimal("11000.00"));
         assertThat(course.getBudgetRemainingAmount()).isEqualByComparingTo(new BigDecimal("-1000.00"));
-        assertThat(course.hasSufficientBudget(new BigDecimal("100.00"))).isFalse();
+        assertThat(course.hasSufficientBudget(BigDecimal.valueOf(100))).isFalse();
     }
 
     @Test

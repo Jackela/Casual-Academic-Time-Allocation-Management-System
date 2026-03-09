@@ -89,7 +89,7 @@ public class ModificationRequestedWorkflowTest {
         timesheet.setTaskType(TimesheetTaskType.TUTORIAL);
         timesheet.setHours(BigDecimal.valueOf(2.0));
         timesheet.setHourlyRate(BigDecimal.valueOf(50.00));
-        timesheet.setCalculatedAmount(BigDecimal.valueOf(100.00));
+        timesheet.setCalculatedAmount(BigDecimal.valueOf(100));
         timesheet.setDescription("Test timesheet for modification workflow");
         timesheet.setStatus(ApprovalStatus.TUTOR_CONFIRMED);
         timesheetRepository.save(timesheet);

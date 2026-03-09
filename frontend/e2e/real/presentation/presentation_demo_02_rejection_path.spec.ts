@@ -293,7 +293,7 @@ test.describe('Presentation Demo 02: Rejection Path and Constraint Validation', 
       const token = await page.evaluate(() => window.localStorage.getItem('token'));
       const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8080';
       await page.request.post(`${backendUrl}/api/approvals`, {
-        data: { timesheetId, action: 'SUBMIT_DRAFT', comment: null },
+        data: { timesheetId, action: 'SUBMIT_FOR_APPROVAL', comment: null },
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       }).catch(() => undefined);
     } catch (error) {

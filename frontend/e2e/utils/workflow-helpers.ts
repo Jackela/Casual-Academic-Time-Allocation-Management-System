@@ -135,7 +135,7 @@ const loginEndpoint = `${backendUrl}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`;
 const parseNumericEnv = (...values: (string | undefined)[]): number | null => {
   for (const value of values) {
     if (!value) continue;
-    const match = value.match(/-?\\d+/);
+    const match = value.match(/-?\d+/);
     if (!match) continue;
     const parsed = Number.parseInt(match[0], 10);
     if (!Number.isNaN(parsed)) {
@@ -308,6 +308,19 @@ interface CandidateSeed {
   weekStartDate: string;
 }
 
+type CourseCatalogItem = {
+  id?: number | null;
+};
+
+const extractCourseIds = (payload: unknown): number[] => {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+  return payload
+    .map((item) => (item as CourseCatalogItem)?.id)
+    .filter((id): id is number => typeof id === 'number' && Number.isFinite(id));
+};
+
 async function resolveSeedCourseIds(
   request: APIRequestContext,
   tokens: AuthContext,
@@ -316,6 +329,22 @@ async function resolveSeedCourseIds(
   if (preferred) {
     return [preferred];
   }
+
+  // Priority 1: use courses owned by the seeded lecturer so LECTURER_CONFIRM
+  // transitions are always authorized under SSOT permission rules.
+  const lecturerCoursesResponse = await request.get(
+    `${backendUrl}/api/courses?lecturerId=${tokens.lecturer.userId}&active=true`,
+    { headers: toHeaders(tokens.admin.token) }
+  );
+  if (lecturerCoursesResponse.ok()) {
+    const payload = await lecturerCoursesResponse.json().catch(() => null);
+    const courseIds = extractCourseIds(payload);
+    if (courseIds.length > 0) {
+      return courseIds;
+    }
+  }
+
+  // Fallback: use global defaults if lecturer-owned catalog is unavailable.
   return getDefaultCourseIds(request, tokens.admin.token, 2);
 }
 

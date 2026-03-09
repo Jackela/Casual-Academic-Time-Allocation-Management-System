@@ -57,7 +57,7 @@ class TimesheetEventTest {
                 200L,
                 testWeekStartDate,
                 new BigDecimal("20.00"),
-                new BigDecimal("40.00"),
+                BigDecimal.valueOf(40),
                 "Marking assignments",
                 "user-123",
                 "corr-abc"
@@ -69,7 +69,7 @@ class TimesheetEventTest {
             assertThat(event.getCourseId()).isEqualTo(200L);
             assertThat(event.getWeekStartDate()).isEqualTo(testWeekStartDate);
             assertThat(event.getHours()).isEqualByComparingTo(new BigDecimal("20.00"));
-            assertThat(event.getHourlyRate()).isEqualByComparingTo(new BigDecimal("40.00"));
+            assertThat(event.getHourlyRate()).isEqualByComparingTo(BigDecimal.valueOf(40));
             assertThat(event.getDescription()).isEqualTo("Marking assignments");
         }
 
@@ -83,7 +83,7 @@ class TimesheetEventTest {
                 200L,
                 testWeekStartDate,
                 new BigDecimal("25.00"),
-                new BigDecimal("40.00"),
+                BigDecimal.valueOf(40),
                 "Tutorial preparation",
                 "user-123",
                 "corr-abc"
@@ -539,7 +539,7 @@ class TimesheetEventTest {
                 testWeekStartDate,
                 ApprovalStatus.DRAFT,
                 new BigDecimal("20.00"),
-                new BigDecimal("40.00"),
+                BigDecimal.valueOf(40),
                 "User requested deletion",
                 "user-123",
                 "corr-abc"
@@ -549,7 +549,7 @@ class TimesheetEventTest {
             assertThat(event.getEventType()).isEqualTo("TIMESHEET_DELETED");
             assertThat(event.getPreviousStatus()).isEqualTo(ApprovalStatus.DRAFT);
             assertThat(event.getHours()).isEqualByComparingTo(new BigDecimal("20.00"));
-            assertThat(event.getHourlyRate()).isEqualByComparingTo(new BigDecimal("40.00"));
+            assertThat(event.getHourlyRate()).isEqualByComparingTo(BigDecimal.valueOf(40));
             assertThat(event.getReason()).isEqualTo("User requested deletion");
         }
 
@@ -588,7 +588,7 @@ class TimesheetEventTest {
                 testWeekStartDate,
                 ApprovalStatus.DRAFT,
                 new BigDecimal("20.00"),
-                new BigDecimal("40.00"),
+                BigDecimal.valueOf(40),
                 "Duplicate entry",
                 "user-123",
                 "corr-abc"
@@ -613,7 +613,7 @@ class TimesheetEventTest {
                 testWeekStartDate,
                 ApprovalStatus.DRAFT,
                 new BigDecimal("20.00"),
-                new BigDecimal("40.00"),
+                BigDecimal.valueOf(40),
                 "Error correction",
                 "user-123",
                 "corr-abc"
@@ -755,7 +755,7 @@ class TimesheetEventTest {
                 200L,
                 testWeekStartDate,
                 new BigDecimal("20.00"),
-                new BigDecimal("40.00"),
+                BigDecimal.valueOf(40),
                 "Description",
                 "user-123",
                 "corr-abc"

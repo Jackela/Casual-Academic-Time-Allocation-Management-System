@@ -160,7 +160,26 @@ export class TestDataFactory {
 export async function createTestDataFactory(request: APIRequestContext): Promise<TestDataFactory> {
   const sessions = await loginAllRoles(request);
   const tokens = toAuthContext(sessions);
-  const defaultCourseIds = await getDefaultCourseIds(request, tokens.admin.token, 2);
+  let defaultCourseIds = await getDefaultCourseIds(request, tokens.admin.token, 2);
+  try {
+    const lecturerCoursesResponse = await request.get(
+      `${E2E_CONFIG.BACKEND.URL}/api/courses?lecturerId=${tokens.lecturer.userId}&active=true`,
+      { headers: { Authorization: `Bearer ${tokens.admin.token}` } },
+    );
+    if (lecturerCoursesResponse.ok()) {
+      type CourseSummary = { id?: number | null };
+      const payload = (await lecturerCoursesResponse.json().catch(() => null)) as CourseSummary[] | null;
+      const lecturerCourseIds = (payload ?? [])
+        .map((course) => course?.id)
+        .filter((id): id is number => typeof id === 'number' && Number.isFinite(id));
+      if (lecturerCourseIds.length > 0) {
+        defaultCourseIds = lecturerCourseIds;
+      }
+    }
+  } catch (error) {
+    void error;
+  }
+
   const fallbackTutorIds = await resolveTutorPool(request, tokens.admin.token, tokens.tutor.userId);
   // Ensure standard E2E tutors are assigned to common courses
   try {

@@ -37,7 +37,7 @@ class TimesheetMondayValidationTest {
         payload.put("sessionDate", wednesday.toString());
         payload.put("taskType", TimesheetTaskType.TUTORIAL.name());
         payload.put("qualification", TutorQualification.STANDARD.name());
-        payload.put("repeat", false);
+        payload.put("isRepeat", false);
         payload.put("deliveryHours", new BigDecimal("1.0"));
 
         var result = mockMvc.perform(post("/api/timesheets/quote")

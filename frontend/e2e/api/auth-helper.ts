@@ -22,6 +22,9 @@ export interface RoleAuthSession extends AuthSession {
 export type RoleSessionMap = Record<UserRole, RoleAuthSession>;
 
 const LOGIN_ENDPOINT = `${E2E_CONFIG.BACKEND.URL}${E2E_CONFIG.BACKEND.ENDPOINTS.AUTH_LOGIN}`;
+const LOGIN_TIMEOUT_MS = Number(process.env.E2E_LOGIN_TIMEOUT_MS ?? 30000);
+const LOGIN_MAX_ATTEMPTS = Math.max(1, Number(process.env.E2E_LOGIN_MAX_ATTEMPTS ?? 3));
+const LOGIN_RETRY_DELAY_MS = Number(process.env.E2E_LOGIN_RETRY_DELAY_MS ?? 1000);
 
 function getKeepAliveAgents(targetUrl: string) {
   const url = new URL(targetUrl);
@@ -30,6 +33,8 @@ function getKeepAliveAgents(targetUrl: string) {
   const httpsAgent = new https.Agent({ keepAlive: true });
   return isHttps ? { httpsAgent } : { httpAgent };
 }
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 type RawAuthResponse =
   | AuthSession
@@ -123,31 +128,59 @@ export async function loginAsRole(
   }
   const { email, password } = roleCredentials(role);
   const agents = getKeepAliveAgents(LOGIN_ENDPOINT);
-  const axiosResp = await axios.post(LOGIN_ENDPOINT, { email, password }, {
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    timeout: 15000,
-    ...agents,
-    // Avoid proxy/DNS oddities in some envs
-    transitional: { clarifyTimeoutError: true },
-    validateStatus: () => true,
-  });
+  void request;
 
-  if (axiosResp.status < 200 || axiosResp.status >= 300) {
-    const bodyTxt = typeof axiosResp.data === 'string' ? axiosResp.data : JSON.stringify(axiosResp.data);
-    throw new Error(`Login failed for ${role} (${email}): ${axiosResp.status} ${bodyTxt?.slice(0,200)}`);
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= LOGIN_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const axiosResp = await axios.post(LOGIN_ENDPOINT, { email, password }, {
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        timeout: LOGIN_TIMEOUT_MS,
+        ...agents,
+        // Avoid proxy/DNS oddities in some envs
+        transitional: { clarifyTimeoutError: true },
+        validateStatus: () => true,
+      });
+
+      if (axiosResp.status < 200 || axiosResp.status >= 300) {
+        const bodyTxt = typeof axiosResp.data === 'string' ? axiosResp.data : JSON.stringify(axiosResp.data);
+        const retriableStatus = axiosResp.status >= 500 || axiosResp.status === 408 || axiosResp.status === 429;
+        if (retriableStatus && attempt < LOGIN_MAX_ATTEMPTS) {
+          await sleep(LOGIN_RETRY_DELAY_MS * attempt);
+          continue;
+        }
+        throw new Error(`Login failed for ${role} (${email}): ${axiosResp.status} ${bodyTxt?.slice(0, 200)}`);
+      }
+
+      const body = axiosResp.data as RawAuthResponse;
+      const session = extractSession(body, role);
+      return { ...session, role };
+    } catch (error) {
+      lastError = error;
+      if (attempt >= LOGIN_MAX_ATTEMPTS) {
+        break;
+      }
+
+      const code = axios.isAxiosError(error) ? (error.code ?? '') : '';
+      const retriableCode = code === 'ECONNABORTED' || code === 'ETIMEDOUT' || code === 'ECONNRESET' || code === 'ERR_NETWORK';
+      if (!retriableCode && !axios.isAxiosError(error)) {
+        break;
+      }
+      await sleep(LOGIN_RETRY_DELAY_MS * attempt);
+    }
   }
 
-  const body = axiosResp.data as RawAuthResponse;
-  const session = extractSession(body, role);
-  return { ...session, role };
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+  throw new Error(`Login failed for ${role} (${email})`);
 }
 
 export async function loginAllRoles(request: APIRequestContext): Promise<RoleSessionMap> {
-  const [admin, lecturer, tutor] = await Promise.all([
-    loginAsRole(request, 'admin'),
-    loginAsRole(request, 'lecturer'),
-    loginAsRole(request, 'tutor'),
-  ]);
+  // Run sequentially to reduce connection burst against local backend during full-suite runs.
+  const admin = await loginAsRole(request, 'admin');
+  const lecturer = await loginAsRole(request, 'lecturer');
+  const tutor = await loginAsRole(request, 'tutor');
   return { admin, lecturer, tutor };
 }
 
@@ -297,38 +330,63 @@ export async function signOutViaUI(
   options: { pauseAfterLogout?: number } = {}
 ): Promise<void> {
   const { pauseAfterLogout = 1500 } = options;
+  if (page.isClosed()) {
+    return;
+  }
 
   console.log(`\n🎬 NARRATION CUE: "Logging out to switch roles..."`);
 
   // Dismiss any blocking modals first (especially lecturer create modal)
   await dismissBlockingModals(page);
+  if (page.isClosed()) {
+    return;
+  }
 
-  // Find logout button (try multiple selectors)
-  const logoutButton = page.getByTestId('logout-button')
-    .or(page.getByRole('button', { name: /logout|sign out/i }));
+  try {
+    // Find logout button (try multiple selectors)
+    const logoutButton = page.getByTestId('logout-button')
+      .or(page.getByRole('button', { name: /logout|sign out/i }));
 
-  // Ensure button is visible and clickable
-  await logoutButton.waitFor({ state: 'visible', timeout: 10000 });
-  await logoutButton.scrollIntoViewIfNeeded().catch(() => undefined);
+    // Ensure button is visible and clickable
+    await logoutButton.waitFor({ state: 'visible', timeout: 10000 });
+    await logoutButton.scrollIntoViewIfNeeded().catch(() => undefined);
 
-  // Click logout button
-  await logoutButton.click();
+    // Click logout button
+    await logoutButton.click();
 
-  // Wait for redirect to login page
-  await page.waitForURL(/\/login/, { timeout: 10000 });
+    // Wait for redirect to login page
+    await page.waitForURL(/\/login/, { timeout: 10000 });
+  } catch (error) {
+    if (page.isClosed()) {
+      console.warn('Page closed before logout completed; skipping logout wait');
+      return;
+    }
+    throw error;
+  }
 
   console.log(`✅ Logged out successfully`);
 
   // Pause after logout for audience to observe
   if (pauseAfterLogout > 0) {
-    await page.waitForTimeout(pauseAfterLogout);
+    await safeWait(page, pauseAfterLogout);
   }
+}
+
+async function safeWait(page: Page, millis: number): Promise<void> {
+  if (millis <= 0 || page.isClosed()) {
+    return;
+  }
+  await page.waitForTimeout(millis).catch(() => undefined);
 }
 
 /**
  * Helper function to dismiss blocking modals (aggressive multi-strategy approach)
  */
 async function dismissBlockingModals(page: Page): Promise<void> {
+  if (page.isClosed()) {
+    return;
+  }
+
   // Try multiple strategies to dismiss modals
 
   // Strategy 1: Set localStorage flag to prevent auto-open
@@ -338,26 +396,37 @@ async function dismissBlockingModals(page: Page): Promise<void> {
 
   // Strategy 2: Press Escape key multiple times
   for (let i = 0; i < 3; i++) {
+    if (page.isClosed()) {
+      return;
+    }
     await page.keyboard.press('Escape').catch(() => undefined);
-    await page.waitForTimeout(300);
+    await safeWait(page, 300);
+  }
+
+  if (page.isClosed()) {
+    return;
   }
 
   // Strategy 3: Click close button if exists
   const closeButton = page.locator('[data-testid$="modal"] button').filter({ hasText: /cancel|close|×/i });
   if (await closeButton.isVisible().catch(() => false)) {
     await closeButton.click({ force: true }).catch(() => undefined);
-    await page.waitForTimeout(500);
+    await safeWait(page, 500);
+  }
+
+  if (page.isClosed()) {
+    return;
   }
 
   // Strategy 4: Click backdrop overlay to close modal
   const backdrop = page.locator('[data-testid$="modal"]').first();
   if (await backdrop.isVisible().catch(() => false)) {
     await backdrop.click({ position: { x: 5, y: 5 }, force: true }).catch(() => undefined);
-    await page.waitForTimeout(500);
+    await safeWait(page, 500);
   }
 
   // Final verification: wait for all modals to be hidden
-  await page.waitForTimeout(1000);
+  await safeWait(page, 1000);
 }
 
 /**

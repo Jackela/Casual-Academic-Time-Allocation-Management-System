@@ -58,7 +58,7 @@ class TimesheetDtoTest {
             .weekStartDate(LocalDate.of(2024, 1, 8))
             .weekEndDate(LocalDate.of(2024, 1, 14))
             .hours(new BigDecimal("20.00"))
-            .hourlyRate(new BigDecimal("40.00"))
+            .hourlyRate(BigDecimal.valueOf(40))
             .totalAmount(new BigDecimal("800.00"))
             .description("Marking assignments")
             .status(ApprovalStatus.DRAFT)
@@ -82,7 +82,7 @@ class TimesheetDtoTest {
             assertThat(dto.getCourseId()).isEqualTo(200L);
             assertThat(dto.getWeekStartDate()).isEqualTo(LocalDate.of(2024, 1, 8));
             assertThat(dto.getHours()).isEqualByComparingTo(new BigDecimal("20.00"));
-            assertThat(dto.getHourlyRate()).isEqualByComparingTo(new BigDecimal("40.00"));
+            assertThat(dto.getHourlyRate()).isEqualByComparingTo(BigDecimal.valueOf(40));
         }
 
         @Test
@@ -154,7 +154,7 @@ class TimesheetDtoTest {
                 .courseId(200L)
                 .weekStartDate(LocalDate.of(2024, 1, 8))
                 .hours(new BigDecimal("20.00"))
-                .hourlyRate(new BigDecimal("40.00"))
+                .hourlyRate(BigDecimal.valueOf(40))
                 .build();
 
             // Assert - Builder sets DRAFT as default in constructor
@@ -186,7 +186,7 @@ class TimesheetDtoTest {
             TimesheetDto dto = baseBuilder
                 .totalAmount(null)
                 .hours(new BigDecimal("25.00"))
-                .hourlyRate(new BigDecimal("40.00"))
+                .hourlyRate(BigDecimal.valueOf(40))
                 .build();
 
             // Act
@@ -237,7 +237,7 @@ class TimesheetDtoTest {
             TimesheetDto dto = baseBuilder
                 .totalAmount(null)
                 .hours(BigDecimal.ZERO)
-                .hourlyRate(new BigDecimal("40.00"))
+                .hourlyRate(BigDecimal.valueOf(40))
                 .build();
 
             // Act
@@ -281,7 +281,7 @@ class TimesheetDtoTest {
             TimesheetDto dto = baseBuilder
                 .status(ApprovalStatus.DRAFT)
                 .hours(new BigDecimal("20.00"))
-                .hourlyRate(new BigDecimal("40.00"))
+                .hourlyRate(BigDecimal.valueOf(40))
                 .build();
 
             // Act & Assert
@@ -348,7 +348,7 @@ class TimesheetDtoTest {
             TimesheetDto dto = baseBuilder
                 .status(ApprovalStatus.DRAFT)
                 .hours(new BigDecimal("-5.00"))
-                .hourlyRate(new BigDecimal("40.00"))
+                .hourlyRate(BigDecimal.valueOf(40))
                 .build();
 
             // Act & Assert
@@ -654,7 +654,7 @@ class TimesheetDtoTest {
                 .courseId(200L)
                 .weekStartDate(LocalDate.of(2024, 1, 8))
                 .hours(new BigDecimal("20.00"))
-                .hourlyRate(new BigDecimal("40.00"))
+                .hourlyRate(BigDecimal.valueOf(40))
                 .build();
 
             // Act
@@ -722,7 +722,7 @@ class TimesheetDtoTest {
                 200L, "COMP2017", "Systems Programming",
                 300L, "Dr. Smith",
                 LocalDate.of(2024, 1, 8), LocalDate.of(2024, 1, 14),
-                new BigDecimal("20.00"), new BigDecimal("40.00"), new BigDecimal("800.00"),
+                new BigDecimal("20.00"), BigDecimal.valueOf(40), new BigDecimal("800.00"),
                 "Test", null, // null status
                 false, false, false,
                 null, null, null, now, now,
@@ -745,7 +745,7 @@ class TimesheetDtoTest {
                 200L, null, null, // null courseCode and courseName
                 300L, "Dr. Smith",
                 LocalDate.of(2024, 1, 8), LocalDate.of(2024, 1, 14),
-                new BigDecimal("20.00"), new BigDecimal("40.00"), new BigDecimal("800.00"),
+                new BigDecimal("20.00"), BigDecimal.valueOf(40), new BigDecimal("800.00"),
                 "Test", ApprovalStatus.DRAFT,
                 false, false, false,
                 null, null, null, now, now,
@@ -949,7 +949,7 @@ class TimesheetDtoTest {
             assertThat(dto.getWeekStartDate()).isEqualTo(LocalDate.of(2024, 1, 8));
             assertThat(dto.getWeekEndDate()).isEqualTo(LocalDate.of(2024, 1, 14));
             assertThat(dto.getHours()).isEqualByComparingTo(new BigDecimal("20.00"));
-            assertThat(dto.getHourlyRate()).isEqualByComparingTo(new BigDecimal("40.00"));
+            assertThat(dto.getHourlyRate()).isEqualByComparingTo(BigDecimal.valueOf(40));
             assertThat(dto.getTotalAmount()).isEqualByComparingTo(new BigDecimal("800.00"));
             assertThat(dto.getDescription()).isEqualTo("Tutorial preparation and grading");
             assertThat(dto.getStatus()).isEqualTo(ApprovalStatus.DRAFT);
@@ -977,7 +977,7 @@ class TimesheetDtoTest {
                 .courseId(200L)
                 .weekStartDate(LocalDate.of(2024, 1, 8))
                 .hours(new BigDecimal("20.00"))
-                .hourlyRate(new BigDecimal("40.00"))
+                .hourlyRate(BigDecimal.valueOf(40))
                 .build();
 
             // Act & Assert - Test null handling
@@ -1012,7 +1012,7 @@ class TimesheetDtoTest {
                 .courseId(200L)
                 .weekStartDate(LocalDate.of(2024, 1, 8))
                 .hours(new BigDecimal("20.00"))
-                .hourlyRate(new BigDecimal("40.00"))
+                .hourlyRate(BigDecimal.valueOf(40))
                 .build();
 
             // Act & Assert - Default values from builder
@@ -1079,7 +1079,7 @@ class TimesheetDtoTest {
                 .courseId(200L)
                 .weekStartDate(LocalDate.of(2024, 1, 8))
                 .hours(new BigDecimal("20.00"))
-                .hourlyRate(new BigDecimal("40.00"));
+                .hourlyRate(BigDecimal.valueOf(40));
 
             // Act - Build with different IDs
             TimesheetDto dto1 = builder.id(1L).build();
@@ -1121,7 +1121,7 @@ class TimesheetDtoTest {
             // Arrange
             TimesheetDto dto = baseBuilder
                 .hours(new BigDecimal("0.01"))
-                .hourlyRate(new BigDecimal("40.00"))
+                .hourlyRate(BigDecimal.valueOf(40))
                 .totalAmount(null)
                 .build();
 

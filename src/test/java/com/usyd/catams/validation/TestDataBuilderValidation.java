@@ -199,7 +199,7 @@ public class TestDataBuilderValidation {
             .build();
         
         assert timesheet.getHours().compareTo(BigDecimal.ZERO) > 0 : "Hours should be positive";
-        assert timesheet.getHours().compareTo(new BigDecimal("40.0")) <= 0 : "Hours should not exceed 40";
+        assert timesheet.getHours().compareTo(BigDecimal.valueOf(40)) <= 0 : "Hours should not exceed 40";
         assert timesheet.getHourlyRate().compareTo(BigDecimal.ZERO) > 0 : "Hourly rate should be positive";
         assert timesheet.getWeekStartDate().getDayOfWeek() == java.time.DayOfWeek.MONDAY : "Week should start on Monday";
         assert timesheet.getDescription() != null && !timesheet.getDescription().isEmpty() : "Description should not be empty";

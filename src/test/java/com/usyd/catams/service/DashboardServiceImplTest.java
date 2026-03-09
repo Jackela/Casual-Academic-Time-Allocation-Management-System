@@ -324,7 +324,7 @@ class DashboardServiceImplTest {
         Course course = createMockCourse(courseId, "COMP1001", new BigDecimal("5000.00"));
         List<Long> singleCourseIds = List.of(courseId);
         TimesheetSummaryData mockSummary = new TimesheetSummaryData(12L, new BigDecimal("96.0"), new BigDecimal("4320.00"), 4L);
-        TimesheetSummaryData mockCurrentWeek = new TimesheetSummaryData(5L, new BigDecimal("40.0"), new BigDecimal("1800.00"), 2L);
+        TimesheetSummaryData mockCurrentWeek = new TimesheetSummaryData(5L, BigDecimal.valueOf(40), new BigDecimal("1800.00"), 2L);
         TimesheetSummaryData mockPreviousWeek = new TimesheetSummaryData(4L, new BigDecimal("32.0"), new BigDecimal("1440.00"), 1L);
         
         // Mock the main summary call
