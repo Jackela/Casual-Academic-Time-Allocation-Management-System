@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -27,9 +29,10 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/test-data/seed")
-@Profile({"test", "e2e", "e2e-local"})
+@Profile({"test", "e2e"})
 public class TestDataSeedController {
 
+    private static final Logger logger = LoggerFactory.getLogger(TestDataSeedController.class);
     private final TestDataSeedService seedService;
     private final String resetToken;
 
@@ -78,6 +81,7 @@ public class TestDataSeedController {
             @RequestBody LecturerSeedRequest body
     ) {
         if (providedToken == null || !providedToken.equals(resetToken)) {
+            logger.warn("Rejected /api/test-data/seed/lecturer-resources due to invalid or missing reset token");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                     "success", false,
                     "message", "Invalid or missing reset token"
@@ -100,6 +104,7 @@ public class TestDataSeedController {
             ));
         }
 
+        logger.info("Accepted /api/test-data/seed/lecturer-resources for lecturerId={}", lecturerId);
         seedService.ensureLecturerCourses(resolvedLecturerId);
         if (body != null && body.seedTutors()) {
             seedService.ensureBasicTutors();
@@ -132,11 +137,13 @@ public class TestDataSeedController {
             @RequestHeader(name = "X-Test-Reset-Token", required = false) String providedToken
     ) {
         if (providedToken == null || !providedToken.equals(resetToken)) {
+            logger.warn("Rejected /api/test-data/seed/accounts due to invalid or missing reset token");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                     "success", false,
                     "message", "Invalid or missing reset token"
             ));
         }
+        logger.info("Accepted /api/test-data/seed/accounts request");
         List<Map<String, Object>> accounts = seedService.buildAccountManifest();
         return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -169,6 +176,7 @@ public class TestDataSeedController {
             @RequestBody CourseOwnershipRequest body
     ) {
         if (providedToken == null || !providedToken.equals(resetToken)) {
+            logger.warn("Rejected /api/test-data/seed/course-ownership due to invalid or missing reset token");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                     "success", false,
                     "message", "Invalid or missing reset token"
@@ -182,6 +190,8 @@ public class TestDataSeedController {
             ));
         }
 
+        logger.info("Accepted /api/test-data/seed/course-ownership for courseCode={} lecturerId={}",
+            body.courseCode(), body.lecturerId());
         boolean updated = seedService.updateCourseOwnership(body.courseCode(), body.lecturerId());
         if (!updated) {
             return ResponseEntity.badRequest().body(Map.of(

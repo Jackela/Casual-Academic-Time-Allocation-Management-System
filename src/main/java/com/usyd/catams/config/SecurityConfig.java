@@ -60,6 +60,11 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         boolean relaxedReadProfile = Arrays.stream(environment.getActiveProfiles())
             .anyMatch(p -> p != null && (p.equalsIgnoreCase("test") || p.toLowerCase().startsWith("e2e")));
+        boolean testDataProfile = Arrays.stream(environment.getActiveProfiles())
+            .anyMatch(p -> p != null && (
+                p.equalsIgnoreCase("test")
+                    || p.equalsIgnoreCase("e2e")
+            ));
 
         http
             .csrf(csrf -> csrf.disable())
@@ -69,11 +74,14 @@ public class SecurityConfig {
                 auth
                     .requestMatchers("/api/auth/login").permitAll()
                     .requestMatchers("/actuator/health").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/test-data/reset").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/test-data/cleanup-demo-users").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/test-data/seed/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/timesheets/config").permitAll()
                     .requestMatchers(HttpMethod.POST, "/actuator/shutdown").hasRole("ADMIN");
+
+                if (testDataProfile) {
+                    auth.requestMatchers("/api/test-data/**").permitAll();
+                } else {
+                    auth.requestMatchers("/api/test-data/**").denyAll();
+                }
 
                 if (relaxedReadProfile) {
                     // Allow read-only listing endpoints during e2e/test profiles (exclude course-user edges)
@@ -118,8 +126,10 @@ public class SecurityConfig {
             .map(String::trim)
             .filter(origin -> !origin.isEmpty())
             .toList();
-        configuration.setAllowedOrigins(java.util.Collections.emptyList());
-        configuration.setAllowedOriginPatterns(java.util.List.of("*"));
+        if (origins.stream().anyMatch("*"::equals)) {
+            throw new IllegalStateException("Wildcard CORS origin '*' is not allowed for app.cors.allowed-origins");
+        }
+        configuration.setAllowedOrigins(origins);
 
         configuration.setAllowedMethods(Arrays.asList(
             "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
@@ -136,8 +146,6 @@ public class SecurityConfig {
         return source;
     }
 }
-
-
 
 
 

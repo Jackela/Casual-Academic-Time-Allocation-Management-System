@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.Map;
@@ -30,9 +32,10 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/test-data")
-@Profile({"test", "e2e", "e2e-local"})
+@Profile({"test", "e2e"})
 public class TestDataResetController {
 
+    private static final Logger logger = LoggerFactory.getLogger(TestDataResetController.class);
     private final TestDataResetService resetService;
     private final String resetToken;
 
@@ -66,12 +69,14 @@ public class TestDataResetController {
         @RequestHeader(name = "X-Test-Reset-Token", required = false) String providedToken
     ) {
         if (providedToken == null || !providedToken.equals(resetToken)) {
+            logger.warn("Rejected /api/test-data/reset due to invalid or missing reset token");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                 "success", false,
                 "message", "Invalid or missing reset token"
             ));
         }
 
+        logger.info("Accepted /api/test-data/reset with valid token");
         resetService.resetDatabase();
         return ResponseEntity.ok(Map.of(
             "success", true,
@@ -94,12 +99,14 @@ public class TestDataResetController {
         @RequestHeader(name = "X-Test-Reset-Token", required = false) String providedToken
     ) {
         if (providedToken == null || !providedToken.equals(resetToken)) {
+            logger.warn("Rejected /api/test-data/cleanup-demo-users due to invalid or missing reset token");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                 "success", false,
                 "message", "Invalid or missing reset token"
             ));
         }
 
+        logger.info("Accepted /api/test-data/cleanup-demo-users with valid token");
         int deletedCount = resetService.cleanupDemoUsers();
         return ResponseEntity.ok(Map.of(
             "success", true,

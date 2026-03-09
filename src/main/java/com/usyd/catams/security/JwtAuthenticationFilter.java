@@ -37,12 +37,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /**
      * Public paths that do not require JWT authentication.
-     * These endpoints are accessible without authentication for login, health checks, and test data reset.
+     * These endpoints are accessible without authentication for login and health checks.
      */
     private static final Set<String> PUBLIC_PATHS = Set.of(
         "/api/auth/login",
         "/auth/login",
-        "/api/test-data/reset",
         "/actuator/health"
     );
     
@@ -127,5 +126,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return PUBLIC_PATHS.contains(path) || path.startsWith("/actuator/health/");
     }
 }
-
 
