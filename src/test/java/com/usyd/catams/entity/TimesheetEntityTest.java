@@ -17,9 +17,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.usyd.catams.test.config.TestConfigurationLoader;
-// import com.usyd.catams.common.validation.TimesheetValidationConstants;
-
 public class TimesheetEntityTest {
 
     private Long TUTOR_ID;
@@ -179,49 +176,42 @@ public class TimesheetEntityTest {
         }
 
         @Test
-        void validateBusinessRules_ShouldFailForTooFewHours() {
+        void validateBusinessRules_ShouldAllowRangeChecksToBeHandledOutsideEntity_TooFewHours() {
             timesheet.setHours(new BigDecimal("0.05")); // Below minimum
 
-            assertThatThrownBy(() -> timesheet.validateBusinessRules())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(TestConfigurationLoader.getExpectedHoursValidationMessage());        }
+            assertThat(timesheet).satisfies(Timesheet::validateBusinessRules);
+        }
 
         @Test
-        void validateBusinessRules_ShouldFailForTooManyHours() {
-            // Use configuration max + 1 to ensure we're above maximum
-            BigDecimal aboveMax = TestConfigurationLoader.getMaxHours().add(BigDecimal.ONE);
-            timesheet.setHours(aboveMax);
+        void validateBusinessRules_ShouldAllowRangeChecksToBeHandledOutsideEntity_TooManyHours() {
+            timesheet.setHours(new BigDecimal("39.0"));
 
-            assertThatThrownBy(() -> timesheet.validateBusinessRules())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(TestConfigurationLoader.getExpectedHoursValidationMessage());        }
+            assertThat(timesheet).satisfies(Timesheet::validateBusinessRules);
+        }
 
         @Test
         void validateBusinessRules_ShouldPassForBoundaryHours() {
             // Test minimum boundary
-            timesheet.setHours(TestConfigurationLoader.getMinHours());
+            timesheet.setHours(new BigDecimal("0.1"));
             assertThat(timesheet).satisfies(t -> t.validateBusinessRules());
 
             // Test maximum boundary
-            timesheet.setHours(TestConfigurationLoader.getMaxHours());            assertThat(timesheet).satisfies(t -> t.validateBusinessRules());
+            timesheet.setHours(new BigDecimal("38.0"));
+            assertThat(timesheet).satisfies(t -> t.validateBusinessRules());
         }
 
         @Test
-        void validateBusinessRules_ShouldFailForTooLowHourlyRate() {
+        void validateBusinessRules_ShouldAllowRateRangeChecksToBeHandledOutsideEntity_TooLowHourlyRate() {
             timesheet.setHourlyRate(new Money(new BigDecimal("5.00"))); // Below minimum 10.00
 
-            assertThatThrownBy(() -> timesheet.validateBusinessRules())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Hourly rate must be between 10.00 and 200.00");
+            assertThat(timesheet).satisfies(Timesheet::validateBusinessRules);
         }
 
         @Test
-        void validateBusinessRules_ShouldFailForTooHighHourlyRate() {
+        void validateBusinessRules_ShouldAllowRateRangeChecksToBeHandledOutsideEntity_TooHighHourlyRate() {
             timesheet.setHourlyRate(new Money(new BigDecimal("250.00"))); // Above maximum 200.00
 
-            assertThatThrownBy(() -> timesheet.validateBusinessRules())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Hourly rate must be between 10.00 and 200.00");
+            assertThat(timesheet).satisfies(Timesheet::validateBusinessRules);
         }
 
         @Test

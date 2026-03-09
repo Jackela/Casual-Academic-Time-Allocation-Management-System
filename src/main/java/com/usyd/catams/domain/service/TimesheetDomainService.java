@@ -1,6 +1,5 @@
 package com.usyd.catams.domain.service;
 
-import com.usyd.catams.common.validation.TimesheetValidationProperties;
 import com.usyd.catams.domain.rules.*;
 import com.usyd.catams.domain.rules.context.TimesheetValidationContext;
 import com.usyd.catams.entity.Course;
@@ -8,8 +7,6 @@ import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
-import com.usyd.catams.repository.CourseRepository;
-import com.usyd.catams.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -24,21 +21,14 @@ public class TimesheetDomainService {
 
     private final RuleEngine ruleEngine;
     private final List<Specification<TimesheetValidationContext>> creationRules;
-    private final UserRepository userRepository; // Added
-    private final CourseRepository courseRepository; // Added
-
-    private static final int MAX_DESCRIPTION_LENGTH = 1000; // Keep structural constraint
-    
-    private final TimesheetValidationProperties validationProps;
+    private final TimesheetValidationService timesheetValidationService;
 
     public TimesheetDomainService(RuleEngine ruleEngine, 
                                   HoursRangeRule hoursRangeRule, 
                                   HourlyRateRangeRule hourlyRateRangeRule, 
                                   FutureDateRule futureDateRule, 
                                   BudgetExceededRule budgetExceededRule,
-                                  UserRepository userRepository, 
-                                  CourseRepository courseRepository,
-                                  TimesheetValidationProperties validationProps) {
+                                  TimesheetValidationService timesheetValidationService) {
         this.ruleEngine = ruleEngine;
         this.creationRules = List.of(
             hoursRangeRule,
@@ -46,9 +36,7 @@ public class TimesheetDomainService {
             futureDateRule,
             budgetExceededRule
         );
-        this.userRepository = userRepository; // Initialized
-        this.courseRepository = courseRepository; // Initialized
-        this.validationProps = validationProps; // SSOT injection
+        this.timesheetValidationService = timesheetValidationService;
     }
 
     /**
@@ -76,9 +64,8 @@ public class TimesheetDomainService {
      * Validates update data for timesheet modifications.
      */
     public void validateUpdateData(BigDecimal hours, BigDecimal hourlyRate, String description) {
-        validateHours(hours);
-        validateHourlyRate(hourlyRate);
-        validateDescription(description);
+        timesheetValidationService.validateInputs(hours, hourlyRate);
+        timesheetValidationService.validateDescription(description);
     }
 
     /**
@@ -169,70 +156,4 @@ public class TimesheetDomainService {
         }
         return currentStatus;
     }
-
-    // Private validation methods (moved from TimesheetApplicationService)
-    private void validateTutorEligibility(User tutor) {
-        if (tutor.getRole() != UserRole.TUTOR) {
-            throw new IllegalArgumentException("Target user must have TUTOR role. User role: " + tutor.getRole());
-        }
-
-        if (!tutor.isAccountActive()) {
-            throw new IllegalArgumentException("Tutor account is not active");
-        }
-    }
-
-    private void validateCourseActive(Course course) {
-        if (!course.getIsActive()) {
-            throw new IllegalArgumentException("Course is not active");
-        }
-    }
-
-    private void validateWeekStartDate(LocalDate weekStartDate) {
-        // Validation now handled by FutureDateRule; keep placeholder if extra checks are added later
-    }
-
-    private void validateHourlyRate(BigDecimal hourlyRate) {
-        // This validation is also handled by HourlyRateRangeRule, but kept for direct calls
-        BigDecimal minRate = validationProps.getMinHourlyRate();
-        BigDecimal maxRate = validationProps.getMaxHourlyRate();
-        
-        if (hourlyRate == null || hourlyRate.compareTo(minRate) < 0 || 
-            hourlyRate.compareTo(maxRate) > 0) {
-            throw new IllegalArgumentException("Hourly rate must be between " + minRate + " and " + maxRate + ". Provided: " + hourlyRate);
-        }
-    }
-
-    private void validateHours(BigDecimal hours) {
-        if (hours == null) {
-            throw new IllegalArgumentException("Hours cannot be null");
-        }
-        
-        BigDecimal minHours = validationProps.getMinHours();
-        BigDecimal maxHours = validationProps.getHours().getMax();
-        
-        if (hours.compareTo(minHours) < 0) {
-            throw new IllegalArgumentException("Hours must be at least " + minHours + ". Provided: " + hours);
-        }
-        if (maxHours != null && hours.compareTo(maxHours) > 0) {
-            throw new IllegalArgumentException("Hours must not exceed " + maxHours + ". Provided: " + hours);
-        }
-    }
-
-    private String validateAndSanitizeDescription(String description) {
-        String sanitizedDescription = description.trim();
-        validateDescription(sanitizedDescription);
-        return sanitizedDescription;
-    }
-
-    private void validateDescription(String description) {
-        if (description == null || description.trim().isEmpty()) {
-            throw new IllegalArgumentException("Description cannot be empty");
-        }
-        
-        if (description.length() > MAX_DESCRIPTION_LENGTH) {
-            throw new IllegalArgumentException("Description cannot exceed " + MAX_DESCRIPTION_LENGTH + " characters. Provided length: " + description.length());
-        }
-    }
 }
-
-

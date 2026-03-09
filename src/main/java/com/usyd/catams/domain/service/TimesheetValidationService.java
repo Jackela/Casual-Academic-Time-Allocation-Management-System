@@ -2,6 +2,7 @@ package com.usyd.catams.domain.service;
 
 import com.usyd.catams.entity.Timesheet;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * Timesheet validation service (SSOT for thresholds and checks).
@@ -42,6 +43,17 @@ public interface TimesheetValidationService {
      * Preconditions: timesheet != null.
      */
     void validateTimesheet(Timesheet timesheet);
-}
 
+    /**
+     * Validates that a provided date is Monday.
+     * Preconditions: date != null.
+     */
+    void validateMonday(LocalDate date, String fieldName);
+
+    /**
+     * Validates description text constraints.
+     * Preconditions: description != null and non-blank.
+     */
+    void validateDescription(String description);
+}
 

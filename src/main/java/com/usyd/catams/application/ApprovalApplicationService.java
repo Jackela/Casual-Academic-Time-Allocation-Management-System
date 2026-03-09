@@ -13,6 +13,7 @@ import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.exception.ResourceNotFoundException;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.service.ApprovalService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,7 @@ public class ApprovalApplicationService implements ApprovalService {
     private final TimesheetRepository timesheetRepository;
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
+    private final TutorAssignmentRepository tutorAssignmentRepository;
     private final ApprovalDomainService approvalDomainService;
     private final DomainEventPublisher eventPublisher;
 
@@ -53,11 +55,13 @@ public class ApprovalApplicationService implements ApprovalService {
     public ApprovalApplicationService(TimesheetRepository timesheetRepository,
                                     UserRepository userRepository,
                                     CourseRepository courseRepository,
+                                    TutorAssignmentRepository tutorAssignmentRepository,
                                     ApprovalDomainService approvalDomainService,
                                     DomainEventPublisher eventPublisher) {
         this.timesheetRepository = timesheetRepository;
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
+        this.tutorAssignmentRepository = tutorAssignmentRepository;
         this.approvalDomainService = approvalDomainService;
         this.eventPublisher = eventPublisher;
     }
@@ -78,39 +82,33 @@ public class ApprovalApplicationService implements ApprovalService {
                 .orElseThrow(() -> new ResourceNotFoundException("Timesheet", timesheetId.toString()));
 
             // 2. Load related entities for validation
-            User requester = userRepository.findById(requesterId)
-                .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+            User requester = findUserByIdOrThrow(requesterId);
             
-            Course course = courseRepository.findById(timesheet.getCourseId())
-                .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
+            Course course = findCourseByIdOrThrow(timesheet.getCourseId());
+
+            if (requester.getRole() == com.usyd.catams.enums.UserRole.LECTURER) {
+                boolean assigned = tutorAssignmentRepository.existsByTutorIdAndCourseId(timesheet.getTutorId(), timesheet.getCourseId());
+                if (!assigned) {
+                    throw new com.usyd.catams.exception.AuthorizationException(
+                        "Tutor " + timesheet.getTutorId() + " is not assigned to course " + timesheet.getCourseId());
+                }
+            }
 
             // 3. Validate action using domain service
             approvalDomainService.validateApprovalActionBusinessRules(timesheet, action, requester, course);
 
-            // 4. Perform the action through the aggregate
-            Approval approval;
-            switch (action) {
-                case SUBMIT_FOR_APPROVAL:
-                    approval = timesheet.submitForApproval(requesterId, comment);
-                    break;
-                case TUTOR_CONFIRM:
-                    approval = timesheet.confirmByTutor(requesterId, comment);
-                    break;
-                case LECTURER_CONFIRM:
-                    approval = timesheet.confirmByLecturer(requesterId, comment);
-                    break;
-                case HR_CONFIRM:
-                    approval = timesheet.confirmByHR(requesterId, comment);
-                    break;
-                case REJECT:
-                    approval = timesheet.reject(requesterId, comment);
-                    break;
-                case REQUEST_MODIFICATION:
-                    approval = timesheet.requestModification(requesterId, comment);
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unsupported confirmation action: " + action);
+            if ((action == ApprovalAction.REJECT || action == ApprovalAction.REQUEST_MODIFICATION)
+                && (comment == null || comment.trim().isEmpty())) {
+                throw new com.usyd.catams.exception.BusinessRuleException(
+                    "Comment is required for " + action,
+                    com.usyd.catams.exception.ErrorCodes.VALIDATION_FAILED
+                );
             }
+
+            ApprovalStatus nextStatus = approvalDomainService.resolveNextStatus(timesheet.getStatus(), action);
+
+            // 4. Perform the action through the aggregate with pre-resolved transition
+            Approval approval = timesheet.applyApprovalAction(requesterId, action, nextStatus, comment);
 
             // 5. Save the timesheet aggregate (which cascades to save approvals)
             timesheetRepository.save(timesheet);
@@ -137,18 +135,16 @@ public class ApprovalApplicationService implements ApprovalService {
     public List<Approval> getApprovalHistory(Long timesheetId, Long requesterId) {
         
         // Load entities from repositories
-        Timesheet timesheet = timesheetRepository.findById(timesheetId)
-            .orElseThrow(() -> new IllegalArgumentException("Timesheet not found with ID: " + timesheetId));
-
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
-
-        Course course = courseRepository.findById(timesheet.getCourseId())
-            .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
+        Timesheet timesheet = findTimesheetByIdOrThrow(timesheetId);
+        User requester = findUserByIdOrThrow(requesterId);
+        Course course = findCourseByIdOrThrow(timesheet.getCourseId());
 
         // Apply access control using domain service
         if (!approvalDomainService.canUserViewTimesheet(timesheet, requester, course)) {
-            throw new SecurityException("User does not have permission to view approval history for this timesheet");
+            throw new com.usyd.catams.exception.AuthorizationException(
+                "User does not have permission to view approval history for this timesheet",
+                com.usyd.catams.exception.ErrorCodes.ACCESS_PERMISSION_DENIED
+            );
         }
 
         return timesheet.getApprovalHistory();
@@ -158,43 +154,36 @@ public class ApprovalApplicationService implements ApprovalService {
     @Transactional(readOnly = true)
     public List<Timesheet> getPendingApprovalsForUser(Long approverId) {
         
-        User approver = userRepository.findById(approverId)
-            .orElseThrow(() -> new IllegalArgumentException("Approver user not found with ID: " + approverId));
+        User approver = findUserByIdOrThrow(approverId);
 
         // Get relevant statuses from domain service
         List<ApprovalStatus> relevantStatuses = approvalDomainService.getRelevantStatusesForRole(approver.getRole());
 
         // Get timesheets that are in relevant pending states and that this user can act on
         return timesheetRepository.findByStatusIn(relevantStatuses).stream()
-            .filter(timesheet -> {
-                try {
-                    Course course = courseRepository.findById(timesheet.getCourseId()).orElse(null);
-                    return course != null && approvalDomainService.canUserActOnTimesheet(timesheet, approver, course);
-                } catch (Exception e) {
-                    return false; // Skip timesheets with missing courses
-                }
-            })
+            .filter(timesheet -> approvalDomainService.canUserActOnTimesheet(
+                timesheet, approver, findCourseByIdOrThrow(timesheet.getCourseId())))
             .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public boolean canUserPerformAction(Timesheet timesheet, ApprovalAction action, Long requesterId) {
-        
-        try {
-            // Load entities
-            User requester = userRepository.findById(requesterId)
-                .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
-            
-            Course course = courseRepository.findById(timesheet.getCourseId())
-                .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
-
-            // Use domain service for validation
-            approvalDomainService.validateApprovalActionBusinessRules(timesheet, action, requester, course);
-            return true;
-        } catch (Exception e) {
+        User requester = userRepository.findById(requesterId).orElse(null);
+        if (requester == null) {
             return false;
         }
+        Course course = courseRepository.findById(timesheet.getCourseId()).orElse(null);
+        if (course == null) {
+            return false;
+        }
+        if (!approvalDomainService.canRolePerformAction(requester.getRole(), action)) {
+            return false;
+        }
+        if (!approvalDomainService.hasPermissionForTimesheet(timesheet, requester, course, action)) {
+            return false;
+        }
+        return approvalDomainService.canTransition(timesheet.getStatus(), action);
     }
 
     @Override
@@ -202,8 +191,7 @@ public class ApprovalApplicationService implements ApprovalService {
     public ApprovalStatus getCurrentApprovalStatus(Long timesheetId) {
         
         // Load timesheet from repository
-        Timesheet timesheet = timesheetRepository.findById(timesheetId)
-            .orElseThrow(() -> new IllegalArgumentException("Timesheet not found with ID: " + timesheetId));
+        Timesheet timesheet = findTimesheetByIdOrThrow(timesheetId);
 
         return timesheet.getStatus();
     }
@@ -212,11 +200,8 @@ public class ApprovalApplicationService implements ApprovalService {
     public void validateApprovalAction(Timesheet timesheet, ApprovalAction action, Long requesterId) {
         
         // Load entities from repositories
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
-
-        Course course = courseRepository.findById(timesheet.getCourseId())
-            .orElseThrow(() -> new IllegalArgumentException("Course not found for timesheet"));
+        User requester = findUserByIdOrThrow(requesterId);
+        Course course = findCourseByIdOrThrow(timesheet.getCourseId());
 
         // Delegate to domain service
         approvalDomainService.validateApprovalActionBusinessRules(timesheet, action, requester, course);
@@ -227,12 +212,14 @@ public class ApprovalApplicationService implements ApprovalService {
     @PreAuthorize("hasRole('ADMIN') or #requesterId == #approverId")
     public List<Object[]> getApprovalStatistics(Long approverId, Long requesterId) {
         
-        User requester = userRepository.findById(requesterId)
-            .orElseThrow(() -> new IllegalArgumentException("Requester user not found with ID: " + requesterId));
+        User requester = findUserByIdOrThrow(requesterId);
 
         // Validate permission using domain service
         if (!approvalDomainService.canViewApprovalStatistics(requester, approverId)) {
-            throw new SecurityException("User does not have permission to view approval statistics");
+            throw new com.usyd.catams.exception.AuthorizationException(
+                "User does not have permission to view approval statistics",
+                com.usyd.catams.exception.ErrorCodes.ACCESS_PERMISSION_DENIED
+            );
         }
 
         // Statistics need to be calculated from timesheet aggregates
@@ -280,12 +267,8 @@ public class ApprovalApplicationService implements ApprovalService {
     private ApprovalActionResponse buildApprovalActionResponseDto(Approval approval) {
         
         // Get approver information from repository
-        User approver = userRepository.findById(approval.getApproverId())
-            .orElse(null);
-        
-        String approverName = approver != null ? 
-            approver.getName() : 
-            "Unknown User";
+        User approver = findUserByIdOrThrow(approval.getApproverId());
+        String approverName = approver.getName();
 
         // Determine comment per action expectations (submission returns null comment)
         String responseComment = approval.getAction() == ApprovalAction.SUBMIT_FOR_APPROVAL
@@ -329,5 +312,20 @@ public class ApprovalApplicationService implements ApprovalService {
             UUID.randomUUID().toString()
         );
         eventPublisher.publish(event);
+    }
+
+    private Timesheet findTimesheetByIdOrThrow(Long timesheetId) {
+        return timesheetRepository.findById(timesheetId)
+            .orElseThrow(() -> new ResourceNotFoundException("Timesheet", String.valueOf(timesheetId)));
+    }
+
+    private User findUserByIdOrThrow(Long userId) {
+        return userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", String.valueOf(userId)));
+    }
+
+    private Course findCourseByIdOrThrow(Long courseId) {
+        return courseRepository.findById(courseId)
+            .orElseThrow(() -> new ResourceNotFoundException("Course", String.valueOf(courseId)));
     }
 }

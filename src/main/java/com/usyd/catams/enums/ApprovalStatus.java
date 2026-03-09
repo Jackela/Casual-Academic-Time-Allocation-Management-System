@@ -123,57 +123,6 @@ public enum ApprovalStatus {
     }
 
     /**
-     * Checks if this status can transition to another status.
-     * This method follows the new confirmation workflow transitions exactly.
-     * 
-     * @param targetStatus The target status to transition to
-     * @return true if transition is allowed
-     */
-    public boolean canTransitionTo(ApprovalStatus targetStatus) {
-        if (targetStatus == null) {
-            return false;
-        }
-
-        switch (this) {
-            case DRAFT:
-                // LECTURER or TUTOR (self) submits for tutor confirmation
-                return targetStatus == PENDING_TUTOR_CONFIRMATION;
-                
-            case PENDING_TUTOR_CONFIRMATION:
-                // TUTOR can confirm, LECTURER/HR can reject or request modifications
-                return targetStatus == TUTOR_CONFIRMED || 
-                       targetStatus == REJECTED || 
-                       targetStatus == MODIFICATION_REQUESTED;
-                       
-            case TUTOR_CONFIRMED:
-                // LECTURER can confirm (with optional comment), LECTURER/HR can reject or request modifications
-                return targetStatus == LECTURER_CONFIRMED ||
-                       targetStatus == REJECTED ||
-                       targetStatus == MODIFICATION_REQUESTED;
-                
-            case LECTURER_CONFIRMED:
-                // HR can give final confirmation, reject, or request modification
-                return targetStatus == FINAL_CONFIRMED || 
-                       targetStatus == REJECTED ||
-                       targetStatus == MODIFICATION_REQUESTED;
-                       
-            case MODIFICATION_REQUESTED:
-                // LECTURER or TUTOR (self) resubmits after corrections
-                return targetStatus == PENDING_TUTOR_CONFIRMATION;
-                
-            case REJECTED:
-                // Tutor/Lecturer can edit and resubmit after addressing rejection reasons
-                return targetStatus == PENDING_TUTOR_CONFIRMATION;
-                
-            case FINAL_CONFIRMED:
-                return false; // Terminal state - no further transitions
-                
-            default:
-                return false;
-        }
-    }
-
-    /**
      * Parse status from string value (legacy support).
      * 
      * @param value The string value to parse

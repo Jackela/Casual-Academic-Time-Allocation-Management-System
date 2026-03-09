@@ -1,7 +1,6 @@
 package com.usyd.catams.common.validation.validators;
 
 import com.usyd.catams.common.validation.TimesheetValidationProperties;
-import com.usyd.catams.common.validation.ValidationSSOT;
 import com.usyd.catams.common.validation.annotations.ValidHours;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
@@ -21,10 +20,9 @@ public class ValidHoursValidator implements ConstraintValidator<ValidHours, BigD
     @Override
     public boolean isValid(BigDecimal value, ConstraintValidatorContext context) {
         if (value == null) return true;
-        TimesheetValidationProperties ssot = (props != null) ? props : ValidationSSOT.get();
-        if (ssot == null) return true;
-        BigDecimal min = ssot.getMinHours();
-        BigDecimal max = ssot.getHours().getMax();
+        if (props == null) return true;
+        BigDecimal min = props.getMinHours();
+        BigDecimal max = props.getHours().getMax();
         return (min == null || value.compareTo(min) >= 0) && (max == null || value.compareTo(max) <= 0);
     }
 }

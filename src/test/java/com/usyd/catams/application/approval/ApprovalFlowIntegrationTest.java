@@ -76,7 +76,7 @@ public class ApprovalFlowIntegrationTest extends IntegrationTestBase {
                 course.getId(),
                 weekStart,
                 new BigDecimal("6.0"),
-                new BigDecimal("40.00"),
+                BigDecimal.valueOf(40),
                 "Integration flow",
                 lecturer.getId()
         );

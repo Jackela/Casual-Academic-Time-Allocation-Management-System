@@ -162,7 +162,7 @@ public class ApprovalStateMachine {
             throw new IllegalArgumentException("Status cannot be null");
         }
         
-        // Only FINAL_CONFIRMED is terminal. REJECTED allows editing and resubmission.
+        // Only FINAL_CONFIRMED is terminal. REJECTED remains editable but has no direct resubmission transition.
         return status == ApprovalStatus.FINAL_CONFIRMED;
     }
     
@@ -205,10 +205,8 @@ public class ApprovalStateMachine {
         map.put(new StateTransition(ApprovalStatus.LECTURER_CONFIRMED, ApprovalAction.REQUEST_MODIFICATION),
                 ApprovalStatus.MODIFICATION_REQUESTED);
 
-        // Recovery workflows: MODIFICATION_REQUESTED and REJECTED can be resubmitted by LECTURER or TUTOR (self)
+        // Recovery workflow: MODIFICATION_REQUESTED can be resubmitted by LECTURER or TUTOR (self)
         map.put(new StateTransition(ApprovalStatus.MODIFICATION_REQUESTED, ApprovalAction.SUBMIT_FOR_APPROVAL), 
-                ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
-        map.put(new StateTransition(ApprovalStatus.REJECTED, ApprovalAction.SUBMIT_FOR_APPROVAL), 
                 ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
         
         // FINAL_CONFIRMED is terminal state - no transitions
@@ -246,7 +244,7 @@ public class ApprovalStateMachine {
         
         // Add terminal state FINAL_CONFIRMED with empty action set
         map.put(ApprovalStatus.FINAL_CONFIRMED, Collections.emptySet());
-        // REJECTED is not terminal - it has SUBMIT_FOR_APPROVAL action (already added via transitionMap)
+        // REJECTED is non-terminal but has no direct workflow action; it must be edited via timesheet update path first.
         
         // Make all sets immutable
         map.replaceAll((status, actions) -> Collections.unmodifiableSet(actions));
@@ -296,5 +294,3 @@ public class ApprovalStateMachine {
         }
     }
 }
-
-// Holder moved to its own file: ApprovalStateMachineHolder.java

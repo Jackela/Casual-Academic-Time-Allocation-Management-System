@@ -1,5 +1,6 @@
 package com.usyd.catams.domain.service;
 
+import com.usyd.catams.common.application.ApprovalStateMachine;
 import com.usyd.catams.domain.rules.WorkflowRulesRegistry;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
@@ -14,13 +15,22 @@ import java.util.List;
 @Service
 public class ApprovalDomainService {
 
+    private final ApprovalStateMachine approvalStateMachine;
+    private final WorkflowRulesRegistry workflowRulesRegistry;
+
+    public ApprovalDomainService(ApprovalStateMachine approvalStateMachine,
+                                 WorkflowRulesRegistry workflowRulesRegistry) {
+        this.approvalStateMachine = approvalStateMachine;
+        this.workflowRulesRegistry = workflowRulesRegistry;
+    }
+
     /**
      * Determines if a user role can perform a specific approval action (business rule).
      * Delegates to WorkflowRulesRegistry as the single source of truth.
      */
     public boolean canRolePerformAction(UserRole role, ApprovalAction action) {
         // Check if any rule exists for this role+action combination across all statuses
-        return WorkflowRulesRegistry.getAllRules().keySet().stream()
+        return workflowRulesRegistry.getAllRules().keySet().stream()
             .anyMatch(key -> key.role() == role && key.action() == action);
     }
 
@@ -32,23 +42,9 @@ public class ApprovalDomainService {
         // Create workflow context from domain entities
         WorkflowRulesRegistry.WorkflowContext context = new WorkflowContextImpl(timesheet, course, user);
         WorkflowRulesRegistry.User workflowUser = new UserImpl(user);
-        
-        // Explicit SSOT-allowed fallbacks to avoid accidental rule drift blocking legal transitions
-        if (action == ApprovalAction.LECTURER_CONFIRM
-                && timesheet.getStatus() == ApprovalStatus.TUTOR_CONFIRMED
-                && user.getRole() == UserRole.LECTURER
-                && user.getId().equals(course.getLecturerId())) {
-            return true;
-        }
-        if (action == ApprovalAction.TUTOR_CONFIRM
-                && timesheet.getStatus() == ApprovalStatus.PENDING_TUTOR_CONFIRMATION
-                && user.getRole() == UserRole.TUTOR
-                && user.getId().equals(timesheet.getTutorId())) {
-            return true;
-        }
 
         // Delegate to centralized rules registry
-        return WorkflowRulesRegistry.canPerformAction(action, user.getRole(), timesheet.getStatus(), workflowUser, context);
+        return workflowRulesRegistry.canPerformAction(action, user.getRole(), timesheet.getStatus(), workflowUser, context);
     }
     
     /**
@@ -150,28 +146,26 @@ public class ApprovalDomainService {
 
     /**
      * Validates status transition for an approval action.
-     * Uses WorkflowRulesRegistry to check if any role can perform this action on this status.
+     * Uses ApprovalStateMachine as the single transition source.
      */
     public void validateStatusTransition(ApprovalStatus currentStatus, ApprovalAction action) {
-        // Fast-path: core SSOT transitions are always valid
-        if ((currentStatus == ApprovalStatus.PENDING_TUTOR_CONFIRMATION && action == ApprovalAction.TUTOR_CONFIRM) ||
-            (currentStatus == ApprovalStatus.TUTOR_CONFIRMED && action == ApprovalAction.LECTURER_CONFIRM) ||
-            (currentStatus == ApprovalStatus.LECTURER_CONFIRMED && action == ApprovalAction.HR_CONFIRM) ||
-            (currentStatus == ApprovalStatus.DRAFT && action == ApprovalAction.SUBMIT_FOR_APPROVAL) ||
-            (currentStatus == ApprovalStatus.MODIFICATION_REQUESTED && action == ApprovalAction.SUBMIT_FOR_APPROVAL) ||
-            (currentStatus == ApprovalStatus.TUTOR_CONFIRMED && action == ApprovalAction.REQUEST_MODIFICATION) ||
-            (currentStatus == ApprovalStatus.LECTURER_CONFIRMED && action == ApprovalAction.REQUEST_MODIFICATION)) {
-            return;
+        if (!approvalStateMachine.canTransition(currentStatus, action)) {
+            throw new com.usyd.catams.exception.BusinessRuleException(
+                "Cannot perform " + action + " on timesheet with status " + currentStatus.name(),
+                com.usyd.catams.exception.ErrorCodes.INVALID_APPROVAL_ACTION
+            );
         }
+    }
 
-        // Business validity must be role-agnostic and must NOT rely on ADMIN override rules
-        boolean validTransition = WorkflowRulesRegistry.getAllRules().keySet().stream()
-            .filter(key -> key.role() != UserRole.ADMIN)
-            .anyMatch(key -> key.action() == action && key.fromStatus() == currentStatus);
+    /**
+     * Resolve next status via ApprovalStateMachine (single transition source).
+     */
+    public ApprovalStatus resolveNextStatus(ApprovalStatus currentStatus, ApprovalAction action) {
+        return approvalStateMachine.getNextStatus(currentStatus, action);
+    }
 
-        if (!validTransition) {
-            throw new IllegalArgumentException("Cannot perform " + action + " on timesheet with status " + currentStatus.name());
-        }
+    public boolean canTransition(ApprovalStatus currentStatus, ApprovalAction action) {
+        return approvalStateMachine.canTransition(currentStatus, action);
     }
 
     /**
@@ -180,7 +174,7 @@ public class ApprovalDomainService {
      */
     public List<ApprovalStatus> getRelevantStatusesForRole(UserRole role) {
         // Get all statuses where this role can perform actions
-        return WorkflowRulesRegistry.getAllRules().keySet().stream()
+        return workflowRulesRegistry.getAllRules().keySet().stream()
             .filter(key -> key.role() == role)
             .map(WorkflowRulesRegistry.RuleKey::fromStatus)
             .filter(status -> !status.isFinal()) // Only actionable statuses
@@ -195,7 +189,7 @@ public class ApprovalDomainService {
     public List<ApprovalAction> getValidActionsForUser(Timesheet timesheet, User user, Course course) {
         WorkflowRulesRegistry.WorkflowContext context = new WorkflowContextImpl(timesheet, course, user);
         WorkflowRulesRegistry.User workflowUser = new UserImpl(user);
-        return WorkflowRulesRegistry.getValidActions(user.getRole(), timesheet.getStatus(), workflowUser, context);
+        return workflowRulesRegistry.getValidActions(user.getRole(), timesheet.getStatus(), workflowUser, context);
     }
 
     /**
@@ -239,12 +233,18 @@ public class ApprovalDomainService {
 
         // 3. Validate user role can perform this type of action (authorization → 403 on failure)
         if (!canRolePerformAction(requester.getRole(), action)) {
-            throw new SecurityException("User role " + requester.getRole() + " cannot perform action " + action);
+            throw new com.usyd.catams.exception.AuthorizationException(
+                "User role " + requester.getRole() + " cannot perform action " + action,
+                com.usyd.catams.exception.ErrorCodes.ACCESS_PERMISSION_DENIED
+            );
         }
 
         // 4. Validate user has permission for this specific timesheet (authorization → 403 on failure)
         if (!hasPermissionForTimesheet(timesheet, requester, course, action)) {
-            throw new SecurityException("User does not have permission to perform " + action + " on this timesheet");
+            throw new com.usyd.catams.exception.AuthorizationException(
+                "User does not have permission to perform " + action + " on this timesheet",
+                com.usyd.catams.exception.ErrorCodes.ACCESS_PERMISSION_DENIED
+            );
         }
 
         // 5. Additional business rule validation

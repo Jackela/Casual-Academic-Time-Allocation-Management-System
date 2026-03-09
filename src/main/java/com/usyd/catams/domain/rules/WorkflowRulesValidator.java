@@ -1,5 +1,6 @@
 package com.usyd.catams.domain.rules;
 
+import com.usyd.catams.common.application.ApprovalStateMachine;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
@@ -13,11 +14,13 @@ import java.util.Map;
 public class WorkflowRulesValidator {
     
     public static void main(String[] args) {
+        WorkflowRulesRegistry workflowRulesRegistry = new WorkflowRulesRegistry(new ApprovalStateMachine());
+
         System.out.println("=== CATAMS Workflow Rules Validation ===\n");
         
         // 1. Validate rule consistency
         System.out.println("1. Validating rule consistency...");
-        List<String> errors = WorkflowRulesRegistry.validateRules();
+        List<String> errors = workflowRulesRegistry.validateRules();
         if (errors.isEmpty()) {
             System.out.println("✓ All rules are consistent");
         } else {
@@ -28,7 +31,7 @@ public class WorkflowRulesValidator {
         // 2. Print all defined rules
         System.out.println("\n2. All defined workflow rules:");
         Map<WorkflowRulesRegistry.RuleKey, WorkflowRulesRegistry.WorkflowRule> rules = 
-            WorkflowRulesRegistry.getAllRules();
+            workflowRulesRegistry.getAllRules();
         
         System.out.println("Total rules: " + rules.size());
         rules.forEach((key, rule) -> {
@@ -41,34 +44,31 @@ public class WorkflowRulesValidator {
         
         // Test LECTURER creating and submitting timesheet
         testScenario("LECTURER submits DRAFT timesheet", 
-            ApprovalAction.SUBMIT_FOR_APPROVAL, UserRole.LECTURER, ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            ApprovalAction.SUBMIT_FOR_APPROVAL, UserRole.LECTURER, ApprovalStatus.DRAFT, ApprovalStatus.PENDING_TUTOR_CONFIRMATION, workflowRulesRegistry);
         
         // Test TUTOR reviewing timesheet
         testScenario("TUTOR confirms timesheet", 
-            ApprovalAction.TUTOR_CONFIRM, UserRole.TUTOR, ApprovalStatus.PENDING_TUTOR_CONFIRMATION, ApprovalStatus.TUTOR_CONFIRMED);
+            ApprovalAction.TUTOR_CONFIRM, UserRole.TUTOR, ApprovalStatus.PENDING_TUTOR_CONFIRMATION, ApprovalStatus.TUTOR_CONFIRMED, workflowRulesRegistry);
         
         // Test LECTURER final confirmation
         testScenario("LECTURER gives final confirmation", 
-            ApprovalAction.LECTURER_CONFIRM, UserRole.LECTURER, ApprovalStatus.TUTOR_CONFIRMED, ApprovalStatus.LECTURER_CONFIRMED);
+            ApprovalAction.LECTURER_CONFIRM, UserRole.LECTURER, ApprovalStatus.TUTOR_CONFIRMED, ApprovalStatus.LECTURER_CONFIRMED, workflowRulesRegistry);
         
         // Test HR final confirmation
         testScenario("HR confirms for payroll", 
-            ApprovalAction.HR_CONFIRM, UserRole.HR, ApprovalStatus.LECTURER_CONFIRMED, ApprovalStatus.FINAL_CONFIRMED);
+            ApprovalAction.HR_CONFIRM, UserRole.HR, ApprovalStatus.LECTURER_CONFIRMED, ApprovalStatus.FINAL_CONFIRMED, workflowRulesRegistry);
         
         // Test HR rejection
         testScenario("HR rejects timesheet", 
-            ApprovalAction.REJECT, UserRole.HR, ApprovalStatus.LECTURER_CONFIRMED, ApprovalStatus.REJECTED);
-        
-        // Test TUTOR resubmitting rejected timesheet
-        testScenario("TUTOR resubmits rejected timesheet", 
-            ApprovalAction.SUBMIT_FOR_APPROVAL, UserRole.TUTOR, ApprovalStatus.REJECTED, ApprovalStatus.PENDING_TUTOR_CONFIRMATION);
+            ApprovalAction.REJECT, UserRole.HR, ApprovalStatus.LECTURER_CONFIRMED, ApprovalStatus.REJECTED, workflowRulesRegistry);
         
         System.out.println("\n=== Validation Complete ===");
     }
     
-    private static void testScenario(String description, ApprovalAction action, UserRole role, 
-                                   ApprovalStatus fromStatus, ApprovalStatus expectedToStatus) {
-        ApprovalStatus actualToStatus = WorkflowRulesRegistry.getTargetStatus(action, role, fromStatus);
+    private static void testScenario(String description, ApprovalAction action, UserRole role,
+                                   ApprovalStatus fromStatus, ApprovalStatus expectedToStatus,
+                                   WorkflowRulesRegistry workflowRulesRegistry) {
+        ApprovalStatus actualToStatus = workflowRulesRegistry.getTargetStatus(action, role, fromStatus);
         
         if (expectedToStatus.equals(actualToStatus)) {
             System.out.println("✓ " + description + ": " + fromStatus + " → " + actualToStatus);

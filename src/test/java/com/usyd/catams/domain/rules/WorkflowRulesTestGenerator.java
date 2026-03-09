@@ -1,8 +1,10 @@
 package com.usyd.catams.domain.rules;
 
+import com.usyd.catams.common.application.ApprovalStateMachine;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
@@ -27,13 +29,20 @@ import static org.junit.jupiter.api.Assertions.*;
  * @since 2.0
  */
 public class WorkflowRulesTestGenerator {
+
+    private WorkflowRulesRegistry workflowRulesRegistry;
+
+    @BeforeEach
+    void initializeRegistry() {
+        workflowRulesRegistry = new WorkflowRulesRegistry(new ApprovalStateMachine());
+    }
     
     /**
      * Generate tests for all positive rule cases
      */
     @TestFactory
     Stream<DynamicTest> generatePositiveRuleTests() {
-        return WorkflowRulesRegistry.getAllRules().entrySet().stream()
+        return workflowRulesRegistry.getAllRules().entrySet().stream()
             .map(entry -> {
                 WorkflowRulesRegistry.RuleKey key = entry.getKey();
                 WorkflowRulesRegistry.WorkflowRule rule = entry.getValue();
@@ -46,13 +55,13 @@ public class WorkflowRulesTestGenerator {
                         TestWorkflowContext context = createValidContext(rule);
                         TestUser user = createValidUser(rule, context);
                         
-                        boolean canPerform = WorkflowRulesRegistry.canPerformAction(
+                        boolean canPerform = workflowRulesRegistry.canPerformAction(
                             key.action(), key.role(), key.fromStatus(), user, context);
                         
                         assertTrue(canPerform, 
                             "Rule should allow action: " + rule.description());
                         
-                        ApprovalStatus targetStatus = WorkflowRulesRegistry.getTargetStatus(
+                        ApprovalStatus targetStatus = workflowRulesRegistry.getTargetStatus(
                             key.action(), key.role(), key.fromStatus());
                         
                         assertEquals(rule.toStatus(), targetStatus,
@@ -80,7 +89,7 @@ public class WorkflowRulesTestGenerator {
                                     TestWorkflowContext context = createDefaultContext();
                                     TestUser user = createUserWithRole(role);
                                     
-                                    boolean canPerform = WorkflowRulesRegistry.canPerformAction(
+                                    boolean canPerform = workflowRulesRegistry.canPerformAction(
                                         action, role, status, user, context);
                                     
                                     assertFalse(canPerform, 
@@ -98,7 +107,7 @@ public class WorkflowRulesTestGenerator {
     Stream<DynamicTest> generateConsistencyTests() {
         return Stream.of(
             DynamicTest.dynamicTest("Registry should have no validation errors", () -> {
-                var errors = WorkflowRulesRegistry.validateRules();
+                var errors = workflowRulesRegistry.validateRules();
                 assertTrue(errors.isEmpty(), 
                     "Registry validation errors: " + String.join(", ", errors));
             }),
@@ -107,7 +116,7 @@ public class WorkflowRulesTestGenerator {
                 // Test that every non-terminal status has at least one incoming transition
                 for (ApprovalStatus status : ApprovalStatus.values()) {
                     if (status != ApprovalStatus.DRAFT && !status.isFinal()) {
-                        boolean hasIncomingTransition = WorkflowRulesRegistry.getAllRules().values()
+                        boolean hasIncomingTransition = workflowRulesRegistry.getAllRules().values()
                             .stream()
                             .anyMatch(rule -> rule.toStatus() == status);
                         
@@ -119,9 +128,9 @@ public class WorkflowRulesTestGenerator {
             
             DynamicTest.dynamicTest("No conflicting rules should exist", () -> {
                 // Check for rules that might conflict (same key, different outcomes)
-                var ruleKeys = WorkflowRulesRegistry.getAllRules().keySet();
+                var ruleKeys = workflowRulesRegistry.getAllRules().keySet();
                 assertEquals(ruleKeys.size(), 
-                    WorkflowRulesRegistry.getAllRules().size(),
+                    workflowRulesRegistry.getAllRules().size(),
                     "Should not have duplicate rule keys");
             })
         );
@@ -130,7 +139,7 @@ public class WorkflowRulesTestGenerator {
     // Helper methods for creating test data
     
     private boolean hasRule(ApprovalAction action, UserRole role, ApprovalStatus status) {
-        return WorkflowRulesRegistry.getAllRules().containsKey(
+        return workflowRulesRegistry.getAllRules().containsKey(
             new WorkflowRulesRegistry.RuleKey(action, role, status));
     }
     

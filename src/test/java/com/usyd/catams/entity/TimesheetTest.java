@@ -153,8 +153,8 @@ public class TimesheetTest {
         assertThat(timesheet.getHourlyRate()).isEqualByComparingTo(new BigDecimal("35.00"));
 
         // Test setting with BigDecimal
-        timesheet.setHourlyRate(new BigDecimal("40.00"));
-        assertThat(timesheet.getHourlyRate()).isEqualByComparingTo(new BigDecimal("40.00"));
+        timesheet.setHourlyRate(BigDecimal.valueOf(40));
+        assertThat(timesheet.getHourlyRate()).isEqualByComparingTo(BigDecimal.valueOf(40));
     }
 
     @Test

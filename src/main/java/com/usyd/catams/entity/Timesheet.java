@@ -21,8 +21,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.usyd.catams.common.validation.TimesheetValidationProperties;
-
 @Entity
 @Table(name = "timesheets", 
     indexes = {
@@ -142,10 +140,6 @@ public class Timesheet {
     // Default constructor
     public Timesheet() {}
 
-    // Injected validation properties (setter injection via @PrePersist context not available on entities)
-    private static TimesheetValidationProperties validationProperties;
-    public static void setValidationProperties(TimesheetValidationProperties props) { validationProperties = props; }
-    
     // Constructor for creation
     public Timesheet(Long tutorId, Long courseId, WeekPeriod weekPeriod, 
                     BigDecimal hours, Money hourlyRate, String description, Long createdBy) {
@@ -182,13 +176,11 @@ public class Timesheet {
         if (this.sessionDate == null && this.weekPeriod != null) {
             this.sessionDate = this.weekPeriod.getStartDate();
         }
-        enforceDynamicValidation();
     }
     
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
-        enforceDynamicValidation();
     }
     
     // Getters and Setters
@@ -417,63 +409,6 @@ public class Timesheet {
         if (weekPeriod != null && weekPeriod.getStartDate() != null && weekPeriod.getStartDate().getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
             throw new IllegalArgumentException("Week start date must be a Monday");
         }
-        // SSOT: enforce hours and hourly rate ranges using validation properties (via static holder in non-managed context)
-        com.usyd.catams.common.validation.TimesheetValidationProperties props = 
-            com.usyd.catams.common.validation.ValidationSSOT.get();
-        
-        com.usyd.catams.common.validation.TimesheetValidationService svc =
-                props != null
-                        ? new com.usyd.catams.common.validation.TimesheetValidationService(props)
-                        : null;
-        BigDecimal minHours = svc != null ? svc.getMinHours() : new BigDecimal("0.1");
-        BigDecimal maxHours = svc != null ? svc.getMaxHours() : new BigDecimal("38.0");
-        BigDecimal minHourlyRate = svc != null ? svc.getMinHourlyRate() : new BigDecimal("10.00");
-        BigDecimal maxHourlyRate = svc != null ? svc.getMaxHourlyRate() : new BigDecimal("200.00");
-        if (hours != null) {
-            if (hours.compareTo(minHours) < 0 || hours.compareTo(maxHours) > 0) {
-                String msg = svc != null ? svc.getHoursValidationMessage() : String.format("Hours must be between %s and %s", minHours, maxHours);
-                throw new IllegalArgumentException(msg);
-            }
-        }
-        if (hourlyRate != null && hourlyRate.getAmount() != null) {
-            BigDecimal rate = hourlyRate.getAmount();
-            if (rate.compareTo(minHourlyRate) < 0 || rate.compareTo(maxHourlyRate) > 0) {
-                throw new IllegalArgumentException(String.format(
-                        "Hourly rate must be between %s and %s", minHourlyRate, maxHourlyRate));
-            }
-        }
-    }
-
-    /**
-     * Enforce dynamic validation based on TimesheetValidationProperties.
-     * Ensures hours and hourly rate are within configured bounds.
-     * DbC: throws IllegalArgumentException if invariants are violated.
-     */
-    private void enforceDynamicValidation() {
-        if (validationProperties == null) {
-            return; // Property binding not available in entity context; validated elsewhere
-        }
-        if (hours != null) {
-            BigDecimal min = validationProperties.getMinHours();
-            BigDecimal max = validationProperties.getHours().getMax();
-            if (min != null && hours.compareTo(min) < 0) {
-                throw new IllegalArgumentException("Hours below minimum: " + min);
-            }
-            if (max != null && hours.compareTo(max) > 0) {
-                throw new IllegalArgumentException("Hours above maximum: " + max);
-            }
-        }
-        if (hourlyRate != null && hourlyRate.getAmount() != null) {
-            BigDecimal rate = hourlyRate.getAmount();
-            BigDecimal minRate = validationProperties.getMinHourlyRate();
-            BigDecimal maxRate = validationProperties.getMaxHourlyRate();
-            if (minRate != null && rate.compareTo(minRate) < 0) {
-                throw new IllegalArgumentException("Hourly rate below minimum: " + minRate);
-            }
-            if (maxRate != null && rate.compareTo(maxRate) > 0) {
-                throw new IllegalArgumentException("Hourly rate above maximum: " + maxRate);
-            }
-        }
     }
     
     // Aggregate Root methods for managing Approvals
@@ -508,6 +443,26 @@ public class Timesheet {
         
         return approval;
     }
+
+    /**
+     * Apply an approval action with a pre-resolved next status.
+     * The next status must be resolved by domain service/state machine before calling this method.
+     */
+    public Approval applyApprovalAction(Long approverId,
+                                        ApprovalAction action,
+                                        ApprovalStatus newStatus,
+                                        String comment) {
+        if (approverId == null) {
+            throw new IllegalArgumentException("approverId cannot be null");
+        }
+        if (action == null) {
+            throw new IllegalArgumentException("action cannot be null");
+        }
+        if (newStatus == null) {
+            throw new IllegalArgumentException("newStatus cannot be null");
+        }
+        return addApproval(approverId, action, this.status, newStatus, comment);
+    }
     
     /**
      * Submit timesheet for approval.
@@ -516,9 +471,9 @@ public class Timesheet {
         if (!isEditable()) {
             throw new IllegalStateException("Cannot submit timesheet that is not in editable state");
         }
-        
-        ApprovalStatus newStatus = ApprovalAction.SUBMIT_FOR_APPROVAL.getTargetStatus(this.status);
-        return addApproval(submitterId, ApprovalAction.SUBMIT_FOR_APPROVAL, this.status, newStatus, null);
+
+        return addApproval(submitterId, ApprovalAction.SUBMIT_FOR_APPROVAL, this.status,
+                ApprovalStatus.PENDING_TUTOR_CONFIRMATION, null);
     }
 
     /**
@@ -529,8 +484,8 @@ public class Timesheet {
             throw new IllegalStateException("Cannot submit timesheet that is not in editable state");
         }
 
-        ApprovalStatus newStatus = ApprovalAction.SUBMIT_FOR_APPROVAL.getTargetStatus(this.status);
-        return addApproval(submitterId, ApprovalAction.SUBMIT_FOR_APPROVAL, this.status, newStatus, comment);
+        return addApproval(submitterId, ApprovalAction.SUBMIT_FOR_APPROVAL, this.status,
+                ApprovalStatus.PENDING_TUTOR_CONFIRMATION, comment);
     }
     
     /**
@@ -541,10 +496,9 @@ public class Timesheet {
         if (this.status != ApprovalStatus.PENDING_TUTOR_CONFIRMATION) {
             throw new IllegalStateException("Tutor confirmation is only allowed from PENDING_TUTOR_CONFIRMATION state");
         }
-        
+
         ApprovalStatus previousStatus = this.status;
-        ApprovalStatus newStatus = ApprovalAction.TUTOR_CONFIRM.getTargetStatus(previousStatus);
-        return addApproval(tutorId, ApprovalAction.TUTOR_CONFIRM, previousStatus, newStatus, comment);
+        return addApproval(tutorId, ApprovalAction.TUTOR_CONFIRM, previousStatus, ApprovalStatus.TUTOR_CONFIRMED, comment);
     }
     
     /**
@@ -555,10 +509,9 @@ public class Timesheet {
         if (this.status != ApprovalStatus.TUTOR_CONFIRMED) {
             throw new IllegalStateException("Lecturer confirmation is only allowed from TUTOR_CONFIRMED state");
         }
-        
+
         ApprovalStatus previousStatus = this.status;
-        ApprovalStatus newStatus = ApprovalAction.LECTURER_CONFIRM.getTargetStatus(previousStatus);
-        return addApproval(lecturerId, ApprovalAction.LECTURER_CONFIRM, previousStatus, newStatus, comment);
+        return addApproval(lecturerId, ApprovalAction.LECTURER_CONFIRM, previousStatus, ApprovalStatus.LECTURER_CONFIRMED, comment);
     }
     
     /**
@@ -569,10 +522,9 @@ public class Timesheet {
         if (this.status != ApprovalStatus.LECTURER_CONFIRMED) {
             throw new IllegalStateException("HR confirmation is only allowed from LECTURER_CONFIRMED state");
         }
-        
+
         ApprovalStatus previousStatus = this.status;
-        ApprovalStatus newStatus = ApprovalAction.HR_CONFIRM.getTargetStatus(previousStatus);
-        return addApproval(hrId, ApprovalAction.HR_CONFIRM, previousStatus, newStatus, comment);
+        return addApproval(hrId, ApprovalAction.HR_CONFIRM, previousStatus, ApprovalStatus.FINAL_CONFIRMED, comment);
     }
     
     /**
@@ -590,8 +542,7 @@ public class Timesheet {
             throw new IllegalArgumentException("Rejection comment is required");
         }
         
-        ApprovalStatus newStatus = ApprovalAction.REJECT.getTargetStatus(this.status);
-        return addApproval(approverId, ApprovalAction.REJECT, this.status, newStatus, comment);
+        return addApproval(approverId, ApprovalAction.REJECT, this.status, ApprovalStatus.REJECTED, comment);
     }
     
     /**
@@ -606,8 +557,7 @@ public class Timesheet {
             throw new IllegalArgumentException("Modification request comment is required");
         }
         
-        ApprovalStatus newStatus = ApprovalAction.REQUEST_MODIFICATION.getTargetStatus(this.status);
-        return addApproval(approverId, ApprovalAction.REQUEST_MODIFICATION, this.status, newStatus, comment);
+        return addApproval(approverId, ApprovalAction.REQUEST_MODIFICATION, this.status, ApprovalStatus.MODIFICATION_REQUESTED, comment);
     }
     
     /**

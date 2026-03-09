@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.usyd.catams.common.application.ApprovalStateMachine;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
@@ -39,10 +40,16 @@ import java.util.stream.Collectors;
 public class OpenAPISpecGenerator {
     
     private final ObjectMapper mapper = new ObjectMapper();
+    private final WorkflowRulesRegistry workflowRulesRegistry;
     private final String outputDir;
     
     public OpenAPISpecGenerator(String outputDir) {
+        this(outputDir, new WorkflowRulesRegistry(new ApprovalStateMachine()));
+    }
+
+    OpenAPISpecGenerator(String outputDir, WorkflowRulesRegistry workflowRulesRegistry) {
         this.outputDir = outputDir;
+        this.workflowRulesRegistry = workflowRulesRegistry;
     }
     
     /**
@@ -120,7 +127,7 @@ public class OpenAPISpecGenerator {
         
         // Group rules by from-status
         Map<ApprovalStatus, List<WorkflowRulesRegistry.WorkflowRule>> rulesByStatus = 
-            WorkflowRulesRegistry.getAllRules().values().stream()
+            workflowRulesRegistry.getAllRules().values().stream()
                 .collect(Collectors.groupingBy(WorkflowRulesRegistry.WorkflowRule::fromStatus));
         
         rulesByStatus.forEach((fromStatus, rules) -> {
@@ -162,7 +169,7 @@ public class OpenAPISpecGenerator {
                 ArrayNode allowedActions = permissions.putArray(status.name());
                 
                 // Find all actions this role can perform on this status
-                WorkflowRulesRegistry.getAllRules().entrySet().stream()
+                workflowRulesRegistry.getAllRules().entrySet().stream()
                     .filter(entry -> entry.getKey().role() == role && entry.getKey().fromStatus() == status)
                     .forEach(entry -> {
                         ObjectNode actionInfo = mapper.createObjectNode();
@@ -187,7 +194,7 @@ public class OpenAPISpecGenerator {
         
         ObjectNode requests = examples.putObject("examples");
         
-        WorkflowRulesRegistry.getAllRules().forEach((key, rule) -> {
+        workflowRulesRegistry.getAllRules().forEach((key, rule) -> {
             String exampleName = String.format("%s_by_%s_on_%s", 
                 key.action().name(), key.role().name(), key.fromStatus().name());
             
@@ -233,7 +240,7 @@ public class OpenAPISpecGenerator {
         ArrayNode testCases = tests.putArray("testCases");
         
         // Generate positive test cases
-        WorkflowRulesRegistry.getAllRules().forEach((key, rule) -> {
+        workflowRulesRegistry.getAllRules().forEach((key, rule) -> {
             ObjectNode testCase = mapper.createObjectNode();
             testCase.put("name", String.format("Should allow %s by %s on %s", 
                 key.action().name(), key.role().name(), key.fromStatus().name()));
@@ -270,14 +277,14 @@ public class OpenAPISpecGenerator {
     // Helper methods
     
     private Set<ApprovalAction> getValidActionsFromRules() {
-        return WorkflowRulesRegistry.getAllRules().keySet().stream()
+        return workflowRulesRegistry.getAllRules().keySet().stream()
             .map(WorkflowRulesRegistry.RuleKey::action)
             .collect(Collectors.toSet());
     }
     
     private String generateActionDescription(ApprovalAction action) {
         // Get descriptions from rules for this action
-        return WorkflowRulesRegistry.getAllRules().values().stream()
+        return workflowRulesRegistry.getAllRules().values().stream()
             .filter(rule -> rule.action() == action)
             .map(WorkflowRulesRegistry.WorkflowRule::description)
             .findFirst()

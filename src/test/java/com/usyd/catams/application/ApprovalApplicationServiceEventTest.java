@@ -1,5 +1,6 @@
 package com.usyd.catams.application;
 
+import com.usyd.catams.common.application.ApprovalStateMachine;
 import com.usyd.catams.common.domain.event.TimesheetEvent;
 import com.usyd.catams.common.infrastructure.event.DomainEventPublisher;
 import com.usyd.catams.entity.Approval;
@@ -11,6 +12,7 @@ import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +48,9 @@ class ApprovalApplicationServiceEventTest {
     
     @Mock
     private CourseRepository courseRepository;
+
+    @Mock
+    private TutorAssignmentRepository tutorAssignmentRepository;
     
     @Mock
     private com.usyd.catams.domain.service.ApprovalDomainService approvalDomainService;
@@ -57,10 +62,18 @@ class ApprovalApplicationServiceEventTest {
     
     @BeforeEach
     void setUp() {
+        ApprovalStateMachine stateMachine = new ApprovalStateMachine();
+        lenient().when(approvalDomainService.resolveNextStatus(any(ApprovalStatus.class), any(ApprovalAction.class)))
+            .thenAnswer(invocation -> stateMachine.getNextStatus(
+                invocation.getArgument(0),
+                invocation.getArgument(1)
+            ));
+
         service = new ApprovalApplicationService(
             timesheetRepository, 
             userRepository, 
             courseRepository, 
+            tutorAssignmentRepository,
             approvalDomainService,
             eventPublisher
         );

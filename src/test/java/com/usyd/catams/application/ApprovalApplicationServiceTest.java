@@ -1,5 +1,6 @@
 package com.usyd.catams.application;
 
+import com.usyd.catams.common.application.ApprovalStateMachine;
 import com.usyd.catams.common.infrastructure.event.DomainEventPublisher;
 import com.usyd.catams.domain.service.ApprovalDomainService;
 import com.usyd.catams.entity.Course;
@@ -8,9 +9,11 @@ import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
+import com.usyd.catams.exception.AuthorizationException;
 import com.usyd.catams.exception.ResourceNotFoundException;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.testdata.TestDataBuilder;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +38,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 /**
  * Unit Tests for ApprovalApplicationService
@@ -71,6 +75,9 @@ class ApprovalApplicationServiceTest {
     private CourseRepository courseRepository;
 
     @Mock
+    private TutorAssignmentRepository tutorAssignmentRepository;
+
+    @Mock
     private ApprovalDomainService approvalDomainService;
 
     @Mock
@@ -88,6 +95,14 @@ class ApprovalApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
+        ApprovalStateMachine stateMachine = new ApprovalStateMachine();
+        lenient().when(approvalDomainService.resolveNextStatus(any(ApprovalStatus.class), any(ApprovalAction.class)))
+            .thenAnswer(invocation -> stateMachine.getNextStatus(
+                invocation.getArgument(0),
+                invocation.getArgument(1)
+            ));
+        lenient().when(tutorAssignmentRepository.existsByTutorIdAndCourseId(anyLong(), anyLong())).thenReturn(true);
+
         testTutor = TestDataBuilder.aTutor().withId(1L).build();
         testLecturer = TestDataBuilder.aLecturer().withId(2L).build();
         testAdmin = TestDataBuilder.anAdmin().withId(3L).build();
@@ -150,8 +165,8 @@ class ApprovalApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw IllegalArgumentException when requester not found")
-        void shouldThrowIllegalArgumentExceptionWhenRequesterNotFound() {
+        @DisplayName("Should throw ResourceNotFoundException when requester not found")
+        void shouldThrowResourceNotFoundExceptionWhenRequesterNotFound() {
             // Arrange
             when(timesheetRepository.findById(10L)).thenReturn(Optional.of(testTimesheet));
             when(userRepository.findById(999L)).thenReturn(Optional.empty());
@@ -159,8 +174,8 @@ class ApprovalApplicationServiceTest {
             // Act & Assert
             assertThatThrownBy(() ->
                 service.performApprovalAction(10L, ApprovalAction.SUBMIT_FOR_APPROVAL, "comment", 999L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Requester user not found");
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("User");
 
             verify(timesheetRepository).findById(10L);
             verify(userRepository).findById(999L);
@@ -168,8 +183,8 @@ class ApprovalApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw IllegalArgumentException when course not found")
-        void shouldThrowIllegalArgumentExceptionWhenCourseNotFound() {
+        @DisplayName("Should throw ResourceNotFoundException when course not found")
+        void shouldThrowResourceNotFoundExceptionWhenCourseNotFound() {
             // Arrange
             when(timesheetRepository.findById(10L)).thenReturn(Optional.of(testTimesheet));
             when(userRepository.findById(1L)).thenReturn(Optional.of(testTutor));
@@ -178,8 +193,8 @@ class ApprovalApplicationServiceTest {
             // Act & Assert
             assertThatThrownBy(() ->
                 service.performApprovalAction(10L, ApprovalAction.SUBMIT_FOR_APPROVAL, "comment", 1L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Course not found");
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Course");
 
             verify(timesheetRepository, never()).save(any());
         }
@@ -408,8 +423,8 @@ class ApprovalApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw SecurityException when user cannot view timesheet")
-        void shouldThrowSecurityExceptionWhenUserCannotViewTimesheet() {
+        @DisplayName("Should throw AuthorizationException when user cannot view timesheet")
+        void shouldThrowAuthorizationExceptionWhenUserCannotViewTimesheet() {
             // Arrange
             User otherUser = TestDataBuilder.aTutor().withId(99L).build();
             when(timesheetRepository.findById(10L)).thenReturn(Optional.of(testTimesheet));
@@ -419,20 +434,20 @@ class ApprovalApplicationServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> service.getApprovalHistory(10L, 99L))
-                .isInstanceOf(SecurityException.class)
+                .isInstanceOf(AuthorizationException.class)
                 .hasMessageContaining("does not have permission to view approval history");
         }
 
         @Test
-        @DisplayName("Should throw IllegalArgumentException when timesheet not found")
-        void shouldThrowIllegalArgumentExceptionWhenTimesheetNotFound() {
+        @DisplayName("Should throw ResourceNotFoundException when timesheet not found")
+        void shouldThrowResourceNotFoundExceptionWhenTimesheetNotFound() {
             // Arrange
             when(timesheetRepository.findById(999L)).thenReturn(Optional.empty());
 
             // Act & Assert
             assertThatThrownBy(() -> service.getApprovalHistory(999L, 1L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Timesheet not found");
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Timesheet");
         }
     }
 
@@ -480,15 +495,15 @@ class ApprovalApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw IllegalArgumentException when user not found")
-        void shouldThrowIllegalArgumentExceptionWhenUserNotFound() {
+        @DisplayName("Should throw ResourceNotFoundException when user not found")
+        void shouldThrowResourceNotFoundExceptionWhenUserNotFound() {
             // Arrange
             when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
             // Act & Assert
             assertThatThrownBy(() -> service.getPendingApprovalsForUser(999L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Approver user not found");
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("User");
         }
     }
 
@@ -502,8 +517,12 @@ class ApprovalApplicationServiceTest {
             // Arrange
             when(userRepository.findById(2L)).thenReturn(Optional.of(testLecturer));
             when(courseRepository.findById(100L)).thenReturn(Optional.of(testCourse));
-            doNothing().when(approvalDomainService).validateApprovalActionBusinessRules(
-                any(Timesheet.class), any(ApprovalAction.class), any(User.class), any(Course.class));
+            when(approvalDomainService.canRolePerformAction(UserRole.LECTURER, ApprovalAction.SUBMIT_FOR_APPROVAL))
+                .thenReturn(true);
+            when(approvalDomainService.hasPermissionForTimesheet(testTimesheet, testLecturer, testCourse, ApprovalAction.SUBMIT_FOR_APPROVAL))
+                .thenReturn(true);
+            when(approvalDomainService.canTransition(testTimesheet.getStatus(), ApprovalAction.SUBMIT_FOR_APPROVAL))
+                .thenReturn(true);
 
             // Act
             boolean result = service.canUserPerformAction(testTimesheet, ApprovalAction.SUBMIT_FOR_APPROVAL, 2L);
@@ -518,9 +537,8 @@ class ApprovalApplicationServiceTest {
             // Arrange
             when(userRepository.findById(1L)).thenReturn(Optional.of(testTutor));
             when(courseRepository.findById(100L)).thenReturn(Optional.of(testCourse));
-            doThrow(new SecurityException("No permission"))
-                .when(approvalDomainService).validateApprovalActionBusinessRules(
-                    any(Timesheet.class), any(ApprovalAction.class), any(User.class), any(Course.class));
+            when(approvalDomainService.canRolePerformAction(UserRole.TUTOR, ApprovalAction.HR_CONFIRM))
+                .thenReturn(false);
 
             // Act
             boolean result = service.canUserPerformAction(testTimesheet, ApprovalAction.HR_CONFIRM, 1L);
@@ -563,15 +581,15 @@ class ApprovalApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw IllegalArgumentException when timesheet not found")
-        void shouldThrowIllegalArgumentExceptionWhenTimesheetNotFound() {
+        @DisplayName("Should throw ResourceNotFoundException when timesheet not found")
+        void shouldThrowResourceNotFoundExceptionWhenTimesheetNotFound() {
             // Arrange
             when(timesheetRepository.findById(999L)).thenReturn(Optional.empty());
 
             // Act & Assert
             assertThatThrownBy(() -> service.getCurrentApprovalStatus(999L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Timesheet not found");
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Timesheet");
         }
     }
 

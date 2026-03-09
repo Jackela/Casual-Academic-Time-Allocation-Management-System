@@ -9,8 +9,6 @@ import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
-import com.usyd.catams.repository.CourseRepository;
-import com.usyd.catams.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -29,8 +27,7 @@ public class TimesheetDomainServiceTest {
     private RuleEngine ruleEngine;
     private Specification<TimesheetValidationContext> rule1;
     private Specification<TimesheetValidationContext> rule2;
-    private UserRepository userRepository;
-    private CourseRepository courseRepository;
+    private com.usyd.catams.domain.service.TimesheetValidationService validationService;
     private TimesheetDomainService domainService;
 
     @BeforeEach
@@ -39,8 +36,7 @@ public class TimesheetDomainServiceTest {
         // Create two rules where the first always fails to assert fail-fast behavior
         rule1 = ctx -> { throw new com.usyd.catams.exception.BusinessException("R1", "Rule1 failed"); };
         rule2 = ctx -> { throw new com.usyd.catams.exception.BusinessException("R2", "Rule2 should not execute if fail-fast"); };
-        userRepository = Mockito.mock(UserRepository.class);
-        courseRepository = Mockito.mock(CourseRepository.class);
+        validationService = Mockito.mock(com.usyd.catams.domain.service.TimesheetValidationService.class);
         // Use real rule types via mocks to satisfy constructor types
         com.usyd.catams.domain.rules.HoursRangeRule hoursRule = Mockito.mock(com.usyd.catams.domain.rules.HoursRangeRule.class);
         com.usyd.catams.domain.rules.HourlyRateRangeRule rateRule = Mockito.mock(com.usyd.catams.domain.rules.HourlyRateRangeRule.class);
@@ -51,23 +47,13 @@ public class TimesheetDomainServiceTest {
         Mockito.doThrow(new com.usyd.catams.exception.BusinessException("HOURS", "hours"))
             .when(hoursRule).isSatisfiedBy(Mockito.any());
 
-        // Create test properties for the constructor
-        com.usyd.catams.common.validation.TimesheetValidationProperties testProps = 
-            new com.usyd.catams.common.validation.TimesheetValidationProperties();
-        testProps.setMinHours(new BigDecimal("0.1"));
-        testProps.getHours().setMax(new BigDecimal("40"));
-        testProps.setMinHourlyRate(new BigDecimal("10.00"));
-        testProps.setMaxHourlyRate(new BigDecimal("200.00"));
-
         domainService = new TimesheetDomainService(
                 ruleEngine,
                 hoursRule,
                 rateRule,
                 futureRule,
                 budgetRule,
-                userRepository,
-                courseRepository,
-                testProps
+                validationService
         );
     }
 

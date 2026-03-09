@@ -1,11 +1,5 @@
 package com.usyd.catams.enums;
 
-import com.usyd.catams.common.application.ApprovalStateMachine;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
-import jakarta.annotation.PostConstruct;
-
 /**
  * Approval action enumeration for timesheet approval workflow.
  * 
@@ -140,84 +134,6 @@ public enum ApprovalAction {
      */
     public boolean canBePerformedByAdmin() {
         return true; // ADMIN can perform any action
-    }
-    
-    /**
-     * Get the target status for this action given the current status.
-     * Delegates to ApprovalStateMachine for SSOT.
-     * 
-     * @param currentStatus the current approval status
-     * @return the target status after performing this action
-     * @throws IllegalStateException if action is not valid for current status
-     * @throws IllegalStateException if called before Spring context initialization
-     */
-    public ApprovalStatus getTargetStatus(ApprovalStatus currentStatus) {
-        if (StateMachineHolder.instance == null) {
-            // Fallback for unit tests - use hardcoded transitions
-            return getTargetStatusFallback(currentStatus);
-        }
-        return StateMachineHolder.instance.getNextStatus(currentStatus, this);
-    }
-    
-    /**
-     * Fallback method for unit tests when Spring context is not available.
-     * Provides hardcoded transitions matching the new confirmation workflow.
-     */
-    private ApprovalStatus getTargetStatusFallback(ApprovalStatus currentStatus) {
-        switch (this) {
-            case SUBMIT_FOR_APPROVAL:
-                if (currentStatus == ApprovalStatus.DRAFT || currentStatus == ApprovalStatus.MODIFICATION_REQUESTED) {
-                    return ApprovalStatus.PENDING_TUTOR_CONFIRMATION;
-                }
-                break;
-            case TUTOR_CONFIRM:
-                if (currentStatus == ApprovalStatus.PENDING_TUTOR_CONFIRMATION) {
-                    return ApprovalStatus.TUTOR_CONFIRMED;
-                }
-                break;
-            case LECTURER_CONFIRM:
-                if (currentStatus == ApprovalStatus.TUTOR_CONFIRMED) {
-                    return ApprovalStatus.LECTURER_CONFIRMED;
-                }
-                break;
-            case HR_CONFIRM:
-                if (currentStatus == ApprovalStatus.LECTURER_CONFIRMED) {
-                    return ApprovalStatus.FINAL_CONFIRMED;
-                }
-                break;
-            case REJECT:
-                if (currentStatus == ApprovalStatus.PENDING_TUTOR_CONFIRMATION || 
-                    currentStatus == ApprovalStatus.TUTOR_CONFIRMED ||
-                    currentStatus == ApprovalStatus.LECTURER_CONFIRMED) {
-                    return ApprovalStatus.REJECTED;
-                }
-                break;
-            case REQUEST_MODIFICATION:
-                if (currentStatus == ApprovalStatus.PENDING_TUTOR_CONFIRMATION || 
-                    currentStatus == ApprovalStatus.TUTOR_CONFIRMED ||
-                    currentStatus == ApprovalStatus.LECTURER_CONFIRMED) {
-                    return ApprovalStatus.MODIFICATION_REQUESTED;
-                }
-                break;
-        }
-        throw new IllegalStateException("Invalid transition: Cannot perform action " + this + " from status " + currentStatus);
-    }
-    
-    /**
-     * Static holder for ApprovalStateMachine instance.
-     * This allows the enum to access the state machine after Spring context initialization.
-     */
-    @Component
-    public static class StateMachineHolder {
-        public static ApprovalStateMachine instance;
-        
-        @Autowired
-        private ApprovalStateMachine stateMachine;
-        
-        @PostConstruct
-        void init() {
-            instance = stateMachine;
-        }
     }
     
     @Override

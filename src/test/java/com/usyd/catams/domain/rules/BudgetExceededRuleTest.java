@@ -32,7 +32,7 @@ class BudgetExceededRuleTest {
         Course course = new Course();
         course.setBudgetAllocated(new BigDecimal("1000.00"));
         course.setBudgetUsed(new BigDecimal("500.00"));
-        TimesheetValidationContext context = new TimesheetValidationContext(null, null, course, null, new BigDecimal("10.0"), new BigDecimal("40.00"), null); // New pay: 400
+        TimesheetValidationContext context = new TimesheetValidationContext(null, null, course, null, new BigDecimal("10.0"), BigDecimal.valueOf(40), null); // New pay: 400
 
         assertThatCode(() -> budgetExceededRule.isSatisfiedBy(context)).doesNotThrowAnyException();
     }
@@ -45,7 +45,7 @@ class BudgetExceededRuleTest {
         Course course = new Course();
         course.setBudgetAllocated(new BigDecimal("1000.00"));
         course.setBudgetUsed(new BigDecimal("600.00"));
-        TimesheetValidationContext context = new TimesheetValidationContext(null, null, course, null, new BigDecimal("10.0"), new BigDecimal("40.00"), null); // New pay: 400
+        TimesheetValidationContext context = new TimesheetValidationContext(null, null, course, null, new BigDecimal("10.0"), BigDecimal.valueOf(40), null); // New pay: 400
 
         assertThatCode(() -> budgetExceededRule.isSatisfiedBy(context)).doesNotThrowAnyException();
     }
@@ -58,7 +58,7 @@ class BudgetExceededRuleTest {
         Course course = new Course();
         course.setBudgetAllocated(new BigDecimal("1000.00"));
         course.setBudgetUsed(new BigDecimal("600.01")); // Already slightly over
-        TimesheetValidationContext context = new TimesheetValidationContext(null, null, course, null, new BigDecimal("10.0"), new BigDecimal("40.00"), null); // New pay: 400
+        TimesheetValidationContext context = new TimesheetValidationContext(null, null, course, null, new BigDecimal("10.0"), BigDecimal.valueOf(40), null); // New pay: 400
 
         assertThatThrownBy(() -> budgetExceededRule.isSatisfiedBy(context))
             .isInstanceOf(BusinessException.class)
@@ -73,7 +73,7 @@ class BudgetExceededRuleTest {
         Course course = new Course();
         course.setBudgetAllocated(new BigDecimal("1000.00"));
         course.setBudgetUsed(new BigDecimal("500.00"));
-        TimesheetValidationContext context = new TimesheetValidationContext(null, null, course, null, null, new BigDecimal("40.00"), null);
+        TimesheetValidationContext context = new TimesheetValidationContext(null, null, course, null, null, BigDecimal.valueOf(40), null);
 
         assertThatThrownBy(() -> budgetExceededRule.isSatisfiedBy(context))
             .isInstanceOf(BusinessException.class);

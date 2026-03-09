@@ -1,5 +1,6 @@
 package com.usyd.catams.enums;
 
+import com.usyd.catams.common.application.ApprovalStateMachine;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -30,7 +31,7 @@ class ApprovalStatusTest {
     }
 
     @Test
-    @DisplayName("REJECTED status should be editable to allow corrections and resubmission")
+    @DisplayName("REJECTED status should be editable to allow corrections")
     void rejectedShouldBeEditable() {
         ApprovalStatus status = ApprovalStatus.REJECTED;
         
@@ -76,12 +77,12 @@ class ApprovalStatusTest {
     }
 
     @Test
-    @DisplayName("REJECTED should allow resubmission (not final)")
-    void rejectedShouldAllowResubmission() {
+    @DisplayName("REJECTED should be non-final but not pending")
+    void rejectedShouldBeNonFinal() {
         ApprovalStatus status = ApprovalStatus.REJECTED;
         
-        assertFalse(status.isFinal()); // Can be edited and resubmitted
-        assertTrue(status.isEditable()); // Allows corrections
+        assertFalse(status.isFinal());
+        assertTrue(status.isEditable());
         assertFalse(status.isPending());
     }
 
@@ -108,11 +109,10 @@ class ApprovalStatusTest {
     }
     
     @Test
-    @DisplayName("REJECTED can transition to PENDING_TUTOR_CONFIRMATION")
-    void rejectedCanBeResubmitted() {
-        ApprovalStatus status = ApprovalStatus.REJECTED;
-        
-        assertTrue(status.canTransitionTo(ApprovalStatus.PENDING_TUTOR_CONFIRMATION));
-        assertFalse(status.canTransitionTo(ApprovalStatus.FINAL_CONFIRMED));
+    @DisplayName("State machine should block direct SUBMIT_FOR_APPROVAL from REJECTED")
+    void rejectedCannotBeDirectlyResubmitted() {
+        ApprovalStateMachine stateMachine = new ApprovalStateMachine();
+        assertFalse(stateMachine.canTransition(ApprovalStatus.REJECTED, ApprovalAction.SUBMIT_FOR_APPROVAL));
+        assertFalse(stateMachine.canTransition(ApprovalStatus.REJECTED, ApprovalAction.HR_CONFIRM));
     }
 }
