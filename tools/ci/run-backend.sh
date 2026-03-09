@@ -56,7 +56,7 @@ run_backend_checks() {
     MINGW*|MSYS*|CYGWIN*)
       # Git Bash on Windows can mis-handle cygpath conversion in gradlew; use the .bat wrapper directly.
       if [ -f "./gradlew.bat" ]; then
-        cmd.exe /c gradlew.bat --no-configuration-cache check
+        cmd.exe /c gradlew.bat --no-configuration-cache check < /dev/null
         return
       fi
       ;;
