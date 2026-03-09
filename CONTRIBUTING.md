@@ -56,34 +56,31 @@ Types:
 - `refactor/` - Code refactoring (e.g., `refactor/dashboard-service`)
 - `docs/` - Documentation only (e.g., `docs/api-documentation`)
 
-### Local Git Hook
+### Local Git Hooks (Required)
 
-A pre-push hook is provided to prevent accidental pushes to main:
+Repository hooks are versioned under `.githooks/`. Configure once:
 
 ```bash
-# Already installed at .git/hooks/pre-push
-# If you need to reinstall:
-chmod +x .git/hooks/pre-push
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit .githooks/pre-push
 ```
 
-This hook will:
-- Block direct pushes to `main`
-- Display helpful error message
-- Suggest creating feature branch
+Hook behavior:
+- `pre-commit`: blocks generated artifacts from being committed
+- `pre-push`: runs local CI parity checks before every push
+  - backend checks (`tools/ci/run-backend.sh`)
+  - frontend lint + unit tests
+  - real E2E (`tools/ci/run-e2e.sh`)
 
 ### Emergency Override
 
 If you absolutely MUST push to main (not recommended):
 ```bash
-# Skip the hook (requires manual deletion)
-rm .git/hooks/pre-push
-# Push to main
-git push origin main
-# Reinstall the hook
-# Download from repository
+# Bypass pre-push checks for one push only
+SKIP_PRE_PUSH=1 git push origin <branch>
 ```
 
-**Note:** Even with local hook removed, GitHub branch protection still enforces PR workflow.
+**Note:** GitHub branch protection still enforces PR workflow and required checks.
 
 ---
 

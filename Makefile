@@ -1,5 +1,4 @@
-# Makefile for CATAMS Local CI Parity
-# See openspec/changes/establish-local-ci-parity/ for design documentation
+# Makefile for CATAMS local validation workflow
 
 .PHONY: help fast ci-local ci clean install-hooks
 
@@ -12,7 +11,7 @@ help:
 	@echo "  make ci-local    Run all CI checks locally (recommended before push)"
 	@echo "  make ci          Run CI in act container (most accurate GitHub Actions simulation)"
 	@echo "  make clean       Clean build artifacts"
-	@echo "  make install-hooks  Install optional pre-push git hook"
+	@echo "  make install-hooks  Configure repository git hooks (.githooks)"
 	@echo ""
 	@echo "Recommended workflow:"
 	@echo "  1. During development: make fast"
@@ -104,20 +103,19 @@ clean:
 	@if [ -d frontend/dist ]; then rm -rf frontend/dist; fi
 	@echo "✅ Clean complete"
 
-# Install optional pre-push hook
+# Configure versioned repository hooks
 install-hooks:
-	@echo "Installing pre-push hook..."
-	@if [ ! -f tools/git/pre-push ]; then \
-		echo "❌ ERROR: tools/git/pre-push not found"; \
-		echo "Create it first with:"; \
-		echo "  mkdir -p tools/git"; \
-		echo "  # Create the pre-push script"; \
+	@echo "Configuring git hooks from .githooks..."
+	@if [ ! -f .githooks/pre-commit ] || [ ! -f .githooks/pre-push ]; then \
+		echo "❌ ERROR: required hooks not found in .githooks/"; \
+		echo "Expected: .githooks/pre-commit and .githooks/pre-push"; \
 		exit 1; \
 	fi
-	@mkdir -p .git/hooks
-	@cp tools/git/pre-push .git/hooks/pre-push
-	@chmod +x .git/hooks/pre-push
-	@echo "✅ Pre-push hook installed successfully!"
+	@git config core.hooksPath .githooks
+	@chmod +x .githooks/pre-commit .githooks/pre-push
+	@echo "✅ Hooks configured successfully."
 	@echo ""
-	@echo "The hook will run 'make fast' before each push."
-	@echo "To remove: rm .git/hooks/pre-push"
+	@echo "pre-commit: blocks generated artifacts in commits"
+	@echo "pre-push: runs backend + frontend + e2e CI parity checks"
+	@echo ""
+	@echo "To disable locally: git config --unset core.hooksPath"

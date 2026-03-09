@@ -43,6 +43,9 @@ Generated code is excluded from coverage by default:
 - Pre-commit hook blocks generated outputs from being committed.
   - Configure once: `git config core.hooksPath .githooks`
   - Hook: `.githooks/pre-commit`
+- Pre-push hook enforces local CI parity before pushing.
+  - Hook: `.githooks/pre-push`
+  - Runs: backend checks, frontend lint/tests, and real E2E
 - CI guard fails when ad‑hoc generator/runner scripts are added outside `scripts/` or `tools/`.
   - Script: `node scripts/guard-allowed-generators.js`
   - Invoked in CI pipelines.

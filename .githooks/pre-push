@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Enforce local CI parity before any push.
+# Emergency bypass (not recommended): SKIP_PRE_PUSH=1 git push ...
+
+set -euo pipefail
+
+if [[ "${SKIP_PRE_PUSH:-0}" == "1" ]]; then
+  echo "[pre-push] SKIP_PRE_PUSH=1 detected, skipping checks."
+  exit 0
+fi
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "========================================="
+echo "[pre-push] Running local CI parity checks"
+echo "========================================="
+echo ""
+
+echo "[1/4] Backend checks (gradle check)"
+bash tools/ci/run-backend.sh
+echo ""
+
+echo "[2/4] Frontend lint"
+npm --prefix frontend run lint
+echo ""
+
+echo "[3/4] Frontend unit tests"
+bash tools/ci/run-frontend-unit.sh
+echo ""
+
+echo "[4/4] E2E (real)"
+bash tools/ci/run-e2e.sh
+echo ""
+
+echo "========================================="
+echo "[pre-push] All local CI checks passed."
+echo "========================================="
