@@ -71,7 +71,7 @@ Started: Wed Feb 19 21:00:00 CST 2026
 - **Learnings for future iterations:**
   - Approval entity already had good Javadoc - only needed standard tags
   - The approval workflow follows a state machine with defined transitions
-  - Status transitions validated via ApprovalStateMachineHolder
+  - Status transitions validated via the centralized approval state machine
 ---
 ## [2026-02-20] - US-010
 - Added comprehensive Javadoc documentation to LecturerAssignment.java
