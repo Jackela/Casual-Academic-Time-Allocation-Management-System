@@ -129,7 +129,7 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         Map<String, Object> request = new HashMap<>();
         request.put("taskType", "TUTORIAL");
         request.put("qualification", "STANDARD");
-        request.put("repeat", false);
+        request.put("isRepeat", false);
         request.put("deliveryHours", 1.0);
         request.put("sessionDate", "2024-07-08");
         request.put("tutorId", tutor.getId());
@@ -144,6 +144,46 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.hourlyRate").value(closeTo(58.65, 0.01)))
                 .andExpect(jsonPath("$.amount").value(closeTo(175.94, 0.001)))
                 .andExpect(jsonPath("$.formula").value(Matchers.containsString("1h delivery")));
+    }
+
+    @Test
+    void shouldKeepRepeatTutorialQuoteWhenPriorSessionExistsWithinWindow() throws Exception {
+        seedTutorialSession(LocalDate.of(2024, 7, 8));
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("taskType", "TUTORIAL");
+        request.put("qualification", "PHD");
+        request.put("isRepeat", true);
+        request.put("deliveryHours", 1.0);
+        request.put("sessionDate", "2024-07-15");
+        request.put("tutorId", tutor.getId());
+        request.put("courseId", course.getId());
+
+        performPost("/api/timesheets/quote", request, lecturerAuthHeader)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rateCode").value("TU3"))
+                .andExpect(jsonPath("$.isRepeat").value(true))
+                .andExpect(jsonPath("$.qualification").value("PHD"));
+    }
+
+    @Test
+    void shouldDowngradeRepeatTutorialQuoteWhenOutsideEligibilityWindow() throws Exception {
+        seedTutorialSession(LocalDate.of(2024, 6, 24));
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("taskType", "TUTORIAL");
+        request.put("qualification", "PHD");
+        request.put("isRepeat", true);
+        request.put("deliveryHours", 1.0);
+        request.put("sessionDate", "2024-07-15");
+        request.put("tutorId", tutor.getId());
+        request.put("courseId", course.getId());
+
+        performPost("/api/timesheets/quote", request, lecturerAuthHeader)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rateCode").value("TU1"))
+                .andExpect(jsonPath("$.isRepeat").value(false))
+                .andExpect(jsonPath("$.qualification").value("PHD"));
     }
 
     @Test
@@ -399,7 +439,7 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         updateRequest.put("hourlyRate", created.getHourlyRate());
         updateRequest.put("description", "Updated description only");
         updateRequest.put("taskType", created.getTaskType().name());
-        updateRequest.put("repeat", created.getRepeat());
+        updateRequest.put("isRepeat", created.getRepeat());
         updateRequest.put("qualification", created.getQualification().name());
         updateRequest.put("deliveryHours", created.getDeliveryHours());
         updateRequest.put("sessionDate", created.getSessionDate().toString());
@@ -479,12 +519,36 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         Map<String, Object> payload = new HashMap<>();
         payload.put("taskType", taskType);
         payload.put("qualification", qualification);
-        payload.put("repeat", repeat);
+        payload.put("isRepeat", repeat);
         payload.put("deliveryHours", deliveryHours);
         payload.put("sessionDate", "2024-07-08");
         payload.put("tutorId", tutor.getId());
         payload.put("courseId", course.getId());
         return payload;
+    }
+
+    private void seedTutorialSession(LocalDate sessionDate) {
+        Timesheet prior = new TimesheetBuilder()
+                .withTutorId(tutor.getId())
+                .withCourseId(course.getId())
+                .withWeekStartDate(sessionDate)
+                .withSessionDate(sessionDate)
+                .withHours(new BigDecimal("3.0"))
+                .withHourlyRate(new BigDecimal("70.06"))
+                .withDescription("Prior tutorial session for repeat-window checks")
+                .withCreatedBy(lecturer.getId())
+                .withStatus(ApprovalStatus.FINAL_CONFIRMED)
+                .build();
+
+        prior.setTaskType(TimesheetTaskType.TUTORIAL);
+        prior.setRepeat(false);
+        prior.setQualification(TutorQualification.PHD);
+        prior.setDeliveryHours(new BigDecimal("1.0"));
+        prior.setAssociatedHours(new BigDecimal("2.0"));
+        prior.setRateCode("TU1");
+        prior.setCalculatedAmount(new BigDecimal("210.19"));
+
+        timesheetRepository.save(prior);
     }
 
     @Test

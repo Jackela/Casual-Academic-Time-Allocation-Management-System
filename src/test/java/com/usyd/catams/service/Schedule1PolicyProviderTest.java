@@ -1,8 +1,15 @@
 package com.usyd.catams.service;
 
+import com.usyd.catams.enums.TimesheetTaskType;
+import com.usyd.catams.repository.PolicyVersionRepository;
+import com.usyd.catams.repository.RateAmountRepository;
+import com.usyd.catams.repository.RateCodeRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.env.Environment;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * TDD placeholder: defines the contract for Schedule1PolicyProvider.
@@ -11,9 +18,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 class Schedule1PolicyProviderTest {
 
     @Test
-    void shouldResolvePolicyForTutorials() {
-        Schedule1PolicyProvider provider = new Schedule1PolicyProvider(null, null);
+    void shouldFailFastWhenTutorialRateCodesMissing() {
+        RateCodeRepository rateCodeRepository = mock(RateCodeRepository.class);
+        RateAmountRepository rateAmountRepository = mock(RateAmountRepository.class);
+        PolicyVersionRepository policyVersionRepository = mock(PolicyVersionRepository.class);
+        Environment environment = mock(Environment.class);
+        when(environment.getActiveProfiles()).thenReturn(new String[] {"prod"});
+        when(rateCodeRepository.findByTaskType(TimesheetTaskType.TUTORIAL)).thenReturn(java.util.List.of());
 
-        assertThat(provider).isNotNull();
+        assertThatThrownBy(() -> new Schedule1PolicyProvider(
+            rateCodeRepository, rateAmountRepository, policyVersionRepository, environment
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("No tutorial rate codes configured");
     }
 }

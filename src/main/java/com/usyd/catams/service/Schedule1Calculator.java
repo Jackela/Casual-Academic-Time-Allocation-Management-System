@@ -8,7 +8,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Objects;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -25,9 +24,9 @@ public class Schedule1Calculator {
     private final Schedule1PolicyProvider policyProvider;
     private final TaskCalculationStrategyFactory strategyFactory;
 
-    public Schedule1Calculator(@Nullable Schedule1PolicyProvider policyProvider,
+    public Schedule1Calculator(Schedule1PolicyProvider policyProvider,
                                TaskCalculationStrategyFactory strategyFactory) {
-        this.policyProvider = policyProvider != null ? policyProvider : new Schedule1PolicyProvider(null, null);
+        this.policyProvider = Objects.requireNonNull(policyProvider, "policyProvider");
         this.strategyFactory = Objects.requireNonNull(strategyFactory, "strategyFactory");
     }
 
@@ -90,16 +89,6 @@ public class Schedule1Calculator {
     private Schedule1PolicyProvider.RatePolicy resolvePolicy(CalculationInput input) {
         TaskCalculationStrategy strategy = strategyFactory.getStrategy(input.getTaskType());
         return strategy.resolvePolicy(input, policyProvider);
-    }
-
-    private boolean isDevelopedLecture(BigDecimal deliveryHours, TutorQualification qualification) {
-        if (deliveryHours == null) {
-            return false;
-        }
-        if (deliveryHours.compareTo(BigDecimal.ONE) > 0) {
-            return true;
-        }
-        return qualification == TutorQualification.COORDINATOR;
     }
 
     private String normaliseRateCode(TimesheetTaskType taskType,

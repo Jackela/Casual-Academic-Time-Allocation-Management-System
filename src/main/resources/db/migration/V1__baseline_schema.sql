@@ -59,8 +59,8 @@ CREATE TABLE timesheets (
     CONSTRAINT fk_timesheet_tutor FOREIGN KEY (tutor_id) REFERENCES users(id),
     CONSTRAINT fk_timesheet_course FOREIGN KEY (course_id) REFERENCES courses(id),
     CONSTRAINT fk_timesheet_creator FOREIGN KEY (created_by) REFERENCES users(id),
-    CONSTRAINT chk_timesheet_hours CHECK (hours >= 0.1 AND hours <= 40.0),
-    CONSTRAINT chk_timesheet_delivery_hours CHECK (delivery_hours >= 0 AND delivery_hours <= 40.0),
+    CONSTRAINT chk_timesheet_hours CHECK (hours >= 0.1 AND hours <= 40),
+    CONSTRAINT chk_timesheet_delivery_hours CHECK (delivery_hours >= 0 AND delivery_hours <= 40),
     CONSTRAINT chk_timesheet_associated_hours CHECK (associated_hours >= 0),
     CONSTRAINT chk_timesheet_status CHECK (status IN (
         'DRAFT',

@@ -1,7 +1,6 @@
 package com.usyd.catams.service.strategy;
 
 import com.usyd.catams.enums.TimesheetTaskType;
-import com.usyd.catams.enums.TutorQualification;
 import com.usyd.catams.service.Schedule1Calculator;
 import com.usyd.catams.service.Schedule1PolicyProvider;
 import org.springframework.stereotype.Component;
@@ -27,17 +26,9 @@ public class OtherCalculationStrategy extends AbstractTaskCalculationStrategy {
     public Schedule1PolicyProvider.RatePolicy resolvePolicy(
             Schedule1Calculator.CalculationInput input,
             Schedule1PolicyProvider policyProvider) throws Schedule1PolicyProvider.RatePolicyNotFoundException {
-        
-        TutorQualification qualification = input.getQualification();
-        boolean highBand = isHighBand(qualification);
-        
-        // Other maps to ORAA rate codes
-        String rateCode = highBand ? "AO1_DE1" : "AO2_DE2";
-        TutorQualification policyQualification = highBand
-                ? resolveHighBandQualification(qualification)
-                : TutorQualification.STANDARD;
-        
-        return policyProvider.resolvePolicyByRateCode(rateCode, policyQualification, input.getSessionDate());
+        throw new IllegalArgumentException(
+                "Task type OTHER has no implicit Schedule 1 mapping. "
+                        + "Provide an explicit task type strategy instead.");
     }
     
     @Override

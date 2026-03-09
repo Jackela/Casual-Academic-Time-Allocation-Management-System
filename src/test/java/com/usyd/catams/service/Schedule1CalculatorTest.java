@@ -31,7 +31,7 @@ class Schedule1CalculatorTest {
         assertThat(result.getRateCode()).isEqualTo("TU2");
         assertThat(result.getAssociatedHours()).isEqualByComparingTo("2.0");
         assertThat(result.getPayableHours()).isEqualByComparingTo("3.0");
-        assertThat(result.getAmount()).isEqualByComparingTo("175.94");
+        assertThat(result.getAmount()).isEqualByComparingTo("182.54");
         assertThat(result.getFormula()).contains("1h").contains("2h associated");
     }
 }

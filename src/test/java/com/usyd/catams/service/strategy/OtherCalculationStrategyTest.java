@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 /**
@@ -45,35 +46,29 @@ class OtherCalculationStrategyTest {
     }
 
     @Test
-    @DisplayName("should resolve AO1_DE1 for high band qualification")
-    void shouldResolveAo1De1ForHighBand() throws Schedule1PolicyProvider.RatePolicyNotFoundException {
+    @DisplayName("should reject implicit fallback mapping for high band qualification")
+    void shouldRejectImplicitFallbackForHighBand() {
         // Given
         Schedule1Calculator.CalculationInput input = createInput(TutorQualification.PHD);
-        when(policyProvider.resolvePolicyByRateCode("AO1_DE1", TutorQualification.PHD, input.getSessionDate()))
-            .thenReturn(ratePolicy);
 
         // When
-        Schedule1PolicyProvider.RatePolicy result = strategy.resolvePolicy(input, policyProvider);
-
-        // Then
-        assertThat(result).isEqualTo(ratePolicy);
-        verify(policyProvider).resolvePolicyByRateCode("AO1_DE1", TutorQualification.PHD, input.getSessionDate());
+        assertThatThrownBy(() -> strategy.resolvePolicy(input, policyProvider))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("no implicit Schedule 1 mapping");
+        verifyNoInteractions(policyProvider);
     }
 
     @Test
-    @DisplayName("should resolve AO2_DE2 for standard qualification")
-    void shouldResolveAo2De2ForStandard() throws Schedule1PolicyProvider.RatePolicyNotFoundException {
+    @DisplayName("should reject implicit fallback mapping for standard qualification")
+    void shouldRejectImplicitFallbackForStandard() {
         // Given
         Schedule1Calculator.CalculationInput input = createInput(TutorQualification.STANDARD);
-        when(policyProvider.resolvePolicyByRateCode("AO2_DE2", TutorQualification.STANDARD, input.getSessionDate()))
-            .thenReturn(ratePolicy);
 
         // When
-        Schedule1PolicyProvider.RatePolicy result = strategy.resolvePolicy(input, policyProvider);
-
-        // Then
-        assertThat(result).isEqualTo(ratePolicy);
-        verify(policyProvider).resolvePolicyByRateCode("AO2_DE2", TutorQualification.STANDARD, input.getSessionDate());
+        assertThatThrownBy(() -> strategy.resolvePolicy(input, policyProvider))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("no implicit Schedule 1 mapping");
+        verifyNoInteractions(policyProvider);
     }
 
     @Test

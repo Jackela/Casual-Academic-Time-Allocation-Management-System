@@ -218,7 +218,7 @@ public class E2EDataInitializer {
                 course1.getId(),
                 twoWeeksAgoMonday.minusDays(7),
                 new BigDecimal("6.0"),
-                new BigDecimal("40.00"),
+                BigDecimal.valueOf(40),
                 "Draft: preparation and materials review",
                 lecturerUser.getId()
             );
@@ -370,6 +370,26 @@ public class E2EDataInitializer {
             false,
             "Schedule 1 – Tutoring");
 
+        RateCode tu3 = ensureRateCode(rateCodeRepository,
+            "TU3",
+            TimesheetTaskType.TUTORIAL,
+            "Repeat tutorial – PhD holder or unit coordinator (1h delivery + up to 1h associated)",
+            new BigDecimal("1.00"),
+            new BigDecimal("1.00"),
+            true,
+            true,
+            "Schedule 1 – Tutoring");
+
+        RateCode tu4 = ensureRateCode(rateCodeRepository,
+            "TU4",
+            TimesheetTaskType.TUTORIAL,
+            "Repeat tutorial – standard eligibility (1h delivery + up to 1h associated)",
+            new BigDecimal("1.00"),
+            new BigDecimal("1.00"),
+            false,
+            true,
+            "Schedule 1 – Tutoring");
+
         RateCode ao1 = ensureRateCode(rateCodeRepository,
             "AO1_DE1",
             TimesheetTaskType.ORAA,
@@ -477,6 +497,21 @@ public class E2EDataInitializer {
             "2025-07", effectiveFrom, effectiveTo, new BigDecimal("182.54"),
             new BigDecimal("2.00"), new BigDecimal("3.00"),
             "Schedule 1 – Tutoring (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, tu3, TutorQualification.PHD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("145.38"),
+            new BigDecimal("1.00"), new BigDecimal("2.00"),
+            "Schedule 1 – Repeat tutoring (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, tu3, TutorQualification.COORDINATOR,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("145.38"),
+            new BigDecimal("1.00"), new BigDecimal("2.00"),
+            "Schedule 1 – Repeat tutoring (1 July 2025)");
+
+        ensureRateAmount(rateAmountRepository, policy, tu4, TutorQualification.STANDARD,
+            "2025-07", effectiveFrom, effectiveTo, new BigDecimal("121.69"),
+            new BigDecimal("1.00"), new BigDecimal("2.00"),
+            "Schedule 1 – Repeat tutoring (1 July 2025)");
 
         ensureRateAmount(rateAmountRepository, policy, ao1, TutorQualification.PHD,
             "2025-07", effectiveFrom, effectiveTo, new BigDecimal("72.33"),
@@ -587,7 +622,6 @@ public class E2EDataInitializer {
         rateAmountRepository.save(rateAmount);
     }
 }
-
 
 
 
