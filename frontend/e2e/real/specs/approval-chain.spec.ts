@@ -6,6 +6,25 @@ import { expectContract } from '../utils/contract';
 import { waitForVisible } from '../../shared/utils/waits';
 import { createTestDataFactory } from '../../api/test-data-factory';
 
+const isApprovalResponseForTimesheet = (
+  response: { url(): string; request(): { method(): string; postDataJSON(): unknown } },
+  timesheetId: number,
+  action: string,
+): boolean => {
+  if (!response.url().includes('/api/approvals')) {
+    return false;
+  }
+  if (response.request().method() !== 'POST') {
+    return false;
+  }
+  try {
+    const body = response.request().postDataJSON() as { timesheetId?: number; action?: string };
+    return body?.timesheetId === timesheetId && body?.action === action;
+  } catch {
+    return false;
+  }
+};
+
 test.describe('@p0 US3: Approval chain', () => {
   let approved = false;
 test('draft → tutor confirm → lecturer approve → admin approve', async ({ page, request }) => {
@@ -130,7 +149,8 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
     .toBe(1);
   const approveBtn = rowById.getByTestId('admin-final-approve-btn').getByRole('button', { name: /(Final Approve|Approve)/i }).first();
   await expect(approveBtn).toBeVisible({ timeout: 15000 });
-  const approvalsDone = page.waitForResponse((r) => r.url().includes('/api/approvals') && r.request().method() === 'POST');
+  const approvalsDone = page.waitForResponse((r) =>
+    isApprovalResponseForTimesheet(r, seeded.id, 'HR_CONFIRM'));
   await approveBtn.click();
   const resp = await approvalsDone;
   expect(resp.ok(), `Admin approval response not OK (${resp.status()})`).toBe(true);
@@ -341,7 +361,8 @@ test('draft → tutor confirm → lecturer approve → admin approve', async ({ 
 
   const approveBtn = row.getByTestId('admin-final-approve-btn').getByRole('button', { name: /(Final Approve|Approve)/i }).first();
     await expect(approveBtn).toBeVisible({ timeout: 15000 });
-    const respPromise = page.waitForResponse((r) => r.url().includes('/api/approvals') && r.request().method() === 'POST');
+    const respPromise = page.waitForResponse((r) =>
+      isApprovalResponseForTimesheet(r, seeded.id, 'HR_CONFIRM'));
     await approveBtn.click();
     const resp = await respPromise;
     expect(resp.ok(), `Admin approval response not OK (${resp.status()})`).toBe(true);
