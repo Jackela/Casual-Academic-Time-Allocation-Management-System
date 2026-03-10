@@ -36,7 +36,12 @@ bash tools/ci/run-frontend-unit.sh
 echo ""
 
 echo "[4/4] E2E (CI parity: real project)"
-bash tools/ci/run-e2e.sh
+if docker info >/dev/null 2>&1; then
+  E2E_BACKEND_MODE=docker bash tools/ci/run-e2e.sh
+else
+  echo "[pre-push] Docker unavailable, fallback to local backend mode for E2E."
+  E2E_BACKEND_MODE=local bash tools/ci/run-e2e.sh
+fi
 echo ""
 
 echo "========================================="
