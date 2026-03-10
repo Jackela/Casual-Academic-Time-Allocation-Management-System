@@ -29,8 +29,8 @@ echo "[3/4] Frontend unit tests"
 bash tools/ci/run-frontend-unit.sh
 echo ""
 
-echo "[4/4] E2E (full)"
-npm --prefix frontend run test:e2e:full
+echo "[4/4] E2E (CI parity: real project)"
+bash tools/ci/run-e2e.sh
 echo ""
 
 echo "========================================="

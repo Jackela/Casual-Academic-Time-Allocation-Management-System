@@ -70,7 +70,7 @@ Hook behavior:
 - `pre-push`: runs local CI parity checks before every push
   - backend checks (`tools/ci/run-backend.sh`)
   - frontend lint + unit tests
-  - full E2E (`npm --prefix frontend run test:e2e:full`)
+  - E2E (`bash tools/ci/run-e2e.sh`, same as GitHub CI real project)
 
 ### Emergency Override
 
