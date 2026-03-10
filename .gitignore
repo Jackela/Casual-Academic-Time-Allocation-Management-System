@@ -1,6 +1,7 @@
 # Build outputs
 .gradle/
 build/
+bin/
 target/
 out/
 dist/
@@ -24,6 +25,8 @@ frontend/playwright-report/
 frontend/playwright-screenshots/
 frontend/test-results/
 frontend/trace-inspect/
+frontend/vitest-report.json
+frontend/vitest-report-escaped.txt
 frontend/.vite/
 frontend/__screenshots__/
 frontend/clips/

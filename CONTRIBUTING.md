@@ -49,12 +49,17 @@ The `main` branch is **PROTECTED** and direct pushes are **PROHIBITED**.
 <type>/<ticket>-<description>
 ```
 
-Types:
+Preferred short-lived branch types:
 - `feature/` - New feature (e.g., `feature/story-2.2-tutor-feedback`)
-- `bugfix/` - Bug fix (e.g., `bugfix/fix-login-error`)
-- `hotfix/` - Critical production fix (e.g., `hotfix/security-vulnerability`)
-- `refactor/` - Code refactoring (e.g., `refactor/dashboard-service`)
-- `docs/` - Documentation only (e.g., `docs/api-documentation`)
+- `fix/` - Bug fix (e.g., `fix/login-error`)
+- `chore/` - Maintenance and repo hygiene (e.g., `chore/ci-gate-hardening`)
+
+Legacy prefixes such as `bugfix/`, `hotfix/`, and `refactor/` remain accepted for existing branches.
+
+Branch lifecycle policy:
+- Keep branches short-lived and scoped to one change set.
+- Merge through PR only; direct push to `main` is blocked.
+- Merged branches are automatically deleted by repository settings.
 
 ### Local Git Hooks (Required)
 

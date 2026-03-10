@@ -102,6 +102,12 @@ tasks.withType<JavaCompile> {
 // Improve test visibility in CI/terminal
 tasks.withType<Test> {
     useJUnitPlatform()
+    val runningOnWindows = System.getProperty("os.name").lowercase().contains("windows")
+    if (runningOnWindows) {
+        // Keep integration tests resilient on Docker Desktop even when ~/.testcontainers.properties
+        // contains stale strategy settings from older environments.
+        environment("TESTCONTAINERS_DOCKER_CLIENT_STRATEGY", "org.testcontainers.dockerclient.DockerDesktopClientProviderStrategy")
+    }
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
@@ -145,7 +151,7 @@ dependencies {
     implementation(libs.org.testcontainers.testcontainers)
     implementation(libs.org.testcontainers.postgresql)
     // Testcontainers JDBC driver to enable jdbc:tc:postgresql URL in e2e
-    implementation("org.testcontainers:jdbc:1.19.1")
+    implementation("org.testcontainers:jdbc:1.21.3")
     // Removed Embedded PostgreSQL to enforce Testcontainers-only for E2E (fail fast)
     
 
@@ -492,10 +498,6 @@ tasks.register("cleanAll") {
         logger.lifecycle("Note: Project .gradle/ directory is not deleted by this task to avoid locking issues. Remove it manually if needed.")
     }
 }
-
-
-
-
 
 
 

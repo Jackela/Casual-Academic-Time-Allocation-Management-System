@@ -17,7 +17,15 @@ echo "[pre-push] Running local CI parity checks"
 echo "========================================="
 echo ""
 
-echo "[1/4] Backend checks (gradle check)"
+echo "[1/6] Repository hygiene gate"
+bash tools/ci/check-repo-hygiene.sh
+echo ""
+
+echo "[2/6] Dependency security audit (high/critical block)"
+bash tools/ci/run-security-audit.sh
+echo ""
+
+echo "[3/6] Backend checks (gradle check)"
 bash tools/ci/run-backend.sh
 echo ""
 
@@ -27,15 +35,15 @@ if [[ ! -f frontend/node_modules/.bin/eslint && ! -f frontend/node_modules/.bin/
 fi
 echo ""
 
-echo "[2/4] Frontend lint"
+echo "[4/6] Frontend lint"
 npm --prefix frontend run lint
 echo ""
 
-echo "[3/4] Frontend unit tests"
+echo "[5/6] Frontend unit tests (full suite)"
 bash tools/ci/run-frontend-unit.sh
 echo ""
 
-echo "[4/4] E2E (CI parity: real project)"
+echo "[6/6] E2E (CI parity: real project)"
 if docker info >/dev/null 2>&1; then
   E2E_BACKEND_MODE=docker bash tools/ci/run-e2e.sh
 else

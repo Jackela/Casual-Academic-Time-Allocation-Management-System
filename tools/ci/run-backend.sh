@@ -50,13 +50,16 @@ PY
 run_backend_checks() {
   echo "[backend] gradle check"
   export JWT_SECRET="${JWT_SECRET:-test-secret}"
+  export IT_DB_ENGINE="${IT_DB_ENGINE:-h2}"
+  echo "[backend] integration DB engine: ${IT_DB_ENGINE}"
   local uname_s=""
   uname_s="$(uname -s 2>/dev/null || true)"
   case "${uname_s}" in
     MINGW*|MSYS*|CYGWIN*)
       # Git Bash on Windows can mis-handle cygpath conversion in gradlew; use the .bat wrapper directly.
       if [ -f "./gradlew.bat" ]; then
-        cmd.exe /c gradlew.bat --no-configuration-cache check < /dev/null
+        # Use `//c` form so MSYS does not rewrite `/c` and accidentally launch interactive cmd.
+        cmd.exe //d //s //c "gradlew.bat --no-configuration-cache check"
         return
       fi
       ;;

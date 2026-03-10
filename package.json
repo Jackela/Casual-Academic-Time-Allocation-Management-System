@@ -8,12 +8,12 @@
     "clean": "bash scripts/clean.sh || powershell -ExecutionPolicy Bypass -File scripts/clean.ps1",
     "clean:backend": "./gradlew clean || true",
     "clean:frontend": "npm --prefix frontend run clean || true",
-    "e2e:reset": "node scripts/e2e-reset-seed.js"
-  },
-  "dependencies": {
-    "@redocly/cli": "^2.8.0"
+    "e2e:reset": "node scripts/e2e-reset-seed.js",
+    "ci:hygiene": "bash tools/ci/check-repo-hygiene.sh",
+    "ci:audit": "bash tools/ci/run-security-audit.sh"
   },
   "devDependencies": {
+    "@redocly/cli": "^2.20.4",
     "quicktype-core": "^23.0.171"
   }
 }

@@ -8,6 +8,8 @@ This repository uses a protected `main` branch with mandatory PR workflow.
 - Require at least 1 approving review.
 - Require CODEOWNERS review.
 - Require status checks:
+  - `repo-hygiene`
+  - `dependency-security`
   - `backend`
   - `frontend-unit`
   - `e2e`

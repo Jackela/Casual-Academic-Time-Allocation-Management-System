@@ -11,4 +11,4 @@ if [ -d frontend ]; then
 fi
 
 echo "[frontend-unit] tests"
-CI=1 NODE_ENV=test npm --prefix frontend run test:unit
+CI=1 NODE_ENV=test npm --prefix frontend run test

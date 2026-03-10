@@ -38,7 +38,7 @@ public class SecurityConfig {
     private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
     private final Environment environment;
     
-    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:8084}")
+    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
     
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
