@@ -16,7 +16,11 @@ export E2E_BACKEND_PORT
 export API_PORT=${API_PORT:-$E2E_BACKEND_PORT}
 
 echo "[e2e] install frontend deps"
-npm --prefix frontend ci
+if [[ "${CI:-}" == "1" ]]; then
+  npm --prefix frontend ci
+else
+  npm --prefix frontend install --no-audit --no-fund
+fi
 
 echo "[e2e] install playwright browsers"
 npm --prefix frontend exec playwright install --with-deps chromium
