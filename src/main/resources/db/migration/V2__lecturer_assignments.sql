@@ -14,5 +14,11 @@ CREATE INDEX IF NOT EXISTS idx_lecturer_assignment_course ON lecturer_assignment
 
 -- Backfill assignments from existing courses to preserve behavior
 INSERT INTO lecturer_assignments (lecturer_id, course_id)
-SELECT c.lecturer_id, c.id FROM courses c
-ON CONFLICT (lecturer_id, course_id) DO NOTHING;
+SELECT c.lecturer_id, c.id
+FROM courses c
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM lecturer_assignments la
+    WHERE la.lecturer_id = c.lecturer_id
+      AND la.course_id = c.id
+);

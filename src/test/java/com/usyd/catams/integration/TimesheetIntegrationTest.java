@@ -3,6 +3,7 @@ package com.usyd.catams.integration;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.User;
+import com.usyd.catams.domain.service.TimesheetValidationService;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.repository.CourseRepository;
@@ -44,6 +45,9 @@ public class TimesheetIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private LecturerAssignmentRepository lecturerAssignmentRepository;
+
+    @Autowired
+    private TimesheetValidationService timesheetValidationService;
 
     private User lecturer;
     private User tutor;
@@ -228,33 +232,18 @@ public class TimesheetIntegrationTest extends IntegrationTestBase {
 
     @Test
     void testTimesheetValidation_HourlyRateRange() {
-        // Test rate below minimum (10.00)
-        Timesheet invalidLowRate = new Timesheet(
-                tutor.getId(),
-                course.getId(),
-                mondayDate,
+        // Validation SSOT resides in TimesheetValidationService.
+        assertThatThrownBy(() -> timesheetValidationService.validateInputs(
                 BigDecimal.valueOf(10.0),
-                BigDecimal.valueOf(5.00), // Below minimum
-                "Tutorial work",
-                lecturer.getId()
-        );
+                BigDecimal.valueOf(5.00)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Hourly rate must be between");
 
-        assertThatThrownBy(() -> timesheetRepository.save(invalidLowRate))
-                .isInstanceOf(Exception.class);
-
-        // Test rate above maximum (200.00)
-        Timesheet invalidHighRate = new Timesheet(
-                tutor.getId(),
-                course.getId(),
-                mondayDate.plusWeeks(1),
+        assertThatThrownBy(() -> timesheetValidationService.validateInputs(
                 BigDecimal.valueOf(10.0),
-                BigDecimal.valueOf(250.00), // Above maximum
-                "Tutorial work",
-                lecturer.getId()
-        );
-
-        assertThatThrownBy(() -> timesheetRepository.save(invalidHighRate))
-                .isInstanceOf(Exception.class);
+                BigDecimal.valueOf(250.00)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Hourly rate must be between");
     }
 
     @Test

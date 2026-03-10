@@ -4,9 +4,6 @@ import com.usyd.catams.dto.response.PagedTimesheetResponse;
 import com.usyd.catams.dto.response.TimesheetQuoteResponse;
 import com.usyd.catams.dto.response.TimesheetResponse;
 import com.usyd.catams.entity.Course;
-import com.usyd.catams.entity.PolicyVersion;
-import com.usyd.catams.entity.RateAmount;
-import com.usyd.catams.entity.RateCode;
 import com.usyd.catams.entity.Timesheet;
 import com.usyd.catams.entity.TutorAssignment;
 import com.usyd.catams.entity.User;
@@ -16,10 +13,7 @@ import com.usyd.catams.enums.TutorQualification;
 import com.usyd.catams.enums.UserRole;
 import com.usyd.catams.integration.IntegrationTestBase;
 import com.usyd.catams.repository.CourseRepository;
-import com.usyd.catams.repository.PolicyVersionRepository;
 import com.usyd.catams.repository.LecturerAssignmentRepository;
-import com.usyd.catams.repository.RateAmountRepository;
-import com.usyd.catams.repository.RateCodeRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.TutorAssignmentRepository;
 import com.usyd.catams.repository.UserRepository;
@@ -59,15 +53,6 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
     private TimesheetRepository timesheetRepository;
 
     @Autowired
-    private PolicyVersionRepository policyVersionRepository;
-
-    @Autowired
-    private RateCodeRepository rateCodeRepository;
-
-    @Autowired
-    private RateAmountRepository rateAmountRepository;
-
-    @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
     @Autowired
@@ -89,11 +74,6 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         tutorAssignmentRepository.deleteAll();
         courseRepository.deleteAll();
         userRepository.deleteAll();
-        rateAmountRepository.deleteAll();
-        rateCodeRepository.deleteAll();
-        policyVersionRepository.deleteAll();
-
-        seedTutorialPolicySnapshot();
         lecturer = userRepository.save(new User("lecturer.api@test", "Lecturer API", "$2a$10$hashedLecturer", UserRole.LECTURER));
         tutor = userRepository.save(new User("tutor.api@test", "Tutor API", "$2a$10$hashedTutor", UserRole.TUTOR));
         admin = userRepository.save(new User("admin.api@test", "Admin API", "$2a$10$hashedAdmin", UserRole.ADMIN));
@@ -131,7 +111,7 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         request.put("qualification", "STANDARD");
         request.put("isRepeat", false);
         request.put("deliveryHours", 1.0);
-        request.put("sessionDate", "2024-07-08");
+        request.put("sessionDate", "2025-07-07");
         request.put("tutorId", tutor.getId());
         request.put("courseId", course.getId());
 
@@ -141,21 +121,21 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.taskType").value("TUTORIAL"))
                 .andExpect(jsonPath("$.associatedHours").value(closeTo(2.0, 0.0001)))
                 .andExpect(jsonPath("$.payableHours").value(closeTo(3.0, 0.0001)))
-                .andExpect(jsonPath("$.hourlyRate").value(closeTo(58.65, 0.01)))
-                .andExpect(jsonPath("$.amount").value(closeTo(175.94, 0.001)))
+                .andExpect(jsonPath("$.hourlyRate").value(closeTo(60.85, 0.01)))
+                .andExpect(jsonPath("$.amount").value(closeTo(182.54, 0.001)))
                 .andExpect(jsonPath("$.formula").value(Matchers.containsString("1h delivery")));
     }
 
     @Test
     void shouldKeepRepeatTutorialQuoteWhenPriorSessionExistsWithinWindow() throws Exception {
-        seedTutorialSession(LocalDate.of(2024, 7, 8));
+        seedTutorialSession(LocalDate.of(2025, 7, 7));
 
         Map<String, Object> request = new HashMap<>();
         request.put("taskType", "TUTORIAL");
         request.put("qualification", "PHD");
         request.put("isRepeat", true);
         request.put("deliveryHours", 1.0);
-        request.put("sessionDate", "2024-07-15");
+        request.put("sessionDate", "2025-07-14");
         request.put("tutorId", tutor.getId());
         request.put("courseId", course.getId());
 
@@ -168,14 +148,14 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
 
     @Test
     void shouldDowngradeRepeatTutorialQuoteWhenOutsideEligibilityWindow() throws Exception {
-        seedTutorialSession(LocalDate.of(2024, 6, 24));
+        seedTutorialSession(LocalDate.of(2025, 6, 23));
 
         Map<String, Object> request = new HashMap<>();
         request.put("taskType", "TUTORIAL");
         request.put("qualification", "PHD");
         request.put("isRepeat", true);
         request.put("deliveryHours", 1.0);
-        request.put("sessionDate", "2024-07-15");
+        request.put("sessionDate", "2025-07-14");
         request.put("tutorId", tutor.getId());
         request.put("courseId", course.getId());
 
@@ -191,12 +171,12 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         Map<String, Object> request = new HashMap<>();
         request.put("tutorId", tutor.getId());
         request.put("courseId", course.getId());
-        request.put("weekStartDate", "2024-07-08");
+        request.put("weekStartDate", "2025-07-07");
         request.put("taskType", "TUTORIAL");
         request.put("qualification", "STANDARD");
         request.put("isRepeat", false);
         request.put("deliveryHours", 1.0);
-        request.put("sessionDate", "2024-07-08");
+        request.put("sessionDate", "2025-07-07");
         request.put("description", "Tutorial entry requiring EA-compliant backend recalculation");
 
         performPost("/api/timesheets", request, lecturerAuthHeader)
@@ -205,11 +185,11 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.deliveryHours").value(closeTo(1.0, 0.0001)))
                 .andExpect(jsonPath("$.associatedHours").value(closeTo(2.0, 0.0001)))
                 .andExpect(jsonPath("$.rateCode").value("TU2"))
-                .andExpect(jsonPath("$.totalPay").value(closeTo(175.94, 0.001)));
+                .andExpect(jsonPath("$.totalPay").value(closeTo(182.54, 0.001)));
 
         Timesheet persisted = timesheetRepository.findAll().get(0);
         assertThat(persisted.getHours()).isEqualByComparingTo(new BigDecimal("3.0"));
-        assertThat(persisted.getCalculatedAmount()).isEqualByComparingTo(new BigDecimal("175.94"));
+        assertThat(persisted.getCalculatedAmount()).isEqualByComparingTo(new BigDecimal("182.54"));
     }
 
     @Test
@@ -218,108 +198,16 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         Map<String, Object> tutorRequest = new HashMap<>();
         tutorRequest.put("tutorId", tutor.getId());
         tutorRequest.put("courseId", course.getId());
-        tutorRequest.put("weekStartDate", "2024-07-08");
+        tutorRequest.put("weekStartDate", "2025-07-07");
         tutorRequest.put("taskType", "TUTORIAL");
         tutorRequest.put("qualification", "STANDARD");
         tutorRequest.put("isRepeat", false);
         tutorRequest.put("deliveryHours", 1.0);
-        tutorRequest.put("sessionDate", "2024-07-08");
+        tutorRequest.put("sessionDate", "2025-07-07");
         tutorRequest.put("description", "Tutor attempting to self-create a timesheet should be blocked");
 
         performPost("/api/timesheets", tutorRequest, tutorAuthHeader)
                 .andExpect(status().isForbidden());
-    }
-
-    private void seedTutorialPolicySnapshot() {
-        PolicyVersion version = policyVersionRepository
-            .findByEaReferenceAndMajorVersionAndMinorVersion("EA-2023-2026-Schedule-1", 2023, 0)
-            .orElseGet(() -> {
-                PolicyVersion newVersion = new PolicyVersion();
-                newVersion.setEaReference("EA-2023-2026-Schedule-1");
-                newVersion.setMajorVersion(2023);
-                newVersion.setMinorVersion(0);
-                newVersion.setEffectiveFrom(LocalDate.of(2023, 7, 1));
-                newVersion.setEffectiveTo(null);
-                newVersion.setSourceDocumentUrl("docs/requirements/University-of-Sydney-Enterprise-Agreement-2023-2026.pdf");
-                newVersion.setNotes("Integration test seed for Schedule 1 tutorial rates");
-                return policyVersionRepository.save(newVersion);
-            });
-
-        RateCode tutorialPhd = rateCodeRepository.findByCode("TU1")
-            .orElseGet(() -> {
-                RateCode newRate = new RateCode();
-                newRate.setCode("TU1");
-                newRate.setTaskType(TimesheetTaskType.TUTORIAL);
-                newRate.setDescription("Tutorial rate – PhD holder or unit coordinator");
-                newRate.setDefaultAssociatedHours(new BigDecimal("2.0"));
-                newRate.setDefaultDeliveryHours(new BigDecimal("1.0"));
-                newRate.setRequiresPhd(true);
-                newRate.setRepeatable(false);
-                newRate.setEaClauseReference("Schedule 1 – Tutoring p. 213");
-                return rateCodeRepository.save(newRate);
-            });
-
-        RateCode tutorialStandard = rateCodeRepository.findByCode("TU2")
-            .orElseGet(() -> {
-                RateCode newRate = new RateCode();
-                newRate.setCode("TU2");
-                newRate.setTaskType(TimesheetTaskType.TUTORIAL);
-                newRate.setDescription("Tutorial rate – standard eligibility");
-                newRate.setDefaultAssociatedHours(new BigDecimal("2.0"));
-                newRate.setDefaultDeliveryHours(new BigDecimal("1.0"));
-                newRate.setRequiresPhd(false);
-                newRate.setRepeatable(false);
-                newRate.setEaClauseReference("Schedule 1 – Tutoring p. 213");
-                return rateCodeRepository.save(newRate);
-            });
-
-        rateAmountRepository.findByRateCodeAndPolicyVersionAndQualification(tutorialPhd, version, TutorQualification.PHD)
-            .orElseGet(() -> {
-                RateAmount phdAmount = new RateAmount();
-                phdAmount.setRateCode(tutorialPhd);
-                phdAmount.setPolicyVersion(version);
-                phdAmount.setYearLabel("2024-07");
-                phdAmount.setEffectiveFrom(LocalDate.of(2024, 7, 1));
-                phdAmount.setEffectiveTo(null);
-                phdAmount.setHourlyAmountAud(new BigDecimal("210.19"));
-                phdAmount.setMaxAssociatedHours(new BigDecimal("2.0"));
-                phdAmount.setMaxPayableHours(new BigDecimal("3.0"));
-                phdAmount.setQualification(TutorQualification.PHD);
-                phdAmount.setNotes("Tutorial PhD rate (1 July 2024, EA Schedule 1)");
-                return rateAmountRepository.save(phdAmount);
-            });
-
-        rateAmountRepository.findByRateCodeAndPolicyVersionAndQualification(tutorialPhd, version, TutorQualification.COORDINATOR)
-            .orElseGet(() -> {
-                RateAmount coordinatorAmount = new RateAmount();
-                coordinatorAmount.setRateCode(tutorialPhd);
-                coordinatorAmount.setPolicyVersion(version);
-                coordinatorAmount.setYearLabel("2024-07");
-                coordinatorAmount.setEffectiveFrom(LocalDate.of(2024, 7, 1));
-                coordinatorAmount.setEffectiveTo(null);
-                coordinatorAmount.setHourlyAmountAud(new BigDecimal("210.19"));
-                coordinatorAmount.setMaxAssociatedHours(new BigDecimal("2.0"));
-                coordinatorAmount.setMaxPayableHours(new BigDecimal("3.0"));
-                coordinatorAmount.setQualification(TutorQualification.COORDINATOR);
-                coordinatorAmount.setNotes("Tutorial coordinator rate (1 July 2024, EA Schedule 1)");
-                return rateAmountRepository.save(coordinatorAmount);
-            });
-
-        rateAmountRepository.findByRateCodeAndPolicyVersionAndQualification(tutorialStandard, version, TutorQualification.STANDARD)
-            .orElseGet(() -> {
-                RateAmount standardAmount = new RateAmount();
-                standardAmount.setRateCode(tutorialStandard);
-                standardAmount.setPolicyVersion(version);
-                standardAmount.setYearLabel("2024-07");
-                standardAmount.setEffectiveFrom(LocalDate.of(2024, 7, 1));
-                standardAmount.setEffectiveTo(null);
-                standardAmount.setHourlyAmountAud(new BigDecimal("175.94"));
-                standardAmount.setMaxAssociatedHours(new BigDecimal("2.0"));
-                standardAmount.setMaxPayableHours(new BigDecimal("3.0"));
-                standardAmount.setQualification(TutorQualification.STANDARD);
-                standardAmount.setNotes("Tutorial standard rate (1 July 2024, EA Schedule 1)");
-                return rateAmountRepository.save(standardAmount);
-            });
     }
 
     @Test
@@ -365,12 +253,12 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         Map<String, Object> request = new HashMap<>();
         request.put("tutorId", tutor.getId());
         request.put("courseId", course.getId());
-        request.put("weekStartDate", "2024-07-22");
+        request.put("weekStartDate", "2025-07-21");
         request.put("taskType", "TUTORIAL");
         request.put("qualification", "STANDARD");
         request.put("isRepeat", true);
         request.put("deliveryHours", 1.0);
-        request.put("sessionDate", "2024-07-22");
+        request.put("sessionDate", "2025-07-21");
         request.put("description", "Tutorial content A");
 
         performPost("/api/timesheets", request, lecturerAuthHeader)
@@ -384,12 +272,12 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         Map<String, Object> base = new HashMap<>();
         base.put("tutorId", tutor.getId());
         base.put("courseId", course.getId());
-        base.put("weekStartDate", "2024-07-08");
+        base.put("weekStartDate", "2025-07-07");
         base.put("taskType", "TUTORIAL");
         base.put("qualification", "STANDARD");
         base.put("isRepeat", false);
         base.put("deliveryHours", 1.0);
-        base.put("sessionDate", "2024-07-08");
+        base.put("sessionDate", "2025-07-07");
         base.put("description", "Tutorial content A");
 
         performPost("/api/timesheets", base, lecturerAuthHeader)
@@ -398,8 +286,8 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         // Now create a repeat within 7 days (next week)
         Map<String, Object> repeat = new HashMap<>();
         repeat.putAll(base);
-        repeat.put("weekStartDate", "2024-07-15");
-        repeat.put("sessionDate", "2024-07-15");
+        repeat.put("weekStartDate", "2025-07-14");
+        repeat.put("sessionDate", "2025-07-14");
         repeat.put("isRepeat", true);
 
         performPost("/api/timesheets", repeat, lecturerAuthHeader)
@@ -409,12 +297,12 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("Updating a timesheet preserves its original session date")
     void updatingTimesheetShouldPreserveSessionDate() throws Exception {
-        LocalDate originalSessionDate = LocalDate.of(2024, 7, 15);
+        LocalDate originalSessionDate = LocalDate.of(2025, 7, 14);
 
         Map<String, Object> createRequest = new HashMap<>();
         createRequest.put("tutorId", tutor.getId());
         createRequest.put("courseId", course.getId());
-        createRequest.put("weekStartDate", "2024-07-15");
+        createRequest.put("weekStartDate", "2025-07-14");
         createRequest.put("taskType", "TUTORIAL");
         createRequest.put("qualification", "STANDARD");
         createRequest.put("isRepeat", false);
@@ -490,7 +378,7 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         assertThat(quote.getHourlyRate()).isEqualByComparingTo(new BigDecimal("58.32"));
         assertThat(quote.getAmount()).isEqualByComparingTo(new BigDecimal("58.32"));
         assertThat(quote.getFormula()).contains("Schedule 1 Clause 3.1(a)");
-        assertThat(quote.getSessionDate()).isEqualTo(LocalDate.of(2024, 7, 8));
+        assertThat(quote.getSessionDate()).isEqualTo(LocalDate.of(2025, 7, 7));
     }
 
     @Test
@@ -509,7 +397,7 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
                 TimesheetQuoteResponse.class);
 
         assertThat(quote.getRateCode()).isEqualTo("TU1");
-        assertThat(quote.getAmount()).isEqualByComparingTo(new BigDecimal("210.19"));
+        assertThat(quote.getAmount()).isEqualByComparingTo(new BigDecimal("218.07"));
     }
 
     private Map<String, Object> baseQuotePayload(String taskType,
@@ -521,7 +409,7 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         payload.put("qualification", qualification);
         payload.put("isRepeat", repeat);
         payload.put("deliveryHours", deliveryHours);
-        payload.put("sessionDate", "2024-07-08");
+        payload.put("sessionDate", "2025-07-07");
         payload.put("tutorId", tutor.getId());
         payload.put("courseId", course.getId());
         return payload;
@@ -534,7 +422,7 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
                 .withWeekStartDate(sessionDate)
                 .withSessionDate(sessionDate)
                 .withHours(new BigDecimal("3.0"))
-                .withHourlyRate(new BigDecimal("70.06"))
+                .withHourlyRate(new BigDecimal("72.69"))
                 .withDescription("Prior tutorial session for repeat-window checks")
                 .withCreatedBy(lecturer.getId())
                 .withStatus(ApprovalStatus.FINAL_CONFIRMED)
@@ -546,7 +434,7 @@ class TimesheetControllerIntegrationTest extends IntegrationTestBase {
         prior.setDeliveryHours(new BigDecimal("1.0"));
         prior.setAssociatedHours(new BigDecimal("2.0"));
         prior.setRateCode("TU1");
-        prior.setCalculatedAmount(new BigDecimal("210.19"));
+        prior.setCalculatedAmount(new BigDecimal("218.07"));
 
         timesheetRepository.save(prior);
     }

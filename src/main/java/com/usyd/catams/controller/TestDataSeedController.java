@@ -29,7 +29,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/test-data/seed")
-@Profile({"test", "e2e"})
+@Profile({"test", "e2e", "e2e-local"})
 public class TestDataSeedController {
 
     private static final Logger logger = LoggerFactory.getLogger(TestDataSeedController.class);

@@ -3,14 +3,17 @@ package com.usyd.catams.application.approval;
 import com.usyd.catams.application.ApprovalApplicationService;
 import com.usyd.catams.entity.Course;
 import com.usyd.catams.entity.Timesheet;
+import com.usyd.catams.entity.TutorAssignment;
 import com.usyd.catams.entity.User;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.UserRole;
+import com.usyd.catams.exception.AuthorizationException;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
 import com.usyd.catams.repository.LecturerAssignmentRepository;
+import com.usyd.catams.repository.TutorAssignmentRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +41,9 @@ public class ApprovalFlowIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private LecturerAssignmentRepository lecturerAssignmentRepository;
+
+    @Autowired
+    private TutorAssignmentRepository tutorAssignmentRepository;
 
     private static LocalDate mondayWeeksAgo(int weeks) {
         LocalDate today = LocalDate.now();
@@ -69,6 +75,7 @@ public class ApprovalFlowIntegrationTest extends IntegrationTestBase {
         courseRepository.save(course);
         // ensure lecturer assignment SSOT for scoping
         lecturerAssignmentRepository.save(new com.usyd.catams.entity.LecturerAssignment(lecturer.getId(), course.getId()));
+        tutorAssignmentRepository.save(new TutorAssignment(tutor.getId(), course.getId()));
 
         LocalDate weekStart = mondayWeeksAgo(12);
         Timesheet ts = new Timesheet(
@@ -115,6 +122,7 @@ public class ApprovalFlowIntegrationTest extends IntegrationTestBase {
         courseRepository.save(course);
         // ensure lecturer assignment SSOT for scoping
         lecturerAssignmentRepository.save(new com.usyd.catams.entity.LecturerAssignment(lecturer.getId(), course.getId()));
+        tutorAssignmentRepository.save(new TutorAssignment(tutor.getId(), course.getId()));
 
         Timesheet timesheet = new Timesheet(
             tutor.getId(),
@@ -134,7 +142,7 @@ public class ApprovalFlowIntegrationTest extends IntegrationTestBase {
         Timesheet afterRequest = timesheetRepository.findById(timesheet.getId()).orElseThrow();
         Assertions.assertEquals(ApprovalStatus.MODIFICATION_REQUESTED, afterRequest.getStatus());
 
-        Assertions.assertThrows(SecurityException.class, () ->
+        Assertions.assertThrows(AuthorizationException.class, () ->
             approvalApplicationService.performApprovalAction(timesheet.getId(), ApprovalAction.SUBMIT_FOR_APPROVAL, "lecturer resubmit attempt", lecturer.getId())
         );
 

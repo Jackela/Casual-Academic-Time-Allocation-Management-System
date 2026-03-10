@@ -555,14 +555,18 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
   // Docker-backed backend mode
   if (backendMode === 'docker') {
     logStep('STEP 2', 'Starting backend via Docker Compose...');
-    const composeEnv = { API_PORT: String(backendPort) };
+    const composeEnv = {
+      API_PORT: String(backendPort),
+      TEST_DATA_RESET_TOKEN: process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset',
+    };
     try {
       if (isTruthy(process.env.CI) || process.env.ACT_TOOLSDIRECTORY) {
         await runCommand('docker', ['compose', 'down', '-v'], { env: composeEnv, stdio: 'ignore' });
       }
       // Bring up DB then API
       await runCommand('docker', ['compose', 'up', '-d', 'db'], { env: composeEnv });
-      await runCommand('docker', ['compose', 'up', '-d', 'api'], { env: composeEnv });
+      // Always rebuild API image to avoid stale security/config behavior across local runs.
+      await runCommand('docker', ['compose', 'up', '-d', '--build', 'api'], { env: composeEnv });
       const healthConfig = createHealthConfig('BACKEND');
       await waitForHttpHealth({ url: backendHealthUrl, label: 'backend', config: healthConfig });
       logSuccess('Backend (Docker) is healthy and ready.');
@@ -703,7 +707,21 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
   }
 
   if (await tcpPortUsed.check(frontendPort, frontendHost)) {
-    throw new Error(`Port ${frontendPort} already in use but frontend health check failed. Aborting.`);
+    logWarning(`Port ${frontendPort} already in use but frontend health check failed. Attempting cleanup...`);
+    try {
+      if (isWindows()) {
+        const ps = `Get-NetTCPConnection -LocalPort ${frontendPort} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }`;
+        await runCommand('cmd.exe', ['/d', '/s', '/c', `powershell -NoProfile -Command "${ps}"`], { stdio: 'ignore' });
+      } else {
+        await runCommand('bash', ['-lc', `pids=$(lsof -ti :${frontendPort} || true); if [ -n "$pids" ]; then kill -9 $pids || true; fi`], { stdio: 'ignore' });
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    } catch (error) {
+      logWarning(`Frontend port cleanup warning: ${error.message}`);
+    }
+    if (await tcpPortUsed.check(frontendPort, frontendHost)) {
+      throw new Error(`Port ${frontendPort} already in use and cleanup failed. Aborting.`);
+    }
   }
 
   logStep('STEP 3', 'Starting Vite frontend dev server...');

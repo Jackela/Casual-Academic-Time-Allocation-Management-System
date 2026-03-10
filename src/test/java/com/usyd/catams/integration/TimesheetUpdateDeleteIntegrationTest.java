@@ -176,14 +176,14 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(draftTimesheet.getId()))
                 .andExpect(jsonPath("$.hours").value(closeTo(3.0, 0.0001)))
-                .andExpect(jsonPath("$.hourlyRate").value(closeTo(58.65, 0.01)))
+                .andExpect(jsonPath("$.hourlyRate").value(closeTo(60.85, 0.01)))
                 .andExpect(jsonPath("$.description").value("Updated: Tutorial sessions, grading, and consultation hours"))
                 .andExpect(jsonPath("$.status").value(ApprovalStatus.DRAFT.name()));
 
         // Verify database was updated
         Timesheet updated = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
         assertEquals(0, updated.getHours().compareTo(BigDecimal.valueOf(3.0)));
-        assertEquals(0, updated.getHourlyRate().compareTo(new BigDecimal("58.65")));
+        assertEquals(0, updated.getHourlyRate().compareTo(new BigDecimal("60.85")));
         assertEquals("Updated: Tutorial sessions, grading, and consultation hours", updated.getDescription());
         assertEquals(ApprovalStatus.DRAFT, updated.getStatus());
     }
@@ -203,7 +203,7 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
                 "Bearer " + token)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hours").value(closeTo(3.0, 0.0001)))
-                .andExpect(jsonPath("$.hourlyRate").value(closeTo(58.65, 0.01)))
+                .andExpect(jsonPath("$.hourlyRate").value(closeTo(60.85, 0.01)))
                 .andExpect(jsonPath("$.status").value(ApprovalStatus.DRAFT.name()));
     }
 

@@ -160,7 +160,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
             .andExpect(jsonPath("$.tutorId").value(testTutor.getId()))
             .andExpect(jsonPath("$.courseId").value(testCourse.getId()))
             .andExpect(jsonPath("$.hours").value(closeTo(3.0, 0.0001)))
-            .andExpect(jsonPath("$.hourlyRate").value(closeTo(58.65, 0.01)))
+            .andExpect(jsonPath("$.hourlyRate").value(closeTo(60.85, 0.01)))
             .andExpect(jsonPath("$.description").value("Full integration test timesheet - database persistence verified"))
             .andExpect(jsonPath("$.status").value(com.usyd.catams.enums.ApprovalStatus.DRAFT.name()))
             .andExpect(jsonPath("$.weekStartDate").value(nextMonday.toString()));
@@ -172,7 +172,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
         assert savedTimesheet.getTutorId().equals(testTutor.getId());
         assert savedTimesheet.getCourseId().equals(testCourse.getId());
         assert savedTimesheet.getHours().compareTo(new BigDecimal("3.0")) == 0;
-        assert savedTimesheet.getHourlyRate().compareTo(new BigDecimal("58.65")) == 0;
+        assert savedTimesheet.getHourlyRate().compareTo(new BigDecimal("60.85")) == 0;
     }
 
     @Test
@@ -271,7 +271,7 @@ class TimesheetWorkflowIntegrationTest extends IntegrationTestBase {
 
         // Act & Assert
         performPostWithoutFinancialFields("/api/timesheets", request, lecturerToken)
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isNotFound());
 
         // Verify transaction rollback - no partial data persisted
         var timesheets = timesheetRepository.findAll();

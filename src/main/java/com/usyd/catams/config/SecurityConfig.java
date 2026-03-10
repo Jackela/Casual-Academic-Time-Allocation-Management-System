@@ -63,7 +63,7 @@ public class SecurityConfig {
         boolean testDataProfile = Arrays.stream(environment.getActiveProfiles())
             .anyMatch(p -> p != null && (
                 p.equalsIgnoreCase("test")
-                    || p.equalsIgnoreCase("e2e")
+                    || p.toLowerCase().startsWith("e2e")
             ));
 
         http
