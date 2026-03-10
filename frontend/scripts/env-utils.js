@@ -2,6 +2,7 @@ import path from 'path';
 import http from 'node:http';
 import https from 'node:https';
 import os from 'node:os';
+import fs from 'node:fs';
 
 const requireEnv = (name) => {
   const value = process.env[name];
@@ -119,13 +120,13 @@ export function resolveNpxCommand() {
 }
 
 export function resolveGradleCommand(cwd = process.cwd()) {
-  // Prefer system Gradle in CI (CI=true/1) or when explicitly requested
-  const preferSystem = String(process.env.CI || process.env.USE_SYSTEM_GRADLE || '').toLowerCase();
-  if (['1', 'true', 'yes', 'y'].includes(preferSystem)) {
-    return 'gradle';
-  }
   const wrapperName = isWindows() ? 'gradlew.bat' : 'gradlew';
-  return path.join(cwd, wrapperName);
+  const wrapperPath = path.join(cwd, wrapperName);
+  // Prefer repository wrapper for deterministic behavior across local and CI.
+  if (fs.existsSync(wrapperPath)) {
+    return wrapperPath;
+  }
+  return 'gradle';
 }
 
 export function resolveCmdShim(command) {
