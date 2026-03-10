@@ -21,6 +21,12 @@ echo "[1/4] Backend checks (gradle check)"
 bash tools/ci/run-backend.sh
 echo ""
 
+echo "[prep] Ensure frontend lint deps"
+if [[ ! -f frontend/node_modules/.bin/eslint && ! -f frontend/node_modules/.bin/eslint.cmd ]]; then
+  npm --prefix frontend ci
+fi
+echo ""
+
 echo "[2/4] Frontend lint"
 npm --prefix frontend run lint
 echo ""
