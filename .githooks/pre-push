@@ -23,7 +23,7 @@ echo ""
 
 echo "[prep] Ensure frontend lint deps"
 if [[ ! -f frontend/node_modules/.bin/eslint && ! -f frontend/node_modules/.bin/eslint.cmd ]]; then
-  npm --prefix frontend ci
+  npm --prefix frontend install --no-audit --no-fund
 fi
 echo ""
 
