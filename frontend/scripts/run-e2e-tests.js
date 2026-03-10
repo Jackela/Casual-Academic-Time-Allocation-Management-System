@@ -710,8 +710,15 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
     logWarning(`Port ${frontendPort} already in use but frontend health check failed. Attempting cleanup...`);
     try {
       if (isWindows()) {
-        const ps = `Get-NetTCPConnection -LocalPort ${frontendPort} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }`;
-        await runCommand('cmd.exe', ['/d', '/s', '/c', `powershell -NoProfile -Command "${ps}"`], { stdio: 'ignore' });
+        const ps = [
+          "$ErrorActionPreference='SilentlyContinue';",
+          `$pids = @();`,
+          `$pids += (Get-NetTCPConnection -LocalPort ${frontendPort} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess);`,
+          `$pids += (netstat -ano | Select-String ':${frontendPort}' | ForEach-Object { ($_ -split '\\s+')[-1] });`,
+          `$pids = $pids | Where-Object { $_ -match '^\\d+$' } | Select-Object -Unique;`,
+          `foreach ($pid in $pids) { Stop-Process -Id ([int]$pid) -Force -ErrorAction SilentlyContinue }`,
+        ].join(' ');
+        await runCommand('powershell', ['-NoProfile', '-Command', ps], { stdio: 'ignore' });
       } else {
         await runCommand('bash', ['-lc', `pids=$(lsof -ti :${frontendPort} || true); if [ -n "$pids" ]; then kill -9 $pids || true; fi`], { stdio: 'ignore' });
       }
