@@ -323,7 +323,25 @@ const verifyTypeScriptArtifacts = async (artifacts) => {
   }
 };
 
+const fingerprintsEqual = (left = {}, right = {}) => {
+  const leftEntries = Object.entries(left);
+  const rightEntries = Object.entries(right);
+  if (leftEntries.length !== rightEntries.length) {
+    return false;
+  }
+  return leftEntries.every(([key, value]) => right[key] === value);
+};
+
 const writeLockFile = async (fingerprint) => {
+  const existingLock = await readJsonFile(lockFilePath);
+  if (
+    existingLock
+    && typeof existingLock === "object"
+    && fingerprintsEqual(existingLock.schemas || {}, fingerprint)
+  ) {
+    return;
+  }
+
   const payload = {
     version: 1,
     generatedAt: new Date().toISOString(),
