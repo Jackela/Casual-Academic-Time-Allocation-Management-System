@@ -619,8 +619,11 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
       API_PORT: String(backendPort),
       TEST_DATA_RESET_TOKEN: process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset',
     };
+    const runningInHostedCi = isTruthy(process.env.GITHUB_ACTIONS) || !!process.env.ACT_TOOLSDIRECTORY;
     const shouldRebuildApiImage =
-      isTruthy(process.env.E2E_DOCKER_REBUILD) || isTruthy(process.env.CI) || !!process.env.ACT_TOOLSDIRECTORY;
+      process.env.E2E_DOCKER_REBUILD != null
+        ? isTruthy(process.env.E2E_DOCKER_REBUILD)
+        : runningInHostedCi;
     const maxAttempts = Math.max(
       1,
       Number.parseInt(process.env.E2E_DOCKER_STARTUP_ATTEMPTS || '3', 10) || 3,
@@ -629,7 +632,7 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
       await ensureDockerBackendArtifact();
       for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
-          if (isTruthy(process.env.CI) || process.env.ACT_TOOLSDIRECTORY) {
+          if (runningInHostedCi) {
             await runCommand('docker', ['compose', 'down', '-v'], {
               env: composeEnv,
               stdio: 'ignore',
@@ -810,7 +813,7 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
           `$pids += (Get-NetTCPConnection -LocalPort ${frontendPort} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess);`,
           `$pids += (netstat -ano | Select-String ':${frontendPort}' | ForEach-Object { ($_ -split '\\s+')[-1] });`,
           `$pids = $pids | Where-Object { $_ -match '^\\d+$' } | Select-Object -Unique;`,
-          `foreach ($pid in $pids) { Stop-Process -Id ([int]$pid) -Force -ErrorAction SilentlyContinue }`,
+          `foreach ($targetPid in $pids) { Stop-Process -Id ([int]$targetPid) -Force -ErrorAction SilentlyContinue }`,
         ].join(' ');
         await runCommand('powershell', ['-NoProfile', '-Command', ps], { stdio: 'ignore' });
       } else {
