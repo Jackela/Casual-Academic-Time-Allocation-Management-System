@@ -337,7 +337,7 @@ describe('TimesheetTable Component', () => {
       expect(mockHandlers.onRowClick).not.toHaveBeenCalled();
     });
 
-    it('chains tutor confirm before lecturer approval when approving (US2)', async () => {
+    it('uses lecturer confirm directly when lecturer approves a tutor-confirmed timesheet', async () => {
       const user = userEvent.setup();
       const confirmed = createMockTimesheet({ id: 7002, status: 'TUTOR_CONFIRMED' });
       const onApproval = vi.fn(async () => {});
@@ -358,8 +358,8 @@ describe('TimesheetTable Component', () => {
 
       await user.click(approveButton);
 
-      expect(onApproval).toHaveBeenNthCalledWith(1, confirmed.id, 'TUTOR_CONFIRM');
-      expect(onApproval).toHaveBeenNthCalledWith(2, confirmed.id, 'LECTURER_CONFIRM');
+      expect(onApproval).toHaveBeenCalledTimes(1);
+      expect(onApproval).toHaveBeenNthCalledWith(1, confirmed.id, 'LECTURER_CONFIRM');
     });
 
     it('should handle row hover states', async () => {

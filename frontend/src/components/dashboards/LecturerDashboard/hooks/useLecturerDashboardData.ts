@@ -333,8 +333,6 @@ export function useLecturerDashboardData(): UseLecturerDashboardDataResult {
       }
 
       actionLockRef.current = true;
-      // Attempt explicit confirmation first (idempotent on server)
-      try { await TimesheetService.confirmTimesheet(timesheetId); } catch {}
       await approveTimesheet({
         timesheetId,
         action: 'LECTURER_CONFIRM',

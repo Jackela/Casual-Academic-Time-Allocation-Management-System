@@ -195,14 +195,8 @@ const TimesheetRow = memo<TimesheetRowProps>(({
       return;
     }
     const approveAction = getApproveActionForRole(approvalRole);
-    // US2: Ensure Tutor confirmation before any Lecturer approval (always attempt confirm first)
-    if (actionMode === 'approval' && approvalRole === 'LECTURER') {
-      await Promise.resolve(onApprovalAction(timesheet.id, 'TUTOR_CONFIRM'));
-      await Promise.resolve(onApprovalAction(timesheet.id, approveAction));
-      return;
-    }
     await Promise.resolve(onApprovalAction(timesheet.id, approveAction));
-  }, [actionLoading, actionsDisabled, approvalRole, onApprovalAction, timesheet.id, actionMode]);
+  }, [actionLoading, actionsDisabled, approvalRole, onApprovalAction, timesheet.id]);
 
   const handleReject = useCallback((event: React.MouseEvent | unknown) => {
     if (event && typeof (event as any).stopPropagation === 'function') {
@@ -1220,7 +1214,6 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 TimesheetTable.displayName = 'TimesheetTable';
 
 export default TimesheetTable;
-
 
 
 

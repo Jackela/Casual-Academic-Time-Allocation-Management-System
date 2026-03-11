@@ -59,6 +59,41 @@ const serverConstraintSchema = {
 const validateServerConstraints: ValidateFunction<TimesheetConstraintPayload> =
   ajv.compile(serverConstraintSchema);
 
+const resolveDirectBackendConfigEndpoints = (): string[] => {
+  const endpointSet = new Set<string>();
+  const env = import.meta.env as Record<string, string | undefined>;
+
+  const proxyTarget = env.VITE_API_PROXY_TARGET || env.VITE_E2E_BACKEND_URL;
+  if (proxyTarget) {
+    try {
+      const parsed = new URL(proxyTarget);
+      endpointSet.add(`${parsed.protocol}//${parsed.hostname}:${parsed.port}/api/timesheets/config`);
+    } catch {
+      // ignore invalid URL and keep fallback resolution below
+    }
+  }
+
+  const backendPort =
+    env.VITE_E2E_BACKEND_PORT
+    || (() => {
+      try {
+        if (proxyTarget) {
+          const parsed = new URL(proxyTarget);
+          return parsed.port || undefined;
+        }
+      } catch {
+        // ignore parse failure
+      }
+      return undefined;
+    })()
+    || '8080';
+
+  endpointSet.add(`http://localhost:${backendPort}/api/timesheets/config`);
+  endpointSet.add(`http://127.0.0.1:${backendPort}/api/timesheets/config`);
+
+  return Array.from(endpointSet);
+};
+
 const resolveTimesheetConfigEndpoints = (): string[] => {
   // Always attempt dedicated endpoint even in E2E/test so UAT uses server SSOT
   const endpoints = new Set<string>();
@@ -93,12 +128,7 @@ const resolveTimesheetConfigEndpoints = (): string[] => {
     } catch {}
     if (isE2E || isLocalDev) {
       // Prefer direct backend endpoints to avoid proxy gaps in dev/e2e (omit relative path)
-      // Use environment variable for backend port if available (CI uses 8084)
-      const backendPort = import.meta.env.E2E_BACKEND_PORT || '8080';
-      return [
-        `http://localhost:${backendPort}/api/timesheets/config`,
-        `http://127.0.0.1:${backendPort}/api/timesheets/config`,
-      ];
+      return resolveDirectBackendConfigEndpoints();
     }
   } catch {
     // ignore

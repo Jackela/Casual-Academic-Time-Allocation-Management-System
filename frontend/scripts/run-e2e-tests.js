@@ -102,6 +102,25 @@ function logError(message) {
   log(`${colors.red}❌ ${message}${colors.reset}`);
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldRetryDockerStartup(error) {
+  const content = `${error?.message || ''}\n${error?.stderr || ''}\n${error?.stdout || ''}`.toLowerCase();
+  return [
+    'failed to fetch anonymous token',
+    'failed to authorize',
+    'tls handshake timeout',
+    'i/o timeout',
+    'context deadline exceeded',
+    'connection reset',
+    'connection refused',
+    'temporary failure',
+    'connectex',
+  ].some((marker) => content.includes(marker));
+}
+
 async function dumpDockerLogs(env = {}, services = ['api']) {
   try {
     logWarning(`Collecting docker compose logs for services: ${services.join(', ')}`);
@@ -242,6 +261,47 @@ function runCommand(command, args = [], options = {}) {
       }
     });
   });
+}
+
+async function ensureDockerBackendArtifact() {
+  logStep('STEP 2A', 'Building backend bootJar for Docker runtime image...');
+
+  const gradleWrapper = resolveGradleCommand(projectRoot);
+  const gradle = resolveCmdShim(gradleWrapper);
+
+  const baseArgs = [
+    ...gradle.args,
+    'bootJar',
+    '--no-daemon',
+    '-x',
+    'test',
+    '-x',
+    'generateContracts',
+  ];
+
+  try {
+    await runCommand(gradle.command, baseArgs);
+  } catch (error) {
+    logWarning(
+      'bootJar (without generateContracts) failed; retrying with generateContracts for recovery.',
+    );
+    await runCommand(gradle.command, [
+      ...gradle.args,
+      'generateContracts',
+      'bootJar',
+      '--no-daemon',
+      '-x',
+      'test',
+    ]);
+  }
+
+  const libsDir = join(projectRoot, 'build', 'libs');
+  const jars = fs.existsSync(libsDir)
+    ? fs.readdirSync(libsDir).filter((fileName) => fileName.endsWith('.jar'))
+    : [];
+  if (jars.length === 0) {
+    throw new Error(`Expected bootJar artifact under ${libsDir}, but no .jar files were found.`);
+  }
 }
 
 async function cleanupChild(child, label) {
@@ -559,18 +619,52 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
       API_PORT: String(backendPort),
       TEST_DATA_RESET_TOKEN: process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset',
     };
+    const shouldRebuildApiImage =
+      isTruthy(process.env.E2E_DOCKER_REBUILD) || isTruthy(process.env.CI) || !!process.env.ACT_TOOLSDIRECTORY;
+    const maxAttempts = Math.max(
+      1,
+      Number.parseInt(process.env.E2E_DOCKER_STARTUP_ATTEMPTS || '3', 10) || 3,
+    );
     try {
-      if (isTruthy(process.env.CI) || process.env.ACT_TOOLSDIRECTORY) {
-        await runCommand('docker', ['compose', 'down', '-v'], { env: composeEnv, stdio: 'ignore' });
+      await ensureDockerBackendArtifact();
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+          if (isTruthy(process.env.CI) || process.env.ACT_TOOLSDIRECTORY) {
+            await runCommand('docker', ['compose', 'down', '-v'], {
+              env: composeEnv,
+              stdio: 'ignore',
+            });
+          }
+          // Bring up DB then API
+          await runCommand('docker', ['compose', 'up', '-d', 'db'], { env: composeEnv });
+          if (shouldRebuildApiImage) {
+            log('  [docker] Starting API with image rebuild (--build).', colors.blue);
+            await runCommand('docker', ['compose', 'up', '-d', '--build', 'api'], { env: composeEnv });
+          } else {
+            log('  [docker] Starting API from existing local image (no --build).', colors.blue);
+            await runCommand('docker', ['compose', 'up', '-d', 'api'], { env: composeEnv });
+          }
+          const healthConfig = createHealthConfig('BACKEND');
+          await waitForHttpHealth({ url: backendHealthUrl, label: 'backend', config: healthConfig });
+          logSuccess('Backend (Docker) is healthy and ready.');
+          return;
+        } catch (error) {
+          const canRetry = attempt < maxAttempts && shouldRetryDockerStartup(error);
+          if (!canRetry) {
+            throw error;
+          }
+          const delayMs = attempt * 5000;
+          logWarning(
+            `Docker startup attempt ${attempt}/${maxAttempts} failed due transient dependency/network error; retrying in ${Math.floor(delayMs / 1000)}s.`,
+          );
+          try {
+            await runCommand('docker', ['compose', 'down', '-v'], { env: composeEnv, stdio: 'ignore' });
+          } catch {
+            // no-op best effort cleanup
+          }
+          await sleep(delayMs);
+        }
       }
-      // Bring up DB then API
-      await runCommand('docker', ['compose', 'up', '-d', 'db'], { env: composeEnv });
-      // Always rebuild API image to avoid stale security/config behavior across local runs.
-      await runCommand('docker', ['compose', 'up', '-d', '--build', 'api'], { env: composeEnv });
-      const healthConfig = createHealthConfig('BACKEND');
-      await waitForHttpHealth({ url: backendHealthUrl, label: 'backend', config: healthConfig });
-      logSuccess('Backend (Docker) is healthy and ready.');
-      return;
     } catch (error) {
       await dumpDockerLogs(composeEnv, ['api', 'db']);
       throw new Error(`Docker Compose startup failed: ${error.message}`);
@@ -750,6 +844,8 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
     E2E_FRONTEND_PORT: String(frontendPort),
     E2E_BACKEND_PORT: String(backendPort),
     E2E_BACKEND_URL: backendUrl,
+    VITE_E2E_BACKEND_PORT: String(backendPort),
+    VITE_E2E_BACKEND_URL: backendUrl,
     VITE_API_BASE_URL: frontendOrigin,
     VITE_API_PROXY_TARGET: backendUrl,
     VITE_E2E: 'true',

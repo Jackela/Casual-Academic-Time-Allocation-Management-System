@@ -43,9 +43,20 @@ echo "[5/6] Frontend unit tests (full suite)"
 bash tools/ci/run-frontend-unit.sh
 echo ""
 
+e2e_rebuild=0
+if git diff --name-only -- . | grep -Eq '^(src/|build\.gradle(\.kts)?$|settings\.gradle(\.kts)?$|gradle/|Dockerfile$)'; then
+  e2e_rebuild=1
+fi
+
 echo "[6/6] E2E (CI parity: real project)"
 if docker info >/dev/null 2>&1; then
-  E2E_BACKEND_MODE=docker bash tools/ci/run-e2e.sh
+  if [[ "$e2e_rebuild" == "1" ]]; then
+    echo "[pre-push] Backend/runtime files changed -> force Docker API image rebuild."
+    E2E_BACKEND_MODE=docker E2E_DOCKER_REBUILD=1 bash tools/ci/run-e2e.sh
+  else
+    echo "[pre-push] Backend/runtime unchanged -> reuse local Docker API image."
+    E2E_BACKEND_MODE=docker E2E_DOCKER_REBUILD=0 bash tools/ci/run-e2e.sh
+  fi
 else
   echo "[pre-push] Docker unavailable, fallback to local backend mode for E2E."
   E2E_BACKEND_MODE=local bash tools/ci/run-e2e.sh
