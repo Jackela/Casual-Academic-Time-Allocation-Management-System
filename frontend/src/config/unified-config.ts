@@ -159,13 +159,38 @@ class ConfigurationBuilder {
       return undefined;
     };
 
+    const tryViteE2EBackend = () => {
+      try {
+        const envs = import.meta.env as Record<string, string | undefined>;
+        if (envs.VITE_E2E !== 'true') {
+          return undefined;
+        }
+        if (envs.VITE_E2E_BACKEND_URL && envs.VITE_E2E_BACKEND_URL.length > 0) {
+          return envs.VITE_E2E_BACKEND_URL;
+        }
+        if (envs.VITE_E2E_BACKEND_PORT && envs.VITE_E2E_BACKEND_PORT.length > 0) {
+          return `http://127.0.0.1:${envs.VITE_E2E_BACKEND_PORT}`;
+        }
+      } catch {
+        // ignore
+      }
+      return undefined;
+    };
+
     const isE2EorTest = ENV_CONFIG.isE2E() || ENV_CONFIG.getMode() === 'test';
     const envBackendUrl = tryEnvBackend();
-    const fallbackPort = getProcessEnv().E2E_BACKEND_PORT ?? '8084';
+    const viteE2EBackendUrl = tryViteE2EBackend();
+    const fallbackPort = getProcessEnv().E2E_BACKEND_PORT ?? (() => {
+      try {
+        return (import.meta.env as Record<string, string | undefined>).VITE_E2E_BACKEND_PORT;
+      } catch {
+        return undefined;
+      }
+    })() ?? '8084';
 
     // In E2E/test, always prefer explicit E2E backend settings over browser origin
-    if (isE2EorTest) {
-      const preferred = envBackendUrl ?? `http://127.0.0.1:${fallbackPort}`;
+    if (isE2EorTest || Boolean(viteE2EBackendUrl)) {
+      const preferred = viteE2EBackendUrl ?? envBackendUrl ?? `http://127.0.0.1:${fallbackPort}`;
       return preferred;
     }
 

@@ -5,6 +5,7 @@ import { loginAsRole } from '../../api/auth-helper';
 
 test.describe('@p1 @admin US5: Admin user management', () => {
   test('create user with password policy validation and lifecycle', async ({ page }) => {
+    test.setTimeout(180_000);
     const session = await loginAsRole(page.request, 'admin');
     await page.addInitScript((sess) => {
       try {

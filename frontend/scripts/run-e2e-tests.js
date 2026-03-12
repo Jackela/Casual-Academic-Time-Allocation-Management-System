@@ -102,6 +102,25 @@ function logError(message) {
   log(`${colors.red}❌ ${message}${colors.reset}`);
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldRetryDockerStartup(error) {
+  const content = `${error?.message || ''}\n${error?.stderr || ''}\n${error?.stdout || ''}`.toLowerCase();
+  return [
+    'failed to fetch anonymous token',
+    'failed to authorize',
+    'tls handshake timeout',
+    'i/o timeout',
+    'context deadline exceeded',
+    'connection reset',
+    'connection refused',
+    'temporary failure',
+    'connectex',
+  ].some((marker) => content.includes(marker));
+}
+
 async function dumpDockerLogs(env = {}, services = ['api']) {
   try {
     logWarning(`Collecting docker compose logs for services: ${services.join(', ')}`);
@@ -242,6 +261,47 @@ function runCommand(command, args = [], options = {}) {
       }
     });
   });
+}
+
+async function ensureDockerBackendArtifact() {
+  logStep('STEP 2A', 'Building backend bootJar for Docker runtime image...');
+
+  const gradleWrapper = resolveGradleCommand(projectRoot);
+  const gradle = resolveCmdShim(gradleWrapper);
+
+  const baseArgs = [
+    ...gradle.args,
+    'bootJar',
+    '--no-daemon',
+    '-x',
+    'test',
+    '-x',
+    'generateContracts',
+  ];
+
+  try {
+    await runCommand(gradle.command, baseArgs);
+  } catch (error) {
+    logWarning(
+      'bootJar (without generateContracts) failed; retrying with generateContracts for recovery.',
+    );
+    await runCommand(gradle.command, [
+      ...gradle.args,
+      'generateContracts',
+      'bootJar',
+      '--no-daemon',
+      '-x',
+      'test',
+    ]);
+  }
+
+  const libsDir = join(projectRoot, 'build', 'libs');
+  const jars = fs.existsSync(libsDir)
+    ? fs.readdirSync(libsDir).filter((fileName) => fileName.endsWith('.jar'))
+    : [];
+  if (jars.length === 0) {
+    throw new Error(`Expected bootJar artifact under ${libsDir}, but no .jar files were found.`);
+  }
 }
 
 async function cleanupChild(child, label) {
@@ -555,18 +615,59 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
   // Docker-backed backend mode
   if (backendMode === 'docker') {
     logStep('STEP 2', 'Starting backend via Docker Compose...');
-    const composeEnv = { API_PORT: String(backendPort) };
+    const composeEnv = {
+      API_PORT: String(backendPort),
+      TEST_DATA_RESET_TOKEN: process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset',
+    };
+    const runningInHostedCi = isTruthy(process.env.GITHUB_ACTIONS) || !!process.env.ACT_TOOLSDIRECTORY;
+    const shouldRebuildApiImage =
+      process.env.E2E_DOCKER_REBUILD != null
+        ? isTruthy(process.env.E2E_DOCKER_REBUILD)
+        : runningInHostedCi;
+    const maxAttempts = Math.max(
+      1,
+      Number.parseInt(process.env.E2E_DOCKER_STARTUP_ATTEMPTS || '3', 10) || 3,
+    );
     try {
-      if (isTruthy(process.env.CI) || process.env.ACT_TOOLSDIRECTORY) {
-        await runCommand('docker', ['compose', 'down', '-v'], { env: composeEnv, stdio: 'ignore' });
+      await ensureDockerBackendArtifact();
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+          if (runningInHostedCi) {
+            await runCommand('docker', ['compose', 'down', '-v'], {
+              env: composeEnv,
+              stdio: 'ignore',
+            });
+          }
+          // Bring up DB then API
+          await runCommand('docker', ['compose', 'up', '-d', 'db'], { env: composeEnv });
+          if (shouldRebuildApiImage) {
+            log('  [docker] Starting API with image rebuild (--build).', colors.blue);
+            await runCommand('docker', ['compose', 'up', '-d', '--build', 'api'], { env: composeEnv });
+          } else {
+            log('  [docker] Starting API from existing local image (no --build).', colors.blue);
+            await runCommand('docker', ['compose', 'up', '-d', 'api'], { env: composeEnv });
+          }
+          const healthConfig = createHealthConfig('BACKEND');
+          await waitForHttpHealth({ url: backendHealthUrl, label: 'backend', config: healthConfig });
+          logSuccess('Backend (Docker) is healthy and ready.');
+          return;
+        } catch (error) {
+          const canRetry = attempt < maxAttempts && shouldRetryDockerStartup(error);
+          if (!canRetry) {
+            throw error;
+          }
+          const delayMs = attempt * 5000;
+          logWarning(
+            `Docker startup attempt ${attempt}/${maxAttempts} failed due transient dependency/network error; retrying in ${Math.floor(delayMs / 1000)}s.`,
+          );
+          try {
+            await runCommand('docker', ['compose', 'down', '-v'], { env: composeEnv, stdio: 'ignore' });
+          } catch {
+            // no-op best effort cleanup
+          }
+          await sleep(delayMs);
+        }
       }
-      // Bring up DB then API
-      await runCommand('docker', ['compose', 'up', '-d', 'db'], { env: composeEnv });
-      await runCommand('docker', ['compose', 'up', '-d', 'api'], { env: composeEnv });
-      const healthConfig = createHealthConfig('BACKEND');
-      await waitForHttpHealth({ url: backendHealthUrl, label: 'backend', config: healthConfig });
-      logSuccess('Backend (Docker) is healthy and ready.');
-      return;
     } catch (error) {
       await dumpDockerLogs(composeEnv, ['api', 'db']);
       throw new Error(`Docker Compose startup failed: ${error.message}`);
@@ -703,7 +804,28 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
   }
 
   if (await tcpPortUsed.check(frontendPort, frontendHost)) {
-    throw new Error(`Port ${frontendPort} already in use but frontend health check failed. Aborting.`);
+    logWarning(`Port ${frontendPort} already in use but frontend health check failed. Attempting cleanup...`);
+    try {
+      if (isWindows()) {
+        const ps = [
+          "$ErrorActionPreference='SilentlyContinue';",
+          `$pids = @();`,
+          `$pids += (Get-NetTCPConnection -LocalPort ${frontendPort} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess);`,
+          `$pids += (netstat -ano | Select-String ':${frontendPort}' | ForEach-Object { ($_ -split '\\s+')[-1] });`,
+          `$pids = $pids | Where-Object { $_ -match '^\\d+$' } | Select-Object -Unique;`,
+          `foreach ($targetPid in $pids) { Stop-Process -Id ([int]$targetPid) -Force -ErrorAction SilentlyContinue }`,
+        ].join(' ');
+        await runCommand('powershell', ['-NoProfile', '-Command', ps], { stdio: 'ignore' });
+      } else {
+        await runCommand('bash', ['-lc', `pids=$(lsof -ti :${frontendPort} || true); if [ -n "$pids" ]; then kill -9 $pids || true; fi`], { stdio: 'ignore' });
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    } catch (error) {
+      logWarning(`Frontend port cleanup warning: ${error.message}`);
+    }
+    if (await tcpPortUsed.check(frontendPort, frontendHost)) {
+      throw new Error(`Port ${frontendPort} already in use and cleanup failed. Aborting.`);
+    }
   }
 
   logStep('STEP 3', 'Starting Vite frontend dev server...');
@@ -725,6 +847,8 @@ async function ensureFrontend({ frontendPort, frontendHost, frontendHealthUrl, b
     E2E_FRONTEND_PORT: String(frontendPort),
     E2E_BACKEND_PORT: String(backendPort),
     E2E_BACKEND_URL: backendUrl,
+    VITE_E2E_BACKEND_PORT: String(backendPort),
+    VITE_E2E_BACKEND_URL: backendUrl,
     VITE_API_BASE_URL: frontendOrigin,
     VITE_API_PROXY_TARGET: backendUrl,
     VITE_E2E: 'true',

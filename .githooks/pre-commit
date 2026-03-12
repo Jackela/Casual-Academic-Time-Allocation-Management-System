@@ -1,9 +1,9 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 # Block committing generated artifacts and reports
 
-set -eu
+set -euo pipefail
 
-blocked_paths="
+blocked_prefixes="
 build/
 .gradle/
 test-results/
@@ -20,11 +20,40 @@ artifacts/
 tools/diagnostic-reports/
 tools/logs/
 tools/process-management/.process-ledger.json
+bin/
 "
 
-changed=$(git diff --cached --name-only)
-for p in $changed; do
-  for b in $blocked_paths; do
+blocked_exact_paths="
+frontend/vitest-report.json
+frontend/vitest-report-escaped.txt
+E2E_FIXES_SUMMARY.md
+E2E_TEST_ANALYSIS.md
+FINAL_TEST_REPORT.md
+FRONTEND_TEST_FIX_COMPREHENSIVE_PLAN.md
+FRONTEND_TEST_FIX_PLAN.md
+FRONTEND_TEST_FIX_PROGRESS.md
+REMAINING_3_TESTS_INVESTIGATION.md
+TEST_STATUS.md
+UAT_TASK_TYPE_FIX_SUMMARY.md
+VALIDATION_REPORT.md
+"
+
+while IFS=$'\t' read -r status path1 path2; do
+  p="$path1"
+  case "$status" in
+    R*|C*)
+      p="$path2"
+      ;;
+  esac
+
+  # Allow deletion of legacy/generated artifacts during cleanup.
+  case "$status" in
+    D*)
+      continue
+      ;;
+  esac
+
+  for b in $blocked_prefixes; do
     case "$p" in
       $b*)
         echo "ERROR: Attempt to commit generated output: $p" 1>&2
@@ -33,6 +62,20 @@ for p in $changed; do
         ;;
     esac
   done
-done
+
+  for e in $blocked_exact_paths; do
+    if [[ "$p" == "$e" ]]; then
+      echo "ERROR: Attempt to commit blocked repository artifact: $p" 1>&2
+      exit 1
+    fi
+  done
+
+  case "$p" in
+    *.disabled)
+      echo "ERROR: Disabled test files must not be committed: $p" 1>&2
+      exit 1
+      ;;
+  esac
+done < <(git diff --cached --name-status)
 
 exit 0

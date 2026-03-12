@@ -34,15 +34,15 @@ import org.flywaydb.core.Flyway;
 /**
  * E2E Test data initializer for end-to-end testing environments
  * 
- * Creates initial test users and courses in the database when running with the 'e2e' or 'e2e-local' profile
+ * Creates initial demo users and courses when running with the 'demo' profile.
  * This initializer uses the exact credentials expected by the E2E test suite
- * Uses PostgreSQL-compatible database for consistency with production environment
+ * Automated E2E pipelines use /api/test-data/reset|seed endpoints instead of this startup initializer.
  * 
  * @author Development Team
  * @since 1.0
  */
 @Configuration
-@Profile({"e2e", "e2e-local", "demo"})
+@Profile({"demo"})
 public class E2EDataInitializer {
     
     /**

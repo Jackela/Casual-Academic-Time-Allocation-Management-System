@@ -29,7 +29,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/test-data/seed")
-@Profile({"test", "e2e"})
+@Profile({"test", "e2e", "e2e-local"})
 public class TestDataSeedController {
 
     private static final Logger logger = LoggerFactory.getLogger(TestDataSeedController.class);
@@ -88,6 +88,11 @@ public class TestDataSeedController {
             ));
         }
 
+        logger.info("Accepted /api/test-data/seed/lecturer-resources request");
+        // Reset endpoint may clear users; restore baseline identities before course seeding.
+        seedService.ensureBasicAdmin();
+        seedService.ensureBasicLecturer();
+
         Long lecturerId = body != null ? body.lecturerId() : null;
         // Normalize to the canonical lecturer user id to avoid mismatched ownership
         Long resolvedLecturerId = seedService.resolveLecturerId(lecturerId);
@@ -104,7 +109,7 @@ public class TestDataSeedController {
             ));
         }
 
-        logger.info("Accepted /api/test-data/seed/lecturer-resources for lecturerId={}", lecturerId);
+        logger.info("Seeding lecturer resources for requested lecturerId={} resolvedLecturerId={}", lecturerId, resolvedLecturerId);
         seedService.ensureLecturerCourses(resolvedLecturerId);
         if (body != null && body.seedTutors()) {
             seedService.ensureBasicTutors();
@@ -113,9 +118,6 @@ public class TestDataSeedController {
         seedService.ensureTutorAssignmentsForLecturerCourses(resolvedLecturerId);
         // Seed minimal approval samples so queues/pages are usable in E2E
         seedService.ensureMinimalApprovalSamples(resolvedLecturerId);
-        // Ensure baseline admin/lecturer exist for UAT
-        seedService.ensureBasicAdmin();
-        seedService.ensureBasicLecturer();
         List<Map<String, Object>> accounts = seedService.buildAccountManifest();
 
         return ResponseEntity.ok(Map.of(

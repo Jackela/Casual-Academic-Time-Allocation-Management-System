@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Enforce local CI parity before any push.
+# Emergency bypass (not recommended): SKIP_PRE_PUSH=1 git push ...
+
+set -euo pipefail
+
+if [[ "${SKIP_PRE_PUSH:-0}" == "1" ]]; then
+  echo "[pre-push] SKIP_PRE_PUSH=1 detected, skipping checks."
+  exit 0
+fi
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "========================================="
+echo "[pre-push] Running local CI parity checks"
+echo "========================================="
+echo ""
+
+echo "[1/6] Repository hygiene gate"
+bash tools/ci/check-repo-hygiene.sh
+echo ""
+
+echo "[2/6] Dependency security audit (high/critical block)"
+bash tools/ci/run-security-audit.sh
+echo ""
+
+echo "[3/6] Backend checks (gradle check)"
+bash tools/ci/run-backend.sh
+echo ""
+
+echo "[4/5] Frontend unit gate (lint + full suite)"
+bash tools/ci/run-frontend-unit.sh
+echo ""
+
+e2e_rebuild=0
+if git diff --name-only -- . | grep -Eq '^(src/|build\.gradle(\.kts)?$|settings\.gradle(\.kts)?$|gradle/|Dockerfile$)'; then
+  e2e_rebuild=1
+fi
+
+echo "[5/5] E2E (CI parity: real project)"
+if docker info >/dev/null 2>&1; then
+  if [[ "$e2e_rebuild" == "1" ]]; then
+    echo "[pre-push] Backend/runtime files changed -> force Docker API image rebuild."
+    E2E_BACKEND_MODE=docker E2E_DOCKER_REBUILD=1 bash tools/ci/run-e2e.sh
+  else
+    echo "[pre-push] Backend/runtime unchanged -> reuse local Docker API image."
+    E2E_BACKEND_MODE=docker E2E_DOCKER_REBUILD=0 bash tools/ci/run-e2e.sh
+  fi
+else
+  echo "[pre-push] Docker unavailable, fallback to local backend mode for E2E."
+  E2E_BACKEND_MODE=local bash tools/ci/run-e2e.sh
+fi
+echo ""
+
+echo "========================================="
+echo "[pre-push] All local CI checks passed."
+echo "========================================="

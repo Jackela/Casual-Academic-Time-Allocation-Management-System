@@ -32,7 +32,7 @@ spring:
   # Security configuration
   security:
     jwt:
-      secret: ${JWT_SECRET:PDUWUYQxl+aNU04furgt8QkbtSYun0wJSP3/5bMSo6I=}
+      secret: ${JWT_SECRET}
       expiration: ${JWT_EXPIRATION:86400000}
 
 logging:

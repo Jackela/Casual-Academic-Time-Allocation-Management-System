@@ -103,6 +103,33 @@ export let UI_CONSTRAINTS = {
 
 const listeners = new Set<(next: TimesheetUiConstraints) => void>();
 let fetchState: 'idle' | 'pending' | 'settled' = 'idle';
+const TEST_FETCH_OVERRIDE_FLAG = '__CATAMS_ENABLE_SERVER_CONSTRAINT_FETCH_IN_TEST__';
+
+type GlobalWithProcessEnv = typeof globalThis & {
+  process?: {
+    env?: {
+      NODE_ENV?: string;
+    };
+  };
+  [TEST_FETCH_OVERRIDE_FLAG]?: unknown;
+};
+
+const shouldAutoFetchServerConstraints = (): boolean => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const globalRef = globalThis as GlobalWithProcessEnv;
+  if (globalRef[TEST_FETCH_OVERRIDE_FLAG] === true) {
+    return true;
+  }
+
+  const mode = import.meta.env.MODE;
+  const nodeEnv = globalRef.process?.env?.NODE_ENV;
+
+  // Default to deterministic unit tests: avoid network side effects unless explicitly enabled.
+  return mode !== 'test' && nodeEnv !== 'test';
+};
 
 const updateExports = (next: TimesheetUiConstraints) => {
   cachedConstraints = cloneConstraints(next);
@@ -166,7 +193,9 @@ const ensureServerConstraints = () => {
 };
 
 if (typeof window !== 'undefined') {
-  ensureServerConstraints();
+  if (shouldAutoFetchServerConstraints()) {
+    ensureServerConstraints();
+  }
 }
 
 export const useUiConstraints = () => {
@@ -180,7 +209,9 @@ export const useUiConstraints = () => {
     };
 
     listeners.add(handleUpdate);
-    ensureServerConstraints();
+    if (shouldAutoFetchServerConstraints()) {
+      ensureServerConstraints();
+    }
 
     return () => {
       listeners.delete(handleUpdate);

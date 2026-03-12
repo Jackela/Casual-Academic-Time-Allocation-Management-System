@@ -32,7 +32,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/test-data")
-@Profile({"test", "e2e"})
+@Profile({"test", "e2e", "e2e-local"})
 public class TestDataResetController {
 
     private static final Logger logger = LoggerFactory.getLogger(TestDataResetController.class);

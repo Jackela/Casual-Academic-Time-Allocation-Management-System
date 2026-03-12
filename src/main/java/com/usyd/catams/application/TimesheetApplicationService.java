@@ -17,10 +17,7 @@ import com.usyd.catams.policy.TimesheetPermissionPolicy;
 import com.usyd.catams.repository.CourseRepository;
 import com.usyd.catams.repository.TimesheetRepository;
 import com.usyd.catams.repository.UserRepository;
-import com.usyd.catams.service.TimesheetAuthorizationService;
 import com.usyd.catams.service.TimesheetApplicationFacade;
-import com.usyd.catams.service.TimesheetCommandService;
-import com.usyd.catams.service.TimesheetQueryService;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -91,7 +88,9 @@ import java.util.Optional;
 @Service
 @Transactional
 public class TimesheetApplicationService implements TimesheetApplicationFacade,
-    TimesheetCommandService, TimesheetQueryService, TimesheetAuthorizationService {
+    com.usyd.catams.service.TimesheetCommandService,
+    com.usyd.catams.service.TimesheetQueryService,
+    com.usyd.catams.service.TimesheetAuthorizationService {
 
     private final TimesheetRepository timesheetRepository;
     private final UserRepository userRepository;
@@ -398,19 +397,8 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade,
             
         Course course = findCourseByIdOrThrow(timesheet.getCourseId(), "Course");
 
-        // Step 1: Business rule check - Use AuthorizationException for tutor restrictions (403 if fails)
-        if (!timesheetDomainService.canRoleEditTimesheetWithStatus(requester.getRole(), timesheet.getStatus())) {
-            if (requester.getRole() == UserRole.TUTOR) {
-                throw new com.usyd.catams.exception.AuthorizationException("TUTOR can only update timesheets with REJECTED status. " +
-                    "Current status: " + timesheet.getStatus());
-            } else {
-                throw new com.usyd.catams.exception.BusinessRuleException("Cannot update timesheet with status: " + timesheet.getStatus() + 
-                    ". Only DRAFT timesheets can be updated.");
-            }
-        }
-
-        // Step 2: Authorization check (403 if fails)
-        if (!permissionPolicy.canModifyTimesheet(requester, timesheet, course)) {
+        // Authorization + status gate in single policy decision.
+        if (!permissionPolicy.canEditTimesheet(requester, timesheet, course)) {
             throw new com.usyd.catams.exception.AuthorizationException(
                 "User " + requester.getId() + " (" + requester.getRole() + 
                 ") does not have permission to modify timesheet " + timesheetId);
@@ -440,22 +428,11 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade,
             
         Course course = findCourseByIdOrThrow(timesheet.getCourseId(), "Course");
 
-        // Step 1: Authorization check (403 if fails)
-        if (!permissionPolicy.canModifyTimesheet(requester, timesheet, course)) {
+        // Authorization + status gate in single policy decision.
+        if (!permissionPolicy.canDeleteTimesheet(requester, timesheet, course)) {
             throw new com.usyd.catams.exception.AuthorizationException(
                 "User " + requester.getId() + " (" + requester.getRole() + 
                 ") does not have permission to modify timesheet " + timesheetId);
-        }
-        
-        // Step 2: Business rule check - Use AuthorizationException for tutor restrictions (403 if fails)
-        if (!timesheetDomainService.canRoleDeleteTimesheetWithStatus(requester.getRole(), timesheet.getStatus())) {
-            if (requester.getRole() == UserRole.TUTOR) {
-                throw new com.usyd.catams.exception.AuthorizationException("TUTOR can only delete timesheets with REJECTED status. " +
-                    "Current status: " + timesheet.getStatus());
-            } else {
-                throw new com.usyd.catams.exception.BusinessRuleException("Cannot delete timesheet with status: " + timesheet.getStatus() + 
-                    ". Only DRAFT timesheets can be deleted.");
-            }
         }
 
         timesheetRepository.delete(timesheet);
@@ -523,33 +500,6 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade,
         return permissionPolicy.canEditTimesheet(requester, timesheet, course);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public boolean canUserEditTimesheetAuth(Long timesheetId, org.springframework.security.core.Authentication authentication) {
-        if (authentication == null || authentication.getPrincipal() == null) {
-            return false;
-        }
-
-        Object principal = authentication.getPrincipal();
-        Long requesterId = null;
-        
-        if (principal instanceof com.usyd.catams.entity.User) {
-            requesterId = ((com.usyd.catams.entity.User) principal).getId();
-        } else if (principal instanceof Long) {
-            requesterId = (Long) principal;
-        } else if (principal instanceof String) {
-            try {
-                requesterId = Long.parseLong((String) principal);
-            } catch (NumberFormatException e) {
-                return false;
-            }
-        } else {
-            return false;
-        }
-
-        return canUserEditTimesheet(timesheetId, requesterId);
-    }
-
     public TimesheetResponse createTimesheetAndReturnDto(Long tutorId,
                                                         Long courseId,
                                                         LocalDate weekStartDate,
@@ -580,7 +530,6 @@ public class TimesheetApplicationService implements TimesheetApplicationFacade,
         return timesheetOpt.map(timesheetMapper::toResponse);
     }
 
-    @PreAuthorize("@timesheetApplicationService.canUserEditTimesheetAuth(#timesheetId, authentication)")
     public TimesheetResponse updateTimesheetAndReturnDto(Long timesheetId,
                                                         Schedule1CalculationResult calculation,
                                                         TimesheetTaskType taskType,

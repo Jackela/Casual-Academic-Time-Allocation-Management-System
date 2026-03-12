@@ -11,6 +11,8 @@ dist/
 **/dist/
 build/
 **/build/
+!build/libs/
+!build/libs/*.jar
 playwright-report/
 test-results/
 

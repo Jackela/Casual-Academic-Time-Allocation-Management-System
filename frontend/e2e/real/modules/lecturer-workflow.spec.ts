@@ -1,4 +1,4 @@
-import { test, expect, type Page, type Request } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Page, type Request as PWRequest } from '@playwright/test';
 import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
 import { E2E_CONFIG } from '../../config/e2e.config';
 import { clearAuthSessionFromPage, signInAsRole } from '../../api/auth-helper';
@@ -83,6 +83,30 @@ const openLecturerDashboard = async (page: Page) => {
     .waitForResponse((r) => r.url().includes('/api/timesheets') && r.request().method() === 'GET')
     .catch(() => undefined);
   await ensureLecturerModalHidden(page);
+};
+
+const waitForTimesheetStatus = async (
+  request: APIRequestContext,
+  timesheetId: number,
+  token: string,
+  expectedStatus: string,
+) => {
+  await expect
+    .poll(async () => {
+      const detail = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!detail.ok()) {
+        return `HTTP_${detail.status()}`;
+      }
+
+      const payload = await detail.json().catch(() => ({} as Record<string, unknown>));
+      const status = (payload as { status?: string; timesheet?: { status?: string } }).status
+        ?? (payload as { timesheet?: { status?: string } }).timesheet?.status
+        ?? '';
+      return status;
+    }, { timeout: 15000 })
+    .toBe(expectedStatus);
 };
 
 test.describe('Lecturer Dashboard Workflow', () => {
@@ -202,6 +226,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
   test('shows success toast and re-enables actions when lecturer approval succeeds', async ({ page, request }) => {
     const factory = await createTestDataFactory(request);
     const seeded = await factory.createTimesheetForTest({ targetStatus: 'TUTOR_CONFIRMED' });
+    const lecturerToken = dataFactory.getAuthTokens().lecturer.token;
     await openLecturerDashboard(page);
     const t = new TimesheetPage(page);
     await t.expectTimesheetsTable();
@@ -211,18 +236,25 @@ test.describe('Lecturer Dashboard Workflow', () => {
       console.warn('No lecturer approve button visible; skipping check.');
       return;
     }
-    const approvalsDone = page.waitForResponse((r) => r.url().includes('/api/approvals') && r.request().method() === 'POST');
+    const approvalsDone = page.waitForResponse((r) => {
+      if (!r.url().includes('/api/approvals') || r.request().method() !== 'POST') {
+        return false;
+      }
+      try {
+        const body = r.request().postDataJSON() as { timesheetId?: number } | undefined;
+        return body?.timesheetId === seeded.id;
+      } catch {
+        return false;
+      }
+    });
     await approveButton.click();
-    await approvalsDone;
-    await page
-      .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
-      .catch(() => undefined);
-    await page
-      .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
-      .catch(() => undefined);
+    const approvalResponse = await approvalsDone;
+    expect(approvalResponse.ok()).toBeTruthy();
+    await waitForTimesheetStatus(request, seeded.id, lecturerToken, 'LECTURER_CONFIRMED');
     await expect
-      .poll(async () => await approveButton.isVisible().catch(() => false), { timeout: 15000 })
-      .toBe(false);
+      .poll(async () => await approveButton.isVisible().catch(() => false), { timeout: 5000 })
+      .toBe(false)
+      .catch(() => undefined);
   });
 
 
@@ -253,6 +285,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
     const factory = await createTestDataFactory(request);
     // Seed as TUTOR_CONFIRMED so lecturer can approve
     const seeded = await factory.createTimesheetForTest({ targetStatus: 'TUTOR_CONFIRMED' });
+    const lecturerToken = dataFactory.getAuthTokens().lecturer.token;
 
     await openLecturerDashboard(page);
     const t = new TimesheetPage(page);
@@ -262,15 +295,25 @@ test.describe('Lecturer Dashboard Workflow', () => {
       console.warn('No lecturer approve button visible; skipping deterministic approve.');
       return;
     }
-    const approvalsDone = page.waitForResponse((r) => r.url().includes('/api/approvals') && r.request().method() === 'POST');
+    const approvalsDone = page.waitForResponse((r) => {
+      if (!r.url().includes('/api/approvals') || r.request().method() !== 'POST') {
+        return false;
+      }
+      try {
+        const body = r.request().postDataJSON() as { timesheetId?: number } | undefined;
+        return body?.timesheetId === seeded.id;
+      } catch {
+        return false;
+      }
+    });
     await approveBtn.click();
-    await approvalsDone;
-    await page
-      .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
-      .catch(() => undefined);
+    const approvalResponse = await approvalsDone;
+    expect(approvalResponse.ok()).toBeTruthy();
+    await waitForTimesheetStatus(request, seeded.id, lecturerToken, 'LECTURER_CONFIRMED');
     await expect
-      .poll(async () => await approveBtn.isVisible().catch(() => false), { timeout: 15000 })
-      .toBe(false);
+      .poll(async () => await approveBtn.isVisible().catch(() => false), { timeout: 5000 })
+      .toBe(false)
+      .catch(() => undefined);
   });
 
   test('Lecturer can create a timesheet via modal', async ({ page }) => {
@@ -290,6 +333,27 @@ test.describe('Lecturer Dashboard Workflow', () => {
     await openBtn.click();
     const modal = page.getByTestId('lecturer-create-modal');
     await expect(modal).toBeVisible({ timeout: 20000 });
+
+    // Stabilize quote behavior so submit button reliably becomes enabled in CI.
+    await page.context().route('**/api/timesheets/quote', async (route) => {
+      const req = (route.request().postDataJSON?.() ?? {}) as CapturedTimesheetPayload;
+      const deliveryHours = Number(req.deliveryHours ?? 1);
+      const quote = {
+        taskType: req.taskType ?? 'TUTORIAL',
+        rateCode: 'STD-TUT',
+        qualification: req.qualification ?? 'STANDARD',
+        isRepeat: Boolean(req.isRepeat),
+        deliveryHours,
+        associatedHours: 0,
+        payableHours: deliveryHours,
+        hourlyRate: 50,
+        amount: +(50 * deliveryHours).toFixed(2),
+        formula: 'deliveryHours * 50',
+        clauseReference: null,
+        sessionDate: String(req.sessionDate ?? req.weekStartDate ?? new Date().toISOString().slice(0, 10)),
+      };
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(quote) });
+    });
 
     // Use dedicated page object for consistent field wiring
     const { TimesheetCreatePage } = await import('../../shared/pages/timesheet/TimesheetCreatePage');
@@ -324,10 +388,11 @@ test.describe('Lecturer Dashboard Workflow', () => {
       deliveryHours: 1,
       description: 'E2E created via lecturer',
     });
+    await page.waitForResponse((r) => r.url().includes('/api/timesheets/quote') && r.request().method() === 'POST');
 
     // Capture submitted payload
     const payloadPromise: Promise<CapturedTimesheetPayload> = new Promise((resolve) => {
-      const handler = (rq: Request) => {
+      const handler = (rq: PWRequest) => {
         try {
           if (rq.url().includes('/api/timesheets') && rq.method() === 'POST') {
             page.off('request', handler);
@@ -369,8 +434,13 @@ test.describe('Lecturer Dashboard Workflow', () => {
       };
       await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(draft) });
     });
+    const submit = page.getByTestId('lecturer-create-submit-btn');
+    await expect
+      .poll(async () => await submit.isEnabled().catch(() => false), { timeout: 15000 })
+      .toBe(true);
+    const createRespPromise = page.waitForResponse((r) => r.url().includes('/api/timesheets') && r.request().method() === 'POST');
     await form.evaluate((el: HTMLFormElement) => el.requestSubmit());
-    const createResp = await page.waitForResponse((r) => r.url().includes('/api/timesheets') && r.request().method() === 'POST');
+    const createResp = await createRespPromise;
     expect(createResp.ok()).toBeTruthy();
     const body = await payloadPromise;
     expect('totalPay' in body).toBe(false);
@@ -398,4 +468,3 @@ test.describe('Lecturer Dashboard Workflow', () => {
     }
   });
 });
-

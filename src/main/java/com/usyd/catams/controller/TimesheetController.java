@@ -9,16 +9,14 @@ import com.usyd.catams.dto.response.TimesheetResponse;
 import com.usyd.catams.dto.response.TimesheetQuoteResponse;
 import com.usyd.catams.enums.ApprovalStatus;
 import com.usyd.catams.enums.TimesheetTaskType;
-import com.usyd.catams.enums.TutorQualification;
 import com.usyd.catams.dto.response.ApprovalActionResponse;
 import com.usyd.catams.enums.ApprovalAction;
 import com.usyd.catams.exception.ResourceNotFoundException;
 import com.usyd.catams.mapper.ApprovalMapper;
 import com.usyd.catams.policy.AuthenticationFacade;
-import com.usyd.catams.domain.service.TimesheetValidationService;
 import com.usyd.catams.service.ApprovalService;
 import com.usyd.catams.service.Schedule1CalculationResult;
-import com.usyd.catams.service.Schedule1Calculator;
+import com.usyd.catams.service.TimesheetCalculationService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -29,9 +27,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -42,23 +37,20 @@ import java.util.Optional;
 public class TimesheetController {
 
     private final TimesheetApplicationFacade timesheetService;
+    private final TimesheetCalculationService timesheetCalculationService;
     private final AuthenticationFacade authenticationFacade;
-    private final Schedule1Calculator schedule1Calculator;
-    private final TimesheetValidationService timesheetValidationService;
     private final ApprovalService approvalService;
     private final ApprovalMapper approvalMapper;
 
     @Autowired
     public TimesheetController(TimesheetApplicationFacade timesheetService,
+                               TimesheetCalculationService timesheetCalculationService,
                                AuthenticationFacade authenticationFacade,
-                               Schedule1Calculator schedule1Calculator,
-                               TimesheetValidationService timesheetValidationService,
                                ApprovalService approvalService,
                                ApprovalMapper approvalMapper) {
         this.timesheetService = timesheetService;
+        this.timesheetCalculationService = timesheetCalculationService;
         this.authenticationFacade = authenticationFacade;
-        this.schedule1Calculator = schedule1Calculator;
-        this.timesheetValidationService = timesheetValidationService;
         this.approvalService = approvalService;
         this.approvalMapper = approvalMapper;
     }
@@ -67,19 +59,12 @@ public class TimesheetController {
     @PreAuthorize("hasAnyRole('LECTURER','TUTOR','ADMIN')")
     public ResponseEntity<TimesheetQuoteResponse> quoteTimesheet(
             @Valid @RequestBody TimesheetQuoteRequest request) {
-        timesheetValidationService.validateMonday(request.getSessionDate(), "sessionDate");
-        boolean effectiveRepeat = request.isRepeat();
-        if (request.getTaskType() == TimesheetTaskType.TUTORIAL && request.isRepeat()) {
-            effectiveRepeat = timesheetService.isTutorialRepeatEligible(
-                    request.getCourseId(),
-                    request.getSessionDate()
-            );
-        }
-        Schedule1CalculationResult calculation = calculateSchedule1(
+        Schedule1CalculationResult calculation = timesheetCalculationService.calculateForQuote(
+                request.getCourseId(),
                 request.getTaskType(),
                 request.getSessionDate(),
                 request.getDeliveryHours(),
-                effectiveRepeat,
+                request.isRepeat(),
                 request.getQualification()
         );
         return ResponseEntity.ok(TimesheetQuoteResponse.from(request.getTaskType(), calculation));
@@ -90,7 +75,8 @@ public class TimesheetController {
     public ResponseEntity<TimesheetResponse> createTimesheet(
             @Valid @RequestBody TimesheetCreateRequest request) {
         Long creatorId = authenticationFacade.getCurrentUserId();
-        Schedule1CalculationResult calculation = calculateSchedule1(
+        Schedule1CalculationResult calculation = timesheetCalculationService.calculateForCreateOrUpdate(
+                request.getCourseId(),
                 request.getTaskType(),
                 request.resolveSessionDate(),
                 request.getDeliveryHours(),
@@ -167,7 +153,8 @@ public class TimesheetController {
             @Valid @RequestBody TimesheetUpdateRequest request) {
         Long requesterId = authenticationFacade.getCurrentUserId();
 
-        Schedule1CalculationResult calculation = calculateSchedule1(
+        Schedule1CalculationResult calculation = timesheetCalculationService.calculateForCreateOrUpdate(
+                null,
                 request.getTaskType(),
                 request.getSessionDate(),
                 request.getDeliveryHours(),
@@ -238,33 +225,6 @@ public class TimesheetController {
         PagedTimesheetResponse response =
                 timesheetService.getLecturerFinalApprovalQueueAsDto(requesterId, pageable);
         return ResponseEntity.ok(response);
-    }
-
-    private Schedule1CalculationResult calculateSchedule1(TimesheetTaskType taskType,
-                                                          LocalDate sessionDate,
-                                                          BigDecimal deliveryHours,
-                                                          boolean repeat,
-                                                          TutorQualification qualification) {
-        Objects.requireNonNull(taskType, "taskType");
-        Objects.requireNonNull(sessionDate, "sessionDate");
-        Objects.requireNonNull(deliveryHours, "deliveryHours");
-        TutorQualification resolvedQualification = qualification != null ? qualification : TutorQualification.STANDARD;
-
-        if (taskType == TimesheetTaskType.TUTORIAL) {
-            BigDecimal normalised = deliveryHours.setScale(1, java.math.RoundingMode.HALF_UP);
-            if (normalised.compareTo(BigDecimal.ONE.setScale(1)) != 0) {
-                throw new IllegalArgumentException("Delivery hours for Tutorial must be exactly 1.0");
-            }
-        }
-        return schedule1Calculator.calculate(
-                new Schedule1Calculator.CalculationInput(
-                        taskType,
-                        sessionDate,
-                        deliveryHours,
-                        repeat,
-                        resolvedQualification
-                )
-        );
     }
 
     private Pageable createPageable(int page, int size, String sort) {

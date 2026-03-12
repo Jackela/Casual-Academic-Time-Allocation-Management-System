@@ -11,7 +11,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  repo-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Repository hygiene gate
+        run: bash tools/ci/check-repo-hygiene.sh
+
+  dependency-security:
+    needs: repo-hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+      - name: Dependency audit gate (high/critical)
+        run: bash tools/ci/run-security-audit.sh
+
   backend:
+    needs: repo-hygiene
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -41,10 +67,11 @@ jobs:
       - name: Backend checks
         env:
           JWT_SECRET: test-secret
+          IT_DB_ENGINE: h2
         run: bash tools/ci/run-backend.sh
 
   frontend-unit:
-    needs: backend
+    needs: [repo-hygiene, dependency-security, backend]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -60,7 +87,7 @@ jobs:
         run: bash tools/ci/run-frontend-unit.sh
 
   e2e:
-    needs: [backend, frontend-unit]
+    needs: [repo-hygiene, backend, frontend-unit]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

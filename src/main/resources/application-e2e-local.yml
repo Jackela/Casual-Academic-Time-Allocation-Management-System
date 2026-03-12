@@ -1,6 +1,10 @@
 spring:
   # Use PostgreSQL with Flyway for e2e-local (no more H2!)
   # Database connection is provided via environment variables in docker-compose.yml
+  security:
+    jwt:
+      secret: ${JWT_SECRET:dGVzdC1lMmUtc2VjcmV0LXNob3VsZC1iZS1vdmVycmlkZGVuLWxvY2FsbHk=}
+      expiration: ${JWT_EXPIRATION:3600000}
   jpa:
     hibernate:
       ddl-auto: validate  # Let Flyway manage schema
@@ -11,12 +15,6 @@ spring:
   flyway:
     enabled: true
     clean-disabled: false  # Allow cleaning for E2E reset scenarios
-
-# Use a deterministic JWT secret and shorter expiry if needed
-security:
-  jwt:
-    secret: ${JWT_SECRET:test-e2e-secret}
-    expiration: ${JWT_EXPIRATION:3600000}
 
 app:
   testing:

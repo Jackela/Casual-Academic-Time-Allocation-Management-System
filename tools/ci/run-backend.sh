@@ -50,6 +50,20 @@ PY
 run_backend_checks() {
   echo "[backend] gradle check"
   export JWT_SECRET="${JWT_SECRET:-test-secret}"
+  export IT_DB_ENGINE="${IT_DB_ENGINE:-h2}"
+  echo "[backend] integration DB engine: ${IT_DB_ENGINE}"
+  local uname_s=""
+  uname_s="$(uname -s 2>/dev/null || true)"
+  case "${uname_s}" in
+    MINGW*|MSYS*|CYGWIN*)
+      # Git Bash on Windows can mis-handle cygpath conversion in gradlew; use the .bat wrapper directly.
+      if [ -f "./gradlew.bat" ]; then
+        # Use `//c` form so MSYS does not rewrite `/c` and accidentally launch interactive cmd.
+        cmd.exe //d //s //c "gradlew.bat --no-configuration-cache check"
+        return
+      fi
+      ;;
+  esac
   # act executes inside Docker without Ryuk callback support; disable it to allow Testcontainers to run
   if [ -n "${ACT_TOOLSDIRECTORY:-}" ]; then
     export TESTCONTAINERS_RYUK_DISABLED="${TESTCONTAINERS_RYUK_DISABLED:-true}"

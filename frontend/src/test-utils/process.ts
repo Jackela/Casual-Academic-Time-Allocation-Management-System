@@ -312,6 +312,14 @@ export async function waitForPort(port: number, timeout = 10000): Promise<boolea
  * Pre-flight cleanup for Claude Code sessions
  */
 export async function claudeCodePreflight(projectPath?: string): Promise<void> {
+  const isTestRuntime = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+  if (isTestRuntime && process.env.CATAMS_ALLOW_PROCESS_CLEANUP_IN_TESTS !== 'true') {
+    secureLogger.debug(
+      '[process] Skipping claudeCodePreflight in test runtime (set CATAMS_ALLOW_PROCESS_CLEANUP_IN_TESTS=true to enable).',
+    );
+    return;
+  }
+
   const path = projectPath || process.cwd();
   
   // Kill any Node processes in the project directory

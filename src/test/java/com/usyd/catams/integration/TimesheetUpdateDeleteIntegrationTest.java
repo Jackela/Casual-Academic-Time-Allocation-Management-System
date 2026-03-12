@@ -176,14 +176,14 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(draftTimesheet.getId()))
                 .andExpect(jsonPath("$.hours").value(closeTo(3.0, 0.0001)))
-                .andExpect(jsonPath("$.hourlyRate").value(closeTo(58.65, 0.01)))
+                .andExpect(jsonPath("$.hourlyRate").value(closeTo(60.85, 0.01)))
                 .andExpect(jsonPath("$.description").value("Updated: Tutorial sessions, grading, and consultation hours"))
                 .andExpect(jsonPath("$.status").value(ApprovalStatus.DRAFT.name()));
 
         // Verify database was updated
         Timesheet updated = timesheetRepository.findById(draftTimesheet.getId()).orElseThrow();
         assertEquals(0, updated.getHours().compareTo(BigDecimal.valueOf(3.0)));
-        assertEquals(0, updated.getHourlyRate().compareTo(new BigDecimal("58.65")));
+        assertEquals(0, updated.getHourlyRate().compareTo(new BigDecimal("60.85")));
         assertEquals("Updated: Tutorial sessions, grading, and consultation hours", updated.getDescription());
         assertEquals(ApprovalStatus.DRAFT, updated.getStatus());
     }
@@ -203,12 +203,12 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
                 "Bearer " + token)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hours").value(closeTo(3.0, 0.0001)))
-                .andExpect(jsonPath("$.hourlyRate").value(closeTo(58.65, 0.01)))
+                .andExpect(jsonPath("$.hourlyRate").value(closeTo(60.85, 0.01)))
                 .andExpect(jsonPath("$.status").value(ApprovalStatus.DRAFT.name()));
     }
 
     @Test
-    @DisplayName("AC1: Cannot update non-DRAFT timesheet - returns 400")
+    @DisplayName("AC1: Cannot update non-DRAFT timesheet - returns 403")
     void testCannotUpdateApprovedTimesheet() throws Exception {
         String token = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
         
@@ -221,8 +221,8 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
         performPutWithoutFinancialFields("/api/timesheets/" + approvedTimesheet.getId(), updateRequest,
                 "Bearer " + token)
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error").value("ACCESS_DENIED"))
-                .andExpect(jsonPath("$.message").value("Access denied"));
+                .andExpect(jsonPath("$.error").value("AUTHORIZATION_FAILED"))
+                .andExpect(jsonPath("$.message").value(containsString("does not have permission")));
     }
 
     @Test
@@ -280,15 +280,15 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("AC2: Cannot delete non-DRAFT timesheet - returns 400")
+    @DisplayName("AC2: Cannot delete non-DRAFT timesheet - returns 403")
     void testCannotDeleteApprovedTimesheet() throws Exception {
         String token = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
 
         mockMvc.perform(delete("/api/timesheets/{id}", approvedTimesheet.getId())
                 .header("Authorization", "Bearer " + token))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").exists())
-                .andExpect(jsonPath("$.message").value(containsString("Only DRAFT timesheets can be deleted")));
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("AUTHORIZATION_FAILED"))
+                .andExpect(jsonPath("$.message").value(containsString("does not have permission")));
 
         // Verify timesheet was not deleted
         assertTrue(timesheetRepository.existsById(approvedTimesheet.getId()));

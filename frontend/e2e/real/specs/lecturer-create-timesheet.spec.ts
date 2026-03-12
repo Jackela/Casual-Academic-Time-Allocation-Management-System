@@ -465,15 +465,14 @@ test.describe('@p0 US1: Lecturer creates timesheet', () => {
     await waitForAppReady(page, 'LECTURER');
     await sel.byTestId(page, 'lecturer-create-open-btn').click();
     await waitForVisible(sel.byTestId(page, 'lecturer-create-modal'));
-    // Force invalid state: ensure course is at placeholder and description is empty
-    const course = sel.byTestId(page, 'create-course-select');
-    await expect(course).toBeVisible();
-    await course.selectOption('0').catch(() => undefined);
-    try { await course.evaluate((el) => { const s = el as HTMLSelectElement; s.value = '0'; s.dispatchEvent(new Event('input',{bubbles:true})); s.dispatchEvent(new Event('change',{bubbles:true})); }); } catch {}
-    const desc = sel.byTestId(page, 'create-description-input');
-    if (await desc.isVisible().catch(() => false)) {
-      try { await desc.fill(''); } catch {}
-    }
+    // Force a stable invalid state: lecture task with zero delivery hours.
+    const taskType = sel.byTestId(page, 'create-task-type-select');
+    await expect(taskType).toBeVisible();
+    await taskType.selectOption('LECTURE').catch(() => undefined);
+    const hours = sel.byTestId(page, 'create-delivery-hours-input');
+    await expect(hours).toBeVisible();
+    await hours.fill('0');
+    await hours.blur();
     // Wire a guard to ensure no POST is sent on invalid form
     let postSent = false;
     const reqHandler = (rq: any) => {
@@ -483,6 +482,7 @@ test.describe('@p0 US1: Lecturer creates timesheet', () => {
     // Attempt submit
     const finalSubmit = sel.byTestId(page, 'lecturer-create-submit-btn');
     await expect(finalSubmit).toBeVisible();
+    await expect(finalSubmit).toBeDisabled();
     await finalSubmit.click().catch(() => undefined);
     // No POST should be sent and modal remains open. Poll instead of fixed timeout.
     await expect
@@ -725,5 +725,4 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
     return;
   });
 });
-
 

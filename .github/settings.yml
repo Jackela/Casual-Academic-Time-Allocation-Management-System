@@ -39,6 +39,8 @@ branches:
       required_status_checks:
         strict: true
         contexts:
+          - repo-hygiene
+          - dependency-security
           - backend
           - frontend-unit
           - e2e

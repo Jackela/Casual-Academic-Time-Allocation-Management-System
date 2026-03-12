@@ -17,7 +17,7 @@ import com.usyd.catams.common.domain.model.Money;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,16 +33,22 @@ public class TestDataSeedService {
     private final CourseRepository courseRepository;
     private final LecturerAssignmentRepository lecturerAssignmentRepository;
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
     private final TutorAssignmentRepository tutorAssignmentRepository;
     private final TimesheetRepository timesheetRepository;
 
-    public TestDataSeedService(CourseRepository courseRepository, UserRepository userRepository, LecturerAssignmentRepository lecturerAssignmentRepository, TutorAssignmentRepository tutorAssignmentRepository, TimesheetRepository timesheetRepository) {
+    public TestDataSeedService(CourseRepository courseRepository,
+                               UserRepository userRepository,
+                               LecturerAssignmentRepository lecturerAssignmentRepository,
+                               TutorAssignmentRepository tutorAssignmentRepository,
+                               TimesheetRepository timesheetRepository,
+                               PasswordEncoder passwordEncoder) {
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
         this.lecturerAssignmentRepository = lecturerAssignmentRepository;
         this.tutorAssignmentRepository = tutorAssignmentRepository;
         this.timesheetRepository = timesheetRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -197,10 +203,12 @@ public class TestDataSeedService {
 
     private void upsertTutor(String email, String name, String rawPassword) {
         userRepository.findByEmail(email).ifPresentOrElse(existing -> {
-            // Normalize to an active TUTOR for test determinism; keep existing password
+            // Normalize to an active TUTOR for test determinism.
             existing.setName(name);
             existing.setRole(UserRole.TUTOR);
             existing.setActive(true);
+            // Always reset test credentials to deterministic value in test/e2e profiles.
+            existing.setHashedPassword(passwordEncoder.encode(rawPassword));
             userRepository.save(existing);
         }, () -> {
             String hashed = passwordEncoder.encode(rawPassword);
@@ -215,6 +223,8 @@ public class TestDataSeedService {
             existing.setName(name);
             existing.setRole(role);
             existing.setActive(true);
+            // Always reset test credentials to deterministic value in test/e2e profiles.
+            existing.setHashedPassword(passwordEncoder.encode(rawPassword));
             userRepository.save(existing);
         }, () -> {
             String hashed = passwordEncoder.encode(rawPassword);

@@ -72,6 +72,18 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     await visualLogin(page, 'lecturer');
 
     const lecturerDashboard = new LecturerDashboardPage(page);
+    const visibleModalSelector = '[data-testid="lecturer-create-modal"][aria-hidden="false"]';
+    const getActiveCreateModal = () => page.locator(visibleModalSelector).last();
+    const ensureCreateModalOpen = async () => {
+      const modalAlreadyOpen = await getActiveCreateModal().isVisible().catch(() => false);
+      if (!modalAlreadyOpen) {
+        await lecturerDashboard.openCreateModal();
+        await page.waitForTimeout(1500);
+      }
+      const activeModal = getActiveCreateModal();
+      await expect(activeModal).toBeVisible({ timeout: 15000 });
+      return activeModal;
+    };
 
     // Wait for dashboard to load
     await page.waitForTimeout(1500);
@@ -84,11 +96,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     console.log('Rule: 1.0h delivery + 2.0h associated');
 
     // 1. Open create timesheet modal
-    const modal = page.getByTestId('lecturer-create-modal');
-    const modalAlreadyOpen = await modal.isVisible().catch(() => false);
-    if (!modalAlreadyOpen) {
-      await lecturerDashboard.openCreateModal();
-    }
+    const modal = await ensureCreateModalOpen();
     await page.waitForTimeout(1000);
 
     // Wait for options to load
@@ -135,7 +143,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // Fill Week Starting date (using this Monday)
     narrateStep(`Selecting week starting date: ${thisMonday}...`, '📅');
-    const weekStartNativeInput = page.locator('input#weekStartDate');
+    const weekStartNativeInput = modal.locator('input#weekStartDate');
     if (await weekStartNativeInput.count() > 0) {
       await highlightAndFill(weekStartNativeInput, thisMonday, `Entering date ${thisMonday}`, { pauseBefore: 1000, pauseAfter: 500 });
       // Ensure React Hook Form events are triggered
@@ -158,7 +166,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // Fill Description with visual highlight
     narrateStep('Entering description for TU2 Standard Tutorial...', '✍️');
-    const descriptionInput = page.getByTestId('create-description-input');
+    const descriptionInput = modal.getByTestId('create-description-input');
     await highlightAndFill(descriptionInput, tutorialStandardDesc, 'Typing description', { pauseBefore: 800, pauseAfter: 1500 });
 
     // 3. Critical verification: Wait for Rate Code calculation and observe rate preview (UI verification)
@@ -251,14 +259,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     console.log('Rule: 1.0h delivery + 1.0h associated (repeat within same week)');
 
     // 7. Open create modal for Scenario 2
-    const visibleModalSelector = '[data-testid="lecturer-create-modal"][aria-hidden="false"]';
-    const modal2AlreadyOpen = await page.locator(visibleModalSelector).first().isVisible().catch(() => false);
-    if (!modal2AlreadyOpen) {
-      await lecturerDashboard.openCreateModal();
-      await page.waitForTimeout(1500);
-    }
-    const activeModalInStage2 = page.locator(visibleModalSelector).first();
-    await expect(activeModalInStage2).toBeVisible({ timeout: 15000 });
+    const activeModalInStage2 = await ensureCreateModalOpen();
 
     // Wait for options to load
     if (await loadingBanner.isVisible().catch(() => false)) {
@@ -287,7 +288,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // Use next week's Monday to demonstrate repeat within 7 days (avoids duplicate conflict)
     narrateStep(`Selecting week starting date: ${nextWeekMonday} (repeat within 7 days)...`, '📅');
-    const weekStartInput2 = page.locator('input#weekStartDate');
+    const weekStartInput2 = activeModalInStage2.locator('input#weekStartDate');
     if (await weekStartInput2.count() > 0) {
       await highlightAndFill(weekStartInput2, nextWeekMonday, `Entering date ${nextWeekMonday}`, { pauseBefore: 1000, pauseAfter: 500 });
       // Ensure React Hook Form events are triggered
@@ -322,6 +323,13 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     narrateStep('Entering description for TU4 Repeat Tutorial...', '✍️');
     const descriptionInput2 = activeModalInStage2.getByTestId('create-description-input');
     await highlightAndFill(descriptionInput2, tutorialRepeatDesc, 'Typing description', { pauseBefore: 800, pauseAfter: 1500 });
+    // Stabilize controlled input state in React under presentation-mode timing.
+    await descriptionInput2.evaluate((el: HTMLInputElement, value: string) => {
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.dispatchEvent(new Event('blur', { bubbles: true }));
+    }, tutorialRepeatDesc);
     await expect(descriptionInput2).toHaveValue(tutorialRepeatDesc, { timeout: 5000 });
 
     // 9. Wait for Rate Code calculation (UI verification)
@@ -443,12 +451,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     console.log('Rule: actual hours, 0h associated');
 
     // 13. Open create modal for Scenario 3
-    const modalInStage3 = page.getByTestId('lecturer-create-modal');
-    const modal3AlreadyOpen = await modalInStage3.isVisible().catch(() => false);
-    if (!modal3AlreadyOpen) {
-      await lecturerDashboard.openCreateModal();
-      await page.waitForTimeout(1500);
-    }
+    const modalInStage3 = await ensureCreateModalOpen();
 
     // Wait for options to load
     if (await loadingBanner.isVisible().catch(() => false)) {
@@ -462,7 +465,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     const nextMonday = "2021-03-29";
 
     // Select same Tutor
-    const tutorSelect3 = modal.getByTestId('create-tutor-select');
+    const tutorSelect3 = modalInStage3.getByTestId('create-tutor-select');
     await expect(tutorSelect3).toBeVisible({ timeout: 10000 });
     await tutorSelect3.selectOption(firstTutorValue);
     await tutorSelect3.evaluate((el: HTMLSelectElement) => {
@@ -472,11 +475,12 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     await page.waitForTimeout(1500);
 
     // Wait for qualification auto-fill
-    await expect(qualificationSelect).toBeVisible({ timeout: 10000 });
-    await expect(qualificationSelect).toBeDisabled({ timeout: 10000 });
+    const qualificationSelect3 = modalInStage3.getByLabel('Tutor Qualification');
+    await expect(qualificationSelect3).toBeVisible({ timeout: 10000 });
+    await expect(qualificationSelect3).toBeDisabled({ timeout: 10000 });
 
     // Select same Course
-    const courseSelect3 = modal.getByTestId('create-course-select');
+    const courseSelect3 = modalInStage3.getByTestId('create-course-select');
     await expect(courseSelect3).toBeVisible({ timeout: 10000 });
     await courseSelect3.selectOption(firstCourseValue);
     await courseSelect3.evaluate((el: HTMLSelectElement) => {
@@ -487,7 +491,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // Use different Week Starting date
     console.log(`Selected date: ${nextMonday} (next Monday)`);
-    const weekStartInput3 = page.locator('input#weekStartDate');
+    const weekStartInput3 = modalInStage3.locator('input#weekStartDate');
     if (await weekStartInput3.count() > 0) {
       await weekStartInput3.fill(nextMonday);
       await weekStartInput3.evaluate((el: HTMLInputElement, date: string) => {
@@ -509,21 +513,21 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // Select Task Type = MARKING (UI interaction)
     narrateStep('Selecting Task Type: MARKING for M05...', '📝');
-    const taskTypeSelect = modal.getByTestId('create-task-type-select');
+    const taskTypeSelect = modalInStage3.getByTestId('create-task-type-select');
     await expect(taskTypeSelect).toBeVisible({ timeout: 10000 });
     await expect(taskTypeSelect).toBeEnabled({ timeout: 10000 });
     await highlightAndSelect(taskTypeSelect, 'MARKING', 'Selecting MARKING task type', { pauseBefore: 1000, pauseAfter: 1500 });
 
     // Fill Delivery Hours (Marking requires manual input)
     narrateStep('Entering delivery hours for marking work...', '⏱️');
-    const deliveryHoursInput = page.getByLabel('Delivery Hours', { exact: false });
+    const deliveryHoursInput = modalInStage3.getByLabel('Delivery Hours', { exact: false });
     await expect(deliveryHoursInput).toBeVisible({ timeout: 10000 });
     await expect(deliveryHoursInput).toBeEnabled({ timeout: 10000 });
     await highlightAndFill(deliveryHoursInput, '5.5', 'Entering 5.5 hours', { pauseBefore: 1000, pauseAfter: 1500 });
 
     // Fill Description
     narrateStep('Entering description for M05 Marking...', '✍️');
-    const descriptionInput3 = page.getByTestId('create-description-input');
+    const descriptionInput3 = modalInStage3.getByTestId('create-description-input');
     await highlightAndFill(descriptionInput3, markingDesc, 'Typing description', { pauseBefore: 800, pauseAfter: 1500 });
 
     // 15. Wait for Rate Code calculation (UI verification)
@@ -580,7 +584,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
       { timeout: 20000 }
     );
     
-    const submitButton3 = modal.getByRole('button', { name: /^Create Timesheet$/i });
+    const submitButton3 = modalInStage3.getByRole('button', { name: /^Create Timesheet$/i });
     await expect(submitButton3.first()).toBeVisible({ timeout: 15000 });
     await submitButton3.scrollIntoViewIfNeeded().catch(() => undefined);
     await expect(submitButton3).toBeEnabled({ timeout: 15000 });
@@ -613,12 +617,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     await page.waitForTimeout(3000);
 
     // 19. Open create modal (UI interaction)
-    const modalInStage4 = page.getByTestId('lecturer-create-modal');
-    const modal4AlreadyOpen = await modalInStage4.isVisible().catch(() => false);
-    if (!modal4AlreadyOpen) {
-      await lecturerDashboard.openCreateModal();
-      await page.waitForTimeout(1500);
-    }
+    const modalInStage4 = await ensureCreateModalOpen();
 
     // Wait for options to load
     if (await loadingBanner.isVisible().catch(() => false)) {
@@ -632,7 +631,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     const anotherMonday = "2021-04-05";
 
     // Select same Tutor
-    const tutorSelect4 = modal.getByTestId('create-tutor-select');
+    const tutorSelect4 = modalInStage4.getByTestId('create-tutor-select');
     await expect(tutorSelect4).toBeVisible({ timeout: 10000 });
     await tutorSelect4.selectOption(firstTutorValue);
     await tutorSelect4.evaluate((el: HTMLSelectElement) => {
@@ -642,11 +641,12 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     await page.waitForTimeout(1500);
 
     // Wait for qualification
-    await expect(qualificationSelect).toBeVisible({ timeout: 10000 });
-    await expect(qualificationSelect).toBeDisabled({ timeout: 10000 });
+    const qualificationSelect4 = modalInStage4.getByLabel('Tutor Qualification');
+    await expect(qualificationSelect4).toBeVisible({ timeout: 10000 });
+    await expect(qualificationSelect4).toBeDisabled({ timeout: 10000 });
 
     // Select same Course
-    const courseSelect4 = modal.getByTestId('create-course-select');
+    const courseSelect4 = modalInStage4.getByTestId('create-course-select');
     await expect(courseSelect4).toBeVisible({ timeout: 10000 });
     await courseSelect4.selectOption(firstCourseValue);
     await courseSelect4.evaluate((el: HTMLSelectElement) => {
@@ -657,7 +657,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // Fill date
     console.log(`Selected date: ${anotherMonday}`);
-    const weekStartInput4 = page.locator('input#weekStartDate');
+    const weekStartInput4 = modalInStage4.locator('input#weekStartDate');
     if (await weekStartInput4.count() > 0) {
       await weekStartInput4.fill(anotherMonday);
       await weekStartInput4.evaluate((el: HTMLInputElement, date: string) => {
@@ -678,7 +678,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     await page.waitForTimeout(500);
 
     // Select MARKING
-    const taskTypeSelect4 = modal.getByTestId('create-task-type-select');
+    const taskTypeSelect4 = modalInStage4.getByTestId('create-task-type-select');
     await expect(taskTypeSelect4).toBeVisible({ timeout: 10000 });
     await taskTypeSelect4.selectOption('MARKING');
     await taskTypeSelect4.evaluate((el: HTMLSelectElement) => {
@@ -689,13 +689,13 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // 21. Fill initial hours: 3.0h
     narrateStep('Entering initial hours: 3.0h for real-time demo...', '⏱️');
-    const deliveryHoursInput4 = page.getByLabel('Delivery Hours', { exact: false });
+    const deliveryHoursInput4 = modalInStage4.getByLabel('Delivery Hours', { exact: false });
     await expect(deliveryHoursInput4).toBeVisible({ timeout: 10000 });
     await highlightAndFill(deliveryHoursInput4, '3.0', 'Entering 3.0 hours', { pauseBefore: 1000, pauseAfter: 1500 });
 
     // Fill Description
     narrateStep('Entering description for real-time rate update demo...', '✍️');
-    const descriptionInput4 = page.getByTestId('create-description-input');
+    const descriptionInput4 = modalInStage4.getByTestId('create-description-input');
     await highlightAndFill(descriptionInput4, "COMP1001 Marking - Realtime Rate Update Demo", 'Typing description', { pauseBefore: 800, pauseAfter: 1500 });
 
     // 22. Wait and capture initial rate preview

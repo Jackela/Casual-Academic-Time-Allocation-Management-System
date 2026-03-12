@@ -2,8 +2,10 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const MODULE_PATH = "./ui-config";
+const TEST_FETCH_OVERRIDE_FLAG = "__CATAMS_ENABLE_SERVER_CONSTRAINT_FETCH_IN_TEST__";
 
 const mockServerModule = (factory?: () => Promise<unknown>) => {
+  (globalThis as Record<string, unknown>)[TEST_FETCH_OVERRIDE_FLAG] = true;
   const fetchMock = vi.fn(factory ?? (() => Promise.resolve(null)));
   vi.doMock("./server-config", () => ({
     fetchTimesheetConstraints: fetchMock,
@@ -12,6 +14,7 @@ const mockServerModule = (factory?: () => Promise<unknown>) => {
 };
 
 afterEach(() => {
+  delete (globalThis as Record<string, unknown>)[TEST_FETCH_OVERRIDE_FLAG];
   vi.resetModules();
   vi.doUnmock("../validation/ajv");
   vi.doUnmock("./server-config");
