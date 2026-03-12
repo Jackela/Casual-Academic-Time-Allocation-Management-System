@@ -127,7 +127,7 @@ repositories {
 
 val javaParserVersion = "3.26.0" // Use latest version
 val jacksonVersion = "2.15.3"
-val antlrVersion = "4.10.1"
+val antlrVersion = "4.13.2"
 
 configurations {
     // Create a dedicated configuration to store dependencies for our generator tool
