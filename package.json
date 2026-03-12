@@ -13,7 +13,7 @@
     "ci:audit": "bash tools/ci/run-security-audit.sh"
   },
   "devDependencies": {
-    "@redocly/cli": "^2.20.4",
+    "@redocly/cli": "^2.21.0",
     "quicktype-core": "^23.0.171"
   }
 }
