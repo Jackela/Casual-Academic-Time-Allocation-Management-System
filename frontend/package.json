@@ -71,6 +71,7 @@
     "cross-env": "^7.0.3",
     "cross-spawn": "^7.0.3",
     "detect-port": "^1.5.1",
+    "dotenv": "^17.2.3",
     "eslint": "^9.18.0",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-react-hooks": "^5.1.0",
