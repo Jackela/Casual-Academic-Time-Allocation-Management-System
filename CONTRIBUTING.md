@@ -18,11 +18,10 @@ The `main` branch is **PROTECTED** and direct pushes are **PROHIBITED**.
 
 ### Required Workflow
 
-1. **Create Feature Branch**
+1. **Sync Development Branch**
    ```bash
-   git checkout main
-   git pull origin main
-   git checkout -b feature/your-feature-name
+   git checkout codex/dev
+   git pull --ff-only origin codex/dev
    ```
 
 2. **Develop and Test**
@@ -32,34 +31,27 @@ The `main` branch is **PROTECTED** and direct pushes are **PROHIBITED**.
    npm --prefix frontend test
    ```
 
-3. **Push Feature Branch**
+3. **Push Development Branch**
    ```bash
-   git push origin feature/your-feature-name
+   git push origin codex/dev
    ```
 
-4. **Create Pull Request**
+4. **Create or Update Pull Request**
    - Go to GitHub
-   - Create PR with template
+   - Ensure PR base/head is `main <- codex/dev`
    - Wait for CI tests to pass
    - Merge to main
 
-### Branch Naming Convention
+### Branch Model
 
-```
-<type>/<ticket>-<description>
-```
-
-Preferred short-lived branch types:
-- `feature/` - New feature (e.g., `feature/story-2.2-tutor-feedback`)
-- `fix/` - Bug fix (e.g., `fix/login-error`)
-- `chore/` - Maintenance and repo hygiene (e.g., `chore/ci-gate-hardening`)
-
-Legacy prefixes such as `bugfix/`, `hotfix/`, and `refactor/` remain accepted for existing branches.
+- Long-lived branches are `main` and `codex/dev`.
+- Development commits go to `codex/dev` only.
+- Merge to `main` is always via Pull Request after required checks pass.
 
 Branch lifecycle policy:
-- Keep branches short-lived and scoped to one change set.
+- Keep temporary local branches short-lived and scoped to one change set.
 - Merge through PR only; direct push to `main` is blocked.
-- Merged branches are automatically deleted by repository settings.
+- Keep remote branches minimal; default is `main` + `codex/dev`.
 
 ### Local Git Hooks (Required)
 
@@ -79,13 +71,13 @@ Hook behavior:
 
 ### Emergency Override
 
-If you absolutely MUST push to main (not recommended):
+If you absolutely must bypass local hook checks for one push (not recommended):
 ```bash
 # Bypass pre-push checks for one push only
 SKIP_PRE_PUSH=1 git push origin <branch>
 ```
 
-**Note:** GitHub branch protection still enforces PR workflow and required checks.
+**Note:** GitHub branch protection still enforces PR workflow and required checks on `main`.
 
 ---
 
@@ -244,9 +236,10 @@ npm run lint          # Linting
 
 ### Before Submitting
 
-1. **Create a feature branch** from `main`:
+1. **Sync `codex/dev`**:
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout codex/dev
+   git pull --ff-only origin codex/dev
    ```
 
 2. **Run all tests and checks**:

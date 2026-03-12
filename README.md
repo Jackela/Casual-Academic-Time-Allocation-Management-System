@@ -21,6 +21,7 @@ aligned with the University of Sydney Enterprise Agreement 2023-2026.
 - [Local Development](#local-development)
 - [Docker Deployment](#docker-deployment)
 - [Testing](#testing)
+- [Repository Hygiene](#repository-hygiene)
 - [Project Structure](#project-structure)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
@@ -813,6 +814,37 @@ node frontend/scripts/run-e2e-tests.js --project=real --grep "@p0|@p1"
 
 ---
 
+## Repository Hygiene
+
+### Branch Model
+
+- Long-lived branches are `main` and `codex/dev`.
+- Development commits land on `codex/dev`, then merge to `main` via PR.
+- Direct pushes to `main` are prohibited.
+
+### Local Gate Parity
+
+```bash
+# Configure versioned hooks once
+git config core.hooksPath .githooks
+
+# Run the same gates manually when needed
+bash tools/ci/check-repo-hygiene.sh
+bash tools/ci/run-backend.sh
+bash tools/ci/run-frontend-unit.sh
+bash tools/ci/run-e2e.sh
+```
+
+### Cleanup Commands
+
+Use targeted cleanup to remove transient artifacts without wiping developer state:
+
+```bash
+git clean -fdX -- output tmp test-results frontend/test-results frontend/playwright-report frontend/playwright-screenshots frontend/coverage gha-artifacts gha-artifacts-latest build
+```
+
+---
+
 ## Project Structure
 
 ```
@@ -903,12 +935,12 @@ This repository enforces branch protection on `main`:
 
 ### Development Workflow
 
-1. Create feature branch from `main`
-2. Make changes and write tests
-3. Push branch and create PR
+1. Sync `codex/dev` from remote
+2. Make changes and write tests on `codex/dev`
+3. Push `codex/dev` and update/open a PR to `main`
 4. Wait for CI to pass
 5. Request code review
-6. Merge when approved
+6. Merge PR when approved
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
 
