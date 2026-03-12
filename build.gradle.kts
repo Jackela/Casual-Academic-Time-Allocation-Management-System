@@ -145,8 +145,8 @@ dependencies {
     // Database
     runtimeOnly(libs.org.postgresql.postgresql)
     // Flyway for database migrations in dev/docker environments (Flyway 10 modular DB support)
-    implementation("org.flywaydb:flyway-core:10.17.0")
-    implementation("org.flywaydb:flyway-database-postgresql:10.17.0")
+    implementation("org.flywaydb:flyway-core:12.1.0")
+    implementation("org.flywaydb:flyway-database-postgresql:12.1.0")
     // E2E runtime Testcontainers (self-managed DB for e2e profile)
     implementation(libs.org.testcontainers.testcontainers)
     implementation(libs.org.testcontainers.postgresql)
