@@ -41,6 +41,16 @@ public class ArchitectureRulesTest {
     }
 
     @Test
+    void timesheet_controller_should_not_embed_calculation_or_domain_validation_dependencies() {
+        ArchRule rule = noClasses()
+            .that().haveSimpleName("TimesheetController")
+            .should().dependOnClassesThat().haveFullyQualifiedName("com.usyd.catams.service.Schedule1Calculator")
+            .orShould().dependOnClassesThat().haveFullyQualifiedName("com.usyd.catams.domain.service.TimesheetValidationService")
+            .because("TimesheetController must delegate Schedule 1 pricing and domain validation orchestration to application/service layer use cases");
+        rule.check(classes);
+    }
+
+    @Test
     void web_layer_should_not_depend_on_security_impl_details() {
         ArchRule rule = noClasses()
             .that().resideInAPackage("..controller..")

@@ -208,7 +208,7 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("AC1: Cannot update non-DRAFT timesheet - returns 400")
+    @DisplayName("AC1: Cannot update non-DRAFT timesheet - returns 403")
     void testCannotUpdateApprovedTimesheet() throws Exception {
         String token = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
         
@@ -221,8 +221,8 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
         performPutWithoutFinancialFields("/api/timesheets/" + approvedTimesheet.getId(), updateRequest,
                 "Bearer " + token)
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error").value("ACCESS_DENIED"))
-                .andExpect(jsonPath("$.message").value("Access denied"));
+                .andExpect(jsonPath("$.error").value("AUTHORIZATION_FAILED"))
+                .andExpect(jsonPath("$.message").value(containsString("does not have permission")));
     }
 
     @Test
@@ -280,15 +280,15 @@ public class TimesheetUpdateDeleteIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("AC2: Cannot delete non-DRAFT timesheet - returns 400")
+    @DisplayName("AC2: Cannot delete non-DRAFT timesheet - returns 403")
     void testCannotDeleteApprovedTimesheet() throws Exception {
         String token = jwtTokenProvider.generateToken(lecturer.getId(), lecturer.getEmail(), lecturer.getRole().name());
 
         mockMvc.perform(delete("/api/timesheets/{id}", approvedTimesheet.getId())
                 .header("Authorization", "Bearer " + token))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").exists())
-                .andExpect(jsonPath("$.message").value(containsString("Only DRAFT timesheets can be deleted")));
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("AUTHORIZATION_FAILED"))
+                .andExpect(jsonPath("$.message").value(containsString("does not have permission")));
 
         // Verify timesheet was not deleted
         assertTrue(timesheetRepository.existsById(approvedTimesheet.getId()));

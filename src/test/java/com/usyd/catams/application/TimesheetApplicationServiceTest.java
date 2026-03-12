@@ -397,8 +397,7 @@ class TimesheetApplicationServiceTest {
             when(timesheetRepository.findById(10L)).thenReturn(Optional.of(testTimesheet));
             when(userRepository.findById(1L)).thenReturn(Optional.of(testTutor));
             when(courseRepository.findById(100L)).thenReturn(Optional.of(testCourse));
-            when(timesheetDomainService.canRoleEditTimesheetWithStatus(UserRole.TUTOR, ApprovalStatus.REJECTED)).thenReturn(true);
-            when(permissionPolicy.canModifyTimesheet(testTutor, testTimesheet, testCourse)).thenReturn(true);
+            when(permissionPolicy.canEditTimesheet(testTutor, testTimesheet, testCourse)).thenReturn(true);
             doNothing().when(timesheetDomainService).validateUpdateData(any(), any(), any());
             when(timesheetDomainService.getStatusAfterTutorUpdate(ApprovalStatus.REJECTED)).thenReturn(ApprovalStatus.DRAFT);
             when(timesheetRepository.save(any(Timesheet.class))).thenReturn(testTimesheet);
@@ -419,13 +418,13 @@ class TimesheetApplicationServiceTest {
             when(timesheetRepository.findById(10L)).thenReturn(Optional.of(testTimesheet));
             when(userRepository.findById(1L)).thenReturn(Optional.of(testTutor));
             when(courseRepository.findById(100L)).thenReturn(Optional.of(testCourse));
-            when(timesheetDomainService.canRoleEditTimesheetWithStatus(UserRole.TUTOR, ApprovalStatus.PENDING_TUTOR_CONFIRMATION)).thenReturn(false);
+            when(permissionPolicy.canEditTimesheet(testTutor, testTimesheet, testCourse)).thenReturn(false);
 
             // Act & Assert
             assertThatThrownBy(() ->
                 service.updateTimesheet(10L, testCalculation, TimesheetTaskType.TUTORIAL, "Updated", 1L))
                 .isInstanceOf(AuthorizationException.class)
-                .hasMessageContaining("REJECTED");
+                .hasMessageContaining("does not have permission");
 
             verify(timesheetRepository, never()).save(any());
         }
@@ -450,8 +449,7 @@ class TimesheetApplicationServiceTest {
             when(timesheetRepository.findById(10L)).thenReturn(Optional.of(testTimesheet));
             when(userRepository.findById(1L)).thenReturn(Optional.of(testTutor));
             when(courseRepository.findById(100L)).thenReturn(Optional.of(testCourse));
-            when(timesheetDomainService.canRoleEditTimesheetWithStatus(UserRole.TUTOR, ApprovalStatus.DRAFT)).thenReturn(true);
-            when(permissionPolicy.canModifyTimesheet(testTutor, testTimesheet, testCourse)).thenReturn(false);
+            when(permissionPolicy.canEditTimesheet(testTutor, testTimesheet, testCourse)).thenReturn(false);
 
             // Act & Assert
             assertThatThrownBy(() ->
@@ -474,8 +472,7 @@ class TimesheetApplicationServiceTest {
             when(timesheetRepository.findById(10L)).thenReturn(Optional.of(testTimesheet));
             when(userRepository.findById(3L)).thenReturn(Optional.of(testAdmin));
             when(courseRepository.findById(100L)).thenReturn(Optional.of(testCourse));
-            when(permissionPolicy.canModifyTimesheet(testAdmin, testTimesheet, testCourse)).thenReturn(true);
-            when(timesheetDomainService.canRoleDeleteTimesheetWithStatus(UserRole.ADMIN, ApprovalStatus.DRAFT)).thenReturn(true);
+            when(permissionPolicy.canDeleteTimesheet(testAdmin, testTimesheet, testCourse)).thenReturn(true);
 
             // Act
             service.deleteTimesheet(10L, 3L);
@@ -492,13 +489,12 @@ class TimesheetApplicationServiceTest {
             when(timesheetRepository.findById(10L)).thenReturn(Optional.of(testTimesheet));
             when(userRepository.findById(1L)).thenReturn(Optional.of(testTutor));
             when(courseRepository.findById(100L)).thenReturn(Optional.of(testCourse));
-            when(permissionPolicy.canModifyTimesheet(testTutor, testTimesheet, testCourse)).thenReturn(true);
-            when(timesheetDomainService.canRoleDeleteTimesheetWithStatus(UserRole.TUTOR, ApprovalStatus.DRAFT)).thenReturn(false);
+            when(permissionPolicy.canDeleteTimesheet(testTutor, testTimesheet, testCourse)).thenReturn(false);
 
             // Act & Assert
             assertThatThrownBy(() -> service.deleteTimesheet(10L, 1L))
                 .isInstanceOf(AuthorizationException.class)
-                .hasMessageContaining("REJECTED");
+                .hasMessageContaining("does not have permission");
 
             verify(timesheetRepository, never()).delete(any());
         }

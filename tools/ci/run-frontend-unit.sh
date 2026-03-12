@@ -25,8 +25,9 @@ if [ -d frontend ]; then
 fi
 
 echo "[frontend-unit] tests"
-# Run from frontend workspace so Vitest picks the intended config and test scope.
+# Run from frontend workspace so lint + Vitest both use project config.
 (
   cd frontend
+  CI=1 NODE_ENV=test npm run lint
   CI=1 NODE_ENV=test npm exec -- vitest run --run
 )

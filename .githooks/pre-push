@@ -29,17 +29,7 @@ echo "[3/6] Backend checks (gradle check)"
 bash tools/ci/run-backend.sh
 echo ""
 
-echo "[prep] Ensure frontend lint deps"
-if [[ ! -f frontend/node_modules/.bin/eslint && ! -f frontend/node_modules/.bin/eslint.cmd ]]; then
-  npm --prefix frontend install --no-audit --no-fund
-fi
-echo ""
-
-echo "[4/6] Frontend lint"
-npm --prefix frontend run lint
-echo ""
-
-echo "[5/6] Frontend unit tests (full suite)"
+echo "[4/5] Frontend unit gate (lint + full suite)"
 bash tools/ci/run-frontend-unit.sh
 echo ""
 
@@ -48,7 +38,7 @@ if git diff --name-only -- . | grep -Eq '^(src/|build\.gradle(\.kts)?$|settings\
   e2e_rebuild=1
 fi
 
-echo "[6/6] E2E (CI parity: real project)"
+echo "[5/5] E2E (CI parity: real project)"
 if docker info >/dev/null 2>&1; then
   if [[ "$e2e_rebuild" == "1" ]]; then
     echo "[pre-push] Backend/runtime files changed -> force Docker API image rebuild."

@@ -467,7 +467,8 @@ public class Timesheet {
     /**
      * Submit timesheet for approval.
      */
-    public Approval submitForApproval(Long submitterId) {
+    @Deprecated(forRemoval = true)
+    Approval submitForApproval(Long submitterId) {
         if (!isEditable()) {
             throw new IllegalStateException("Cannot submit timesheet that is not in editable state");
         }
@@ -479,7 +480,8 @@ public class Timesheet {
     /**
      * Submit timesheet for approval with comment.
      */
-    public Approval submitForApproval(Long submitterId, String comment) {
+    @Deprecated(forRemoval = true)
+    Approval submitForApproval(Long submitterId, String comment) {
         if (!isEditable()) {
             throw new IllegalStateException("Cannot submit timesheet that is not in editable state");
         }
@@ -492,7 +494,8 @@ public class Timesheet {
      * Tutor confirms the timesheet accuracy.
      * Transitions from PENDING_TUTOR_CONFIRMATION to TUTOR_CONFIRMED.
      */
-    public Approval confirmByTutor(Long tutorId, String comment) {
+    @Deprecated(forRemoval = true)
+    Approval confirmByTutor(Long tutorId, String comment) {
         if (this.status != ApprovalStatus.PENDING_TUTOR_CONFIRMATION) {
             throw new IllegalStateException("Tutor confirmation is only allowed from PENDING_TUTOR_CONFIRMATION state");
         }
@@ -505,7 +508,8 @@ public class Timesheet {
      * Lecturer confirms the timesheet (with optional comment/reason).
      * Transitions from TUTOR_CONFIRMED to LECTURER_CONFIRMED.
      */
-    public Approval confirmByLecturer(Long lecturerId, String comment) {
+    @Deprecated(forRemoval = true)
+    Approval confirmByLecturer(Long lecturerId, String comment) {
         if (this.status != ApprovalStatus.TUTOR_CONFIRMED) {
             throw new IllegalStateException("Lecturer confirmation is only allowed from TUTOR_CONFIRMED state");
         }
@@ -518,7 +522,8 @@ public class Timesheet {
      * HR/Admin gives final confirmation for payroll processing.
      * Transitions from LECTURER_CONFIRMED to FINAL_CONFIRMED.
      */
-    public Approval confirmByHR(Long hrId, String comment) {
+    @Deprecated(forRemoval = true)
+    Approval confirmByHR(Long hrId, String comment) {
         if (this.status != ApprovalStatus.LECTURER_CONFIRMED) {
             throw new IllegalStateException("HR confirmation is only allowed from LECTURER_CONFIRMED state");
         }
@@ -530,7 +535,8 @@ public class Timesheet {
     /**
      * Reject timesheet.
      */
-    public Approval reject(Long approverId, String comment) {
+    @Deprecated(forRemoval = true)
+    Approval reject(Long approverId, String comment) {
         // Rejection is allowed in confirmation stages per new workflow rules
         if (this.status != ApprovalStatus.PENDING_TUTOR_CONFIRMATION &&
             this.status != ApprovalStatus.TUTOR_CONFIRMED &&
@@ -548,7 +554,8 @@ public class Timesheet {
     /**
      * Request modification to timesheet.
      */
-    public Approval requestModification(Long approverId, String comment) {  
+    @Deprecated(forRemoval = true)
+    Approval requestModification(Long approverId, String comment) {  
         if (!canBeConfirmed()) {
             throw new IllegalStateException("Cannot request modification for timesheet in current state: " + this.status);
         }

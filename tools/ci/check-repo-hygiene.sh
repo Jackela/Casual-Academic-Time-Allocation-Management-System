@@ -6,6 +6,7 @@ cd "$repo_root"
 
 declare -a blocked_regexes=(
   '^bin/'
+  '^patch\.diff$'
   '^frontend/vitest-report\.json$'
   '^frontend/vitest-report-escaped\.txt$'
   '^E2E_FIXES_SUMMARY\.md$'
