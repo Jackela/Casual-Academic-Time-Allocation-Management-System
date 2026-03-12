@@ -166,7 +166,7 @@ dependencies {
     // Core: JSON Schema Validator for response contract testing
     testImplementation("com.networknt:json-schema-validator:1.4.0")
     // Core: YAML parser for schema extraction task and reusable tooling
-    implementation("org.yaml:snakeyaml:2.2")
+    implementation("org.yaml:snakeyaml:2.6")
     // Keep test Jackson managed by Spring Boot BOM (avoid explicit version overrides)
 
     // Add dependencies for our generator tool
