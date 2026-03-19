@@ -4,6 +4,9 @@ import https from 'node:https';
 import os from 'node:os';
 import fs from 'node:fs';
 
+const DEFAULT_E2E_BACKEND_URL = 'http://127.0.0.1:8084';
+const DEFAULT_E2E_FRONTEND_URL = 'http://localhost:5174';
+
 const requireEnv = (name) => {
   const value = process.env[name];
   if (!value || value.trim().length === 0) {
@@ -12,16 +15,22 @@ const requireEnv = (name) => {
   return value.trim();
 };
 
-const parseUrl = (name) => {
+const resolveUrlWithFallback = (name, fallback) => {
+  const explicit = process.env[name];
+  const raw = explicit && explicit.trim().length > 0 ? explicit.trim() : fallback;
   try {
-    return new URL(requireEnv(name));
+    // Validate URL shape before returning raw value to preserve caller expectations.
+    new URL(raw);
+    return raw;
   } catch (error) {
     throw new Error(`Invalid URL specified for "${name}": ${error.message}`);
   }
 };
 
+const parseUrl = (name, fallback) => new URL(resolveUrlWithFallback(name, fallback));
+
 export function resolveBackendUrl() {
-  const raw = requireEnv('E2E_BACKEND_URL');
+  const raw = resolveUrlWithFallback('E2E_BACKEND_URL', DEFAULT_E2E_BACKEND_URL);
   if (isWsl()) {
     try {
       const u = new URL(raw);
@@ -35,7 +44,7 @@ export function resolveBackendUrl() {
 }
 
 export function resolveFrontendUrl() {
-  return requireEnv('E2E_FRONTEND_URL');
+  return resolveUrlWithFallback('E2E_FRONTEND_URL', DEFAULT_E2E_FRONTEND_URL);
 }
 
 export function resolveBackendPort() {
@@ -65,7 +74,7 @@ export function resolveFrontendPort() {
     return parsed;
   }
 
-  const url = parseUrl('E2E_FRONTEND_URL');
+  const url = parseUrl('E2E_FRONTEND_URL', DEFAULT_E2E_FRONTEND_URL);
   if (!url.port) {
     throw new Error('E2E_FRONTEND_URL must include an explicit port or set E2E_FRONTEND_PORT');
   }
@@ -86,7 +95,7 @@ export function resolveFrontendHost() {
   if (explicit && explicit.trim()) {
     return explicit.trim();
   }
-  const url = parseUrl('E2E_FRONTEND_URL');
+  const url = parseUrl('E2E_FRONTEND_URL', DEFAULT_E2E_FRONTEND_URL);
   return url.hostname;
 }
 

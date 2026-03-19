@@ -27,6 +27,8 @@ import { createTestDataFactory, TestDataFactory } from '../../api/test-data-fact
 import { clearAuthSessionFromPage } from '../../api/auth-helper';
 import { addVisualEnhancements, highlightAndClick, highlightAndFill, highlightAndSelect, narrateStep, visualLogin } from './visual-helpers';
 
+test.use({ storageState: undefined });
+
 test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () => {
   let dataFactory: TestDataFactory;
 
@@ -59,6 +61,18 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     const tutorialStandardDesc = "COMP1001 Tutorial Standard - Week of 2021-03-15";
     const tutorialRepeatDesc = "COMP1001 Tutorial Repeat - Week of 2021-03-22";
     const markingDesc = "COMP1001 Marking - Assignment 1 (2021-03-29)";
+    const toDateStr = (value: Date) => value.toISOString().slice(0, 10);
+    const mondayWithOffset = (weeksFromCurrentWeek: number) => {
+      const now = new Date();
+      const dayIndex = (now.getDay() + 6) % 7; // Monday=0
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - dayIndex + weeksFromCurrentWeek * 7);
+      return toDateStr(monday);
+    };
+    const thisMonday = mondayWithOffset(4);
+    const nextWeekMonday = mondayWithOffset(5);
+    const nextMonday = mondayWithOffset(6);
+    const anotherMonday = mondayWithOffset(7);
 
     // ============================================================================
     // Setup: Lecturer Login
@@ -72,8 +86,34 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     await visualLogin(page, 'lecturer');
 
     const lecturerDashboard = new LecturerDashboardPage(page);
-    const visibleModalSelector = '[data-testid="lecturer-create-modal"][aria-hidden="false"]';
+    const visibleModalSelector = '[data-testid="lecturer-create-modal"]:visible';
     const getActiveCreateModal = () => page.locator(visibleModalSelector).last();
+    const ensureVisibleDescription = async (value: string) => {
+      const visibleDescriptionInput = page.locator('[data-testid="create-description-input"]:visible').last();
+      await expect(visibleDescriptionInput).toBeVisible({ timeout: 10000 });
+      await visibleDescriptionInput.fill(value);
+      await visibleDescriptionInput.evaluate((el: HTMLInputElement, inputValue: string) => {
+        el.value = inputValue;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+      }, value);
+      await expect(visibleDescriptionInput).toHaveValue(value, { timeout: 5000 });
+    };
+    const setWeekStartByOffset = async (activeModal: ReturnType<typeof getActiveCreateModal>, weeksFromCurrentWeek: number, expectedDate: string) => {
+      const weekInput = activeModal.getByLabel('Week Starting', { exact: false });
+      await expect(weekInput).toBeVisible({ timeout: 10000 });
+      const nextMondayButton = activeModal.getByRole('button', { name: /Next Monday/i });
+      const prevMondayButton = activeModal.getByRole('button', { name: /Prev Monday/i });
+      const totalSteps = Math.abs(weeksFromCurrentWeek);
+      const directionButton = weeksFromCurrentWeek >= 0 ? nextMondayButton : prevMondayButton;
+      await expect(directionButton).toBeVisible({ timeout: 10000 });
+      for (let i = 0; i < totalSteps; i++) {
+        await directionButton.click();
+        await page.waitForTimeout(150);
+      }
+      await expect(weekInput).toHaveValue(expectedDate, { timeout: 5000 });
+    };
     const ensureCreateModalOpen = async () => {
       const modalAlreadyOpen = await getActiveCreateModal().isVisible().catch(() => false);
       if (!modalAlreadyOpen) {
@@ -108,12 +148,6 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     // 2. Fill Tutorial Standard form (UI interaction)
     console.log('Creating Tutorial Standard timesheet...');
 
-    // Fixed date for Scenario 1: TU2 Standard (Monday, March 15, 2021)
-    const thisMonday = "2021-03-15";
-
-    // Fixed date for Scenario 2: TU4 Repeat (Monday, March 22, 2021)
-    const nextWeekMonday = "2021-03-22";
-
     // Select Tutor
     narrateStep('Selecting tutor for TU2 Standard Tutorial...', '👤');
     const tutorSelect = modal.getByTestId('create-tutor-select');
@@ -143,18 +177,8 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // Fill Week Starting date (using this Monday)
     narrateStep(`Selecting week starting date: ${thisMonday}...`, '📅');
-    const weekStartNativeInput = modal.locator('input#weekStartDate');
-    if (await weekStartNativeInput.count() > 0) {
-      await highlightAndFill(weekStartNativeInput, thisMonday, `Entering date ${thisMonday}`, { pauseBefore: 1000, pauseAfter: 500 });
-      // Ensure React Hook Form events are triggered
-      await weekStartNativeInput.evaluate((el: HTMLInputElement, date: string) => {
-        el.value = date;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        el.dispatchEvent(new Event('blur', { bubbles: true }));
-      }, thisMonday);
-      await page.waitForTimeout(500);
-    }
+    await setWeekStartByOffset(modal, 4, thisMonday);
+    await page.waitForTimeout(500);
 
     // Ensure course selection persists after date change
     await courseSelect.selectOption(firstCourseValue).catch(() => undefined);
@@ -168,6 +192,14 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     narrateStep('Entering description for TU2 Standard Tutorial...', '✍️');
     const descriptionInput = modal.getByTestId('create-description-input');
     await highlightAndFill(descriptionInput, tutorialStandardDesc, 'Typing description', { pauseBefore: 800, pauseAfter: 1500 });
+    // Stabilize controlled input state under presentation timing.
+    await descriptionInput.evaluate((el: HTMLInputElement, value: string) => {
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.dispatchEvent(new Event('blur', { bubbles: true }));
+    }, tutorialStandardDesc);
+    await expect(descriptionInput).toHaveValue(tutorialStandardDesc, { timeout: 5000 });
 
     // 3. Critical verification: Wait for Rate Code calculation and observe rate preview (UI verification)
     console.log('Waiting for rate calculation to complete...');
@@ -219,6 +251,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // 6. Submit create timesheet (UI interaction)
     narrateStep('Creating TU2 Standard Tutorial timesheet...', '📤');
+    await ensureVisibleDescription(tutorialStandardDesc);
     
     const responsePromise1 = page.waitForResponse((response) =>
       response.url().includes('/api/timesheets') && response.request().method() === 'POST',
@@ -230,20 +263,27 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     await submitButton.scrollIntoViewIfNeeded().catch(() => undefined);
     await expect(submitButton).toBeEnabled({ timeout: 15000 });
     
-    try {
-      await highlightAndClick(submitButton.first(), 'Creating timesheet', { pauseBefore: 1200, pauseAfter: 500 });
-    } catch {
-      try {
-        await descriptionInput.focus();
-        await page.keyboard.press('Enter');
-      } catch {}
-    }
+    const createForm1 = modal.locator('form[aria-label="Create Timesheet"]').first();
+    await expect(createForm1).toBeVisible({ timeout: 10000 });
+    await createForm1.scrollIntoViewIfNeeded().catch(() => undefined);
+    await createForm1.evaluate((el: HTMLFormElement) => el.requestSubmit());
     
-    const createResponse1 = await responsePromise1;
+    let createResponse1: Awaited<ReturnType<typeof page.waitForResponse>> | null = null;
+    try {
+      createResponse1 = await responsePromise1;
+    } catch (error) {
+      const formErrors = await modal.locator('[role="alert"], [data-testid$="-error"]').allTextContents().catch(() => []);
+      throw new Error(`TU2 creation response not observed: ${String(error)}; formErrors=${formErrors.join(' | ')}`);
+    }
+    if (!createResponse1) {
+      throw new Error('TU2 creation response is null');
+    }
     if (!createResponse1.ok()) {
       const errorText = await createResponse1.text();
+      const requestPayload = createResponse1.request().postData() ?? '';
       console.error(`❌ Creation failed: ${createResponse1.status()} - ${errorText}`);
-      throw new Error(`TU2 creation failed: ${createResponse1.status()} ${errorText}`);
+      console.error(`❌ TU2 request payload: ${requestPayload}`);
+      throw new Error(`TU2 creation failed: ${createResponse1.status()} ${errorText}; request=${requestPayload}`);
     }
 
     const created1 = await createResponse1.json();
@@ -288,18 +328,8 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // Use next week's Monday to demonstrate repeat within 7 days (avoids duplicate conflict)
     narrateStep(`Selecting week starting date: ${nextWeekMonday} (repeat within 7 days)...`, '📅');
-    const weekStartInput2 = activeModalInStage2.locator('input#weekStartDate');
-    if (await weekStartInput2.count() > 0) {
-      await highlightAndFill(weekStartInput2, nextWeekMonday, `Entering date ${nextWeekMonday}`, { pauseBefore: 1000, pauseAfter: 500 });
-      // Ensure React Hook Form events are triggered
-      await weekStartInput2.evaluate((el: HTMLInputElement, date: string) => {
-        el.value = date;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        el.dispatchEvent(new Event('blur', { bubbles: true }));
-      }, nextWeekMonday);
-      await page.waitForTimeout(500);
-    }
+    await setWeekStartByOffset(activeModalInStage2, 5, nextWeekMonday);
+    await page.waitForTimeout(500);
 
     // Ensure course selection persists
     await courseSelect2.selectOption(firstCourseValue).catch(() => undefined);
@@ -380,6 +410,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // 12. Submit create timesheet (UI interaction)
     narrateStep('Creating TU4 Repeat Tutorial timesheet...', '📤');
+    await ensureVisibleDescription(tutorialRepeatDesc);
     
     const responsePromise2 = page.waitForResponse((response) =>
       response.url().includes('/api/timesheets') && response.request().method() === 'POST',
@@ -391,56 +422,21 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     await submitButton2.scrollIntoViewIfNeeded().catch(() => undefined);
     await expect(submitButton2).toBeEnabled({ timeout: 15000 });
     
-    try {
-      await highlightAndClick(submitButton2.first(), 'Creating timesheet', { pauseBefore: 1200, pauseAfter: 500 });
-    } catch {
-      try {
-        await descriptionInput2.focus();
-        await page.keyboard.press('Enter');
-      } catch {}
-    }
+    const createForm2 = activeModalInStage2.locator('form[aria-label="Create Timesheet"]').first();
+    await expect(createForm2).toBeVisible({ timeout: 10000 });
+    await createForm2.scrollIntoViewIfNeeded().catch(() => undefined);
+    await createForm2.evaluate((el: HTMLFormElement) => el.requestSubmit());
     
-    const createResponse2 = await responsePromise2.catch(() => null);
-    let tu4Id: number | string | undefined;
-    if (!createResponse2) {
-      console.warn('TU4 creation response not observed within timeout, creating fallback seed via API...');
-      const fallbackCourseId = Number(firstCourseValue);
-      const createRepeatFallback = () => dataFactory.createTutorialTimesheet({
-        courseId: fallbackCourseId,
-        weekStartDate: nextWeekMonday,
-        qualification: 'STANDARD',
-        isRepeat: true,
-        deliveryHours: 1,
-        sessionDate: nextWeekMonday,
-      });
-
-      let seededRepeat;
-      try {
-        seededRepeat = await createRepeatFallback();
-      } catch {
-        // Ensure repeat eligibility baseline exists, then retry repeat creation.
-        await dataFactory.createTutorialTimesheet({
-          courseId: fallbackCourseId,
-          weekStartDate: thisMonday,
-          qualification: 'STANDARD',
-          isRepeat: false,
-          deliveryHours: 1,
-          sessionDate: thisMonday,
-        });
-        seededRepeat = await createRepeatFallback();
-      }
-      tu4Id = seededRepeat.id;
-      console.log(`✅ API fallback created Tutorial Repeat (TU4), ID: ${tu4Id}`);
-    } else {
-      if (!createResponse2.ok()) {
-        const errorText = await createResponse2.text();
-        console.error(`❌ Creation failed: ${createResponse2.status()} - ${errorText}`);
-        throw new Error(`TU4 creation failed: ${createResponse2.status()} ${errorText}`);
-      }
-      const created2 = await createResponse2.json();
-      tu4Id = created2.id || created2.timesheetId || created2.data?.id;
-      console.log(`✅ Tutorial Repeat (TU4) timesheet created, ID: ${tu4Id}`);
+    const createResponse2 = await responsePromise2;
+    if (!createResponse2.ok()) {
+      const errorText = await createResponse2.text();
+      console.error(`❌ Creation failed: ${createResponse2.status()} - ${errorText}`);
+      throw new Error(`TU4 creation failed: ${createResponse2.status()} ${errorText}`);
     }
+    const created2 = await createResponse2.json();
+    const tu4Id: number | string | undefined = created2.id || created2.timesheetId || created2.data?.id;
+    console.log(`✅ Tutorial Repeat (TU4) timesheet created, ID: ${tu4Id}`);
+    expect(tu4Id).toBeTruthy();
     await page.waitForTimeout(2500);
 
     // ============================================================================
@@ -460,9 +456,6 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // 14. Fill Marking form (UI interaction)
     console.log('Creating Marking timesheet...');
-
-    // Fixed date for Scenario 3: M05 Marking (Monday, March 29, 2021)
-    const nextMonday = "2021-03-29";
 
     // Select same Tutor
     const tutorSelect3 = modalInStage3.getByTestId('create-tutor-select');
@@ -491,17 +484,8 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // Use different Week Starting date
     console.log(`Selected date: ${nextMonday} (next Monday)`);
-    const weekStartInput3 = modalInStage3.locator('input#weekStartDate');
-    if (await weekStartInput3.count() > 0) {
-      await weekStartInput3.fill(nextMonday);
-      await weekStartInput3.evaluate((el: HTMLInputElement, date: string) => {
-        el.value = date;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        el.dispatchEvent(new Event('blur', { bubbles: true }));
-      }, nextMonday);
-      await page.waitForTimeout(500);
-    }
+    await setWeekStartByOffset(modalInStage3, 6, nextMonday);
+    await page.waitForTimeout(500);
 
     // Ensure course selection persists
     await courseSelect3.selectOption(firstCourseValue).catch(() => undefined);
@@ -529,6 +513,13 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     narrateStep('Entering description for M05 Marking...', '✍️');
     const descriptionInput3 = modalInStage3.getByTestId('create-description-input');
     await highlightAndFill(descriptionInput3, markingDesc, 'Typing description', { pauseBefore: 800, pauseAfter: 1500 });
+    await descriptionInput3.evaluate((el: HTMLInputElement, value: string) => {
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.dispatchEvent(new Event('blur', { bubbles: true }));
+    }, markingDesc);
+    await expect(descriptionInput3).toHaveValue(markingDesc, { timeout: 5000 });
 
     // 15. Wait for Rate Code calculation (UI verification)
     console.log('Waiting for rate calculation to complete...');
@@ -578,6 +569,7 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // 18. Submit create timesheet (UI interaction)
     narrateStep('Creating M05 Marking timesheet...', '📤');
+    await ensureVisibleDescription(markingDesc);
     
     const responsePromise3 = page.waitForResponse((response) =>
       response.url().includes('/api/timesheets') && response.request().method() === 'POST',
@@ -589,14 +581,10 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     await submitButton3.scrollIntoViewIfNeeded().catch(() => undefined);
     await expect(submitButton3).toBeEnabled({ timeout: 15000 });
     
-    try {
-      await highlightAndClick(submitButton3.first(), 'Creating timesheet', { pauseBefore: 1200, pauseAfter: 500 });
-    } catch {
-      try {
-        await descriptionInput3.focus();
-        await page.keyboard.press('Enter');
-      } catch {}
-    }
+    const createForm3 = modalInStage3.locator('form[aria-label="Create Timesheet"]').first();
+    await expect(createForm3).toBeVisible({ timeout: 10000 });
+    await createForm3.scrollIntoViewIfNeeded().catch(() => undefined);
+    await createForm3.evaluate((el: HTMLFormElement) => el.requestSubmit());
     
     const createResponse3 = await responsePromise3;
     if (!createResponse3.ok()) {
@@ -627,9 +615,6 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     // 20. Fill form basic information (UI interaction)
     console.log('Creating new Marking timesheet for real-time update demo...');
 
-    // Fixed date for Scenario 4: Realtime Demo (Monday, April 5, 2021)
-    const anotherMonday = "2021-04-05";
-
     // Select same Tutor
     const tutorSelect4 = modalInStage4.getByTestId('create-tutor-select');
     await expect(tutorSelect4).toBeVisible({ timeout: 10000 });
@@ -657,17 +642,8 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
 
     // Fill date
     console.log(`Selected date: ${anotherMonday}`);
-    const weekStartInput4 = modalInStage4.locator('input#weekStartDate');
-    if (await weekStartInput4.count() > 0) {
-      await weekStartInput4.fill(anotherMonday);
-      await weekStartInput4.evaluate((el: HTMLInputElement, date: string) => {
-        el.value = date;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        el.dispatchEvent(new Event('blur', { bubbles: true }));
-      }, anotherMonday);
-      await page.waitForTimeout(500);
-    }
+    await setWeekStartByOffset(modalInStage4, 7, anotherMonday);
+    await page.waitForTimeout(500);
 
     // Ensure course selection persists
     await courseSelect4.selectOption(firstCourseValue).catch(() => undefined);
@@ -697,6 +673,13 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     narrateStep('Entering description for real-time rate update demo...', '✍️');
     const descriptionInput4 = modalInStage4.getByTestId('create-description-input');
     await highlightAndFill(descriptionInput4, "COMP1001 Marking - Realtime Rate Update Demo", 'Typing description', { pauseBefore: 800, pauseAfter: 1500 });
+    await descriptionInput4.evaluate((el: HTMLInputElement, value: string) => {
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.dispatchEvent(new Event('blur', { bubbles: true }));
+    }, "COMP1001 Marking - Realtime Rate Update Demo");
+    await expect(descriptionInput4).toHaveValue("COMP1001 Marking - Realtime Rate Update Demo", { timeout: 5000 });
 
     // 22. Wait and capture initial rate preview
     console.log('Waiting for rate calculation to complete...');

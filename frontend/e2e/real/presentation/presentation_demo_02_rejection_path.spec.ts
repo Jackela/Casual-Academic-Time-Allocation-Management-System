@@ -30,6 +30,8 @@ import { clearAuthSessionFromPage, signOutViaUI } from '../../api/auth-helper';
 import { statusLabel } from '../../utils/status-labels';
 import { addVisualEnhancements, highlightAndClick, highlightAndFill, highlightAndSelect, narrateStep, visualLogin } from './visual-helpers';
 
+test.use({ storageState: undefined });
+
 test.describe('Presentation Demo 02: Rejection Path and Constraint Validation', () => {
   let dataFactory: TestDataFactory;
 
@@ -58,7 +60,6 @@ test.describe('Presentation Demo 02: Rejection Path and Constraint Validation', 
   test('Rejection Path and Constraint Validation Demo (100% UI)', async ({ page }) => {
     test.setTimeout(300000); // 5 minute timeout (for demo purposes)
     const description = "COMP1001 Tutorial - Week of 2020-06-29 - Rejection Demo";
-    let timesheetId: number;
 
     // ============================================================================
     // Stage 1: Lecturer Creates Timesheet and Assigns to Tutor (100% UI)
@@ -108,6 +109,7 @@ test.describe('Presentation Demo 02: Rejection Path and Constraint Validation', 
       throw new Error('E2E Tutor One not found in tutor options');
     }
     await highlightAndSelect(tutorSelect, tutorValue, 'Selecting E2E Tutor One', { pauseBefore: 1000, pauseAfter: 1500 });
+    await expect(tutorSelect).toHaveValue(tutorValue, { timeout: 5000 });
 
     // Wait for Tutor selection side-effect: qualification auto-filled and disabled
     const qualificationSelect = modal.getByLabel('Tutor Qualification');
@@ -125,21 +127,13 @@ test.describe('Presentation Demo 02: Rejection Path and Constraint Validation', 
       throw new Error('No course options available');
     }
     await highlightAndSelect(courseSelect, firstCourseValue, `Selecting ${courseOptions[1]}`, { pauseBefore: 1000, pauseAfter: 1500 });
+    await expect(courseSelect).toHaveValue(firstCourseValue, { timeout: 5000 });
 
     // Fill Week Starting date (use native input to directly fill and trigger React Hook Form events)
     narrateStep(`Selecting week starting date: ${isoMonday}...`, '📅');
-    const weekStartNativeInput = page.locator('input#weekStartDate');
-    if (await weekStartNativeInput.count() > 0) {
-      await highlightAndFill(weekStartNativeInput, isoMonday, `Entering date ${isoMonday}`, { pauseBefore: 1000, pauseAfter: 500 });
-      // Ensure React Hook Form events are triggered
-      await weekStartNativeInput.evaluate((el: HTMLInputElement, date: string) => {
-        el.value = date;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        el.dispatchEvent(new Event('blur', { bubbles: true }));
-      }, isoMonday);
-      await page.waitForTimeout(500);
-    }
+    const weekStartNativeInput = modal.getByRole('textbox', { name: /Week Starting/i }).first();
+    await highlightAndFill(weekStartNativeInput, isoMonday, `Entering date ${isoMonday}`, { pauseBefore: 1000, pauseAfter: 500 });
+    await expect(weekStartNativeInput).toHaveValue(isoMonday, { timeout: 5000 });
 
     // Ensure course selection persists after date change
     await courseSelect.selectOption(firstCourseValue).catch(() => undefined);
@@ -148,13 +142,15 @@ test.describe('Presentation Demo 02: Rejection Path and Constraint Validation', 
       el.dispatchEvent(new Event('change', { bubbles: true }));
     });
     await page.waitForTimeout(500);
+    await expect(courseSelect).toHaveValue(firstCourseValue, { timeout: 5000 });
 
     // Note: Tutorial type Delivery Hours auto-filled to 1.0 and read-only, no filling needed
 
     // Fill Description
-    const descriptionInput = page.getByTestId('create-description-input');
-    await descriptionInput.fill(description);
-    await page.waitForTimeout(2000);
+    narrateStep('Filling timesheet description...', '✍️');
+    const descriptionInput = modal.getByTestId('create-description-input');
+    await highlightAndFill(descriptionInput, description, 'Entering description', { pauseBefore: 800, pauseAfter: 1500 });
+    await expect(descriptionInput).toHaveValue(description, { timeout: 5000 });
 
     // Critical: Wait for Rate Code calculation to complete (no longer showing '-')
     console.log('Waiting for rate calculation to complete...');
@@ -178,126 +174,86 @@ test.describe('Presentation Demo 02: Rejection Path and Constraint Validation', 
     console.log('✅ Rate calculation completed');
 
     // 5. Submit form to create timesheet (UI interaction)
-    console.log('Submitting timesheet creation...');
-    
-    const responsePromise = page.waitForResponse((response) =>
-      response.url().includes('/api/timesheets') &&
-      !response.url().includes('/quote') &&
-      response.request().method() === 'POST',
-      { timeout: 20000 }
-    );
+    narrateStep('Submitting timesheet creation...', '📤');
     
     // Locate submit button and ensure visible and clickable
     const submitButton = modal.getByRole('button', { name: /^Create Timesheet$/i });
     await expect(submitButton.first()).toBeVisible({ timeout: 15000 });
     await submitButton.scrollIntoViewIfNeeded().catch(() => undefined);
     await expect(submitButton).toBeEnabled({ timeout: 15000 });
-    await page.waitForTimeout(500);
-    
-    // Click submit button
-    try {
-      await submitButton.click();
-    } catch {
-      try {
-        await descriptionInput.focus();
-        await page.keyboard.press('Enter');
-      } catch {}
-    }
-    
-    let createResponse: Awaited<ReturnType<typeof page.waitForResponse>> | null = null;
-    try {
-      createResponse = await responsePromise;
-    } catch (error) {
-      console.warn('Timesheet creation response not observed within timeout, attempting fallback lookup:', error);
-    }
 
-    const creationPayload = {
-      tutorId: Number(tutorValue),
-      courseId: Number(firstCourseValue),
-      weekStartDate: isoMonday,
-      sessionDate: isoMonday,
-      deliveryHours: 1,
-      description,
-      taskType: 'TUTORIAL',
-      qualification: 'STANDARD',
-      isRepeat: false,
+    const waitForCreateResponse = () =>
+      page.waitForResponse((response) =>
+        response.url().includes('/api/timesheets') &&
+        !response.url().includes('/quote') &&
+        response.request().method() === 'POST',
+      { timeout: 15000 });
+
+    const submitCreateForm = async () => {
+      try {
+        await highlightAndClick(submitButton.first(), 'Creating timesheet', { pauseBefore: 1200, pauseAfter: 500 });
+        return;
+      } catch {
+        // fall through to direct click retry
+      }
+
+      try {
+        await submitButton.first().click({ timeout: 5000, force: true });
+      } catch {
+        try {
+          await descriptionInput.focus();
+          await page.keyboard.press('Enter');
+        } catch {
+          // Ignore and let caller handle the missing response.
+        }
+      }
     };
 
-    if (createResponse) {
-      if (!createResponse.ok()) {
-        const errorText = await createResponse.text();
-        console.error(`❌ Creation failed: ${createResponse.status()} - ${errorText}`);
-      } else {
-        const createdData = await createResponse.json();
-        timesheetId = createdData.id || createdData.timesheetId || createdData.data?.id;
-        console.log(`✅ Timesheet created, ID: ${timesheetId}`);
+    let createResponse: Awaited<ReturnType<typeof page.waitForResponse>> | null = null;
+    const maxSubmitAttempts = 2;
+    for (let attempt = 1; attempt <= maxSubmitAttempts; attempt += 1) {
+      const responsePromise = waitForCreateResponse().catch(() => null);
+      await submitCreateForm();
+      createResponse = await responsePromise;
+      if (createResponse) {
+        break;
       }
+
+      const modalStillVisible = await modal.isVisible().catch(() => false);
+      if (!modalStillVisible || attempt === maxSubmitAttempts) {
+        break;
+      }
+
+      console.warn(`⚠️ Create response not observed (attempt ${attempt}/${maxSubmitAttempts}), retrying submit...`);
+      await page.waitForTimeout(800);
     }
 
-    if (!timesheetId) {
-      try {
-        const lookup = await page.request.get('/api/timesheets?size=50');
-        if (lookup.ok()) {
-          const payload = await lookup.json().catch(() => null);
-          const list: Array<any> = Array.isArray(payload?.timesheets)
-            ? payload.timesheets
-            : Array.isArray(payload?.data?.content)
-              ? payload.data.content
-              : Array.isArray(payload?.data)
-                ? payload.data
-                : Array.isArray(payload?.content)
-                  ? payload.content
-                  : Array.isArray(payload)
-                    ? payload
-                    : [];
-          const match = list.find((entry) => {
-            const desc = String(entry?.description ?? entry?.timesheetDescription ?? '');
-            const week = String(entry?.weekStartDate ?? entry?.weekStart ?? '');
-            return desc.includes(description) && week === isoMonday;
-          });
-          if (match?.id) {
-            timesheetId = Number(match.id);
-            console.log(`✅ Resolved timesheet ID via lookup: ${timesheetId}`);
-          }
-        }
-      } catch (error) {
-        console.warn('Lookup for created timesheet failed', error);
-      }
+    if (!createResponse) {
+      const modalStillVisible = await modal.isVisible().catch(() => false);
+      throw new Error(`Timesheet creation response not observed after ${maxSubmitAttempts} attempts (modalVisible=${modalStillVisible}, url=${page.url()})`);
     }
+    if (!createResponse.ok()) {
+      const errorText = await createResponse.text();
+      throw new Error(`Timesheet creation failed: ${createResponse.status()} - ${errorText}`);
+    }
+    const createdData = await createResponse.json();
+    const timesheetId = createdData.id || createdData.timesheetId || createdData.data?.id;
+    console.log(`✅ Timesheet created, ID: ${timesheetId}`);
 
     if (!timesheetId) {
-      const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8080';
-      try {
-        const token = await page.evaluate(() => window.localStorage.getItem('token'));
-        const apiResponse = await page.request.post(`${backendUrl}/api/timesheets`, {
-          data: creationPayload,
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
-        if (apiResponse.ok()) {
-          const payload = await apiResponse.json().catch(() => ({}));
-          timesheetId = payload.id || payload.timesheetId || payload.data?.id;
-          console.log(`✅ API fallback created timesheet, ID: ${timesheetId}`);
-        } else {
-          console.error(`API fallback failed: ${apiResponse.status()} ${await apiResponse.text()}`);
-        }
-      } catch (error) {
-        console.error('API fallback creation failed', error);
-      }
+      throw new Error('Failed to extract timesheet ID from creation response payload');
     }
-
-    if (!timesheetId) {
-      throw new Error(`Failed to extract timesheet ID after fallback attempts`);
-    }
-    // Transition draft to pending so tutor can act even when fallback creation path was used
-    try {
-      const token = await page.evaluate(() => window.localStorage.getItem('token'));
-      const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8080';
-      await page.request.post(`${backendUrl}/api/approvals`, {
-        data: { timesheetId, action: 'SUBMIT_FOR_APPROVAL', comment: null },
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      }).catch(() => undefined);
-    } catch (error) {
-      console.warn('Unable to submit draft via API fallback', error);
+    const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8084';
+    const token = await page.evaluate(() => window.localStorage.getItem('token'));
+    const detailResp = await page.request.get(`${backendUrl}/api/timesheets/${timesheetId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    expect(detailResp.ok()).toBeTruthy();
+    const detailPayload = await detailResp.json().catch(() => ({}));
+    const rawCreatedStatus = detailPayload.status ?? detailPayload.timesheet?.status ?? createdData.status;
+    const createdStatus = String(rawCreatedStatus ?? '').toUpperCase();
+    if (!['DRAFT', 'PENDING_TUTOR_CONFIRMATION'].includes(createdStatus)) {
+      throw new Error(`Unexpected initial timesheet status: ${createdStatus || '(empty)'}`);
     }
     await page.waitForTimeout(2500);
 
@@ -328,8 +284,21 @@ test.describe('Presentation Demo 02: Rejection Path and Constraint Validation', 
     await page.waitForTimeout(1000);
 
     const statusBadge = tutorDashboard.getStatusBadge(timesheetId);
-    await expect(statusBadge).toContainText(statusLabel('PENDING_TUTOR_CONFIRMATION'));
-    await page.waitForTimeout(1000);
+    const draftLabel = statusLabel('DRAFT');
+    const pendingLabel = statusLabel('PENDING_TUTOR_CONFIRMATION');
+    const currentStatusText = (await statusBadge.textContent())?.trim() ?? '';
+    if (currentStatusText.includes(draftLabel)) {
+      await tutorDashboard.expectSubmitButtonVisible(timesheetId);
+      const submitResponse = await tutorDashboard.submitDraft(timesheetId);
+      expect(submitResponse.ok()).toBeTruthy();
+      await expect(statusBadge).toContainText(pendingLabel, { timeout: 15000 });
+      await page.waitForTimeout(1000);
+    } else if (currentStatusText.includes(pendingLabel)) {
+      await expect(statusBadge).toContainText(pendingLabel, { timeout: 15000 });
+      await page.waitForTimeout(1000);
+    } else {
+      throw new Error(`Unexpected tutor-visible status before confirm: ${currentStatusText || '(empty)'}`);
+    }
 
     // 11. Tutor clicks Confirm button (UI interaction)
     console.log('Tutor confirming timesheet...');

@@ -708,6 +708,11 @@ async function ensureBackend({ backendPort, backendHost, backendHealthUrl, backe
     SERVER_PORT: String(backendPort),
     SPRING_OUTPUT_ANSI_ENABLED: 'never',
     E2E_BACKEND_PORT: String(backendPort),
+    E2E_BACKEND_URL: process.env.E2E_BACKEND_URL || `http://127.0.0.1:${backendPort}`,
+    OTEL_SDK_DISABLED: process.env.OTEL_SDK_DISABLED || 'true',
+    OTEL_TRACES_EXPORTER: process.env.OTEL_TRACES_EXPORTER || 'none',
+    OTEL_METRICS_EXPORTER: process.env.OTEL_METRICS_EXPORTER || 'none',
+    OTEL_LOGS_EXPORTER: process.env.OTEL_LOGS_EXPORTER || 'none',
     JWT_SECRET:
       process.env.JWT_SECRET
       || 'Y2F0YW1zLWRlbW8tc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQtb25seS1ub3QtZm9yLXByb2R1Y3Rpb24=',
@@ -915,6 +920,10 @@ async function runPlaywright(frontendUrl, backendPort, frontendPort, backendUrl)
     E2E_FRONTEND_URL: frontendUrl,
     E2E_FRONTEND_PORT: String(new URL(frontendUrl).port || frontendPort),
     E2E_BACKEND_PORT: String(backendPort),
+    E2E_BACKEND_URL: backendUrl,
+    VITE_API_PROXY_TARGET: backendUrl,
+    VITE_E2E_BACKEND_URL: backendUrl,
+    VITE_E2E_BACKEND_PORT: String(backendPort),
     NODE_ENV: 'test',
   };
 
@@ -1007,8 +1016,12 @@ async function main() {
 
   process.env.E2E_BACKEND_PORT = String(backendPort);
   process.env.E2E_FRONTEND_PORT = String(frontendPort);
+  process.env.E2E_BACKEND_URL = backendUrl;
+  process.env.E2E_FRONTEND_URL = frontendUrl;
 
   logStep('STEP 1', 'Pre-flight checks');
+  log(`  backendUrl=${backendUrl} (port ${backendPort})`, colors.cyan);
+  log(`  frontendUrl=${frontendUrl} (port ${frontendPort})`, colors.cyan);
 
   const requireDocker = isTruthy(process.env.E2E_REQUIRE_DOCKER);
   const skipDockerCheck = isTruthy(process.env.E2E_SKIP_DOCKER_CHECK);

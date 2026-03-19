@@ -5,6 +5,7 @@ import { expectNoFinancialFields, expectServerFinancials } from '../utils/ssot';
 import { expectContract } from '../utils/contract';
 import { loginAsRole } from '../../api/auth-helper';
 import { waitForVisible } from '../../shared/utils/waits';
+import { allowExpectedHttpErrorDiagnostics } from '../../shared/utils/diagnostics';
 // Storage state is provided by global setup; we also seed per-spec via init script
 import { createTestDataFactory } from '../../api/test-data-factory';
 import { TutorDashboardPage } from '../../shared/pages/TutorDashboardPage';
@@ -651,7 +652,6 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
     await expect(descriptionInput).toHaveValue(/Duplicate week attempt/i);
 
     const finalSubmit = sel.byTestId(page, 'lecturer-create-submit-btn');
-    const duplicateErrorCopy = 'A timesheet already exists for this tutor, course, and week. Please choose a different week or edit the existing one.';
     const expectInlineDuplicateError = async () => {
       const inlineError = page.getByTestId('field-error-weekStartDate-inline');
       await expect(inlineError).toContainText('timesheet already exists', { timeout: 10000 });
@@ -666,6 +666,7 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
         body: JSON.stringify({ message: 'Timesheet already exists' }),
       });
     };
+    allowExpectedHttpErrorDiagnostics(page, [409]);
     await page.context().route(duplicateRoutePattern, conflictRouteHandler);
     try {
       // Ensure modal and CTA are in view, then force submit to assert conflict/inline error deterministically
@@ -678,51 +679,15 @@ test.describe('@p1 Regression: Lecturer create duplicate week', () => {
       try {
         await finalSubmit.click({ force: true, timeout: 5000 });
       } catch {
-        // Fallback for off-viewport edge cases in some CI layouts
+        // Off-viewport edge case in some CI layouts
         await finalSubmit.evaluate((el: any) => (el as HTMLElement).click());
       }
-      const resp = await createRespPromise.catch(() => null);
-      if (resp) {
-        await expect(resp.status()).toBe(409);
-        await expectInlineDuplicateError();
-      } else {
-        throw new Error('UI submission did not reach create endpoint');
-      }
-    } catch {
-      // Fall back to server-side validation via direct API call to confirm duplicate policy
-      const apiResp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/timesheets`, {
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.token}` },
-        data: {
-          tutorId: chosenTutorId,
-          courseId: chosenCourseId,
-          weekStartDate: weekIso,
-          sessionDate: weekIso,
-          deliveryHours: 1,
-          hours: 1,
-          hourlyRate: 50,
-          description: 'Duplicate week attempt',
-          taskType: 'TUTORIAL',
-          qualification: 'STANDARD',
-          isRepeat: false,
-        },
-      });
-      await expect(apiResp.status()).toBe(409);
-      // Surface the same inline error the UI would raise for a duplicate-week conflict
-      await page.evaluate((message) => {
-        try {
-          const evt = new CustomEvent('catams-create-field-error', {
-            detail: { field: 'weekStartDate', message },
-          } as CustomEventInit);
-          window.dispatchEvent(evt);
-        } catch {}
-      }, duplicateErrorCopy).catch(() => undefined);
+      const resp = await createRespPromise;
+      await expect(resp.status()).toBe(409);
       await expectInlineDuplicateError();
     } finally {
       await page.context().unroute(duplicateRoutePattern, conflictRouteHandler).catch(() => undefined);
     }
-
-    // 409 confirmed: success criteria satisfied for regression. Optional UI assertions are non-blocking.
-    return;
   });
 });
 

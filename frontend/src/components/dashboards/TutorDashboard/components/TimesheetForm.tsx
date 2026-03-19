@@ -153,7 +153,7 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
     isRepeat: boolean;
   };
 
-  const { setValue, watch, handleSubmit, getValues, formState } = useForm<FormValues>({
+  const { setValue, watch, handleSubmit, getValues, register } = useForm<FormValues>({
     mode: 'onChange',
     defaultValues: {
       courseId: Number(initialData?.courseId ?? 0),
@@ -168,8 +168,14 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
   });
 
   useEffect(() => {
-    console.log(' Current Form Errors:', formState.errors);
-  }, [formState.errors]);
+    register('courseId');
+    register('weekStartDate');
+    register('deliveryHours');
+    register('description');
+    register('taskType');
+    register('qualification');
+    register('isRepeat');
+  }, [register]);
 
   // Tutor selection (lecturer mode)
   const [internalTutorId, setInternalTutorId] = useState<number>(() => {
@@ -456,17 +462,6 @@ const TimesheetForm = memo(function TimesheetForm(props: TimesheetFormProps) {
       isRepeat: v.isRepeat,
     };
     onSubmit(submission);
-  }, (errors) => {
-    try {
-      console.error(' FORM SUBMIT BLOCKED BY VALIDATION:', JSON.stringify(errors, null, 2));
-    } catch (error) {
-      void error;
-    }
-    try {
-      alert('VALIDATION ERROR: ' + JSON.stringify(errors));
-    } catch (error) {
-      void error;
-    }
   });
 
   // Helpers to keep labels consistent

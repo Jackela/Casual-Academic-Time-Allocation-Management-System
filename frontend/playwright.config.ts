@@ -71,7 +71,6 @@ export default defineConfig({
     {
       name: 'real',
       testDir: './e2e/real',
-      testIgnore: ['**/presentation/**'],
       retries: process.env.CI ? 2 : 0,
       fullyParallel: false,
       workers: 1,
@@ -139,5 +138,4 @@ export default defineConfig({
         },
       }),
 });
-
 

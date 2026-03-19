@@ -236,7 +236,16 @@ test.describe('Tutor dashboard workflow', () => {
     }
   });
 
-test('allows editing a modification-requested timesheet (if present)', async ({ page }) => {
+test('allows editing a modification-requested timesheet', async ({ page, request }) => {
+  const factory = await createTestDataFactory(request);
+  const seeded = await factory.createTimesheetForTest({ targetStatus: 'PENDING_TUTOR_CONFIRMATION' });
+  await factory.transitionTimesheet(
+    seeded.id,
+    'REJECT',
+    'Please update your timesheet before resubmission.',
+    'admin',
+  );
+  await page.reload();
   await tutorDashboard.waitForDashboardReady();
   // Switch to Needs Attention tab if available to surface rejected rows
   const needsAttention = page.getByRole('button', { name: /Needs Attention/i });
@@ -244,13 +253,8 @@ test('allows editing a modification-requested timesheet (if present)', async ({ 
     await needsAttention.click().catch(() => undefined);
     await page.waitForResponse((r) => r.url().includes('/api/timesheets') && r.request().method() === 'GET').catch(() => undefined);
   }
-  // Prefer Modification Requested rows for editability
-  const modReqRow = tutorDashboard.timesheetsTable.getByRole('row').filter({ hasText: /Modification Requested/i }).first();
-  const modReqExists = await modReqRow.isVisible().catch(() => false);
-  if (!modReqExists) {
-    console.warn('No modification-requested timesheet present; skipping edit flow check.');
-    return;
-  }
+  const modReqRow = page.getByTestId(`timesheet-row-${seeded.id}`);
+  await expect(modReqRow).toBeVisible({ timeout: 20000 });
   const editButton = modReqRow.getByRole('button', { name: /Edit/i }).first();
   await editButton.click();
   await tutorDashboard.expectEditModalVisible();
@@ -271,15 +275,14 @@ test('allows editing a modification-requested timesheet (if present)', async ({ 
     await expect(page.getByRole('button', { name: /Submit Selected/i })).toHaveCount(0);
   });
 
-  test('allows confirming a pending timesheet (if present)', async () => {
+  test('allows confirming a pending timesheet', async ({ request }) => {
+    const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'PENDING_TUTOR_CONFIRMATION' });
+    await tutorDashboard.page.reload();
     await tutorDashboard.waitForDashboardReady();
-    // Find first row with a confirm action
-    const confirmBtn = tutorDashboard.timesheetsTable.getByRole('button', { name: /Confirm/i }).first();
-    const hasConfirm = await confirmBtn.isVisible().catch(() => false);
-    if (!hasConfirm) {
-      console.warn('No pending timesheet to confirm; skipping.');
-      return;
-    }
+    const row = tutorDashboard.page.getByTestId(`timesheet-row-${seeded.id}`);
+    await expect(row).toBeVisible({ timeout: 20000 });
+    const confirmBtn = row.getByRole('button', { name: /Confirm/i }).first();
+    await expect(confirmBtn).toBeVisible({ timeout: 10000 });
     const approvalsDone = Promise.race([
       confirmBtn.page().waitForResponse((r) => r.url().includes('/api/approvals') && r.request().method() === 'POST'),
       confirmBtn.page().waitForResponse((r) => /\/api\/timesheets\/\d+\/confirm$/.test(r.url()) && r.request().method() === 'PUT')
@@ -296,13 +299,21 @@ test('allows editing a modification-requested timesheet (if present)', async ({ 
       .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
       .catch(() => undefined);
     // Prefer stability over strict DOM-based assertion; tolerate late repaint
-    try {
-      await expect
-        .poll(async () => !(await confirmBtn.isVisible().catch(() => false)), { timeout: 15000 })
-        .toBe(true);
-    } catch {
-      console.warn('Confirm button invisibility not observed within window; continuing (backend action already confirmed).');
-    }
+    await expect
+      .poll(async () => !(await confirmBtn.isVisible().catch(() => false)), { timeout: 15000 })
+      .toBe(true);
+    await expect
+      .poll(async () => {
+        const detail = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${seeded.id}`, {
+          headers: { Authorization: `Bearer ${dataFactory.getAuthTokens().tutor.token}` },
+        });
+        if (!detail.ok()) return '';
+        const payload = await detail.json().catch(() => ({} as Record<string, unknown>));
+        return (payload as { status?: string; timesheet?: { status?: string } }).status
+          ?? (payload as { timesheet?: { status?: string } }).timesheet?.status
+          ?? '';
+      }, { timeout: 15000 })
+      .toBe('TUTOR_CONFIRMED');
   });
 
   test('confirms a seeded pending timesheet (deterministic)', async ({ page, request }) => {
@@ -315,12 +326,7 @@ test('allows editing a modification-requested timesheet (if present)', async ({ 
     await tutorDashboard.waitForDashboardReady();
 
     const row = page.getByTestId(`timesheet-row-${seeded.id}`);
-    // If row does not appear within window (e.g., filtered/paginated), skip to avoid false negative
-    const appeared = await row.isVisible().catch(() => false);
-    if (!appeared) {
-      console.warn(`Seeded pending row ${seeded.id} not visible; skipping deterministic confirm.`);
-      return;
-    }
+    await expect(row).toBeVisible({ timeout: 20000 });
     const confirmBtn = row.getByRole('button', { name: /Confirm/i }).first();
     await expect(confirmBtn).toBeVisible({ timeout: 15000 });
     const approvalsDone = Promise.race([
@@ -358,10 +364,7 @@ test('allows editing a modification-requested timesheet (if present)', async ({ 
     }
     // Locate the seeded row by a stable selector (data-testid) and open edit
     const seededRow = page.getByTestId(`timesheet-row-${seeded.id}`);
-    if (!(await seededRow.isVisible().catch(() => false))) {
-      console.warn(`Seeded draft row ${seeded.id} not visible; skipping edit validation.`);
-      return;
-    }
+    await expect(seededRow).toBeVisible({ timeout: 20000 });
     await seededRow.getByRole('button', { name: /Edit/i }).first().click();
     await tutorDashboard.expectEditModalVisible();
 
@@ -389,10 +392,6 @@ test('rejected timesheets show edit button only (no submit)', async ({ page, req
 
   // Assert rejected row is present with edit button only (no submit button)
   const tableRow = page.getByTestId(`timesheet-row-${seeded.id}`);
-  if (!(await tableRow.isVisible().catch(() => false))) {
-    console.warn(`Seeded rejected row ${seeded.id} not visible; skipping assertion.`);
-    return;
-  }
   await expect(tableRow).toBeVisible({ timeout: 20000 });
   await expect(tableRow).toContainText(/Rejected/i);
   

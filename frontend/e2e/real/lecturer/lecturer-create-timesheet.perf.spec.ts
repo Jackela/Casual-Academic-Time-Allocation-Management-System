@@ -2,13 +2,10 @@ import { test, expect } from '@playwright/test';
 import { roleCredentials, type UserRole } from '../../api/auth-helper';
 import { LoginPage } from '../../shared/pages/LoginPage';
 
-const runPerfSuite = String(process.env.E2E_RUN_PERF || '').toLowerCase() === 'true';
-const describePerf = runPerfSuite ? test.describe : test.describe.skip;
-
-describePerf('@ui @performance lecturer create modal open', () => {
+test.describe('@ui @performance lecturer create modal open', () => {
   test('click→dialog focus ≤ threshold', async ({ page }) => {
     const baseURL = process.env.E2E_FRONTEND_URL || 'http://localhost:5174';
-    // Login via UI to ensure auth context; fallback to hitting dashboard directly if storage is pre-seeded
+    // Login via UI to ensure auth context.
     await page.goto(`${baseURL}/login`);
     const lec = roleCredentials('lecturer' as UserRole);
     const login = new LoginPage(page);

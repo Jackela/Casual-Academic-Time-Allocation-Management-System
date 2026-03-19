@@ -50,7 +50,6 @@ test.describe('@p1 @admin US5: Admin user management', () => {
     await admin.closeModal();
 
     // Valid password (env-driven if provided, else robust default)
-    const allowPositive = true; // enforce positive path; fallback to API if UI creation not observed
     // Capture POST /api/users outcome deterministically
     const postRespPromise = page
       .waitForResponse(
@@ -66,13 +65,8 @@ test.describe('@p1 @admin US5: Admin user management', () => {
     // After creation, wait for the list to refresh once
     await waitForUsersListOk(page, 15000).catch(() => undefined);
     const postResp = await postRespPromise;
-    // Determine success by toast or table row presence; else treat as policy error and end.
+    // Determine success by POST + toast + row visibility.
     let creationObserved = Boolean(postResp?.ok());
-    if (!creationObserved && !allowPositive) {
-      // In policy-gated envs, treat non-2xx POST as expected and exit early
-      try { await expect(page.getByRole('alert')).toBeVisible({ timeout: 4000 }); } catch {}
-      return;
-    }
     try {
       await expect(page.getByTestId('toast-success')).toBeVisible({ timeout: 6000 });
       creationObserved = true;
@@ -85,36 +79,9 @@ test.describe('@p1 @admin US5: Admin user management', () => {
         creationObserved = true;
       } catch {}
     }
-    if (!creationObserved) {
-      // If positive path is desired but UI did not create, fallback to API create
-      if (allowPositive) {
-        const { E2E_CONFIG } = await import('../../config/e2e.config');
-        const adminSess = await loginAsRole(page.request, 'admin');
-        const apiResp = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/users`, {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${adminSess.token}`,
-          },
-          data: {
-            email: createdEmail,
-            name: 'New User',
-            password: goodPwd,
-            role: 'TUTOR',
-          },
-        });
-        if (!apiResp.ok()) {
-          throw new Error(`API fallback user create failed: ${apiResp.status()} ${await apiResp.text()}`);
-        }
-        // Ensure UI picks up the new user by forcing a navigation refresh
-        await page.reload({ waitUntil: 'domcontentloaded' });
-        await waitForAdminUsersReady(page);
-        await waitForUsersListOk(page, 15000).catch(() => undefined);
-        creationObserved = true;
-      }
-    }
+    expect(creationObserved).toBe(true);
 
-    // Choose the target row: created user if present; otherwise use seeded tutor account
-    const targetEmail = creationObserved ? createdEmail : 'tutor@example.com';
+    const targetEmail = createdEmail;
     // Activate/deactivate lifecycle (locate by visible email text to avoid testid normalization issues)
     const escaped = targetEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const row = page.getByRole('row', { name: new RegExp(escaped, 'i') });

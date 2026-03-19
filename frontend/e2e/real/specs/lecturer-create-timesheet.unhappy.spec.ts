@@ -3,8 +3,7 @@ import { loginAsRole } from '../../api/auth-helper';
 import { waitForAppReady } from '../../shared/utils/waits';
 
 test.describe('Lecturer Create Timesheet – Unhappy Paths', () => {
-  // Skip: Range error visibility is flaky in CI due to timing of constraint loading
-  test.skip('disables submit for invalid delivery hours (Lecture type)', async ({ page }) => {
+  test('disables submit for invalid delivery hours (Lecture type)', async ({ page }) => {
     // Stabilize resources
     await page.context().route('**/api/courses?**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 1, name: 'E2E Course', code: 'E2E-101', active: true }]) });
@@ -53,10 +52,7 @@ test.describe('Lecturer Create Timesheet – Unhappy Paths', () => {
     await expect(submit).toBeDisabled();
   });
 
-  // Skip: Future-date validation is explicitly disabled for e2e/demo profiles
-  // See TimesheetForm.tsx line 506: const weekFutureInvalid = false;
-  // and FutureDateRule.java which allows LECTURER/ADMIN to create future timesheets
-  test.skip('disables submit when week start is in the future', async ({ page }) => {
+  test('disables submit when week start is in the future (quote rejects)', async ({ page }) => {
     // Stabilize resources
     await page.context().route('**/api/courses?**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 1, name: 'E2E Course', code: 'E2E-101', active: true }]) });
@@ -101,10 +97,20 @@ test.describe('Lecturer Create Timesheet – Unhappy Paths', () => {
     }
     await expect(wk).toBeVisible({ timeout: 15000 });
     const nextYear = new Date().getFullYear() + 1;
-    await wk.fill(`${nextYear}-01-06`);
+    const futureMonday = `${nextYear}-01-06`;
+    const quoteRejected = page.waitForResponse((response) => {
+      return response.url().includes('/api/timesheets/quote')
+        && response.request().method() === 'POST'
+        && response.status() >= 400;
+    });
+
+    await wk.fill(futureMonday);
     await wk.blur();
-    // Wait for future-date error to render before asserting disabled (unified test id)
-    await expect(page.getByTestId('field-error-weekStartDate')).toBeVisible();
-    await expect(page.getByTestId('lecturer-create-modal').getByRole('button', { name: 'Create Timesheet' })).toBeDisabled();
+    await quoteRejected;
+
+    const submitButton = page
+      .getByTestId('lecturer-create-modal')
+      .getByRole('button', { name: 'Create Timesheet' });
+    await expect(submitButton).toBeDisabled();
   });
 });

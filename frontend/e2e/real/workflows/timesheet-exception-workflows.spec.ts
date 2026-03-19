@@ -114,35 +114,10 @@ test.describe('Exception workflow guard-rails', () => {
         .catch(() => undefined);
 
       const lecturerRow = await lecturerDashboard.getTimesheetById(timesheetId);
-      try {
-        await expect(lecturerRow).toHaveCount(1, { timeout: 30000 });
-      } catch {
-        // SSOT fallback if row not visible due to filters/pagination
-        const tokens = dataFactory.getAuthTokens();
-        const verification = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {
-          headers: { Authorization: `Bearer ${tokens.lecturer.token}`, 'Content-Type': 'application/json' },
-        });
-        expect(verification.ok()).toBeTruthy();
-        const payload = await verification.json();
-        const status = payload?.status ?? payload?.timesheet?.status;
-        expect(['TUTOR_CONFIRMED','LECTURER_CONFIRMED']).toContain(status);
-        test.info().annotations.push({ type: 'note', description: 'Row not visible; accepted SSOT backend status' });
-      }
-      try {
-        await expect(
-          lecturerDashboard.page.locator(`[data-testid="status-badge-${timesheetId}"]`),
-        ).toContainText(statusLabel('TUTOR_CONFIRMED'), { timeout: 10000 });
-      } catch {
-        const tokens = dataFactory.getAuthTokens();
-        const verification = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {
-          headers: { Authorization: `Bearer ${tokens.lecturer.token}`, 'Content-Type': 'application/json' },
-        });
-        expect(verification.ok()).toBeTruthy();
-        const payload = await verification.json();
-        const status = payload?.status ?? payload?.timesheet?.status;
-        expect(['TUTOR_CONFIRMED','LECTURER_CONFIRMED']).toContain(status);
-        test.info().annotations.push({ type: 'note', description: 'Badge not visible; accepted SSOT backend status' });
-      }
+      await expect(lecturerRow).toHaveCount(1, { timeout: 30000 });
+      await expect(
+        lecturerDashboard.page.locator(`[data-testid="status-badge-${timesheetId}"]`),
+      ).toContainText(statusLabel('TUTOR_CONFIRMED'), { timeout: 10000 });
     });
   });
   
@@ -237,38 +212,15 @@ test.describe('Exception workflow guard-rails', () => {
     const tutorDashboard = new TutorDashboardPage(page);
     await tutorDashboard.expectToBeLoaded();
     await tutorDashboard.waitForDashboardReady();
-
-    try {
-      await expect(tutorDashboard.getStatusBadge(timesheetId)).toContainText(
-        statusLabel('MODIFICATION_REQUESTED'),
-        { timeout: 10000 },
-      );
-    } catch {
-      // Retry with manual refresh + double anchor, then fall back to SSOT
-      const refreshBtnT = page.getByRole('button', { name: /^Refresh$/i }).first();
-      if (await refreshBtnT.isVisible().catch(() => false)) { await refreshBtnT.click().catch(() => undefined); }
-      await page
-        .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
-        .catch(() => undefined);
-      await page
-        .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
-        .catch(() => undefined);
-      try {
-        await expect(tutorDashboard.getStatusBadge(timesheetId)).toContainText(
-          statusLabel('MODIFICATION_REQUESTED'),
-          { timeout: 10000 },
-        );
-      } catch {
-        const verify = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {
-          headers: { Authorization: `Bearer ${tokens.tutor.token}`, 'Content-Type': 'application/json' },
-        });
-        expect(verify.ok()).toBeTruthy();
-        const pl = await verify.json();
-        const st = pl?.status ?? pl?.timesheet?.status;
-        expect(st).toBe('MODIFICATION_REQUESTED');
-        test.info().annotations.push({ type: 'note', description: 'Tutor badge not visible; accepted SSOT status MODIFICATION_REQUESTED' });
-      }
-    }
+    const refreshBtnT = page.getByRole('button', { name: /^Refresh$/i }).first();
+    if (await refreshBtnT.isVisible().catch(() => false)) { await refreshBtnT.click().catch(() => undefined); }
+    await page
+      .waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET')
+      .catch(() => undefined);
+    await expect(tutorDashboard.getStatusBadge(timesheetId)).toContainText(
+      statusLabel('MODIFICATION_REQUESTED'),
+      { timeout: 10000 },
+    );
 
     const updatedDescription = `${uniqueDescription} - amended after lecturer feedback`;
 
