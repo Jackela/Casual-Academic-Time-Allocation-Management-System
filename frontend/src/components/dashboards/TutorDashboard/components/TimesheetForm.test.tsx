@@ -86,6 +86,56 @@ describe('TimesheetForm', () => {
     expect(new Date(weekStartInput.value).getDay()).toBe(1);
   });
 
+  it('submits the latest lecturer-entered description and selected week', async () => {
+    const TimesheetFormModule = await import('./TimesheetForm');
+    const TimesheetForm = TimesheetFormModule.default;
+
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <TimesheetForm
+        tutorId={42}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+        mode={'lecturer-create' as any}
+        tutorOptions={[{ id: 42, label: 'Tutor X', qualification: 'STANDARD' as any }]}
+        courseOptions={[{ id: 1, label: 'COMP1001 - Programming' }]}
+      />,
+    );
+
+    const courseSelect = await screen.findByLabelText(/^Course$/i);
+    const weekStartInput = await screen.findByLabelText(/Week Starting/i) as HTMLInputElement;
+    const descriptionInput = await screen.findByLabelText(/Description/i);
+
+    await user.selectOptions(courseSelect, '1');
+    await user.click(screen.getByRole('button', { name: /Next Monday/i }));
+    const selectedWeek = weekStartInput.value;
+    await user.type(descriptionInput, 'Lecturer MCP regression coverage');
+
+    await waitFor(() => expect(mockQuote).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Create Timesheet/i })).not.toBeDisabled(),
+    );
+
+    await user.click(screen.getByRole('button', { name: /Create Timesheet/i }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tutorId: 42,
+          courseId: 1,
+          weekStartDate: selectedWeek,
+          deliveryHours: 1,
+          description: 'Lecturer MCP regression coverage',
+          taskType: 'TUTORIAL',
+          qualification: 'STANDARD',
+          isRepeat: false,
+        }),
+      ),
+    );
+  });
+
   it('applies server-provided constraint overrides', async () => {
     const TimesheetFormModule = await import('./TimesheetForm');
     const TimesheetForm = TimesheetFormModule.default;
@@ -351,4 +401,3 @@ describe('TimesheetForm', () => {
     expect(new Date(weekStartInput.value).getDay()).toBe(1);
   });
 });
-

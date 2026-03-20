@@ -12,6 +12,7 @@ import type { AuthSession, User } from '../../src/types/api';
 import type { SessionState } from '../../src/types/auth';
 import { E2E_CONFIG } from '../config/e2e.config';
 import type { AuthContext } from '../utils/workflow-helpers';
+import { attachPageDiagnostics, assertNoUnexpectedPageDiagnostics } from '../shared/utils/diagnostics';
 
 export type UserRole = keyof typeof E2E_CONFIG.USERS;
 
@@ -194,6 +195,7 @@ export function toAuthContext(sessions: RoleSessionMap): AuthContext {
 
 export async function clearAuthSessionFromPage(page: Page): Promise<void> {
   if (page.isClosed()) return;
+  assertNoUnexpectedPageDiagnostics(page);
 
   await page.evaluate(keys => {
     window.localStorage.removeItem(keys.TOKEN);
@@ -204,6 +206,7 @@ export async function clearAuthSessionFromPage(page: Page): Promise<void> {
 }
 
 export async function signInAsRole(page: Page, role: UserRole): Promise<void> {
+  attachPageDiagnostics(page);
   const session = await loginAsRole(page.request, role);
   // Prefer early injection; tolerate page/context closure and fall back to runtime set
   try {
@@ -266,6 +269,7 @@ export async function signInViaUI(
     typingDelay?: number;
   } = {}
 ): Promise<void> {
+  attachPageDiagnostics(page);
   const {
     pauseAfterLogin = 2000,
     showTyping = false,
@@ -329,6 +333,7 @@ export async function signOutViaUI(
   page: Page,
   options: { pauseAfterLogout?: number } = {}
 ): Promise<void> {
+  attachPageDiagnostics(page);
   const { pauseAfterLogout = 1500 } = options;
   if (page.isClosed()) {
     return;

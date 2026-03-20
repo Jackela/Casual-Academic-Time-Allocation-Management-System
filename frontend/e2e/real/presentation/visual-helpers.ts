@@ -228,16 +228,27 @@ export async function highlightAndClick(
   options: { pauseBefore?: number; pauseAfter?: number } = {}
 ): Promise<void> {
   const { pauseBefore = PRESENTATION_CONFIG.timing.pauseBeforeClick, pauseAfter = PRESENTATION_CONFIG.timing.pauseAfterClick } = options;
+  const page = locator.page();
 
   if (description) {
     console.log(`🎯 ${description}`);
   }
 
   await showCustomHighlight(locator, description);
-  await locator.page().waitForTimeout(pauseBefore);
-  await locator.click();
-  await locator.page().waitForTimeout(pauseAfter);
-  await clearCustomHighlight(locator.page());
+  await page.waitForTimeout(pauseBefore);
+  await locator.scrollIntoViewIfNeeded().catch(() => undefined);
+  await locator.waitFor({ state: 'visible', timeout: 5000 });
+  try {
+    await locator.click({ timeout: 5000 });
+  } catch {
+    try {
+      await locator.click({ force: true, timeout: 3000 });
+    } catch {
+      await locator.evaluate((el) => (el as HTMLElement).click());
+    }
+  }
+  await page.waitForTimeout(pauseAfter);
+  await clearCustomHighlight(page);
 }
 
 /**
@@ -298,9 +309,14 @@ export async function highlightAndSelect(
   await showCustomHighlight(locator, label);
   await page.waitForTimeout(pauseBefore);
 
-  // Explicitly open dropdown so audience sees the options
-  await locator.click({ force: true });
-  await page.waitForTimeout(PRESENTATION_CONFIG.timing.pauseDropdownOpen);
+  // Try opening dropdown for demo visibility; continue even if viewport constraints block the click.
+  await locator.scrollIntoViewIfNeeded().catch(() => undefined);
+  try {
+    await locator.click({ timeout: 3000 });
+    await page.waitForTimeout(PRESENTATION_CONFIG.timing.pauseDropdownOpen);
+  } catch {
+    await locator.focus().catch(() => undefined);
+  }
 
   const waitForOptions = async () => {
     const start = Date.now();
@@ -385,8 +401,47 @@ export async function visualLogin(
       : roleCredentials(usernameOrRole as UserRole);
 
   const friendlyName = roleLabel ?? creds.name ?? (typeof usernameOrRole === 'string' ? usernameOrRole : String(usernameOrRole).toUpperCase());
+  const expectedRole = typeof usernameOrRole === 'string' && ['admin', 'lecturer', 'tutor'].includes(usernameOrRole)
+    ? usernameOrRole.toUpperCase()
+    : '';
 
-  // Navigate to login
+  const authSnapshot = async () => page.evaluate(() => {
+    try {
+      const hook = (window as Window & { __E2E_GET_AUTH__?: () => { isAuthenticated?: boolean; user?: { role?: string | null } | null } | null }).__E2E_GET_AUTH__;
+      const state = typeof hook === 'function' ? hook() : null;
+      return {
+        isAuthenticated: Boolean(state?.isAuthenticated),
+        role: String(state?.user?.role ?? '').toUpperCase(),
+      };
+    } catch {
+      return { isAuthenticated: false, role: '' };
+    }
+  }).catch(() => ({ isAuthenticated: false, role: '' }));
+
+  const storageSnapshot = async () => page.evaluate(() => {
+    try {
+      const token = window.localStorage.getItem('token') ?? '';
+      const userRaw = window.localStorage.getItem('user');
+      let role = '';
+      if (userRaw) {
+        try {
+          const parsed = JSON.parse(userRaw) as { role?: string | null };
+          role = String(parsed?.role ?? '').toUpperCase();
+        } catch {
+          role = '';
+        }
+      }
+      return {
+        hasToken: token.length > 0,
+        role,
+      };
+    } catch {
+      return { hasToken: false, role: '' };
+    }
+  }).catch(() => ({ hasToken: false, role: '' }));
+
+  // Navigate to login first; if the shared real-project auth state redirects,
+  // we will reuse/match role or sign out before continuing.
   await page.goto('/login', { waitUntil: 'domcontentloaded' });
 
   // Show on-screen overlay for audience
@@ -419,7 +474,64 @@ export async function visualLogin(
   }, `🏷️ Authenticating as ${friendlyName}...`);
 
   const loginForm = page.getByTestId('login-form');
-  await loginForm.waitFor({ state: 'visible', timeout: 10000 });
+  if (!(await loginForm.isVisible().catch(() => false))) {
+    const current = await authSnapshot();
+    const persisted = await storageSnapshot();
+    const resolvedRole = current.role || persisted.role;
+
+    // If already authenticated as requested role, reuse current dashboard state.
+    if (expectedRole && (current.isAuthenticated || persisted.hasToken) && resolvedRole === expectedRole) {
+      await page.evaluate(() => {
+        const overlay = document.getElementById('visual-login-overlay');
+        if (overlay) overlay.remove();
+      }).catch(() => undefined);
+      await page.waitForTimeout(postLoginPause);
+      return;
+    }
+
+    // Try explicit UI logout first so in-memory auth manager state is cleared.
+    const signOutButton = page.getByRole('button', { name: /sign out/i });
+    if (await signOutButton.isVisible().catch(() => false)) {
+      await showCustomHighlight(signOutButton, 'Resetting session before demo login...');
+      await signOutButton.click({ timeout: 5000 }).catch(() => undefined);
+      await page.waitForURL(/\/login/i, { timeout: 10000 }).catch(() => undefined);
+    }
+
+    // Hard fallback: clear browser/session state and disable auth re-seed guards.
+    if (!(await loginForm.isVisible().catch(() => false))) {
+      await page.context().clearCookies().catch(() => undefined);
+      await page.evaluate(() => {
+        try {
+          window.localStorage.clear();
+          window.sessionStorage.clear();
+          window.localStorage.setItem('__E2E_DISABLE_AUTH_SEED__', '1');
+        } catch {
+          // ignore
+        }
+      }).catch(() => undefined);
+      await page.goto('/login', { waitUntil: 'domcontentloaded' });
+    }
+  }
+
+  if (!(await loginForm.isVisible().catch(() => false))) {
+    const current = await authSnapshot();
+    const persisted = await storageSnapshot();
+    const resolvedRole = current.role || persisted.role;
+    const protectedRoute = /\/dashboard|\/admin\/users/i.test(page.url());
+
+    // Final fallback: if the app has already landed in the expected authenticated state,
+    // continue without forcing the login form.
+    if (expectedRole && protectedRoute && (current.isAuthenticated || persisted.hasToken) && resolvedRole === expectedRole) {
+      await page.evaluate(() => {
+        const overlay = document.getElementById('visual-login-overlay');
+        if (overlay) overlay.remove();
+      }).catch(() => undefined);
+      await page.waitForTimeout(postLoginPause);
+      return;
+    }
+  }
+
+  await loginForm.waitFor({ state: 'visible', timeout: 15000 });
 
   const emailInput = loginForm.getByLabel(/email/i);
   await showCustomHighlight(emailInput, `Authenticating as ${friendlyName}...`);

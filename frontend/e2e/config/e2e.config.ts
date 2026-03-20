@@ -11,6 +11,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendRoot = path.resolve(__dirname, '..', '..');
 const projectRoot = path.resolve(frontendRoot, '..');
+const DEFAULT_E2E_BACKEND_URL = 'http://127.0.0.1:8084';
+const DEFAULT_E2E_FRONTEND_URL = 'http://localhost:5174';
 
 const loadEnvFile = (filePath: string) => {
   if (!fs.existsSync(filePath)) {
@@ -45,29 +47,32 @@ const loadEnvFile = (filePath: string) => {
   path.resolve(frontendRoot, '.env.e2e'),
 ].forEach(loadEnvFile);
 
-const requireEnv = (name: string): string => {
+const requireEnv = (name: string, fallback?: string): string => {
   const value = process.env[name];
   if (!value || value.trim().length === 0) {
+    if (fallback !== undefined) {
+      return fallback;
+    }
     throw new Error(`Missing required environment variable "${name}" for E2E configuration`);
   }
   return value.trim();
 };
 
-const resolveBackendUrl = () => requireEnv('E2E_BACKEND_URL');
-const resolveFrontendUrl = () => requireEnv('E2E_FRONTEND_URL');
+const resolveBackendUrl = () => requireEnv('E2E_BACKEND_URL', DEFAULT_E2E_BACKEND_URL);
+const resolveFrontendUrl = () => requireEnv('E2E_FRONTEND_URL', DEFAULT_E2E_FRONTEND_URL);
 
 const resolveTestUsers = () => ({
   lecturer: {
-    email: requireEnv('E2E_LECTURER_EMAIL'),
-    password: requireEnv('E2E_LECTURER_PASSWORD'),
+    email: requireEnv('E2E_LECTURER_EMAIL', 'lecturer@example.com'),
+    password: requireEnv('E2E_LECTURER_PASSWORD', 'Lecturer123!'),
   },
   tutor: {
-    email: requireEnv('E2E_TUTOR_EMAIL'),
-    password: requireEnv('E2E_TUTOR_PASSWORD'),
+    email: requireEnv('E2E_TUTOR_EMAIL', 'tutor@example.com'),
+    password: requireEnv('E2E_TUTOR_PASSWORD', 'Tutor123!'),
   },
   admin: {
-    email: requireEnv('E2E_ADMIN_EMAIL'),
-    password: requireEnv('E2E_ADMIN_PASSWORD'),
+    email: requireEnv('E2E_ADMIN_EMAIL', 'admin@example.com'),
+    password: requireEnv('E2E_ADMIN_PASSWORD', 'Admin123!'),
   },
 });
 
@@ -126,5 +131,9 @@ export const API_ENDPOINTS = {
   TIMESHEETS_PENDING: getBackendUrl(E2E_CONFIG.BACKEND.ENDPOINTS.TIMESHEETS_PENDING),
   APPROVALS: getBackendUrl(E2E_CONFIG.BACKEND.ENDPOINTS.APPROVALS)
 } as const;
+
+console.info(
+  `[e2e.config] resolved backend=${E2E_CONFIG.BACKEND.URL} frontend=${E2E_CONFIG.FRONTEND.URL}`,
+);
 
 

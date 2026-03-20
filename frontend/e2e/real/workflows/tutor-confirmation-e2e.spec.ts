@@ -92,81 +92,30 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const tutorDashboard = new TutorDashboardPage(page);
     await tutorDashboard.expectToBeLoaded();
-    // Extra guard: if first render doesn’t stabilize, re-navigate once and retry (Docker variance)
-    try {
-      await tutorDashboard.waitForDashboardReady();
-    } catch {
-      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-      await tutorDashboard.waitForDashboardReady();
-    }
+    await tutorDashboard.waitForDashboardReady();
     const tutorRow = tutorDashboard.getTimesheetRow(timesheetId, seededTimesheet.description);
-    let tutorRowVisible = false;
-    try {
-      await expect(tutorRow).toBeVisible({ timeout: 20000 });
-      tutorRowVisible = true;
-    } catch {
-      tutorRowVisible = false;
-    }
-
-    if (!tutorRowVisible) {
-      // SSOT fallback: drive SUBMIT_FOR_APPROVAL via API to avoid UI timing
-      const submitApi = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
-        headers: { Authorization: `Bearer ${tokens.tutor.token}`, 'Content-Type': 'application/json' },
-        data: { timesheetId, action: 'SUBMIT_FOR_APPROVAL', comment: 'E2E submit fallback' },
-      });
-      expect(submitApi.ok()).toBeTruthy();
-    }
+    await expect(tutorRow).toBeVisible({ timeout: 20000 });
 
     const submitResponse = await tutorDashboard.submitDraft(timesheetId);
     expect(submitResponse.ok()).toBeTruthy();
-    try {
-      await expect(tutorDashboard.getStatusBadge(timesheetId)).toContainText(
-        statusLabel('PENDING_TUTOR_CONFIRMATION'),
-        { timeout: 10000 },
-      );
-    } catch {
-      const verify = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {
-        headers: { Authorization: `Bearer ${tokens.tutor.token}`, 'Content-Type': 'application/json' },
-      });
-      expect(verify.ok()).toBeTruthy();
-      const pl = await verify.json();
-      const st = pl?.status ?? pl?.timesheet?.status;
-      expect(st).toBe('PENDING_TUTOR_CONFIRMATION');
-    }
+    await expect(tutorDashboard.getStatusBadge(timesheetId)).toContainText(
+      statusLabel('PENDING_TUTOR_CONFIRMATION'),
+      { timeout: 10000 },
+    );
 
-    let confirmedOk = false;
-    if (tutorRowVisible) {
-      const confirmResponse = await tutorDashboard.confirmTimesheet(timesheetId);
-      confirmedOk = confirmResponse.ok();
-    } else {
-      const confirmApi = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
-        headers: { Authorization: `Bearer ${tokens.tutor.token}`, 'Content-Type': 'application/json' },
-        data: { timesheetId, action: 'TUTOR_CONFIRM' },
-      });
-      confirmedOk = confirmApi.ok();
-    }
-    expect(confirmedOk).toBeTruthy();
+    const confirmResponse = await tutorDashboard.confirmTimesheet(timesheetId);
+    expect(confirmResponse.ok()).toBeTruthy();
     // Wait for tutor pending approvals list to refresh after confirm (double anchor + stability poll)
-    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET').catch(() => undefined);
-    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET').catch(() => undefined);
+    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET', { timeout: 5000 }).catch(() => undefined);
+    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET', { timeout: 5000 }).catch(() => undefined);
     // Manual refresh cycle to settle UI before final status assertion
     const refreshBtn = page.getByRole('button', { name: /^Refresh$/i }).first();
     if (await refreshBtn.isVisible().catch(() => false)) { await refreshBtn.click().catch(() => undefined); }
-    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET').catch(() => undefined);
-    try {
-      await expect(tutorDashboard.getStatusBadge(timesheetId)).toContainText(
-        statusLabel('TUTOR_CONFIRMED'),
-        { timeout: 10000 },
-      );
-    } catch {
-      const verify2 = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {
-        headers: { Authorization: `Bearer ${tokens.tutor.token}`, 'Content-Type': 'application/json' },
-      });
-      expect(verify2.ok()).toBeTruthy();
-      const pl2 = await verify2.json();
-      const st2 = pl2?.status ?? pl2?.timesheet?.status;
-      expect(st2).toBe('TUTOR_CONFIRMED');
-    }
+    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET', { timeout: 5000 }).catch(() => undefined);
+    await expect(tutorDashboard.getStatusBadge(timesheetId)).toContainText(
+      statusLabel('TUTOR_CONFIRMED'),
+      { timeout: 10000 },
+    );
     await expect
       .poll(async () => (await tutorDashboard.getStatusBadge(timesheetId).innerText()).includes('Tutor Confirmed'), { timeout: 2000 })
       .toBe(true);
@@ -178,15 +127,10 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const lecturerDashboard = new DashboardPage(page);
     await lecturerDashboard.expectToBeLoaded('LECTURER');
-    try {
-      await lecturerDashboard.waitForTimesheetData();
-    } catch {
-      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-      await lecturerDashboard.waitForTimesheetData();
-    }
+    await lecturerDashboard.waitForTimesheetData();
     // Wait for lecturer pending list to update before taking actions
-    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET').catch(() => undefined);
-    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET').catch(() => undefined);
+    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET', { timeout: 5000 }).catch(() => undefined);
+    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET', { timeout: 5000 }).catch(() => undefined);
     await lecturerDashboard.approveTimesheet(timesheetId);
     const lecturerRow = lecturerDashboard.page.locator(`[data-testid="timesheet-row-${timesheetId}"]`);
     await expect
@@ -198,61 +142,19 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
         return text.includes('LECTURER_CONFIRMED') || text.includes('FINAL_CONFIRMED');
       }, { timeout: 20000 })
       .toBe(true);
-    // Verify backend transition with a small retry window to avoid race
-    await expect(async () => {
-      // Fetch current status
-      const verification = await request.get(
-        `${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${tokens.admin.token}`,
-            'Content-Type': 'application/json',
-          },
+    const lecturerVerification = await request.get(
+      `${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${tokens.admin.token}`,
+          'Content-Type': 'application/json',
         },
-      );
-      expect(verification.ok()).toBeTruthy();
-      let snapshot = await verification.json();
-      let status = snapshot?.status ?? snapshot?.timesheet?.status;
-      if (status === 'TUTOR_CONFIRMED') {
-        // Fallback: drive lecturer confirm via API to avoid UI race in high-latency environments
-        try {
-          await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
-            headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
-            data: { timesheetId, action: 'LECTURER_CONFIRM', comment: 'E2E lecturer confirm fallback' },
-          });
-          const recheck = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {
-            headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
-          });
-          expect(recheck.ok()).toBeTruthy();
-          snapshot = await recheck.json();
-          status = snapshot?.status ?? snapshot?.timesheet?.status;
-        } catch {}
-      }
-      expect(['LECTURER_CONFIRMED', 'FINAL_CONFIRMED']).toContain(status);
-    }).toPass({ timeout: 20000 });
-
-    // SSOT-first: finalize via API to avoid UI race then end early
-    // If not already final, request final approval; tolerate 4xx if already final
-    const current = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {
-      headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
-    });
-    expect(current.ok()).toBeTruthy();
-    let snapshot = await current.json();
-    let statusNow = snapshot?.status ?? snapshot?.timesheet?.status;
-    if (statusNow !== 'FINAL_CONFIRMED') {
-      await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
-        headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
-        data: { timesheetId, action: 'HR_CONFIRM', comment: 'E2E final confirm (SSOT short-circuit)' },
-      }).catch(() => undefined);
-      const verifyAgain = await request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`, {
-        headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
-      });
-      expect(verifyAgain.ok()).toBeTruthy();
-      snapshot = await verifyAgain.json();
-      statusNow = snapshot?.status ?? snapshot?.timesheet?.status;
-    }
-    expect(statusNow).toBe('FINAL_CONFIRMED');
-    return;
+      },
+    );
+    expect(lecturerVerification.ok()).toBeTruthy();
+    const lecturerSnapshot = await lecturerVerification.json();
+    const lecturerStatus = lecturerSnapshot?.status ?? lecturerSnapshot?.timesheet?.status;
+    expect(['LECTURER_CONFIRMED', 'FINAL_CONFIRMED']).toContain(lecturerStatus);
 
     await clearAuthSessionFromPage(page);
 
@@ -260,43 +162,22 @@ test('E2E: Tutor confirmation drives end-to-end approval lifecycle', async ({
     await signInAsRole(page, 'admin');
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const adminDashboard = new DashboardPage(page);
-    try {
-      await adminDashboard.expectToBeLoaded('ADMIN');
-    } catch {
-      // If admin dashboard fails to become ready under Docker variance, finalize via SSOT
-      const finalize = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
-        headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
-        data: { timesheetId, action: 'HR_CONFIRM', comment: 'E2E final confirm (dashboard not ready)' },
-      });
-      expect(finalize.ok()).toBeTruthy();
-      const verificationResponse = await request.get(
-        `${E2E_CONFIG.BACKEND.URL}/api/timesheets/${timesheetId}`,
-        { headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' } },
-      );
-      expect(verificationResponse.ok()).toBeTruthy();
-      const payload = await verificationResponse.json();
-      const resolvedStatus = payload?.status ?? payload?.timesheet?.status;
-      expect(resolvedStatus).toBe('FINAL_CONFIRMED');
-      return; // short-circuit: SSOT authoritative
+    await adminDashboard.expectToBeLoaded('ADMIN');
+    const adminPendingTab = page.getByTestId('tab-pending-approvals').first();
+    if ((await adminPendingTab.count()) > 0) {
+      await adminPendingTab.click({ timeout: 5000 });
+    } else {
+      await page.getByRole('button', { name: /Pending Approvals/i }).first().click({ timeout: 5000 });
     }
-    try {
-      await adminDashboard.waitForTimesheetData();
-    } catch {
-      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-      await adminDashboard.waitForTimesheetData();
-    }
+    const adminPendingRegion = page.getByTestId('admin-pending-review').first();
+    await expect(adminPendingRegion).toBeVisible({ timeout: 10000 });
+    const adminApproveButton = await adminDashboard.getApproveButtonForTimesheet(timesheetId);
+    await expect(adminApproveButton).toBeVisible({ timeout: 10000 });
     const adminApproveResponse = await adminDashboard.approveTimesheet(timesheetId);
     expect(adminApproveResponse.ok()).toBeTruthy();
     // Wait for admin pending list refresh after approval
-    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET').catch(() => undefined);
-    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET').catch(() => undefined);
-    // Ensure server-side final confirmation in case UI action did not propagate
-    try {
-      await request.post(`${E2E_CONFIG.BACKEND.URL}/api/approvals`, {
-        headers: { Authorization: `Bearer ${tokens.admin.token}`, 'Content-Type': 'application/json' },
-        data: { timesheetId, action: 'HR_CONFIRM', comment: 'E2E final confirm' },
-      });
-    } catch {}
+    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET', { timeout: 5000 }).catch(() => undefined);
+    await page.waitForResponse((r) => r.url().includes('/api/approvals/pending') && r.request().method() === 'GET', { timeout: 5000 }).catch(() => undefined);
     const adminRow = adminDashboard.page.locator(`[data-testid="timesheet-row-${timesheetId}"]`);
     await expect
       .poll(async () => {

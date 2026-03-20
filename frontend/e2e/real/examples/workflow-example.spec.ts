@@ -9,12 +9,8 @@ import type { AuthContext } from '../../utils/workflow-helpers';
 
 /**
  * Example suite demonstrating the shared Page Object Model with isolated auth sessions.
- * Disabled by default to keep CI fast; set E2E_RUN_EXAMPLES=true to exercise locally.
  */
-const shouldRunExamples = String(process.env.E2E_RUN_EXAMPLES || '').toLowerCase() === 'true';
-const describeExamples = shouldRunExamples ? test.describe : test.describe.skip;
-
-describeExamples('Page Object Model Examples', () => {
+test.describe('Page Object Model Examples', () => {
   let dashboardPage: DashboardPage;
   let navigationPage: NavigationPage;
   let timesheetPage: TimesheetPage;
@@ -85,11 +81,7 @@ describeExamples('Page Object Model Examples', () => {
       await dashboardPage.expectTimesheetsTable();
 
       const targetRow = page.getByTestId(`timesheet-row-${seeded.id}`);
-      const visible = await targetRow.isVisible().catch(() => false);
-      if (!visible) {
-        console.warn('Seeded row not visible; skipping approve via POM.');
-        return;
-      }
+      await expect(targetRow).toBeVisible({ timeout: 20000 });
 
       await timesheetPage.expectTimesheetActionButtonsEnabled(seeded.id);
       const respPromise = page.waitForResponse((r) => r.url().includes('/api/approvals') && r.request().method() === 'POST');

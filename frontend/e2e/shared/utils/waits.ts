@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, type APIResponse } from '@playwright/test';
+import { attachPageDiagnostics } from './diagnostics';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -83,6 +84,7 @@ export async function waitForIdleAfter(page: Page, action: () => Promise<void>, 
 
 // App readiness: wait for role-specific shell where available
 export async function waitForAppReady(page: Page, _role: 'ADMIN'|'LECTURER'|'TUTOR', timeout = 30000): Promise<void> {
+  attachPageDiagnostics(page);
   await page.waitForLoadState('domcontentloaded').catch(() => undefined);
   // Ensure root mounts before looking for shell sentinels
   await page.waitForSelector('#root', { timeout: 10000 }).catch(() => undefined);

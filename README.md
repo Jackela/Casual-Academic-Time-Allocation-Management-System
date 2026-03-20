@@ -5,6 +5,8 @@
 A full-stack enterprise application for managing casual academic timesheets and approvals,
 aligned with the University of Sydney Enterprise Agreement 2023-2026.
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 ---
 
 ## Table of Contents
@@ -21,6 +23,7 @@ aligned with the University of Sydney Enterprise Agreement 2023-2026.
 - [Local Development](#local-development)
 - [Docker Deployment](#docker-deployment)
 - [Testing](#testing)
+- [Latest Playwright Verification (2026-03-19)](#latest-playwright-verification-2026-03-19)
 - [Repository Hygiene](#repository-hygiene)
 - [Project Structure](#project-structure)
 - [Documentation](#documentation)
@@ -796,11 +799,14 @@ graph TB
 # Frontend unit tests
 npm --prefix frontend test -- --reporter=verbose
 
-# E2E tests (requires Docker)
-node frontend/scripts/run-e2e-tests.js --project=real
+# E2E tests
+node scripts/e2e-runner.js --project=real
 
 # Run specific E2E specs
-node frontend/scripts/run-e2e-tests.js --project=real --grep "@p0|@p1"
+node scripts/e2e-runner.js --project=real --grep "@p0|@p1"
+
+# PowerShell-safe single-tag example
+node scripts/e2e-runner.js --project=real --grep "@p0"
 ```
 
 ### Test Reports
@@ -811,6 +817,44 @@ node frontend/scripts/run-e2e-tests.js --project=real --grep "@p0|@p1"
 | Frontend | Terminal output | Vitest verbose |
 | E2E HTML | `frontend/playwright-report/` | Playwright HTML report |
 | E2E Traces | `frontend/test-results/` | Screenshots + traces |
+
+### Latest Playwright Verification (2026-03-19)
+
+This repository was validated against the local `5174/8084` stack using the full Playwright `real` suite plus manual browser verification for the key role-based pages.
+
+Environment:
+- Frontend: `http://localhost:5174`
+- Backend: `http://127.0.0.1:8084`
+- Data baseline: `node scripts/e2e-reset-seed.js --url http://127.0.0.1:8084 --token local-e2e-reset`
+- Seed accounts: `admin@example.com`, `lecturer@example.com`, `tutor@example.com`
+- Full-suite command: `node scripts/e2e-runner.js --project=real`
+- Result artifacts: `frontend/playwright-report/results.json`, `frontend/playwright-report/junit.xml`
+
+Validated scope:
+1. Route guards: unauthenticated `/dashboard` and `/admin/users` redirect to `/login`
+2. Tutor flow: login, tab navigation (`All`, `Drafts`, `In Progress`, `Needs Attention`), confirm action succeeds
+3. Lecturer flow: create timesheet and lecturer approval path covered by the passing `real` suite; dashboard rendering manually rechecked
+4. Admin flow: pending approvals tab, final approve succeeds
+5. Admin users flow: create unique user, deactivate/reactivate succeeds
+
+Outcome:
+- PASS: `121` Playwright `real` tests passed with `0 failed`, `0 flaky`, `0 skipped` on March 19, 2026.
+- PASS: manual browser verification rechecked `/login`, `/dashboard` (Tutor, Lecturer, Admin) and `/admin/users` with no blocking visual defects.
+- Note: expected negative-path `400/401/409` responses still appear in the suite for contract and rule-enforcement scenarios.
+
+Screenshot evidence:
+
+| Login | Tutor Dashboard |
+|---|---|
+| ![Login](docs/assets/playwright/2026-03-19/01-login.png) | ![Tutor Dashboard](docs/assets/playwright/2026-03-19/02-tutor-dashboard.png) |
+
+| Lecturer Dashboard | Admin Dashboard |
+|---|---|
+| ![Lecturer Dashboard](docs/assets/playwright/2026-03-19/03-lecturer-dashboard.png) | ![Admin Dashboard](docs/assets/playwright/2026-03-19/04-admin-dashboard.png) |
+
+| Admin Users |
+|---|
+| ![Admin Users](docs/assets/playwright/2026-03-19/05-admin-users.png) |
 
 ---
 
@@ -985,4 +1029,4 @@ This project is proprietary software for the University of Sydney.
 
 ---
 
-*Last updated: February 2026*
+*Last updated: March 19, 2026*

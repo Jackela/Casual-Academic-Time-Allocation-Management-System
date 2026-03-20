@@ -27,6 +27,8 @@ import { clearAuthSessionFromPage } from '../../api/auth-helper';
 import { cleanupDemoUser } from './helpers/demo-data-cleanup';
 import { addVisualEnhancements, highlightAndClick, highlightAndFill, highlightAndSelect, narrateStep, visualLogin } from './visual-helpers';
 
+test.use({ storageState: undefined });
+
 test.describe('Presentation Demo 04: Admin User Management', () => {
   let dataFactory: TestDataFactory;
 
@@ -145,57 +147,20 @@ test.describe('Presentation Demo 04: Admin User Management', () => {
         try {
           await highlightAndClick(submitButton, 'Creating user', { pauseBefore: 1200, pauseAfter: 500 });
         } catch {
-          try {
-            // If button is outside viewport, use Enter key to submit
-            await passwordInput.focus();
-            await page.keyboard.press('Enter');
-          } catch (fallbackError) {
-            console.warn('Both click and Enter fallback failed:', fallbackError);
-          }
+          // If button is outside viewport, use Enter key to submit
+          await passwordInput.focus();
+          await page.keyboard.press('Enter');
         }
       })(),
     ]);
 
-    let createdUserId: number | undefined;
     if (!response.ok()) {
       const errorText = await response.text();
-      console.warn(`Create user response not OK (${response.status()}): ${errorText}`);
-      if (response.status() === 409) {
-        // User likely already exists; attempt to resolve id via lookup
-        const lookup = await page.request.get(`/api/users?email=${demoUserEmail}`);
-        if (lookup.ok()) {
-          const payload = await lookup.json().catch(() => ({}));
-          createdUserId = payload?.id ?? payload?.data?.id ?? payload?.content?.[0]?.id;
-          console.log(`✅ User already existed, continuing with id=${createdUserId ?? 'unknown'}`);
-        }
-      } else {
-        // Try API fallback using same payload
-        try {
-          const token = await page.evaluate(() => window.localStorage.getItem('token'));
-          const apiResponse = await page.request.post('/api/users', {
-            data: {
-              email: demoUserEmail,
-              name: `${demoFirstName} ${demoLastName}`,
-              password: demoPassword,
-              role: 'TUTOR',
-            },
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          });
-          if (apiResponse.ok()) {
-            const payload = await apiResponse.json().catch(() => ({}));
-            createdUserId = payload?.id ?? payload?.data?.id;
-            console.log(`✅ API fallback created user, id=${createdUserId ?? 'unknown'}`);
-          } else {
-            console.warn(`API fallback user creation failed: ${apiResponse.status()} ${await apiResponse.text()}`);
-          }
-        } catch (fallbackError) {
-          console.warn('API fallback user creation errored:', fallbackError);
-        }
-      }
-    } else {
-      const payload = await response.json().catch(() => ({}));
-      createdUserId = payload?.id ?? payload?.data?.id;
+      throw new Error(`Create user response not OK (${response.status()}): ${errorText}`);
     }
+    const payload = await response.json().catch(() => ({}));
+    const createdUserId: number | undefined = payload?.id ?? payload?.data?.id;
+    expect(createdUserId).toBeTruthy();
     await page.waitForTimeout(1500);
 
     // 9. Verify modal closed

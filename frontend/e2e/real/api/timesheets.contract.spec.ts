@@ -20,11 +20,6 @@ type ForbiddenTimesheetPayload = TimesheetCreateRequest & {
 };
 
 const BACKEND_URL = E2E_CONFIG.BACKEND.URL;
-const CI_ENV_KEYS = ['CI', 'GITHUB_ACTIONS', 'ACT'] as const;
-const isCiLikeEnv = CI_ENV_KEYS.some((key) => {
-  const value = process.env[key];
-  return typeof value === 'string' && value.toLowerCase() === 'true';
-});
 
 test.describe('@api Timesheet API Contract', () => {
   let adminClient: TimesheetApiClient;
@@ -73,7 +68,7 @@ test.describe('@api Timesheet API Contract', () => {
       } catch (error) {
         void error;
       }
-      // Proceed deterministically even if probe fails; specs use fallbacks where needed
+      // Proceed with explicit test assertions below.
     }
   });
 
@@ -150,7 +145,6 @@ test.describe('@api Timesheet API Contract', () => {
   });
 
   test('Invalid approval action yields 400 @api', async () => {
-    test.skip(isCiLikeEnv, 'Negative approval action contract test is skipped in CI-like environments so the suite does not fail on deliberate 400s');
     const seeded = await dataFactory.createTimesheetForTest({ targetStatus: 'LECTURER_CONFIRMED' });
 
     const invalidAction = 'INVALID_ACTION' as unknown as ApprovalAction;

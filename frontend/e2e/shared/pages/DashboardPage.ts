@@ -38,14 +38,28 @@ export class DashboardPage {
     try {
       state = await this.timesheetPage.waitForFirstRender({ timeout });
     } catch (error) {
-      const adminDashboard = this.page.locator('[data-testid="admin-dashboard"], .admin-dashboard');
-      const lecturerDashboard = this.page.locator('[data-testid="lecturer-dashboard"], .lecturer-dashboard');
-      const dashboardLoaded = await Promise.race([
-        adminDashboard.waitFor({ state: 'visible', timeout }).then(() => true).catch(() => false),
-        lecturerDashboard.waitFor({ state: 'visible', timeout }).then(() => true).catch(() => false),
-      ]);
+      const dashboardShell = this.page
+        .locator([
+          '[data-testid="admin-dashboard"]',
+          '.admin-dashboard',
+          '[data-testid="lecturer-dashboard"]',
+          '.lecturer-dashboard',
+          '[data-testid="tutor-dashboard"]',
+          '.tutor-dashboard',
+          '[data-testid="filters-section"]',
+          '[data-testid="dashboard-live-stamp"]',
+          '[aria-label="Overview metrics"]',
+          '[aria-label="Pending approvals"]',
+          '[aria-label="Pending Review"]',
+        ].join(', '))
+        .first();
+      const dashboardLoaded = await dashboardShell.isVisible().catch(() => false);
 
       if (!dashboardLoaded) {
+        await dashboardShell.waitFor({ state: 'visible', timeout }).catch(() => undefined);
+      }
+
+      if (!(await dashboardShell.isVisible().catch(() => false))) {
         throw error;
       }
       state = 'banner';
@@ -62,16 +76,42 @@ export class DashboardPage {
    */
   async waitForTimesheetData(options: { timeout?: number; preferPendingTab?: boolean } = {}) {
     const { timeout, preferPendingTab = true } = options;
+    const waitTimeout = timeout ?? 10000;
 
     // Auth warm-up once before the first protected list fetch to reduce 401/403 bursts
     await waitForAuthAndWhoamiOk(this.page, 5000);
 
     if (preferPendingTab) {
-      const pendingTab = this.page.getByRole('button', { name: /Pending Review/i });
+      const pendingTabCandidates: Locator[] = [
+        this.page.getByRole('button', { name: /Pending Approvals/i }).first(),
+        this.page.getByRole('button', { name: /Pending Review/i }).first(),
+        this.page.getByTestId('tab-pending-approvals').first(),
+      ];
+
+      let clickedPendingTab = false;
       try {
-        const tabCount = await pendingTab.count();
-        if (tabCount > 0 && !(await pendingTab.isDisabled().catch(() => true))) {
-          await pendingTab.click();
+        for (const candidate of pendingTabCandidates) {
+          const tabCount = await candidate.count();
+          if (tabCount === 0) continue;
+          if (!(await candidate.isVisible().catch(() => false))) continue;
+          if (await candidate.isDisabled().catch(() => true)) continue;
+          await candidate.click();
+          clickedPendingTab = true;
+          break;
+        }
+
+        if (clickedPendingTab) {
+          const pendingRegionCandidates: Locator[] = [
+            this.page.getByRole('region', { name: /Pending Review/i }).first(),
+            this.page.getByRole('region', { name: /Pending Approvals/i }).first(),
+            this.page.getByTestId('admin-pending-review').first(),
+          ];
+
+          for (const candidate of pendingRegionCandidates) {
+            if ((await candidate.count().catch(() => 0)) === 0) continue;
+            await candidate.waitFor({ state: 'visible', timeout: waitTimeout }).catch(() => undefined);
+            if (await candidate.isVisible().catch(() => false)) break;
+          }
         }
       } catch {
         // Tabs not available in current dashboard; continue with default wait strategy.
@@ -79,7 +119,8 @@ export class DashboardPage {
     }
 
     // Anchor: ensure at least one successful GET /api/timesheets before asserting on UI
-    await waitForApiOk(this.page, 'GET', '/api/timesheets', timeout ?? 10000);
+    await waitForApiOk(this.page, 'GET', '/api/timesheets', waitTimeout);
+    await waitForApiOk(this.page, 'GET', '/api/dashboard', waitTimeout);
     await this.waitForDashboardReady({ timeout });
   }
 

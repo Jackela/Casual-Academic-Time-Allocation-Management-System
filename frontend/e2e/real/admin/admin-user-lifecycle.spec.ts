@@ -91,17 +91,12 @@ test('@admin should create Tutor and toggle active state twice', async ({ page }
     const validPassword = (process.env.E2E_NEW_USER_PASSWORD && process.env.E2E_NEW_USER_PASSWORD.trim().length >= 8)
       ? String(process.env.E2E_NEW_USER_PASSWORD)
       : `Aa1!Aa1!${ts}Aa1!`; // ≥12 chars, upper/lower/digit/special (robust default)
-    const allowPositive = String(process.env.E2E_ALLOW_USER_CREATE || '').toLowerCase() === 'true';
 
     // 1) Negative password policy check: attempt create with too-short password
     // Accept either client-side block or server-side 400 validation
     await users.createUser({ email, name, role: 'TUTOR', password: passwordTooShort });
     const policyAlert = page.getByRole('alert').filter({ hasText: /unable to create user|password/i }).first();
     await expect(policyAlert).toBeVisible({ timeout: 8000 });
-    // If environment does not allow positive creation, finish early
-    if (!allowPositive) {
-      return;
-    }
     // Reset and proceed with positive path
     await users.closeCreateModal();
     await users.openCreate();
@@ -110,18 +105,14 @@ test('@admin should create Tutor and toggle active state twice', async ({ page }
     await users.fillCreateFields({ email, name, role: 'TUTOR' });
     await page.getByTestId('admin-user-password').fill(validPassword);
     await users.submitCreate();
-    // If positive path allowed, require 201; otherwise accept UI error and end early
     let createRes: APIResponse | null = null;
     createRes = await waitForRoute(page, { method: 'POST', pathPart: '/api/users', status: 201 });
     // From here, we have a created user
     const createJson = await createRes.json();
     assertUserResponseShape(createJson, { email, role: 'TUTOR' });
 
-    // UI assertions: toast-success (or fallback success message), plus row visible with expected cols
-    await waitForToastSuccess(page).catch(async () => {
-      // Fallback: inline success message region
-      await expect(page.getByRole('status').or(page.getByText(/user created successfully/i))).toBeVisible();
-    });
+    // UI assertions: toast-success plus row visible with expected cols
+    await waitForToastSuccess(page);
 
     const row = await users.findUserRow(email);
     await waitForVisible(row);
@@ -133,75 +124,68 @@ test('@admin should create Tutor and toggle active state twice', async ({ page }
     // Extract userId from response for precise toggles
     const userId: number | undefined = (createJson?.id as number | undefined) ?? undefined;
     expect(typeof userId).toBe('number');
+    const fetchUserByEmail = async (): Promise<Record<string, unknown>> => {
+      const lookupToken = await page.evaluate(() => localStorage.getItem('token'));
+      const lookupRes = await page.request.get(
+        `${E2E_CONFIG.BACKEND.URL}/api/users?email=${encodeURIComponent(email)}`,
+        {
+          headers: { Authorization: lookupToken ? `Bearer ${lookupToken}` : '' },
+        },
+      );
+      expect(lookupRes.ok()).toBeTruthy();
+      const lookupPayload = await lookupRes.json().catch(() => ({} as Record<string, unknown>));
+      const candidates = Array.isArray(lookupPayload)
+        ? lookupPayload
+        : Array.isArray((lookupPayload as { content?: unknown[] }).content)
+          ? (lookupPayload as { content: unknown[] }).content
+          : Array.isArray((lookupPayload as { data?: unknown[] }).data)
+            ? (lookupPayload as { data: unknown[] }).data
+            : [lookupPayload];
+
+      const matched = candidates.find((entry) => {
+        const candidate = entry as { email?: string };
+        return typeof candidate?.email === 'string'
+          && candidate.email.toLowerCase() === email.toLowerCase();
+      }) as Record<string, unknown> | undefined;
+
+      const resolved = matched ?? (candidates.length === 1 ? (candidates[0] as Record<string, unknown>) : undefined);
+      expect(resolved).toBeTruthy();
+      return resolved as Record<string, unknown>;
+    };
 
     // SSOT check: created user should be active in backend
-    try {
-      const token = await page.evaluate(() => localStorage.getItem('token'));
-      const createdSnap = await page.request.get(`${E2E_CONFIG.BACKEND.URL}/api/users/${userId}`, {
-        headers: { Authorization: token ? `Bearer ${token}` : '' },
-      });
-      expect(createdSnap.ok()).toBeTruthy();
-      const createdBody = await createdSnap.json();
-      // Accept either isActive or active flags
-      const activeFlag = (createdBody?.isActive ?? createdBody?.active) as boolean | undefined;
-      expect(activeFlag).toBe(true);
-    } catch (error) { /* best-effort SSOT check */
-      void error;
-    }
+    const createdBody = await fetchUserByEmail();
+    // Accept either isActive or active flags
+    const activeFlag = (createdBody?.isActive ?? createdBody?.active) as boolean | undefined;
+    expect(activeFlag).toBe(true);
 
     // 3) Toggle active → inactive (PATCH 200) and assert state flips
     const deactivatePromise = waitForRoute(page, { method: 'PATCH', pathPart: `/api/users/${userId}`, status: 200 });
-    await users.toggleActive(Number(userId));
+    await users.toggleActive(email);
     const deactivateRes = await deactivatePromise;
     expect(deactivateRes.status()).toBe(200);
     // SSOT first: verify backend reflects inactive state
-    try {
-      const token = await page.evaluate(() => localStorage.getItem('token'));
-      const snap = await page.request.get(`${E2E_CONFIG.BACKEND.URL}/api/users/${userId}`, {
-        headers: { Authorization: token ? `Bearer ${token}` : '' },
-      });
-      expect(snap.ok()).toBeTruthy();
-      const body = await snap.json();
-      const activeFlag = (body?.isActive ?? body?.active) as boolean | undefined;
-      expect(activeFlag).toBe(false);
-    } catch (error) {
-      void error; /* noop */
-    }
-    // UI follow-ups are non-fatal if SSOT is correct
-    try {
-      const deactivated = await users.findUserRow(email);
-      await expect(deactivated).toContainText(/Inactive/i);
-      await expect(deactivated.getByTestId('admin-user-activate-toggle')).toHaveText(/Reactivate|Updating…/i);
-    } catch (error) {
-      void error; /* tolerate UI lag under Docker */
-    }
+    const body = await fetchUserByEmail();
+    const inactiveFlag = (body?.isActive ?? body?.active) as boolean | undefined;
+    expect(inactiveFlag).toBe(false);
+
+    const deactivated = await users.findUserRow(email);
+    await expect(deactivated).toContainText(/Inactive/i);
+    await expect(deactivated.getByTestId('admin-user-activate-toggle')).toHaveText(/Reactivate|Updating…/i);
 
     // 4) Toggle inactive → active (PATCH 200) and assert state flips back
     const activatePromise = waitForRoute(page, { method: 'PATCH', pathPart: `/api/users/${userId}`, status: 200 });
-    await users.toggleActive(Number(userId));
+    await users.toggleActive(email);
     const activateRes = await activatePromise;
     expect(activateRes.status()).toBe(200);
     // SSOT first: verify backend reflects active state
-    try {
-      const token = await page.evaluate(() => localStorage.getItem('token'));
-      const snap2 = await page.request.get(`${E2E_CONFIG.BACKEND.URL}/api/users/${userId}`, {
-        headers: { Authorization: token ? `Bearer ${token}` : '' },
-      });
-      expect(snap2.ok()).toBeTruthy();
-      const body2 = await snap2.json();
-      const activeFlag2 = (body2?.isActive ?? body2?.active) as boolean | undefined;
-      expect(activeFlag2).toBe(true);
-    } catch (error) {
-      void error; /* noop */
-    }
-    // UI follow-ups are non-fatal if SSOT is correct
-    try {
-      const activated = await users.findUserRow(email);
-      await expect(activated).toContainText(/Active/i);
-      await expect(activated.getByTestId('admin-user-activate-toggle')).toHaveText(/Deactivate|Updating…/i);
-    } catch (error) {
-      void error; /* tolerate UI lag under Docker */
-    }
+    const body2 = await fetchUserByEmail();
+    const activeFlag2 = (body2?.isActive ?? body2?.active) as boolean | undefined;
+    expect(activeFlag2).toBe(true);
+
+    const activated = await users.findUserRow(email);
+    await expect(activated).toContainText(/Active/i);
+    await expect(activated.getByTestId('admin-user-activate-toggle')).toHaveText(/Deactivate|Updating…/i);
 
       // Minimal console summary for verification output
       console.log(JSON.stringify({

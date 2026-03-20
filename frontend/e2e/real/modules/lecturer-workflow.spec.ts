@@ -186,13 +186,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
     
     // Ensure main content anchor is present
     await page.locator('[data-testid="main-content"]').first().waitFor({ timeout: 15000 });
-    // Best-effort: hide loading if present briefly
-    try {
-      await page.locator('[data-testid="loading-state"]').first().waitFor({ state: 'hidden', timeout: 5000 });
-    } catch (error) {
-      void error;
-      // Loading indicator can linger in mocked responses
-    }
+    await expect(page.locator('[data-testid="loading-state"]').first()).toBeHidden({ timeout: 10000 });
   });
 
 
@@ -231,11 +225,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
     const t = new TimesheetPage(page);
     await t.expectTimesheetsTable();
     const approveButton = await t.getApproveButtonForTimesheet(seeded.id);
-    const visible = await approveButton.isVisible().catch(() => false);
-    if (!visible) {
-      console.warn('No lecturer approve button visible; skipping check.');
-      return;
-    }
+    await expect(approveButton).toBeVisible({ timeout: 20000 });
     const approvalsDone = page.waitForResponse((r) => {
       if (!r.url().includes('/api/approvals') || r.request().method() !== 'POST') {
         return false;
@@ -291,10 +281,7 @@ test.describe('Lecturer Dashboard Workflow', () => {
     const t = new TimesheetPage(page);
     await t.expectTimesheetsTable();
     const approveBtn = await t.getApproveButtonForTimesheet(seeded.id);
-    if (!(await approveBtn.isVisible().catch(() => false))) {
-      console.warn('No lecturer approve button visible; skipping deterministic approve.');
-      return;
-    }
+    await expect(approveBtn).toBeVisible({ timeout: 20000 });
     const approvalsDone = page.waitForResponse((r) => {
       if (!r.url().includes('/api/approvals') || r.request().method() !== 'POST') {
         return false;

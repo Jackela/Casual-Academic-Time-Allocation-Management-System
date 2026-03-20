@@ -15,6 +15,8 @@ import {
   visualLogin,
 } from './visual-helpers';
 
+test.use({ storageState: undefined });
+
 // Demo character credentials (created during Act 1)
 interface DemoCharacter {
   email: string;
@@ -107,24 +109,15 @@ test.describe('Presentation Grand Tour: Full UI-Driven Multi-Role Demo', () => {
   const createdTimesheets: { id: number | null; tutor: string; taskType: string; rateCode: string }[] = [];
 
   test.beforeAll(async ({ request }) => {
-    const skipSetup = process.env.DEMO_SKIP_SETUP === 'true';
     const resetToken = process.env.TEST_DATA_RESET_TOKEN || 'local-e2e-reset';
-    
-    if (!skipSetup) {
-      try {
-        const resetResp = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/test-data/reset`, { 
-          headers: { 'X-Test-Reset-Token': resetToken } 
-        });
-        if (!resetResp.ok()) {
-          throw new Error(`Reset failed: ${resetResp.status()} ${await resetResp.text()}`);
-        }
-        console.log('ℹ️ Test data reset executed.');
-      } catch (error) {
-        console.warn('⚠️ Test data reset skipped:', error instanceof Error ? error.message : error);
-      }
-    } else {
-      console.log('ℹ️ Skipping reset (DEMO_SKIP_SETUP=true).');
+
+    const resetResp = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/test-data/reset`, {
+      headers: { 'X-Test-Reset-Token': resetToken },
+    });
+    if (!resetResp.ok()) {
+      throw new Error(`Reset failed: ${resetResp.status()} ${await resetResp.text()}`);
     }
+    console.log('ℹ️ Test data reset executed.');
     
     // Get admin token for cleanup
     const loginResp = await request.post(`${E2E_CONFIG.BACKEND.URL}/api/auth/login`, {
@@ -441,18 +434,20 @@ test.describe('Presentation Grand Tour: Full UI-Driven Multi-Role Demo', () => {
         headers,
         data: timesheetData,
       });
-      
-      if (createResp.ok()) {
-        const body = await createResp.json();
-        const id = body?.id ?? body?.data?.id ?? null;
-        const rateCode = body?.rateCode ?? body?.data?.rateCode ?? '-';
-        console.log(`✅ Timesheet created via API (ID: ${id}, Rate: ${rateCode})`);
-        return { id, rateCode };
-      } else {
+
+      if (!createResp.ok()) {
         const errorText = await createResp.text();
-        console.log(`❌ Timesheet creation failed: ${createResp.status()} - ${errorText}`);
-        return { id: null, rateCode: '-' };
+        throw new Error(`Timesheet creation failed: ${createResp.status()} - ${errorText}`);
       }
+
+      const body = await createResp.json();
+      const id = body?.id ?? body?.data?.id ?? null;
+      const rateCode = body?.rateCode ?? body?.data?.rateCode ?? '-';
+      if (!id) {
+        throw new Error('Timesheet creation succeeded but response did not include an id.');
+      }
+      console.log(`✅ Timesheet created via API (ID: ${id}, Rate: ${rateCode})`);
+      return { id, rateCode };
     };
 
     // Create timesheets for demonstration
@@ -460,47 +455,45 @@ test.describe('Presentation Grand Tour: Full UI-Driven Multi-Role Demo', () => {
     let caseB = { id: null as number | null, rateCode: '-' };
     let caseC = { id: null as number | null, rateCode: '-' };
 
-    if (aliceId) {
-      await showCustomHighlight(
-        page.locator('body'),
-        '📊 CASE A: Alice Wang (PhD Qualification)\n\n' +
-        '🎓 PhD RATE APPLIED\n' +
-        'Task: TUTORIAL → Rate Code: TU1\n' +
-        '💰 Higher pay rate ($182.54/hr) for PhD tutors'
-      );
-      await page.waitForTimeout(2000);
-      caseA = await createTimesheetViaAPI(aliceId, 'TUTORIAL', DATE_WEEK_A, 'Week 1 Tutorial - OOP Fundamentals', 'PHD');
-      await clearCustomHighlight(page);
-      createdTimesheets.push({ id: caseA.id, tutor: 'Alice Wang', taskType: 'TUTORIAL', rateCode: caseA.rateCode });
-    }
+    expect(aliceId, 'Alice id should be created during team setup').toBeTruthy();
+    expect(bobId, 'Bob id should be created during team setup').toBeTruthy();
+    expect(carolId, 'Carol id should be created during team setup').toBeTruthy();
 
-    if (bobId) {
-      await showCustomHighlight(
-        page.locator('body'),
-        '📊 CASE B: Bob Zhang (Standard Qualification)\n\n' +
-        '📋 STANDARD RATE APPLIED\n' +
-        'Task: TUTORIAL → Rate Code: TU2\n' +
-        '💰 Base tutorial rate for non-PhD tutors'
-      );
-      await page.waitForTimeout(2000);
-      caseB = await createTimesheetViaAPI(bobId, 'TUTORIAL', DATE_WEEK_B, 'Week 2 Tutorial - Data Structures', 'STANDARD');
-      await clearCustomHighlight(page);
-      createdTimesheets.push({ id: caseB.id, tutor: 'Bob Zhang', taskType: 'TUTORIAL', rateCode: caseB.rateCode });
-    }
+    await showCustomHighlight(
+      page.locator('body'),
+      '📊 CASE A: Alice Wang (PhD Qualification)\n\n' +
+      '🎓 PhD RATE APPLIED\n' +
+      'Task: TUTORIAL → Rate Code: TU1\n' +
+      '💰 Higher pay rate ($182.54/hr) for PhD tutors'
+    );
+    await page.waitForTimeout(2000);
+    caseA = await createTimesheetViaAPI(Number(aliceId), 'TUTORIAL', DATE_WEEK_A, 'Week 1 Tutorial - OOP Fundamentals', 'PHD');
+    await clearCustomHighlight(page);
+    createdTimesheets.push({ id: caseA.id, tutor: 'Alice Wang', taskType: 'TUTORIAL', rateCode: caseA.rateCode });
 
-    if (carolId) {
-      await showCustomHighlight(
-        page.locator('body'),
-        '📊 CASE C: Carol Li (Standard Qualification)\n\n' +
-        '📝 ACTIVITY RATE APPLIED\n' +
-        'Task: MARKING → Rate Code: M05\n' +
-        '💰 Marking rate based on task type, not qualification'
-      );
-      await page.waitForTimeout(2000);
-      caseC = await createTimesheetViaAPI(carolId, 'MARKING', DATE_WEEK_C, 'Assignment 1 Marking - 50 submissions', 'STANDARD');
-      await clearCustomHighlight(page);
-      createdTimesheets.push({ id: caseC.id, tutor: 'Carol Li', taskType: 'MARKING', rateCode: caseC.rateCode });
-    }
+    await showCustomHighlight(
+      page.locator('body'),
+      '📊 CASE B: Bob Zhang (Standard Qualification)\n\n' +
+      '📋 STANDARD RATE APPLIED\n' +
+      'Task: TUTORIAL → Rate Code: TU2\n' +
+      '💰 Base tutorial rate for non-PhD tutors'
+    );
+    await page.waitForTimeout(2000);
+    caseB = await createTimesheetViaAPI(Number(bobId), 'TUTORIAL', DATE_WEEK_B, 'Week 2 Tutorial - Data Structures', 'STANDARD');
+    await clearCustomHighlight(page);
+    createdTimesheets.push({ id: caseB.id, tutor: 'Bob Zhang', taskType: 'TUTORIAL', rateCode: caseB.rateCode });
+
+    await showCustomHighlight(
+      page.locator('body'),
+      '📊 CASE C: Carol Li (Standard Qualification)\n\n' +
+      '📝 ACTIVITY RATE APPLIED\n' +
+      'Task: MARKING → Rate Code: M05\n' +
+      '💰 Marking rate based on task type, not qualification'
+    );
+    await page.waitForTimeout(2000);
+    caseC = await createTimesheetViaAPI(Number(carolId), 'MARKING', DATE_WEEK_C, 'Assignment 1 Marking - 50 submissions', 'STANDARD');
+    await clearCustomHighlight(page);
+    createdTimesheets.push({ id: caseC.id, tutor: 'Carol Li', taskType: 'MARKING', rateCode: caseC.rateCode });
 
     // Act 2 Summary
     await showCustomHighlight(
@@ -1050,41 +1043,24 @@ test.describe('Presentation Grand Tour: Full UI-Driven Multi-Role Demo', () => {
     await page.waitForTimeout(4000);
     await clearCustomHighlight(page);
 
-    // =========================================================================
-    // FALLBACK: If lecturer couldn't see timesheets, approve via API for demo
-    // This ensures ACT 5 (Admin approval) can proceed even if LecturerAssignment
-    // wasn't properly persisted to database in e2e-local mode
-    // =========================================================================
-    const adminTokenForFallback = await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/auth/login`, {
-      data: { email: 'admin@example.com', password: 'Password123!' }
-    }).then(r => r.json()).then(d => d.token).catch(() => null);
-
-    if (adminTokenForFallback && caseA.id) {
-      // Check if Alice's timesheet is still TUTOR_CONFIRMED (lecturer didn't approve)
-      const statusCheck = await page.request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${caseA.id}`, {
-        headers: { Authorization: `Bearer ${adminTokenForFallback}` }
-      }).then(r => r.json()).catch(() => ({}));
-      
-      if (statusCheck?.status === 'TUTOR_CONFIRMED') {
-        console.log('⚠️ Lecturer review was skipped - using API fallback for demo continuity');
-        // Approve Alice and Bob via API as admin (simulating lecturer approval)
-        for (const ts of [caseA, caseB]) {
-          if (ts.id) {
-            await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${ts.id}/approve`, {
-              headers: { Authorization: `Bearer ${adminTokenForFallback}`, 'Content-Type': 'application/json' },
-              data: { comment: 'Approved (demo fallback)' }
-            }).catch(() => {});
-          }
-        }
-        // Reject Carol via API
-        if (caseC.id) {
-          await page.request.post(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${caseC.id}/reject`, {
-            headers: { Authorization: `Bearer ${adminTokenForFallback}`, 'Content-Type': 'application/json' },
-            data: { reason: REJECTION_REASON }
-          }).catch(() => {});
-        }
-        console.log('✅ API fallback complete - timesheets ready for ACT 5');
-      }
+    const lecturerToken = await page.evaluate(() => window.localStorage.getItem('token'));
+    expect(lecturerToken).toBeTruthy();
+    const expectedStatusById = [
+      { id: caseA.id, expected: 'LECTURER_CONFIRMED' },
+      { id: caseB.id, expected: 'LECTURER_CONFIRMED' },
+      { id: caseC.id, expected: 'REJECTED' },
+    ];
+    for (const entry of expectedStatusById) {
+      expect(entry.id).toBeTruthy();
+      const detailResp = await page.request.get(`${E2E_CONFIG.BACKEND.URL}/api/timesheets/${entry.id}`, {
+        headers: lecturerToken ? { Authorization: `Bearer ${lecturerToken}` } : undefined,
+      });
+      expect(detailResp.ok()).toBeTruthy();
+      const detailBody = await detailResp.json().catch(() => ({} as Record<string, unknown>));
+      const actualStatus = (detailBody as { status?: string; timesheet?: { status?: string } }).status
+        ?? (detailBody as { timesheet?: { status?: string } }).timesheet?.status
+        ?? '';
+      expect(actualStatus).toBe(entry.expected);
     }
 
     await signOutViaUI(page);
