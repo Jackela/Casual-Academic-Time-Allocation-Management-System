@@ -6,7 +6,9 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "02:00"
-    open-pull-requests-limit: 10
+    # This repository keeps main as the only long-lived branch.
+    # Pause version-update PR churn; security handling can be managed separately.
+    open-pull-requests-limit: 0
     labels:
       - "dependencies"
       - "security"
@@ -17,7 +19,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "02:30"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     labels:
       - "dependencies"
       - "security"
@@ -28,7 +30,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "03:00"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     labels:
       - "dependencies"
       - "security"
