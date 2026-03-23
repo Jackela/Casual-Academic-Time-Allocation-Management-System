@@ -29,7 +29,7 @@ import { createTestDataFactory, TestDataFactory } from '../../api/test-data-fact
 import { clearAuthSessionFromPage, signOutViaUI } from '../../api/auth-helper';
 import { statusLabel } from '../../utils/status-labels';
 import { finalizeTimesheet } from '../../utils/workflow-helpers';
-import { addVisualEnhancements, highlightAndClick, highlightAndFill, highlightAndSelect, narrateStep, visualLogin, waitForCreatedTimesheet } from './visual-helpers';
+import { addVisualEnhancements, highlightAndClick, highlightAndFill, highlightAndSelect, narrateStep, stabilizeLecturerCreateForm, visualLogin, waitForCreatedTimesheet, waitForLecturerRateCode } from './visual-helpers';
 
 test.use({ storageState: undefined });
 
@@ -133,8 +133,9 @@ test.describe('Presentation Demo 02: Rejection Path and Constraint Validation', 
     if (!tutorValue) {
       throw new Error('E2E Tutor One not found in tutor options');
     }
-    await highlightAndSelect(tutorSelect, tutorValue, 'Selecting E2E Tutor One', { pauseBefore: 1000, pauseAfter: 1500 });
-    await expect(tutorSelect).toHaveValue(tutorValue, { timeout: 5000 });
+    console.log('🎯 Selecting E2E Tutor One');
+    await tutorSelect.selectOption(tutorValue);
+    await expect(tutorSelect.locator('option:checked')).toHaveText(/E2E Tutor One/i, { timeout: 5000 });
 
     // Wait for Tutor selection side-effect: qualification auto-filled and disabled
     const qualificationSelect = modal.getByLabel('Tutor Qualification');
@@ -152,13 +153,16 @@ test.describe('Presentation Demo 02: Rejection Path and Constraint Validation', 
       throw new Error('No course options available');
     }
     courseId = parseInt(firstCourseValue, 10);
-    await highlightAndSelect(courseSelect, firstCourseValue, `Selecting ${courseOptions[1]}`, { pauseBefore: 1000, pauseAfter: 1500 });
+    console.log(`🎯 Selecting ${courseOptions[1]}`);
+    await courseSelect.selectOption(firstCourseValue);
     await expect(courseSelect).toHaveValue(firstCourseValue, { timeout: 5000 });
 
     // Fill Week Starting date (use native input to directly fill and trigger React Hook Form events)
     narrateStep(`Selecting week starting date: ${isoMonday}...`, '📅');
     const weekStartNativeInput = modal.getByRole('textbox', { name: /Week Starting/i }).first();
-    await highlightAndFill(weekStartNativeInput, isoMonday, `Entering date ${isoMonday}`, { pauseBefore: 1000, pauseAfter: 500 });
+    console.log(`✏️  Entering date ${isoMonday}: "${isoMonday}"`);
+    await weekStartNativeInput.fill(isoMonday);
+    await weekStartNativeInput.blur().catch(() => undefined);
     await expect(weekStartNativeInput).toHaveValue(isoMonday, { timeout: 5000 });
 
     // Ensure course selection persists after date change
@@ -175,29 +179,55 @@ test.describe('Presentation Demo 02: Rejection Path and Constraint Validation', 
     // Fill Description
     narrateStep('Filling timesheet description...', '✍️');
     const descriptionInput = modal.getByTestId('create-description-input');
-    await highlightAndFill(descriptionInput, description, 'Entering description', { pauseBefore: 800, pauseAfter: 1500 });
+    console.log(`✏️  Entering description: "${description}"`);
+    await descriptionInput.fill(description);
+    await descriptionInput.blur().catch(() => undefined);
     await expect(descriptionInput).toHaveValue(description, { timeout: 5000 });
+
+    const matchingQuoteResponse = await page.waitForResponse((response) => {
+      if (!response.url().includes('/api/timesheets/quote') || response.request().method() !== 'POST') {
+        return false;
+      }
+      try {
+        const payload = response.request().postDataJSON() as Record<string, unknown>;
+        return (
+          Number(payload.tutorId) === Number(tutorValue) &&
+          Number(payload.courseId) === Number(firstCourseValue) &&
+          String(payload.sessionDate ?? payload.weekStartDate ?? '') === isoMonday
+        );
+      } catch {
+        return false;
+      }
+    }, { timeout: 10000 }).catch(() => null);
 
     // Critical: Wait for Rate Code calculation to complete (no longer showing '-')
     console.log('Waiting for rate calculation to complete...');
-    await page.waitForFunction(() => {
-      const modal = document.querySelector('[data-testid="lecturer-create-modal"]');
-      if (!modal) return false;
-      const walker = document.createTreeWalker(modal, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
-      let sawLabel = false;
-      let seenNonDashAfter = false;
-      while (walker.nextNode()) {
-        const text = (walker.currentNode as any).textContent?.trim() || '';
-        if (/^Rate Code$/i.test(text)) { sawLabel = true; continue; }
-        if (sawLabel && text && text !== '-' && !/^Rate Code$/i.test(text)) { 
-          seenNonDashAfter = true; 
-          break; 
-        }
-      }
-      return seenNonDashAfter;
-    }, { timeout: 10000 });
+    await waitForLecturerRateCode(page, 10000);
     await page.waitForTimeout(500);
     console.log('✅ Rate calculation completed');
+
+    if (!matchingQuoteResponse) {
+      console.warn('⚠️ Matching quote payload was not observed before submit; continuing with field re-assertion');
+    }
+
+    await descriptionInput.fill(description);
+    await descriptionInput.blur().catch(() => undefined);
+    await expect(descriptionInput).toHaveValue(description, { timeout: 5000 });
+
+    const repairedFields = await stabilizeLecturerCreateForm(page, {
+      tutorSelect,
+      tutorValue,
+      courseSelect,
+      courseValue: firstCourseValue,
+      weekStartInput: weekStartNativeInput,
+      weekStartDate: isoMonday,
+      descriptionInput,
+      description,
+    });
+    if (repairedFields) {
+      await waitForLecturerRateCode(page, 10000);
+      await page.waitForTimeout(500);
+    }
 
     // 5. Submit form to create timesheet (UI interaction)
     narrateStep('Submitting timesheet creation...', '📤');

@@ -20,6 +20,15 @@ interface CreatedTimesheetLookup {
 }
 
 async function navigateToLoginWithFreshSession(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    try {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      window.localStorage.setItem('__E2E_DISABLE_AUTH_SEED__', '1');
+    } catch {
+      // Ignore storage access issues when the current page is unavailable.
+    }
+  }).catch(() => undefined);
   await page.context().clearCookies().catch(() => undefined);
   await page.context().clearPermissions().catch(() => undefined);
   await page.goto('/login', { waitUntil: 'domcontentloaded' }).catch(() => undefined);
@@ -154,6 +163,111 @@ export async function waitForCreatedTimesheet(
   }
 
   return null;
+}
+
+async function dispatchFormEvents(locator: Locator): Promise<void> {
+  await locator.evaluate((element: Element) => {
+    const target = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+    target.dispatchEvent(new Event('change', { bubbles: true }));
+    target.dispatchEvent(new Event('blur', { bubbles: true }));
+  }).catch(() => undefined);
+}
+
+export async function waitForLecturerRateCode(page: Page, timeout = 10000): Promise<void> {
+  await page.waitForFunction(() => {
+    const modal = document.querySelector('[data-testid="lecturer-create-modal"]');
+    if (!modal) return false;
+    const walker = document.createTreeWalker(modal, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    let sawLabel = false;
+    while (walker.nextNode()) {
+      const text = (walker.currentNode as { textContent?: string | null }).textContent?.trim() || '';
+      if (/^Rate Code$/i.test(text)) {
+        sawLabel = true;
+        continue;
+      }
+      if (sawLabel && text && text !== '-' && !/^Rate Code$/i.test(text)) {
+        return true;
+      }
+    }
+    return false;
+  }, { timeout });
+}
+
+export async function stabilizeLecturerCreateForm(
+  page: Page,
+  options: {
+    tutorSelect?: Locator;
+    tutorValue?: string;
+    courseSelect: Locator;
+    courseValue: string;
+    weekStartInput: Locator;
+    weekStartDate: string;
+    descriptionInput: Locator;
+    description: string;
+  },
+): Promise<boolean> {
+  const {
+    tutorSelect,
+    tutorValue,
+    courseSelect,
+    courseValue,
+    weekStartInput,
+    weekStartDate,
+    descriptionInput,
+    description,
+  } = options;
+
+  let repaired = false;
+
+  const ensureSelectValue = async (
+    locator: Locator | undefined,
+    expectedValue: string | undefined,
+    label: string,
+  ): Promise<void> => {
+    if (!locator || !expectedValue) {
+      return;
+    }
+    const currentValue = await locator.inputValue().catch(() => '');
+    if (currentValue === expectedValue) {
+      return;
+    }
+
+    console.warn(`⚠️ ${label} reset to "${currentValue || '(empty)'}"; restoring "${expectedValue}" before submit`);
+    await locator.selectOption(expectedValue).catch(() => undefined);
+    await dispatchFormEvents(locator);
+    repaired = true;
+  };
+
+  const ensureInputValue = async (
+    locator: Locator,
+    expectedValue: string,
+    label: string,
+  ): Promise<void> => {
+    const currentValue = await locator.inputValue().catch(() => '');
+    if (currentValue.trim() === expectedValue) {
+      return;
+    }
+
+    console.warn(`⚠️ ${label} reset to "${currentValue || '(empty)'}"; restoring "${expectedValue}" before submit`);
+    await locator.scrollIntoViewIfNeeded().catch(() => undefined);
+    await locator.click({ timeout: 5000 }).catch(() => undefined);
+    await locator.fill('');
+    await locator.fill(expectedValue);
+    await dispatchFormEvents(locator);
+    repaired = true;
+  };
+
+  await ensureSelectValue(tutorSelect, tutorValue, 'Tutor');
+  await ensureSelectValue(courseSelect, courseValue, 'Course');
+  await ensureInputValue(weekStartInput, weekStartDate, 'Week Starting');
+  await ensureInputValue(descriptionInput, description, 'Description');
+
+  if (repaired) {
+    await page.waitForTimeout(500);
+  }
+
+  return repaired;
 }
 
 /**
@@ -416,13 +530,16 @@ export async function highlightAndFill(
   // Natural typing: click, select all, then type character by character
   await locator.click();
   await page.waitForTimeout(100);
-  await page.keyboard.press('Control+A').catch(() => undefined);
-  await page.keyboard.press('Backspace').catch(() => undefined);
-  await page.keyboard.type(value, { delay: PRESENTATION_CONFIG.timing.typingDelay });
+  await locator.fill('');
+  await locator.type(value, { delay: PRESENTATION_CONFIG.timing.typingDelay });
   
-  // Dispatch React Hook Form compatible events for form validation
+  // Dispatch React-compatible events using the native setter so RHF observes the change.
   await locator.evaluate((el: HTMLInputElement | HTMLTextAreaElement, val: string) => {
-    el.value = val;
+    const prototype = el instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+    descriptor?.set?.call(el, val);
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
     el.dispatchEvent(new Event('blur', { bubbles: true }));
@@ -477,11 +594,14 @@ export async function highlightAndSelect(
   // Select option through the native select interaction
   await locator.selectOption(value);
 
-  // Trigger React Hook Form events (critical for form validation)
-  await locator.evaluate((el: HTMLSelectElement) => {
+  // Trigger React-compatible events with the native setter (critical for RHF state sync).
+  await locator.evaluate((el: HTMLSelectElement, val: string) => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+    descriptor?.set?.call(el, val);
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+  }, value);
 
   await page.waitForTimeout(pauseAfter);
 
@@ -582,9 +702,8 @@ export async function visualLogin(
     }
   }).catch(() => ({ hasToken: false, role: '' }));
 
-  // Navigate to login first; if the shared real-project auth state redirects,
-  // we will reuse/match role or sign out before continuing.
-  await page.goto('/login', { waitUntil: 'domcontentloaded' });
+  // Presentation demos explicitly switch identities; start from a clean login surface.
+  await navigateToLoginWithFreshSession(page);
 
   // Show on-screen overlay for audience
   await page.evaluate((message) => {
@@ -679,12 +798,12 @@ export async function visualLogin(
   await showCustomHighlight(emailInput, `Authenticating as ${friendlyName}...`);
   await emailInput.click();
   await emailInput.fill('');
-  await page.keyboard.type(creds.email, { delay: PRESENTATION_CONFIG.timing.typingDelay });
+  await emailInput.type(creds.email, { delay: PRESENTATION_CONFIG.timing.typingDelay });
 
   await showCustomHighlight(passwordInput, 'Typing secure credentials...');
   await passwordInput.click();
   await passwordInput.fill('');
-  await page.keyboard.type(creds.password, { delay: PRESENTATION_CONFIG.timing.typingDelay });
+  await passwordInput.type(creds.password, { delay: PRESENTATION_CONFIG.timing.typingDelay });
 
   await showCustomHighlight(loginButton, 'Heading to dashboard...');
   await loginButton.click();
