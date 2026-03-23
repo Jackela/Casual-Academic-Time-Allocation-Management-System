@@ -27,12 +27,14 @@ import { LecturerDashboardPage } from '../../shared/pages/dashboard/LecturerDash
 import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
 import { clearAuthSessionFromPage, signOutViaUI } from '../../api/auth-helper';
 import { statusLabel } from '../../utils/status-labels';
-import { addVisualEnhancements, highlightAndClick, highlightAndFill, highlightAndSelect, narrateStep, visualLogin } from './visual-helpers';
+import { finalizeTimesheet } from '../../utils/workflow-helpers';
+import { addVisualEnhancements, highlightAndClick, highlightAndFill, highlightAndSelect, narrateStep, visualLogin, waitForCreatedTimesheet } from './visual-helpers';
 
 test.use({ storageState: undefined });
 
 test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', () => {
   let dataFactory: TestDataFactory;
+  const createdTimesheetIds: number[] = [];
 
   test.beforeEach(async ({ page, request }) => {
     dataFactory = await createTestDataFactory(request);
@@ -51,14 +53,39 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
     });
   });
 
-  test.afterEach(async ({ page }) => {
+  test.afterEach(async ({ page, request }) => {
+    const tokens = dataFactory?.getAuthTokens();
+    const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8084';
+    for (const timesheetId of createdTimesheetIds.splice(0).reverse()) {
+      let deleted = false;
+      try {
+        const response = await request.delete(`${backendUrl}/api/timesheets/${timesheetId}`, {
+          headers: tokens ? { Authorization: `Bearer ${tokens.admin.token}` } : undefined,
+        });
+        deleted = response.status() === 204;
+      } catch {
+        deleted = false;
+      }
+
+      if (!deleted && tokens) {
+        await finalizeTimesheet(request, tokens, timesheetId).catch(() => undefined);
+        await request.delete(`${backendUrl}/api/timesheets/${timesheetId}`, {
+          headers: { Authorization: `Bearer ${tokens.admin.token}` },
+        }).catch(() => undefined);
+      }
+    }
+
     await clearAuthSessionFromPage(page);
     await dataFactory?.cleanupAll();
   });
 
   test('Complete Happy Path Approval Workflow (100% UI)', async ({ page }) => {
     test.setTimeout(300000); // 5 minute timeout (for demo purposes)
-    const description = "COMP1001 Tutorial - Week of 2021-02-08 - Happy Path Demo";
+    const weekOffset = test.info().repeatEachIndex + (test.info().retry * 8);
+    const baseMonday = new Date('2021-02-08T00:00:00Z');
+    baseMonday.setUTCDate(baseMonday.getUTCDate() + (weekOffset * 7));
+    const isoMonday = baseMonday.toISOString().slice(0, 10);
+    const description = `COMP1001 Tutorial - Week of ${isoMonday} - Happy Path Demo`;
     let courseId: number;
 
     // ============================================================================
@@ -92,9 +119,6 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
 
     // 4. Fill form (UI interaction)
     console.log('Filling timesheet information...');
-
-    // Fixed date for demo stability (unique past Monday to avoid conflicts)
-    const isoMonday = "2021-02-08"; // Mon, February 8, 2021
 
     // Select Tutor (explicitly select E2E Tutor One to avoid test isolation issues)
     narrateStep('Selecting tutor for the timesheet...', '👤');
@@ -230,25 +254,50 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
       await page.waitForTimeout(800);
     }
 
-    if (!createResponse) {
-      const modalStillVisible = await modal.isVisible().catch(() => false);
-      throw new Error(`Timesheet creation response not observed after ${maxSubmitAttempts} attempts (modalVisible=${modalStillVisible}, url=${page.url()})`);
-    }
+    const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8084';
+    const token = await page.evaluate(() => window.localStorage.getItem('token'));
+    let createdData: Record<string, unknown> = {};
+    let timesheetId = 0;
 
-    if (!createResponse.ok()) {
+    if (createResponse && !createResponse.ok()) {
       const errorText = await createResponse.text();
       throw new Error(`Timesheet creation failed: ${createResponse.status()} - ${errorText}`);
     }
-    const createdData = await createResponse.json().catch(() => ({}));
-    const timesheetId = createdData.id || createdData.timesheetId || createdData.data?.id;
+
+    if (createResponse) {
+      createdData = await createResponse.json().catch(() => ({}));
+      timesheetId = Number(createdData.id || createdData.timesheetId || (createdData.data as { id?: number } | undefined)?.id || 0);
+    }
+
+    if (!timesheetId) {
+      const recovered = await waitForCreatedTimesheet(page, {
+        backendUrl,
+        token,
+        courseId,
+        description,
+        weekStartDate: isoMonday,
+        timeout: 15000,
+      });
+
+      if (!recovered) {
+        const modalStillVisible = await modal.isVisible().catch(() => false);
+        throw new Error(`Timesheet creation response not observed after ${maxSubmitAttempts} attempts (modalVisible=${modalStillVisible}, url=${page.url()})`);
+      }
+
+      timesheetId = recovered.id;
+      if (recovered.status) {
+        createdData.status = recovered.status;
+      }
+      console.warn(`⚠️ Timesheet POST response was not observed; recovered created record via list lookup (ID: ${timesheetId})`);
+    }
+
     console.log(`✅ Timesheet created, ID: ${timesheetId}`);
+    createdTimesheetIds.push(timesheetId);
 
     if (!timesheetId) {
       throw new Error('Failed to extract timesheet ID from creation response payload');
     }
-    
-    const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8084';
-    const token = await page.evaluate(() => window.localStorage.getItem('token'));
+
     const detailResp = await page.request.get(`${backendUrl}/api/timesheets/${timesheetId}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
