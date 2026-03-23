@@ -33,6 +33,13 @@ import { addVisualEnhancements, highlightAndClick, highlightAndFill, highlightAn
 test.use({ storageState: undefined });
 
 test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', () => {
+  const formatUtcDate = (value: Date) => {
+    const year = value.getUTCFullYear();
+    const month = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(value.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   let dataFactory: TestDataFactory;
   const createdTimesheetIds: number[] = [];
 
@@ -84,7 +91,7 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
     const weekOffset = test.info().repeatEachIndex + (test.info().retry * 8);
     const baseMonday = new Date('2021-02-08T00:00:00Z');
     baseMonday.setUTCDate(baseMonday.getUTCDate() + (weekOffset * 7));
-    const isoMonday = baseMonday.toISOString().slice(0, 10);
+    const isoMonday = formatUtcDate(baseMonday);
     const description = `COMP1001 Tutorial - Week of ${isoMonday} - Happy Path Demo`;
     let courseId: number;
 

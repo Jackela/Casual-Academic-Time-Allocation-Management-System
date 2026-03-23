@@ -61,7 +61,12 @@ test.describe('Presentation Demo 03: EA Billing Compliance Demonstration', () =>
     const tutorialStandardDesc = "COMP1001 Tutorial Standard - Week of 2021-03-15";
     const tutorialRepeatDesc = "COMP1001 Tutorial Repeat - Week of 2021-03-22";
     const markingDesc = "COMP1001 Marking - Assignment 1 (2021-03-29)";
-    const toDateStr = (value: Date) => value.toISOString().slice(0, 10);
+    const toDateStr = (value: Date) => {
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
     const mondayWithOffset = (weeksFromCurrentWeek: number) => {
       const now = new Date();
       const dayIndex = (now.getDay() + 6) % 7; // Monday=0
