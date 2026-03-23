@@ -591,8 +591,10 @@ export async function highlightAndSelect(
   };
   await waitForOptions();
 
-  // Select option through the native select interaction
+  // Select the option first, then re-dispatch events using the resolved DOM value.
+  // This preserves enum-backed option values when the caller selected by label text.
   await locator.selectOption(value);
+  const resolvedValue = await locator.inputValue();
 
   // Trigger React-compatible events with the native setter (critical for RHF state sync).
   await locator.evaluate((el: HTMLSelectElement, val: string) => {
@@ -601,7 +603,7 @@ export async function highlightAndSelect(
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
     el.dispatchEvent(new Event('blur', { bubbles: true }));
-  }, value);
+  }, resolvedValue);
 
   await page.waitForTimeout(pauseAfter);
 
