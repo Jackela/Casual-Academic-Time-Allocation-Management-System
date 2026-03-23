@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
+  <title id="title">CATAMS Architecture Overview</title>
+  <desc id="desc">Static architecture summary for the CATAMS archive handbook.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fbff"/>
+      <stop offset="100%" stop-color="#edf4ff"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#17324d" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#295b8f"/>
+    </marker>
+  </defs>
+
+  <rect width="1400" height="820" fill="url(#bg)" rx="28"/>
+  <text x="90" y="92" font-size="42" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" font-weight="700" fill="#12314d">CATAMS 系统架构总览</text>
+  <text x="90" y="132" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#4a6075">前端采集事实，后端统一计算，数据库保存业务记录与政策规则。</text>
+
+  <rect x="90" y="195" width="260" height="130" rx="24" fill="#ffffff" stroke="#99bddf" stroke-width="2" filter="url(#shadow)"/>
+  <text x="120" y="245" font-size="28" font-weight="700" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#12314d">角色入口</text>
+  <text x="120" y="285" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#4a6075">Tutor / Lecturer / Admin</text>
+
+  <rect x="420" y="170" width="320" height="190" rx="28" fill="#f2f8ff" stroke="#5492c7" stroke-width="3" filter="url(#shadow)"/>
+  <text x="455" y="225" font-size="32" font-weight="700" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#0f4a78">React Frontend</text>
+  <text x="455" y="268" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#35566f">登录、仪表盘、表单、状态展示</text>
+  <text x="455" y="304" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#35566f">只提交教学事实，不自己算金额</text>
+
+  <rect x="820" y="150" width="470" height="240" rx="30" fill="#ffffff" stroke="#3d7e59" stroke-width="3" filter="url(#shadow)"/>
+  <text x="860" y="210" font-size="34" font-weight="700" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#1f5c38">Spring Boot API</text>
+  <text x="860" y="255" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#45625a">认证、审批编排、DTO 校验、持久化</text>
+  <rect x="860" y="285" width="180" height="72" rx="18" fill="#edf8ef" stroke="#80b493"/>
+  <text x="885" y="329" font-size="22" font-weight="700" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#1f5c38">ApprovalService</text>
+  <rect x="1065" y="285" width="185" height="72" rx="18" fill="#edf8ef" stroke="#80b493"/>
+  <text x="1087" y="329" font-size="22" font-weight="700" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#1f5c38">Auth / Users</text>
+
+  <rect x="455" y="470" width="350" height="190" rx="28" fill="#fffdf0" stroke="#d0aa2d" stroke-width="3" filter="url(#shadow)"/>
+  <text x="495" y="530" font-size="32" font-weight="700" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#8a6500">Schedule1Calculator</text>
+  <text x="495" y="573" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#6a5a1e">统一计算 payable hours、rate、amount</text>
+  <text x="495" y="609" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#6a5a1e">输出条款引用与公式元数据</text>
+
+  <rect x="900" y="470" width="390" height="220" rx="28" fill="#fff7f2" stroke="#d47a43" stroke-width="3" filter="url(#shadow)"/>
+  <text x="940" y="530" font-size="32" font-weight="700" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#9a4719">PostgreSQL + Flyway</text>
+  <text x="940" y="573" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#7a5b4a">timesheets / approvals / users</text>
+  <text x="940" y="609" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#7a5b4a">policy_version / rate_code / rate_amount</text>
+  <text x="940" y="645" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#7a5b4a">历史记录、审批状态、政策版本</text>
+
+  <line x1="350" y1="260" x2="420" y2="260" stroke="#295b8f" stroke-width="6" marker-end="url(#arrow)"/>
+  <line x1="740" y1="260" x2="820" y2="260" stroke="#295b8f" stroke-width="6" marker-end="url(#arrow)"/>
+  <line x1="630" y1="360" x2="630" y2="470" stroke="#b1891f" stroke-width="6" marker-end="url(#arrow)"/>
+  <line x1="805" y1="565" x2="900" y2="565" stroke="#b8622d" stroke-width="6" marker-end="url(#arrow)"/>
+  <line x1="1050" y1="390" x2="1050" y2="470" stroke="#3d7e59" stroke-width="6" marker-end="url(#arrow)"/>
+
+  <text x="610" y="448" font-size="18" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#7b6325">quote / create / update 都会重新计算</text>
+  <text x="955" y="438" font-size="18" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#3b6f56">审批与规则查询</text>
+</svg>

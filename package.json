@@ -9,6 +9,7 @@
     "clean:backend": "./gradlew clean || true",
     "clean:frontend": "npm --prefix frontend run clean || true",
     "e2e:reset": "node scripts/e2e-reset-seed.js",
+    "docs:archive:pdf": "node scripts/generate-archive-handbook.js",
     "ci:hygiene": "bash tools/ci/check-repo-hygiene.sh",
     "ci:audit": "bash tools/ci/run-security-audit.sh"
   },

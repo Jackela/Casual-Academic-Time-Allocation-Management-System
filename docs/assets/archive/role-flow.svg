@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title desc">
+  <title id="title">CATAMS Role Flow</title>
+  <desc id="desc">Static approval flow for tutor, lecturer and admin roles.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fffaf4"/>
+      <stop offset="100%" stop-color="#f8fbff"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#2d3f50" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#385b7b"/>
+    </marker>
+  </defs>
+  <rect width="1400" height="760" fill="url(#bg)" rx="28"/>
+  <text x="90" y="90" font-size="42" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" font-weight="700" fill="#16324a">角色审批流程</text>
+  <text x="90" y="130" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#53697d">从 Tutor 创建到 Lecturer 审批，再到 Admin 最终确认和用户管理。</text>
+
+  <rect x="90" y="200" width="320" height="420" rx="28" fill="#eef6ff" stroke="#4a89c2" stroke-width="3" filter="url(#shadow)"/>
+  <text x="125" y="255" font-size="34" font-weight="700" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#12507c">Tutor</text>
+  <rect x="125" y="295" width="250" height="72" rx="18" fill="#ffffff" stroke="#90b6db"/>
+  <text x="152" y="340" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#35566f">Create / Edit Timesheet</text>
+  <rect x="125" y="395" width="250" height="72" rx="18" fill="#ffffff" stroke="#90b6db"/>
+  <text x="160" y="440" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#35566f">Submit / Confirm</text>
+  <rect x="125" y="495" width="250" height="88" rx="18" fill="#ffffff" stroke="#90b6db"/>
+  <text x="148" y="540" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#35566f">Dashboard Tabs</text>
+  <text x="148" y="571" font-size="19" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#5c7288">All / Drafts / In Progress / Needs Attention</text>
+
+  <rect x="530" y="200" width="340" height="420" rx="28" fill="#effbf4" stroke="#4d9a68" stroke-width="3" filter="url(#shadow)"/>
+  <text x="565" y="255" font-size="34" font-weight="700" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#1c6640">Lecturer</text>
+  <rect x="565" y="295" width="270" height="72" rx="18" fill="#ffffff" stroke="#98c9aa"/>
+  <text x="610" y="340" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#46625a">Create Timesheet</text>
+  <rect x="565" y="395" width="270" height="72" rx="18" fill="#ffffff" stroke="#98c9aa"/>
+  <text x="620" y="440" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#46625a">Pending Review</text>
+  <rect x="565" y="495" width="270" height="88" rx="18" fill="#ffffff" stroke="#98c9aa"/>
+  <text x="616" y="540" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#46625a">Approve / Reject</text>
+  <text x="593" y="571" font-size="19" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#617f75">课程级审批与可见性控制</text>
+
+  <rect x="990" y="200" width="320" height="420" rx="28" fill="#fff1f1" stroke="#ca6b6b" stroke-width="3" filter="url(#shadow)"/>
+  <text x="1025" y="255" font-size="34" font-weight="700" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#8a2f2f">Admin</text>
+  <rect x="1025" y="295" width="250" height="72" rx="18" fill="#ffffff" stroke="#e1a3a3"/>
+  <text x="1065" y="340" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#6f4b4b">Overview</text>
+  <rect x="1025" y="395" width="250" height="72" rx="18" fill="#ffffff" stroke="#e1a3a3"/>
+  <text x="1055" y="440" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#6f4b4b">Final Approval</text>
+  <rect x="1025" y="495" width="250" height="88" rx="18" fill="#ffffff" stroke="#e1a3a3"/>
+  <text x="1055" y="540" font-size="22" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#6f4b4b">Admin Users</text>
+  <text x="1050" y="571" font-size="19" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#816060">Create / Deactivate / Reactivate</text>
+
+  <line x1="410" y1="410" x2="530" y2="410" stroke="#385b7b" stroke-width="6" marker-end="url(#arrow)"/>
+  <line x1="870" y1="410" x2="990" y2="410" stroke="#385b7b" stroke-width="6" marker-end="url(#arrow)"/>
+  <text x="445" y="388" font-size="18" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#496071">Tutor confirmed</text>
+  <text x="905" y="388" font-size="18" font-family="Microsoft YaHei, Segoe UI, Noto Sans CJK SC, sans-serif" fill="#496071">Lecturer approved</text>
+</svg>

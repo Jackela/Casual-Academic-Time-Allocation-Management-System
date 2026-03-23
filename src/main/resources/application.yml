@@ -5,9 +5,9 @@ spring:
     group:
       demo: e2e-local
   
-  # Default database configuration (connects to Docker PostgreSQL)
+  # Default database configuration (connects to Docker PostgreSQL on the compose-mapped host port)
   datasource:
-    url: jdbc:postgresql://localhost:5433/catams
+    url: jdbc:postgresql://localhost:55433/catams
     username: catams_user
     password: catams_password
     driver-class-name: org.postgresql.Driver
