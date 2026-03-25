@@ -27,12 +27,21 @@ import { LecturerDashboardPage } from '../../shared/pages/dashboard/LecturerDash
 import { createTestDataFactory, TestDataFactory } from '../../api/test-data-factory';
 import { clearAuthSessionFromPage, signOutViaUI } from '../../api/auth-helper';
 import { statusLabel } from '../../utils/status-labels';
-import { addVisualEnhancements, highlightAndClick, highlightAndFill, highlightAndSelect, narrateStep, visualLogin } from './visual-helpers';
+import { finalizeTimesheet } from '../../utils/workflow-helpers';
+import { addVisualEnhancements, highlightAndClick, highlightAndFill, highlightAndSelect, narrateStep, stabilizeLecturerCreateForm, visualLogin, waitForCreatedTimesheet, waitForLecturerRateCode } from './visual-helpers';
 
 test.use({ storageState: undefined });
 
 test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', () => {
+  const formatUtcDate = (value: Date) => {
+    const year = value.getUTCFullYear();
+    const month = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(value.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   let dataFactory: TestDataFactory;
+  const createdTimesheetIds: number[] = [];
 
   test.beforeEach(async ({ page, request }) => {
     dataFactory = await createTestDataFactory(request);
@@ -51,14 +60,39 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
     });
   });
 
-  test.afterEach(async ({ page }) => {
+  test.afterEach(async ({ page, request }) => {
+    const tokens = dataFactory?.getAuthTokens();
+    const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8084';
+    for (const timesheetId of createdTimesheetIds.splice(0).reverse()) {
+      let deleted = false;
+      try {
+        const response = await request.delete(`${backendUrl}/api/timesheets/${timesheetId}`, {
+          headers: tokens ? { Authorization: `Bearer ${tokens.admin.token}` } : undefined,
+        });
+        deleted = response.status() === 204;
+      } catch {
+        deleted = false;
+      }
+
+      if (!deleted && tokens) {
+        await finalizeTimesheet(request, tokens, timesheetId).catch(() => undefined);
+        await request.delete(`${backendUrl}/api/timesheets/${timesheetId}`, {
+          headers: { Authorization: `Bearer ${tokens.admin.token}` },
+        }).catch(() => undefined);
+      }
+    }
+
     await clearAuthSessionFromPage(page);
     await dataFactory?.cleanupAll();
   });
 
   test('Complete Happy Path Approval Workflow (100% UI)', async ({ page }) => {
     test.setTimeout(300000); // 5 minute timeout (for demo purposes)
-    const description = "COMP1001 Tutorial - Week of 2021-02-08 - Happy Path Demo";
+    const weekOffset = test.info().repeatEachIndex + (test.info().retry * 8);
+    const baseMonday = new Date('2021-02-08T00:00:00Z');
+    baseMonday.setUTCDate(baseMonday.getUTCDate() + (weekOffset * 7));
+    const isoMonday = formatUtcDate(baseMonday);
+    const description = `COMP1001 Tutorial - Week of ${isoMonday} - Happy Path Demo`;
     let courseId: number;
 
     // ============================================================================
@@ -93,9 +127,6 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
     // 4. Fill form (UI interaction)
     console.log('Filling timesheet information...');
 
-    // Fixed date for demo stability (unique past Monday to avoid conflicts)
-    const isoMonday = "2021-02-08"; // Mon, February 8, 2021
-
     // Select Tutor (explicitly select E2E Tutor One to avoid test isolation issues)
     narrateStep('Selecting tutor for the timesheet...', '👤');
     const tutorSelect = modal.getByTestId('create-tutor-select');
@@ -108,8 +139,9 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
     if (!tutorValue) {
       throw new Error('E2E Tutor One not found in tutor options');
     }
-    await highlightAndSelect(tutorSelect, tutorValue, 'Selecting E2E Tutor One', { pauseBefore: 1000, pauseAfter: 1500 });
-    await expect(tutorSelect).toHaveValue(tutorValue, { timeout: 5000 });
+    console.log('🎯 Selecting E2E Tutor One');
+    await tutorSelect.selectOption(tutorValue);
+    await expect(tutorSelect.locator('option:checked')).toHaveText(/E2E Tutor One/i, { timeout: 5000 });
 
     // Wait for Tutor selection side-effect: qualification auto-filled and disabled
     const qualificationSelect = modal.getByLabel('Tutor Qualification');
@@ -128,13 +160,16 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
     }
     // eslint-disable-next-line prefer-const -- assigned conditionally from async selection
     courseId = parseInt(firstCourseValue, 10);
-    await highlightAndSelect(courseSelect, firstCourseValue, `Selecting ${courseOptions[1]}`, { pauseBefore: 1000, pauseAfter: 1500 });
+    console.log(`🎯 Selecting ${courseOptions[1]}`);
+    await courseSelect.selectOption(firstCourseValue);
     await expect(courseSelect).toHaveValue(firstCourseValue, { timeout: 5000 });
 
     // Fill Week Starting date (use native input to directly fill and trigger React Hook Form events)
     narrateStep(`Selecting week starting date: ${isoMonday}...`, '📅');
     const weekStartNativeInput = modal.getByRole('textbox', { name: /Week Starting/i }).first();
-    await highlightAndFill(weekStartNativeInput, isoMonday, `Entering date ${isoMonday}`, { pauseBefore: 1000, pauseAfter: 500 });
+    console.log(`✏️  Entering date ${isoMonday}: "${isoMonday}"`);
+    await weekStartNativeInput.fill(isoMonday);
+    await weekStartNativeInput.blur().catch(() => undefined);
     await expect(weekStartNativeInput).toHaveValue(isoMonday, { timeout: 5000 });
 
     // Ensure course selection persists after date change
@@ -151,29 +186,55 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
     // Fill Description
     narrateStep('Filling timesheet description...', '✍️');
     const descriptionInput = modal.getByTestId('create-description-input');
-    await highlightAndFill(descriptionInput, description, 'Entering description', { pauseBefore: 800, pauseAfter: 1500 });
+    console.log(`✏️  Entering description: "${description}"`);
+    await descriptionInput.fill(description);
+    await descriptionInput.blur().catch(() => undefined);
     await expect(descriptionInput).toHaveValue(description, { timeout: 5000 });
+
+    const matchingQuoteResponse = await page.waitForResponse((response) => {
+      if (!response.url().includes('/api/timesheets/quote') || response.request().method() !== 'POST') {
+        return false;
+      }
+      try {
+        const payload = response.request().postDataJSON() as Record<string, unknown>;
+        return (
+          Number(payload.tutorId) === Number(tutorValue) &&
+          Number(payload.courseId) === Number(firstCourseValue) &&
+          String(payload.sessionDate ?? payload.weekStartDate ?? '') === isoMonday
+        );
+      } catch {
+        return false;
+      }
+    }, { timeout: 10000 }).catch(() => null);
 
     // Critical: Wait for Rate Code calculation to complete (no longer showing '-')
     console.log('Waiting for rate calculation to complete...');
-    await page.waitForFunction(() => {
-      const modal = document.querySelector('[data-testid="lecturer-create-modal"]');
-      if (!modal) return false;
-      const walker = document.createTreeWalker(modal, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
-      let sawLabel = false;
-      let seenNonDashAfter = false;
-      while (walker.nextNode()) {
-        const text = (walker.currentNode as any).textContent?.trim() || '';
-        if (/^Rate Code$/i.test(text)) { sawLabel = true; continue; }
-        if (sawLabel && text && text !== '-' && !/^Rate Code$/i.test(text)) { 
-          seenNonDashAfter = true; 
-          break; 
-        }
-      }
-      return seenNonDashAfter;
-    }, { timeout: 10000 });
+    await waitForLecturerRateCode(page, 10000);
     await page.waitForTimeout(500);
     console.log('✅ Rate calculation completed');
+
+    if (!matchingQuoteResponse) {
+      console.warn('⚠️ Matching quote payload was not observed before submit; continuing with field re-assertion');
+    }
+
+    await descriptionInput.fill(description);
+    await descriptionInput.blur().catch(() => undefined);
+    await expect(descriptionInput).toHaveValue(description, { timeout: 5000 });
+
+    const repairedFields = await stabilizeLecturerCreateForm(page, {
+      tutorSelect,
+      tutorValue,
+      courseSelect,
+      courseValue: firstCourseValue,
+      weekStartInput: weekStartNativeInput,
+      weekStartDate: isoMonday,
+      descriptionInput,
+      description,
+    });
+    if (repairedFields) {
+      await waitForLecturerRateCode(page, 10000);
+      await page.waitForTimeout(500);
+    }
 
     // 5. Submit form to create timesheet (UI interaction)
     narrateStep('Submitting timesheet creation...', '📤');
@@ -230,25 +291,50 @@ test.describe('Presentation Demo 01: Happy Path Four-Level Approval Workflow', (
       await page.waitForTimeout(800);
     }
 
-    if (!createResponse) {
-      const modalStillVisible = await modal.isVisible().catch(() => false);
-      throw new Error(`Timesheet creation response not observed after ${maxSubmitAttempts} attempts (modalVisible=${modalStillVisible}, url=${page.url()})`);
-    }
+    const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8084';
+    const token = await page.evaluate(() => window.localStorage.getItem('token'));
+    let createdData: Record<string, unknown> = {};
+    let timesheetId = 0;
 
-    if (!createResponse.ok()) {
+    if (createResponse && !createResponse.ok()) {
       const errorText = await createResponse.text();
       throw new Error(`Timesheet creation failed: ${createResponse.status()} - ${errorText}`);
     }
-    const createdData = await createResponse.json().catch(() => ({}));
-    const timesheetId = createdData.id || createdData.timesheetId || createdData.data?.id;
+
+    if (createResponse) {
+      createdData = await createResponse.json().catch(() => ({}));
+      timesheetId = Number(createdData.id || createdData.timesheetId || (createdData.data as { id?: number } | undefined)?.id || 0);
+    }
+
+    if (!timesheetId) {
+      const recovered = await waitForCreatedTimesheet(page, {
+        backendUrl,
+        token,
+        courseId,
+        description,
+        weekStartDate: isoMonday,
+        timeout: 15000,
+      });
+
+      if (!recovered) {
+        const modalStillVisible = await modal.isVisible().catch(() => false);
+        throw new Error(`Timesheet creation response not observed after ${maxSubmitAttempts} attempts (modalVisible=${modalStillVisible}, url=${page.url()})`);
+      }
+
+      timesheetId = recovered.id;
+      if (recovered.status) {
+        createdData.status = recovered.status;
+      }
+      console.warn(`⚠️ Timesheet POST response was not observed; recovered created record via list lookup (ID: ${timesheetId})`);
+    }
+
     console.log(`✅ Timesheet created, ID: ${timesheetId}`);
+    createdTimesheetIds.push(timesheetId);
 
     if (!timesheetId) {
       throw new Error('Failed to extract timesheet ID from creation response payload');
     }
-    
-    const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8084';
-    const token = await page.evaluate(() => window.localStorage.getItem('token'));
+
     const detailResp = await page.request.get(`${backendUrl}/api/timesheets/${timesheetId}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });

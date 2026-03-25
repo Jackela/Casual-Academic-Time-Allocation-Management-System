@@ -14,6 +14,262 @@ import { Page, Locator } from '@playwright/test';
 import { roleCredentials, type UserRole } from '../../api/auth-helper';
 import { PRESENTATION_CONFIG } from './presentation.config';
 
+interface CreatedTimesheetLookup {
+  id: number;
+  status?: string;
+}
+
+async function navigateToLoginWithFreshSession(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    try {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      window.localStorage.setItem('__E2E_DISABLE_AUTH_SEED__', '1');
+    } catch {
+      // Ignore storage access issues when the current page is unavailable.
+    }
+  }).catch(() => undefined);
+  await page.context().clearCookies().catch(() => undefined);
+  await page.context().clearPermissions().catch(() => undefined);
+  await page.goto('/login', { waitUntil: 'domcontentloaded' }).catch(() => undefined);
+  await page.evaluate(() => {
+    try {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      window.localStorage.setItem('__E2E_DISABLE_AUTH_SEED__', '1');
+    } catch {
+      // Ignore storage access issues in test browsers.
+    }
+  }).catch(() => undefined);
+  await page.goto('/login', { waitUntil: 'domcontentloaded' }).catch(() => undefined);
+}
+
+async function waitForLoginSurface(
+  page: Page,
+  loginForm: Locator,
+  emailInput: Locator,
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (await loginForm.isVisible().catch(() => false)) {
+      return true;
+    }
+    if (await emailInput.isVisible().catch(() => false)) {
+      return true;
+    }
+
+    await page.waitForLoadState('domcontentloaded').catch(() => undefined);
+    await page.waitForTimeout(250);
+  }
+
+  return false;
+}
+
+function extractTimesheetList(payload: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(payload)) {
+    return payload.filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null);
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  const container = payload as Record<string, unknown>;
+  const candidates = ['timesheets', 'content', 'items', 'data'];
+  for (const key of candidates) {
+    const value = container[key];
+    if (Array.isArray(value)) {
+      return value.filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null);
+    }
+  }
+
+  return [];
+}
+
+function normalizeTimesheetRecord(entry: Record<string, unknown>): CreatedTimesheetLookup | null {
+  const nested = typeof entry.timesheet === 'object' && entry.timesheet !== null
+    ? (entry.timesheet as Record<string, unknown>)
+    : null;
+  const source = nested ? { ...nested, ...entry } : entry;
+  const idValue = source.id ?? source.timesheetId ?? source['timesheet_id'];
+  const numericId = Number(idValue);
+
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    return null;
+  }
+
+  const statusValue = source.status ?? source.timesheetStatus ?? source['timesheet_status'];
+  return {
+    id: numericId,
+    status: typeof statusValue === 'string' ? statusValue.toUpperCase() : undefined,
+  };
+}
+
+export async function waitForCreatedTimesheet(
+  page: Page,
+  options: {
+    backendUrl: string;
+    token: string | null;
+    courseId: number;
+    description: string;
+    weekStartDate: string;
+    timeout?: number;
+    pollInterval?: number;
+  },
+): Promise<CreatedTimesheetLookup | null> {
+  const {
+    backendUrl,
+    token,
+    courseId,
+    description,
+    weekStartDate,
+    timeout = 15000,
+    pollInterval = 1000,
+  } = options;
+
+  const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+  const deadline = Date.now() + timeout;
+
+  while (Date.now() < deadline) {
+    const response = await page.request.get(
+      `${backendUrl}/api/timesheets?courseId=${courseId}&size=200`,
+      { headers },
+    ).catch(() => null);
+
+    if (response?.ok()) {
+      const payload = await response.json().catch(() => null);
+      const records = extractTimesheetList(payload);
+      const match = records.find((entry) => {
+        const nested = typeof entry.timesheet === 'object' && entry.timesheet !== null
+          ? (entry.timesheet as Record<string, unknown>)
+          : null;
+        const source = nested ? { ...nested, ...entry } : entry;
+        const entryDescription = String(source.description ?? '').trim();
+        const entryWeekStart = String(source.weekStartDate ?? source.week_start_date ?? '').trim();
+        return entryDescription === description && entryWeekStart === weekStartDate;
+      });
+
+      if (match) {
+        const normalized = normalizeTimesheetRecord(match);
+        if (normalized) {
+          return normalized;
+        }
+      }
+    }
+
+    await page.waitForTimeout(pollInterval);
+  }
+
+  return null;
+}
+
+async function dispatchFormEvents(locator: Locator): Promise<void> {
+  await locator.evaluate((element: Element) => {
+    const target = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+    target.dispatchEvent(new Event('change', { bubbles: true }));
+    target.dispatchEvent(new Event('blur', { bubbles: true }));
+  }).catch(() => undefined);
+}
+
+export async function waitForLecturerRateCode(page: Page, timeout = 10000): Promise<void> {
+  await page.waitForFunction(() => {
+    const modal = document.querySelector('[data-testid="lecturer-create-modal"]');
+    if (!modal) return false;
+    const walker = document.createTreeWalker(modal, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    let sawLabel = false;
+    while (walker.nextNode()) {
+      const text = (walker.currentNode as { textContent?: string | null }).textContent?.trim() || '';
+      if (/^Rate Code$/i.test(text)) {
+        sawLabel = true;
+        continue;
+      }
+      if (sawLabel && text && text !== '-' && !/^Rate Code$/i.test(text)) {
+        return true;
+      }
+    }
+    return false;
+  }, { timeout });
+}
+
+export async function stabilizeLecturerCreateForm(
+  page: Page,
+  options: {
+    tutorSelect?: Locator;
+    tutorValue?: string;
+    courseSelect: Locator;
+    courseValue: string;
+    weekStartInput: Locator;
+    weekStartDate: string;
+    descriptionInput: Locator;
+    description: string;
+  },
+): Promise<boolean> {
+  const {
+    tutorSelect,
+    tutorValue,
+    courseSelect,
+    courseValue,
+    weekStartInput,
+    weekStartDate,
+    descriptionInput,
+    description,
+  } = options;
+
+  let repaired = false;
+
+  const ensureSelectValue = async (
+    locator: Locator | undefined,
+    expectedValue: string | undefined,
+    label: string,
+  ): Promise<void> => {
+    if (!locator || !expectedValue) {
+      return;
+    }
+    const currentValue = await locator.inputValue().catch(() => '');
+    if (currentValue === expectedValue) {
+      return;
+    }
+
+    console.warn(`⚠️ ${label} reset to "${currentValue || '(empty)'}"; restoring "${expectedValue}" before submit`);
+    await locator.selectOption(expectedValue).catch(() => undefined);
+    await dispatchFormEvents(locator);
+    repaired = true;
+  };
+
+  const ensureInputValue = async (
+    locator: Locator,
+    expectedValue: string,
+    label: string,
+  ): Promise<void> => {
+    const currentValue = await locator.inputValue().catch(() => '');
+    if (currentValue.trim() === expectedValue) {
+      return;
+    }
+
+    console.warn(`⚠️ ${label} reset to "${currentValue || '(empty)'}"; restoring "${expectedValue}" before submit`);
+    await locator.scrollIntoViewIfNeeded().catch(() => undefined);
+    await locator.click({ timeout: 5000 }).catch(() => undefined);
+    await locator.fill('');
+    await locator.fill(expectedValue);
+    await dispatchFormEvents(locator);
+    repaired = true;
+  };
+
+  await ensureSelectValue(tutorSelect, tutorValue, 'Tutor');
+  await ensureSelectValue(courseSelect, courseValue, 'Course');
+  await ensureInputValue(weekStartInput, weekStartDate, 'Week Starting');
+  await ensureInputValue(descriptionInput, description, 'Description');
+
+  if (repaired) {
+    await page.waitForTimeout(500);
+  }
+
+  return repaired;
+}
+
 /**
  * Inject visual enhancements into the page for presentation mode
  * - Red circular mouse cursor that follows movements
@@ -274,13 +530,16 @@ export async function highlightAndFill(
   // Natural typing: click, select all, then type character by character
   await locator.click();
   await page.waitForTimeout(100);
-  await page.keyboard.press('Control+A').catch(() => undefined);
-  await page.keyboard.press('Backspace').catch(() => undefined);
-  await page.keyboard.type(value, { delay: PRESENTATION_CONFIG.timing.typingDelay });
+  await locator.fill('');
+  await locator.type(value, { delay: PRESENTATION_CONFIG.timing.typingDelay });
   
-  // Dispatch React Hook Form compatible events for form validation
+  // Dispatch React-compatible events using the native setter so RHF observes the change.
   await locator.evaluate((el: HTMLInputElement | HTMLTextAreaElement, val: string) => {
-    el.value = val;
+    const prototype = el instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+    descriptor?.set?.call(el, val);
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
     el.dispatchEvent(new Event('blur', { bubbles: true }));
@@ -332,14 +591,19 @@ export async function highlightAndSelect(
   };
   await waitForOptions();
 
-  // Select option through the native select interaction
+  // Select the option first, then re-dispatch events using the resolved DOM value.
+  // This preserves enum-backed option values when the caller selected by label text.
   await locator.selectOption(value);
+  const resolvedValue = await locator.inputValue();
 
-  // Trigger React Hook Form events (critical for form validation)
-  await locator.evaluate((el: HTMLSelectElement) => {
+  // Trigger React-compatible events with the native setter (critical for RHF state sync).
+  await locator.evaluate((el: HTMLSelectElement, val: string) => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+    descriptor?.set?.call(el, val);
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+  }, resolvedValue);
 
   await page.waitForTimeout(pauseAfter);
 
@@ -440,9 +704,8 @@ export async function visualLogin(
     }
   }).catch(() => ({ hasToken: false, role: '' }));
 
-  // Navigate to login first; if the shared real-project auth state redirects,
-  // we will reuse/match role or sign out before continuing.
-  await page.goto('/login', { waitUntil: 'domcontentloaded' });
+  // Presentation demos explicitly switch identities; start from a clean login surface.
+  await navigateToLoginWithFreshSession(page);
 
   // Show on-screen overlay for audience
   await page.evaluate((message) => {
@@ -474,54 +737,54 @@ export async function visualLogin(
   }, `🏷️ Authenticating as ${friendlyName}...`);
 
   const loginForm = page.getByTestId('login-form');
-  if (!(await loginForm.isVisible().catch(() => false))) {
-    const current = await authSnapshot();
-    const persisted = await storageSnapshot();
-    const resolvedRole = current.role || persisted.role;
+  const emailInput = page.getByTestId('email-input').or(page.getByLabel(/email/i)).first();
+  const passwordInput = page.getByTestId('password-input').or(page.getByLabel(/password/i)).first();
+  const loginButton = page.getByTestId('login-submit-button').or(loginForm.getByRole('button', { name: /sign in|login/i })).first();
 
-    // If already authenticated as requested role, reuse current dashboard state.
-    if (expectedRole && (current.isAuthenticated || persisted.hasToken) && resolvedRole === expectedRole) {
-      await page.evaluate(() => {
-        const overlay = document.getElementById('visual-login-overlay');
-        if (overlay) overlay.remove();
-      }).catch(() => undefined);
-      await page.waitForTimeout(postLoginPause);
-      return;
-    }
-
-    // Try explicit UI logout first so in-memory auth manager state is cleared.
-    const signOutButton = page.getByRole('button', { name: /sign out/i });
-    if (await signOutButton.isVisible().catch(() => false)) {
-      await showCustomHighlight(signOutButton, 'Resetting session before demo login...');
-      await signOutButton.click({ timeout: 5000 }).catch(() => undefined);
-      await page.waitForURL(/\/login/i, { timeout: 10000 }).catch(() => undefined);
-    }
-
-    // Hard fallback: clear browser/session state and disable auth re-seed guards.
-    if (!(await loginForm.isVisible().catch(() => false))) {
-      await page.context().clearCookies().catch(() => undefined);
-      await page.evaluate(() => {
-        try {
-          window.localStorage.clear();
-          window.sessionStorage.clear();
-          window.localStorage.setItem('__E2E_DISABLE_AUTH_SEED__', '1');
-        } catch {
-          // ignore
-        }
-      }).catch(() => undefined);
-      await page.goto('/login', { waitUntil: 'domcontentloaded' });
-    }
-  }
-
-  if (!(await loginForm.isVisible().catch(() => false))) {
+  const canReuseAuthenticatedState = async (): Promise<boolean> => {
     const current = await authSnapshot();
     const persisted = await storageSnapshot();
     const resolvedRole = current.role || persisted.role;
     const protectedRoute = /\/dashboard|\/admin\/users/i.test(page.url());
+    return Boolean(
+      expectedRole &&
+      protectedRoute &&
+      (current.isAuthenticated || persisted.hasToken) &&
+      resolvedRole === expectedRole,
+    );
+  };
 
-    // Final fallback: if the app has already landed in the expected authenticated state,
-    // continue without forcing the login form.
-    if (expectedRole && protectedRoute && (current.isAuthenticated || persisted.hasToken) && resolvedRole === expectedRole) {
+  const ensureLoginFormReady = async (): Promise<boolean> => {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      if (await waitForLoginSurface(page, loginForm, emailInput, 5000)) {
+        return true;
+      }
+
+      if (await canReuseAuthenticatedState()) {
+        return false;
+      }
+
+      const signOutButton = page.getByRole('button', { name: /sign out/i });
+      if (await signOutButton.isVisible().catch(() => false)) {
+        await showCustomHighlight(signOutButton, 'Resetting session before demo login...');
+        await signOutButton.click({ timeout: 5000 }).catch(() => undefined);
+        await page.waitForURL(/\/login/i, { timeout: 10000 }).catch(() => undefined);
+        if (await waitForLoginSurface(page, loginForm, emailInput, 5000)) {
+          return true;
+        }
+      }
+
+      await navigateToLoginWithFreshSession(page);
+    }
+
+    await page.goto('/login', { waitUntil: 'networkidle' }).catch(() => undefined);
+    return waitForLoginSurface(page, loginForm, emailInput, 30000);
+  };
+
+  const loginFormReady = await ensureLoginFormReady();
+
+  if (!loginFormReady) {
+    if (await canReuseAuthenticatedState()) {
       await page.evaluate(() => {
         const overlay = document.getElementById('visual-login-overlay');
         if (overlay) overlay.remove();
@@ -529,23 +792,21 @@ export async function visualLogin(
       await page.waitForTimeout(postLoginPause);
       return;
     }
+
+    throw new Error(`Unable to reach login form for ${friendlyName} (currentUrl=${page.url()})`);
   }
 
-  await loginForm.waitFor({ state: 'visible', timeout: 15000 });
-
-  const emailInput = loginForm.getByLabel(/email/i);
+  await emailInput.waitFor({ state: 'visible', timeout: 30000 });
   await showCustomHighlight(emailInput, `Authenticating as ${friendlyName}...`);
   await emailInput.click();
   await emailInput.fill('');
-  await page.keyboard.type(creds.email, { delay: PRESENTATION_CONFIG.timing.typingDelay });
+  await emailInput.type(creds.email, { delay: PRESENTATION_CONFIG.timing.typingDelay });
 
-  const passwordInput = loginForm.getByLabel(/password/i);
   await showCustomHighlight(passwordInput, 'Typing secure credentials...');
   await passwordInput.click();
   await passwordInput.fill('');
-  await page.keyboard.type(creds.password, { delay: PRESENTATION_CONFIG.timing.typingDelay });
+  await passwordInput.type(creds.password, { delay: PRESENTATION_CONFIG.timing.typingDelay });
 
-  const loginButton = loginForm.getByRole('button', { name: /sign in|login/i });
   await showCustomHighlight(loginButton, 'Heading to dashboard...');
   await loginButton.click();
 

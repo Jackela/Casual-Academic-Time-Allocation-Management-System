@@ -5,12 +5,13 @@
 A full-stack enterprise application for managing casual academic timesheets and approvals,
 aligned with the University of Sydney Enterprise Agreement 2023-2026.
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) | [简体中文](README.zh-CN.md) | [Chinese PDF Handbook](docs/archive/archive-handbook.zh-CN.pdf)
 
 ---
 
 ## Table of Contents
 
+- [Archive / Reference Project](#archive--reference-project)
 - [Overview](#overview)
 - [System Architecture](#system-architecture)
 - [Technology Stack](#technology-stack)
@@ -29,6 +30,18 @@ aligned with the University of Sydney Enterprise Agreement 2023-2026.
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## Archive / Reference Project
+
+This repository is being preserved as a verified portfolio and reference snapshot rather than as an actively evolving product.
+
+- Status: frozen snapshot with `main` retained as the canonical branch
+- Primary learning entrance: [README.zh-CN](README.zh-CN.md), [Start Here](docs/archive/START-HERE.zh-CN.md), [Run Locally](docs/archive/RUN-LOCALLY.zh-CN.md)
+- Offline handoff: [Chinese PDF handbook](docs/archive/archive-handbook.zh-CN.pdf)
+- License boundary: the current [LICENSE](LICENSE) remains proprietary to the University of Sydney
+- Academic integrity boundary: this repository is not intended to be rebranded and submitted as a student's original capstone work
 
 ---
 
@@ -691,14 +704,24 @@ git clone <repo-url>
 cd Casual-Academic-Time-Allocation-Management-System
 npm --prefix frontend install
 
-# 2. Start backend (Testcontainers PostgreSQL)
-./gradlew bootRun --args="--spring.profiles.active=e2e-local --server.port=8084"
+# 2. Start the fastest local stack (PostgreSQL + API)
+docker compose up -d db api
 
 # 3. Start frontend (in new terminal)
 npm --prefix frontend run dev:e2e
 
-# 4. Open browser
+# 4. Reset and seed test data
+node scripts/e2e-reset-seed.js --url http://127.0.0.1:8084 --token local-e2e-reset
+
+# 5. Open browser
 open http://127.0.0.1:5174
+```
+
+If you need source-level backend debugging instead of the containerised API, start the Docker PostgreSQL service first:
+
+```bash
+docker compose up -d db
+./gradlew --no-configuration-cache bootRun --args="--spring.profiles.active=e2e-local --server.port=8084"
 ```
 
 ### Environment Variables
@@ -860,11 +883,11 @@ Screenshot evidence:
 
 ## Repository Hygiene
 
-### Branch Model
+### Archive State
 
-- Long-lived branches are `main` and `codex/dev`.
-- Development commits land on `codex/dev`, then merge to `main` via PR.
-- Direct pushes to `main` are prohibited.
+- `main` is the canonical branch retained for this snapshot.
+- Open pull requests and legacy branches have already been cleaned up.
+- The repository is being prepared for GitHub Archive, so documentation and reproducibility matter more than ongoing feature churn.
 
 ### Local Gate Parity
 
@@ -929,6 +952,7 @@ git clean -fdX -- output tmp test-results frontend/test-results frontend/playwri
 │
 ├── docs/                              # Documentation
 │   ├── architecture/                  # Architecture docs
+│   ├── archive/                       # Chinese archive docs, PDF, historical reports
 │   ├── backend/                       # Backend docs
 │   ├── frontend/                      # Frontend docs
 │   ├── product/                       # Product docs
@@ -948,6 +972,17 @@ git clean -fdX -- output tmp test-results frontend/test-results frontend/playwri
 
 ## Documentation
 
+### Recommended Entry Points
+
+| Document | Location | Purpose |
+|----------|----------|---------|
+| **Chinese Main Entry** | `README.zh-CN.md` | Primary archive and learning entrance |
+| **Chinese PDF Handbook** | `docs/archive/archive-handbook.zh-CN.pdf` | Offline handoff package |
+| **Start Here** | `docs/archive/START-HERE.zh-CN.md` | First-stop guide for new readers |
+| **Run Locally** | `docs/archive/RUN-LOCALLY.zh-CN.md` | Clone-to-dashboard walkthrough |
+| **Archive Notice** | `docs/archive/ARCHIVE-NOTICE.zh-CN.md` | License, attribution, and archive boundaries |
+| **Adaptation Guide** | `docs/archive/ADAPTATION-GUIDE.zh-CN.md` | Honest reimplementation guidance |
+
 ### Single Source of Truth (SSOT)
 
 | Document | Location | Purpose |
@@ -959,34 +994,21 @@ git clean -fdX -- output tmp test-results frontend/test-results frontend/playwri
 | **Frontend Architecture** | `docs/frontend/architecture.md` | Frontend patterns |
 | **Testing Strategy** | `docs/testing/README.md` | Test approach |
 
-### Architecture Decision Records (ADRs)
+### Historical Process Records
 
-Located in `docs/adr/` - documenting significant architectural decisions
-and their rationale.
+The folders under `docs/archive/2025-11/` and `docs/archive/2026-03/process-reports/` are preserved as process evidence, not as the current operating handbook.
 
 ---
 
 ## Contributing
 
-### Branch Protection
+This repository is now maintained primarily as an archive and reference project.
 
-This repository enforces branch protection on `main`:
+- Active feature development is not expected.
+- New readers should start with the Chinese archive docs instead of opening historical process reports.
+- If you study or privately reimplement ideas from this repo, preserve attribution and review the current proprietary license before reusing code or assets.
 
-- Direct pushes to `main` are blocked (Git hook)
-- All changes must go through Pull Requests
-- CI must pass before merge
-- Requires code review approval
-
-### Development Workflow
-
-1. Sync `codex/dev` from remote
-2. Make changes and write tests on `codex/dev`
-3. Push `codex/dev` and update/open a PR to `main`
-4. Wait for CI to pass
-5. Request code review
-6. Merge PR when approved
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) only if you need the historical development workflow context.
 
 ---
 
@@ -1029,4 +1051,4 @@ This project is proprietary software for the University of Sydney.
 
 ---
 
-*Last updated: March 19, 2026*
+*Last updated: March 23, 2026*
